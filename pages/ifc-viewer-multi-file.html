@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IFC Multi-File Viewer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.95; }
+
+        .back-home-btn {
+            position: absolute;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .back-home-btn:hover {
+            background: white;
+            color: #667eea;
+        }
+        
+        .upload-section {
+            padding: 40px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+        
+        .upload-icon { font-size: 4em; color: #667eea; margin-bottom: 20px; }
+        .upload-text { font-size: 1.2em; color: #495057; margin-bottom: 10px; }
+        
+        #fileInput { display: none; }
+        
+        .file-list {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .file-card {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .file-stats {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+        
+        .file-remove {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .file-remove:hover {
+            background: #c82333;
+        }
+        
+        .controls {
+            padding: 20px 40px;
+            background: #fff;
+            border-bottom: 1px solid #e9ecef;
+            display: none;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        
+        .column-manager {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        #psetList {
+            max-height: 600px;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .pset-group {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+        }
+        
+        .pset-group-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #e8eaff;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            cursor: move;
+        }
+        
+        .pset-group-header:hover {
+            background: #d5d7ff;
+        }
+        
+        .pset-group.dragging {
+            opacity: 0.5;
+        }
+        
+        .prop-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            margin-left: 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            cursor: move;
+        }
+        
+        .prop-item:hover {
+            background: #e9ecef;
+        }
+        
+        .prop-item.dragging {
+            opacity: 0.5;
+        }
+        
+        .drag-handle {
+            cursor: grab;
+            color: #6c757d;
+        }
+        
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        .table-container {
+            padding: 0 40px 40px 40px;
+            overflow-x: auto;
+            display: none;
+        }
+        
+        .pagination-container {
+            padding: 20px 40px;
+            background: #f8f9fa;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        .pagination-info {
+            color: #495057;
+            font-weight: 500;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .pagination-controls button {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .pagination-controls button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+        }
+        
+        .pagination-controls button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .pagination-controls select {
+            padding: 8px 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1em;
+            background: white;
+        }
+        
+        .page-input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .page-input-group input {
+            width: 60px;
+            padding: 8px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .page-input-group button {
+            padding: 8px 12px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .data-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .data-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85em;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255,255,255,0.2);
+            left: unset; /* Explicitly prevent left positioning unless overridden */
+        }
+        
+        .data-table th.sticky-col,
+        .data-table td.sticky-col {
+            position: sticky !important;
+            background: white;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        .data-table thead th.sticky-col {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 20;
+        }
+        
+        .data-table thead .header-row-prop th.sticky-col {
+            background: linear-gradient(135deg, #5568d3 0%, #6640a2 100%);
+            z-index: 20;
+        }
+        
+        .data-table tbody td.sticky-col {
+            background: white;
+            z-index: 5;
+        }
+        
+        .data-table tbody tr:hover td.sticky-col {
+            background-color: #f8f9ff;
+        }
+        
+        /* Normal cells should NOT have position relative - causes issues */
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+            border-right: 1px solid #f0f0f0;
+            font-size: 0.95em;
+            left: unset; /* Explicitly prevent left positioning unless overridden */
+        }
+        
+        .lock-icon {
+            cursor: pointer;
+            margin-left: 5px;
+            font-size: 0.9em;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        
+        .lock-icon:hover {
+            opacity: 1;
+        }
+        
+        .lock-icon.locked {
+            opacity: 1;
+            color: #ffd700;
+        }
+        
+        .data-table .header-row-pset {
+            /* Removed sticky positioning that was causing issues */
+        }
+        
+        .data-table .header-row-prop {
+            background: linear-gradient(135deg, #5568d3 0%, #6640a2 100%);
+        }
+        
+        /* Only sticky headers get position sticky */
+        .data-table .header-row-pset th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .data-table .header-row-prop th {
+            position: sticky;
+            top: 38px;
+            z-index: 10;
+            background: linear-gradient(135deg, #5568d3 0%, #6640a2 100%);
+        }
+        
+        /* Horizontally sticky columns - two-axis sticky (both top and left) */
+        .data-table .header-row-pset th.sticky-col,
+        .data-table .header-row-prop th.sticky-col {
+            z-index: 20 !important;
+            /* left is set inline via JavaScript */
+        }
+        
+        /* Non-sticky columns in body should not stick horizontally */
+        .data-table tbody td:not(.sticky-col) {
+            position: static; /* Override any inherited positioning */
+        }
+        
+        .data-table .pset-header {
+            text-align: center;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        
+        .data-table .pset-header.sticky-col {
+            min-width: 120px;
+        }
+        
+        .data-table .prop-header {
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        .data-table tbody tr:hover {
+            background-color: #f8f9ff;
+        }
+        
+        .file-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: help;
+        }
+        
+        .guid-cell {
+            font-family: 'Courier New', monospace;
+            color: #667eea;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+        
+        .entity-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e8eaff;
+            color: #667eea;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-color-0 { background: #667eea !important; }
+        .file-color-1 { background: #f093fb !important; }
+        .file-color-2 { background: #4facfe !important; }
+        .file-color-3 { background: #43e97b !important; }
+        .file-color-4 { background: #fa709a !important; }
+        .file-color-5 { background: #feca57 !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="../index.html" class="back-home-btn">← Domů</a>
+            <h1>📊 IFC Multi-File Viewer</h1>
+            <p>Načtěte více IFC souborů a zobrazte je v jedné společné tabulce</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Klikněte nebo přetáhněte jeden nebo více IFC souborů</div>
+                <input type="file" id="fileInput" accept=".ifc" multiple>
+            </div>
+            <div class="file-list" id="fileList"></div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <div>Načítám IFC soubory...</div>
+        </div>
+
+        <div class="controls" id="controls">
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="searchInput" placeholder="🔍 Hledat... (text, /regex/, nebo Sloupec /regex/)" style="flex: 1; min-width: 250px; padding: 12px 20px; border: 2px solid #e9ecef; border-radius: 8px;">
+                <select id="entityFilter" style="padding: 10px 15px; border: 2px solid #e9ecef; border-radius: 8px;">
+                    <option value="">Všechny entity</option>
+                </select>
+                <select id="fileFilter" style="padding: 10px 15px; border: 2px solid #e9ecef; border-radius: 8px;">
+                    <option value="">Všechny soubory</option>
+                </select>
+                <select id="pageSizeSelectTop" style="padding: 10px 15px; border: 2px solid #e9ecef; border-radius: 8px; font-weight: 600;">
+                    <option value="100">100 řádků</option>
+                    <option value="250">250 řádků</option>
+                    <option value="500" selected>500 řádků</option>
+                    <option value="1000">1000 řádků</option>
+                    <option value="2500">2500 řádků</option>
+                    <option value="-1">Vše (pomalé!)</option>
+                </select>
+                <button class="btn btn-success" id="columnManagerBtn">⚙️ Správa PropertySetů</button>
+                <button class="btn btn-secondary" id="clearFiltersBtn">Vymazat filtry</button>
+                <button class="btn btn-primary" id="exportBtn">📥 Export CSV</button>
+            </div>
+
+            <div class="column-manager" id="columnManager">
+                <h3>🔧 Přesuňte PropertySety (☰) nebo jednotlivé Properties (⋮)</h3>
+                <div id="psetList"></div>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button class="btn btn-success" id="applyColumnsBtn">✓ Použít změny</button>
+                    <button class="btn btn-secondary" id="selectAllBtn">Vybrat vše</button>
+                    <button class="btn btn-secondary" id="deselectAllBtn">Odebrat vše</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container" id="tableContainer">
+            <table class="data-table">
+                <thead>
+                    <tr class="header-row-pset" id="headerRowPset"></tr>
+                    <tr class="header-row-prop" id="headerRowProp"></tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        
+        <div class="pagination-container" id="paginationContainer">
+            <div class="pagination-info">
+                <span id="paginationInfo">Zobrazeno 0 z 0 entit</span>
+            </div>
+            <div class="pagination-controls">
+                <button id="firstPageBtn" title="První stránka">⏮️</button>
+                <button id="prevPageBtn" title="Předchozí">◀️</button>
+                
+                <div class="page-input-group">
+                    <span>Stránka</span>
+                    <input type="number" id="pageInput" min="1" value="1">
+                    <span>z <span id="totalPages">1</span></span>
+                    <button id="goToPageBtn">Jít</button>
+                </div>
+                
+                <button id="nextPageBtn" title="Další">▶️</button>
+                <button id="lastPageBtn" title="Poslední stránka">⏭️</button>
+                
+                <select id="pageSizeSelect">
+                    <option value="100">100 řádků</option>
+                    <option value="250">250 řádků</option>
+                    <option value="500" selected>500 řádků</option>
+                    <option value="1000">1000 řádků</option>
+                    <option value="2500">2500 řádků</option>
+                    <option value="-1">Vše (pomalé!)</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="statsSection" style="display: none; padding: 20px 40px; background: #f8f9fa;">
+            <h3>📊 Celkové statistiky</h3>
+            <div id="statsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <script>
+        let loadedFiles = []; // Array of {fileName, ifcData, color}
+        let allData = []; // Combined data from all files
+        let filteredData = [];
+        let propertySetGroups = {};
+        let psetOrder = [];
+        let visiblePsets = {};
+        let sortColumn = null;
+        let sortDirection = 'asc';
+        let searchTerm = '';
+        let entityFilterValue = '';
+        let fileFilterValue = '';
+        let autoScrollInterval = null;
+        let lockedColumns = []; // Array of {psetName, propName} for locked columns
+        
+        // Pagination variables
+        let currentPage = 1;
+        let pageSize = 500;
+        let totalPages = 1;
+
+        const fileColors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#feca57'];
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#764ba2';
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = '#667eea';
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#667eea';
+            if (e.dataTransfer.files.length > 0) {
+                handleFiles(Array.from(e.dataTransfer.files));
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFiles(Array.from(e.target.files));
+            }
+        });
+
+        function handleFiles(files) {
+            const ifcFiles = files.filter(f => f.name.endsWith('.ifc'));
+            if (ifcFiles.length === 0) {
+                alert('Pouze .ifc soubory');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            
+            let processed = 0;
+            ifcFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    parseIFC(e.target.result, file.name);
+                    processed++;
+                    if (processed === ifcFiles.length) {
+                        document.getElementById('loading').style.display = 'none';
+                        combineData();
+                        updateUI();
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        function parseIFC(content, fileName) {
+            try {
+                const fileData = [];
+                const lines = content.split('\n');
+                const entityMap = new Map();
+                const propertySetMap = new Map();
+                const relDefinesMap = new Map();
+
+                // Collect entities
+                for (let line of lines) {
+                    line = line.trim();
+                    if (!line.startsWith('#')) continue;
+                    const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
+                    if (!match) continue;
+                    const [, id, entityType, params] = match;
+                    entityMap.set(id, { id, type: entityType, params });
+                }
+
+                // Parse property sets
+                for (let [id, entity] of entityMap) {
+                    if (entity.type === 'IFCPROPERTYSET') {
+                        const props = parsePropertySet(entity.params, entityMap);
+                        propertySetMap.set(id, props);
+                    } else if (entity.type === 'IFCRELDEFINESBYPROPERTIES') {
+                        const rel = parseRelDefines(entity.params);
+                        relDefinesMap.set(id, rel);
+                    }
+                }
+
+                // Build data
+                for (let [id, entity] of entityMap) {
+                    if (entity.type.startsWith('IFC') && 
+                        !entity.type.includes('REL') && 
+                        !entity.type.includes('PROPERTY') &&
+                        entity.params.includes("'")) {
+                        
+                        const guid = extractGUID(entity.params);
+                        const name = extractName(entity.params);
+                        
+                        if (guid) {
+                            const propertySets = {};
+                            
+                            for (let [relId, rel] of relDefinesMap) {
+                                if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
+                                    const psetId = rel.relatingPropertyDefinition;
+                                    if (propertySetMap.has(psetId)) {
+                                        const pset = propertySetMap.get(psetId);
+                                        propertySets[pset.name] = pset.properties;
+                                    }
+                                }
+                            }
+
+                            fileData.push({
+                                guid,
+                                entity: entity.type,
+                                name: name || '-',
+                                propertySets,
+                                fileName: fileName
+                            });
+                        }
+                    }
+                }
+
+                const color = fileColors[loadedFiles.length % fileColors.length];
+                loadedFiles.push({
+                    fileName,
+                    data: fileData,
+                    color,
+                    entityCount: fileData.length
+                });
+
+                updateFileList();
+                
+            } catch (error) {
+                console.error('Parse error:', error);
+                alert('Chyba v souboru ' + fileName + ': ' + error.message);
+            }
+        }
+
+        function extractGUID(params) {
+            const match = params.match(/'([^']+)'/);
+            return match ? match[1] : null;
+        }
+
+        function extractName(params) {
+            const matches = params.match(/'([^']*)'/g);
+            const rawName = matches && matches.length > 1 ? matches[1].replace(/'/g, '') : null;
+            return rawName ? decodeIFCString(rawName) : null; // Decode entity name
+        }
+
+        function parsePropertySet(params, entityMap) {
+            const parts = splitParams(params);
+            const rawName = parts[2] ? parts[2].replace(/'/g, '') : 'Unknown';
+            const name = decodeIFCString(rawName); // Decode PropertySet name
+            const properties = {};
+
+            if (parts.length > 4) {
+                const propIds = parts[4].match(/#\d+/g);
+                if (propIds) {
+                    for (let propId of propIds) {
+                        const id = propId.substring(1);
+                        const propEntity = entityMap.get(id);
+                        if (propEntity && propEntity.type === 'IFCPROPERTYSINGLEVALUE') {
+                            const prop = parseProperty(propEntity.params);
+                            if (prop) properties[prop.name] = prop.value;
+                        }
+                    }
+                }
+            }
+
+            return { name, properties };
+        }
+
+        function parseProperty(params) {
+            const parts = splitParams(params);
+            if (parts.length < 3) return null;
+            const rawName = parts[0].replace(/'/g, '');
+            const name = decodeIFCString(rawName); // Decode property name
+            let value = parts[2] || '';
+            const valueMatch = value.match(/IFC[A-Z]+\s*\(\s*'([^']*)'\s*\)/i);
+            if (valueMatch) {
+                value = decodeIFCString(valueMatch[1]);
+            }
+            return { name, value };
+        }
+
+        function decodeIFCString(str) {
+            if (!str) return str;
+            // Decode \X\XX format (ISO 8859-1)
+            str = str.replace(/\\X\\([0-9A-F]{2})/gi, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
+            // Decode \X2\XXXX\X0\ format (UCS-2/UTF-16) - variable length hex
+            str = str.replace(/\\X2\\([0-9A-F]+)\\X0\\/gi, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
+            return str;
+        }
+
+        function parseRelDefines(params) {
+            const parts = splitParams(params);
+            const relatedObjects = parts[4] ? parts[4].match(/#\d+/g)?.map(r => r.substring(1)) : [];
+            const relatingMatch = parts[5] ? parts[5].match(/#(\d+)/) : null;
+            return {
+                relatedObjects,
+                relatingPropertyDefinition: relatingMatch ? relatingMatch[1] : null
+            };
+        }
+
+        function splitParams(params) {
+            const parts = [];
+            let current = '';
+            let depth = 0;
+            let inString = false;
+
+            for (let char of params) {
+                if (char === "'" && (current.length === 0 || current[current.length - 1] !== '\\')) {
+                    inString = !inString;
+                }
+                if (!inString) {
+                    if (char === '(') depth++;
+                    else if (char === ')') depth--;
+                    else if (char === ',' && depth === 0) {
+                        parts.push(current.trim());
+                        current = '';
+                        continue;
+                    }
+                }
+                current += char;
+            }
+            if (current) parts.push(current.trim());
+            return parts;
+        }
+
+        function updateFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+
+            loadedFiles.forEach((file, index) => {
+                const card = document.createElement('div');
+                card.className = 'file-card';
+                card.innerHTML = `
+                    <div class="file-info">
+                        <div class="file-name">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${file.color}; margin-right: 8px;"></span>
+                            ${file.fileName}
+                            <span style="color: #6c757d; font-weight: normal; margin-left: 8px;">(${file.entityCount} entit)</span>
+                        </div>
+                    </div>
+                    <button class="file-remove" onclick="removeFile(${index})">×</button>
+                `;
+                fileList.appendChild(card);
+            });
+        }
+
+        function removeFile(index) {
+            loadedFiles.splice(index, 1);
+            updateFileList();
+            if (loadedFiles.length > 0) {
+                combineData();
+                updateUI();
+            } else {
+                document.getElementById('controls').style.display = 'none';
+                document.getElementById('tableContainer').style.display = 'none';
+                document.getElementById('statsSection').style.display = 'none';
+            }
+        }
+
+        function combineData() {
+            allData = [];
+            const newPropertySetGroups = {};
+            
+            // Combine all data
+            for (let file of loadedFiles) {
+                allData.push(...file.data);
+                
+                // Track all property sets
+                for (let item of file.data) {
+                    for (let [psetName, props] of Object.entries(item.propertySets)) {
+                        if (!newPropertySetGroups[psetName]) {
+                            newPropertySetGroups[psetName] = new Set();
+                        }
+                        for (let propName of Object.keys(props)) {
+                            newPropertySetGroups[psetName].add(propName);
+                        }
+                    }
+                }
+            }
+
+            // Convert sets to arrays
+            for (let psetName of Object.keys(newPropertySetGroups)) {
+                newPropertySetGroups[psetName] = Array.from(newPropertySetGroups[psetName]).sort();
+            }
+
+            // CRITICAL: Preserve existing order and visibility settings
+            if (psetOrder.length === 0) {
+                // First time - initialize everything
+                propertySetGroups = newPropertySetGroups;
+                psetOrder = Object.keys(propertySetGroups).sort();
+                visiblePsets = {};
+                for (let psetName of psetOrder) {
+                    visiblePsets[psetName] = {};
+                    for (let propName of propertySetGroups[psetName]) {
+                        visiblePsets[psetName][propName] = true;
+                    }
+                }
+            } else {
+                // Already have data - preserve order and add new items at the end
+                
+                // Step 1: Keep existing PropertySets in their current order
+                const newPsetOrder = [...psetOrder.filter(name => newPropertySetGroups[name])];
+                
+                // Step 2: Add any new PropertySets that weren't in the old order
+                for (let psetName of Object.keys(newPropertySetGroups)) {
+                    if (!newPsetOrder.includes(psetName)) {
+                        newPsetOrder.push(psetName);
+                    }
+                }
+                
+                // Step 3: Update propertySetGroups while preserving property order
+                const updatedPropertySetGroups = {};
+                const updatedVisiblePsets = {};
+                
+                for (let psetName of newPsetOrder) {
+                    const newProps = newPropertySetGroups[psetName];
+                    
+                    if (propertySetGroups[psetName]) {
+                        // PropertySet existed before - preserve property order
+                        const oldProps = propertySetGroups[psetName];
+                        
+                        // Keep existing properties in their order
+                        const orderedProps = oldProps.filter(p => newProps.includes(p));
+                        
+                        // Add new properties at the end
+                        for (let prop of newProps) {
+                            if (!orderedProps.includes(prop)) {
+                                orderedProps.push(prop);
+                            }
+                        }
+                        
+                        updatedPropertySetGroups[psetName] = orderedProps;
+                        
+                        // Preserve visibility settings
+                        updatedVisiblePsets[psetName] = {};
+                        for (let propName of orderedProps) {
+                            if (visiblePsets[psetName] && propName in visiblePsets[psetName]) {
+                                updatedVisiblePsets[psetName][propName] = visiblePsets[psetName][propName];
+                            } else {
+                                updatedVisiblePsets[psetName][propName] = true; // New property - visible by default
+                            }
+                        }
+                    } else {
+                        // New PropertySet - add with default settings
+                        updatedPropertySetGroups[psetName] = newProps;
+                        updatedVisiblePsets[psetName] = {};
+                        for (let propName of newProps) {
+                            updatedVisiblePsets[psetName][propName] = true;
+                        }
+                    }
+                }
+                
+                // Apply updates
+                psetOrder = newPsetOrder;
+                propertySetGroups = updatedPropertySetGroups;
+                visiblePsets = updatedVisiblePsets;
+            }
+        }
+
+        function updateUI() {
+            // Update entity filter
+            const entityFilter = document.getElementById('entityFilter');
+            const entities = [...new Set(allData.map(item => item.entity))].sort();
+            entityFilter.innerHTML = '<option value="">Všechny entity</option>';
+            for (let entity of entities) {
+                entityFilter.innerHTML += `<option value="${entity}">${entity}</option>`;
+            }
+
+            // Update file filter
+            const fileFilter = document.getElementById('fileFilter');
+            fileFilter.innerHTML = '<option value="">Všechny soubory</option>';
+            loadedFiles.forEach(file => {
+                fileFilter.innerHTML += `<option value="${file.fileName}">${file.fileName}</option>`;
+            });
+
+            document.getElementById('controls').style.display = 'block';
+            document.getElementById('tableContainer').style.display = 'block';
+            document.getElementById('statsSection').style.display = 'block';
+            
+            buildPsetManager();
+            buildTable();
+            showStatistics();
+        }
+
+        // PropertySet Manager (same as before with drag & drop)
+        function buildPsetManager() {
+            const psetList = document.getElementById('psetList');
+            psetList.innerHTML = '';
+
+            for (let i = 0; i < psetOrder.length; i++) {
+                const psetName = psetOrder[i];
+                if (!propertySetGroups[psetName]) continue;
+                
+                const group = document.createElement('div');
+                group.className = 'pset-group';
+                group.dataset.psetIndex = i;
+                group.dataset.psetName = psetName;
+
+                const header = document.createElement('div');
+                header.className = 'pset-group-header';
+                header.draggable = true;
+                
+                const allVisible = propertySetGroups[psetName].every(p => visiblePsets[psetName][p]);
+                header.innerHTML = `
+                    <span class="drag-handle">☰</span>
+                    <input type="checkbox" id="pset-${i}" ${allVisible ? 'checked' : ''}>
+                    <label for="pset-${i}" style="flex: 1; cursor: pointer; font-weight: 700; color: #764ba2;">
+                        ${psetName} (${propertySetGroups[psetName].length})
+                    </label>
+                `;
+
+                const checkbox = header.querySelector('input');
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    for (let propName of propertySetGroups[psetName]) {
+                        visiblePsets[psetName][propName] = e.target.checked;
+                    }
+                    buildPsetManager();
+                });
+
+                header.addEventListener('dragstart', (e) => handlePsetDragStart(e, group));
+                header.addEventListener('dragend', handleDragEnd);
+
+                group.appendChild(header);
+
+                for (let j = 0; j < propertySetGroups[psetName].length; j++) {
+                    const propName = propertySetGroups[psetName][j];
+                    const propItem = document.createElement('div');
+                    propItem.className = 'prop-item';
+                    propItem.draggable = true;
+                    propItem.dataset.propIndex = j;
+                    propItem.dataset.psetName = psetName;
+                    
+                    propItem.innerHTML = `
+                        <span class="drag-handle">⋮</span>
+                        <input type="checkbox" id="prop-${psetName}-${propName}" ${visiblePsets[psetName][propName] ? 'checked' : ''}>
+                        <label for="prop-${psetName}-${propName}" style="flex: 1; cursor: pointer;">${propName}</label>
+                    `;
+                    
+                    const propCheckbox = propItem.querySelector('input');
+                    propCheckbox.addEventListener('change', (e) => {
+                        e.stopPropagation();
+                        visiblePsets[psetName][propName] = e.target.checked;
+                    });
+                    
+                    propItem.addEventListener('dragstart', (e) => handlePropDragStart(e, propItem));
+                    propItem.addEventListener('dragend', handleDragEnd);
+                    
+                    group.appendChild(propItem);
+                }
+
+                group.addEventListener('dragover', handleDragOver);
+                group.addEventListener('drop', (e) => handleDrop(e, group));
+
+                psetList.appendChild(group);
+            }
+
+            setupAutoScroll();
+        }
+
+        let draggedItem = null;
+        let dragType = null;
+
+        function handlePsetDragStart(e, group) {
+            draggedItem = group;
+            dragType = 'pset';
+            group.classList.add('dragging');
+            e.stopPropagation();
+        }
+
+        function handlePropDragStart(e, propItem) {
+            draggedItem = propItem;
+            dragType = 'prop';
+            propItem.classList.add('dragging');
+            e.stopPropagation();
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e, targetGroup) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            if (!draggedItem) return;
+
+            if (dragType === 'pset') {
+                if (draggedItem !== targetGroup) {
+                    const fromIndex = parseInt(draggedItem.dataset.psetIndex);
+                    const toIndex = parseInt(targetGroup.dataset.psetIndex);
+                    const item = psetOrder[fromIndex];
+                    psetOrder.splice(fromIndex, 1);
+                    psetOrder.splice(toIndex, 0, item);
+                    buildPsetManager();
+                }
+            } else if (dragType === 'prop') {
+                const fromPsetName = draggedItem.dataset.psetName;
+                const toPsetName = targetGroup.dataset.psetName;
+                
+                if (fromPsetName === toPsetName) {
+                    const fromIndex = parseInt(draggedItem.dataset.propIndex);
+                    const propItems = targetGroup.querySelectorAll('.prop-item');
+                    let toIndex = -1;
+                    
+                    propItems.forEach((item, idx) => {
+                        const rect = item.getBoundingClientRect();
+                        const midpoint = rect.top + rect.height / 2;
+                        if (e.clientY < midpoint && toIndex === -1) {
+                            toIndex = idx;
+                        }
+                    });
+                    
+                    if (toIndex === -1) toIndex = propItems.length - 1;
+                    
+                    if (fromIndex !== toIndex) {
+                        const propArray = propertySetGroups[fromPsetName];
+                        const prop = propArray[fromIndex];
+                        propArray.splice(fromIndex, 1);
+                        propArray.splice(toIndex, 0, prop);
+                        buildPsetManager();
+                    }
+                }
+            }
+        }
+
+        function handleDragEnd() {
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+            }
+            draggedItem = null;
+            dragType = null;
+            stopAutoScroll();
+        }
+
+        function setupAutoScroll() {
+            const psetList = document.getElementById('psetList');
+            
+            psetList.addEventListener('dragover', (e) => {
+                const rect = psetList.getBoundingClientRect();
+                const scrollMargin = 50;
+                const scrollSpeed = 10;
+                
+                if (e.clientY - rect.top < scrollMargin) {
+                    startAutoScroll(psetList, -scrollSpeed);
+                } else if (rect.bottom - e.clientY < scrollMargin) {
+                    startAutoScroll(psetList, scrollSpeed);
+                } else {
+                    stopAutoScroll();
+                }
+            });
+            
+            psetList.addEventListener('dragleave', () => {
+                stopAutoScroll();
+            });
+        }
+
+        function startAutoScroll(element, speed) {
+            if (autoScrollInterval) return;
+            autoScrollInterval = setInterval(() => {
+                element.scrollTop += speed;
+            }, 50);
+        }
+
+        function stopAutoScroll() {
+            if (autoScrollInterval) {
+                clearInterval(autoScrollInterval);
+                autoScrollInterval = null;
+            }
+        }
+
+        document.getElementById('columnManagerBtn').addEventListener('click', () => {
+            const manager = document.getElementById('columnManager');
+            manager.style.display = manager.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.getElementById('applyColumnsBtn').addEventListener('click', () => {
+            buildTable();
+            document.getElementById('columnManager').style.display = 'none';
+        });
+
+        document.getElementById('selectAllBtn').addEventListener('click', () => {
+            for (let psetName of psetOrder) {
+                if (propertySetGroups[psetName]) {
+                    for (let propName of propertySetGroups[psetName]) {
+                        visiblePsets[psetName][propName] = true;
+                    }
+                }
+            }
+            buildPsetManager();
+        });
+
+        document.getElementById('deselectAllBtn').addEventListener('click', () => {
+            for (let psetName of psetOrder) {
+                if (propertySetGroups[psetName]) {
+                    for (let propName of propertySetGroups[psetName]) {
+                        visiblePsets[psetName][propName] = false;
+                    }
+                }
+            }
+            buildPsetManager();
+        });
+
+        function buildTable() {
+            const headerPset = document.getElementById('headerRowPset');
+            const headerProp = document.getElementById('headerRowProp');
+            
+            headerPset.innerHTML = '';
+            headerProp.innerHTML = '';
+
+            // Calculate widths
+            const fileColWidth = 150;
+            const fixedColWidth = 120; // GUID, Entita, Name
+            
+            // File column - always sticky at position 0
+            const fileHeader = document.createElement('th');
+            fileHeader.textContent = 'Soubor';
+            fileHeader.rowSpan = 2;
+            fileHeader.style.cursor = 'pointer';
+            fileHeader.classList.add('sticky-col');
+            fileHeader.style.left = '0px';
+            fileHeader.addEventListener('click', () => sortByColumn('Soubor'));
+            headerPset.appendChild(fileHeader);
+
+            let currentLeft = fileColWidth;
+
+            // Build locked columns first
+            const lockedCols = [];
+            const unlockedCols = [];
+            
+            for (let psetName of psetOrder) {
+                if (!propertySetGroups[psetName]) continue;
+                const visibleProps = propertySetGroups[psetName].filter(p => visiblePsets[psetName][p]);
+                
+                for (let propName of visibleProps) {
+                    const col = { psetName, propName };
+                    const isLocked = lockedColumns.some(lc => lc.psetName === psetName && lc.propName === propName);
+                    
+                    if (isLocked) {
+                        lockedCols.push(col);
+                    } else {
+                        unlockedCols.push(col);
+                    }
+                }
+            }
+
+            // Add PropertySet headers for locked columns (one header per property for alignment)
+            if (lockedCols.length > 0) {
+                for (let col of lockedCols) {
+                    const psetTh = document.createElement('th');
+                    psetTh.className = 'pset-header sticky-col';
+                    psetTh.textContent = col.psetName;
+                    psetTh.style.left = currentLeft + 'px';
+                    psetTh.style.width = '120px';
+                    
+                    headerPset.appendChild(psetTh);
+                    currentLeft += 120;
+                }
+            }
+
+            // Fixed columns (GUID, Entita, Name) - NOT sticky, will scroll away
+            ['GUID', 'Entita', 'Name'].forEach(label => {
+                const th = document.createElement('th');
+                th.textContent = label;
+                th.rowSpan = 2;
+                th.style.cursor = 'pointer';
+                th.addEventListener('click', () => sortByColumn(label));
+                headerPset.appendChild(th);
+            });
+
+            // PropertySet headers for unlocked columns
+            const unlockedGrouped = {};
+            for (let col of unlockedCols) {
+                if (!unlockedGrouped[col.psetName]) unlockedGrouped[col.psetName] = [];
+                unlockedGrouped[col.psetName].push(col);
+            }
+
+            for (let psetName of Object.keys(unlockedGrouped)) {
+                const psetTh = document.createElement('th');
+                psetTh.className = 'pset-header';
+                psetTh.textContent = psetName;
+                psetTh.colSpan = unlockedGrouped[psetName].length;
+                headerPset.appendChild(psetTh);
+            }
+
+            // Property headers - locked columns first
+            currentLeft = fileColWidth;
+            
+            for (let col of lockedCols) {
+                const propTh = document.createElement('th');
+                propTh.className = 'prop-header sticky-col';
+                propTh.style.cursor = 'pointer';
+                propTh.style.left = currentLeft + 'px';
+                
+                const wrapper = document.createElement('span');
+                wrapper.style.display = 'flex';
+                wrapper.style.alignItems = 'center';
+                wrapper.style.justifyContent = 'space-between';
+                wrapper.style.gap = '5px';
+                
+                const label = document.createElement('span');
+                label.textContent = col.propName;
+                label.style.flex = '1';
+                label.addEventListener('click', () => sortByProperty(col.psetName, col.propName));
+                
+                const lockIcon = document.createElement('span');
+                lockIcon.className = 'lock-icon locked';
+                lockIcon.textContent = '🔒';
+                lockIcon.title = 'Odemknout sloupec';
+                lockIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleLockColumn(col.psetName, col.propName);
+                });
+                
+                wrapper.appendChild(label);
+                wrapper.appendChild(lockIcon);
+                propTh.appendChild(wrapper);
+                headerProp.appendChild(propTh);
+                
+                currentLeft += 120;
+            }
+
+            // Property headers - unlocked columns
+            for (let col of unlockedCols) {
+                const propTh = document.createElement('th');
+                propTh.className = 'prop-header';
+                propTh.style.cursor = 'pointer';
+                
+                const wrapper = document.createElement('span');
+                wrapper.style.display = 'flex';
+                wrapper.style.alignItems = 'center';
+                wrapper.style.justifyContent = 'space-between';
+                wrapper.style.gap = '5px';
+                
+                const label = document.createElement('span');
+                label.textContent = col.propName;
+                label.style.flex = '1';
+                label.addEventListener('click', () => sortByProperty(col.psetName, col.propName));
+                
+                const lockIcon = document.createElement('span');
+                lockIcon.className = 'lock-icon';
+                lockIcon.textContent = '🔓';
+                lockIcon.title = 'Zamknout sloupec';
+                lockIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleLockColumn(col.psetName, col.propName);
+                });
+                
+                wrapper.appendChild(label);
+                wrapper.appendChild(lockIcon);
+                propTh.appendChild(wrapper);
+                headerProp.appendChild(propTh);
+            }
+
+            // Store column order for rendering
+            window.currentColumns = [...lockedCols, ...unlockedCols];
+
+            applyFiltersAndRender();
+        }
+
+        function toggleLockColumn(psetName, propName) {
+            const index = lockedColumns.findIndex(lc => lc.psetName === psetName && lc.propName === propName);
+            
+            if (index !== -1) {
+                // Unlock
+                lockedColumns.splice(index, 1);
+            } else {
+                // Lock
+                lockedColumns.push({ psetName, propName });
+            }
+            
+            buildTable();
+        }
+
+        function sortByColumn(colName) {
+            if (sortColumn === colName) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = colName;
+                sortDirection = 'asc';
+            }
+            applyFiltersAndRender();
+        }
+
+        function sortByProperty(psetName, propName) {
+            const key = `${psetName}|||${propName}`;
+            if (sortColumn === key) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = key;
+                sortDirection = 'asc';
+            }
+            applyFiltersAndRender();
+        }
+
+        function applyFiltersAndRender() {
+            filteredData = [...allData];
+            
+            if (searchTerm) {
+                const trimmedSearch = searchTerm.trim();
+                
+                // Check for column-specific search: "ColumnName /regex/" or "ColumnName text"
+                const columnSpecificMatch = trimmedSearch.match(/^(\S+)\s+(.+)$/);
+                
+                if (columnSpecificMatch) {
+                    const columnName = columnSpecificMatch[1];
+                    const searchPattern = columnSpecificMatch[2];
+                    
+                    // Check if the search pattern is a regex
+                    const regexMatch = searchPattern.match(/^\/(.+?)\/([gimuy]*)$/);
+                    
+                    if (regexMatch) {
+                        // Column-specific REGEX search
+                        try {
+                            const pattern = regexMatch[1];
+                            const flags = regexMatch[2];
+                            const regex = new RegExp(pattern, flags);
+                            
+                            filteredData = filteredData.filter(item => {
+                                // Search in specific column/property
+                                // Check if it's a basic field
+                                if (columnName === 'GUID' && regex.test(item.guid)) return true;
+                                if (columnName === 'Entita' && regex.test(item.entity)) return true;
+                                if (columnName === 'Name' && regex.test(item.name)) return true;
+                                if (columnName === 'Soubor' && regex.test(item.fileName)) return true;
+                                
+                                // Check in property sets - support both "PropertyName" and "PsetName.PropertyName"
+                                for (let [psetName, pset] of Object.entries(item.propertySets)) {
+                                    for (let [propName, value] of Object.entries(pset)) {
+                                        // Match either "PropertyName" or "PsetName.PropertyName"
+                                        if (propName === columnName || `${psetName}.${propName}` === columnName) {
+                                            if (regex.test(String(value))) return true;
+                                        }
+                                    }
+                                }
+                                return false;
+                            });
+                        } catch (e) {
+                            console.error('Invalid regex:', e.message);
+                            alert('Neplatný regex pattern: ' + e.message);
+                        }
+                    } else {
+                        // Column-specific TEXT search
+                        const searchLower = searchPattern.toLowerCase();
+                        
+                        filteredData = filteredData.filter(item => {
+                            // Search in specific column/property
+                            if (columnName === 'GUID' && item.guid.toLowerCase().includes(searchLower)) return true;
+                            if (columnName === 'Entita' && item.entity.toLowerCase().includes(searchLower)) return true;
+                            if (columnName === 'Name' && item.name.toLowerCase().includes(searchLower)) return true;
+                            if (columnName === 'Soubor' && item.fileName.toLowerCase().includes(searchLower)) return true;
+                            
+                            // Check in property sets
+                            for (let [psetName, pset] of Object.entries(item.propertySets)) {
+                                for (let [propName, value] of Object.entries(pset)) {
+                                    if (propName === columnName || `${psetName}.${propName}` === columnName) {
+                                        if (String(value).toLowerCase().includes(searchLower)) return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        });
+                    }
+                } else {
+                    // Global search (all columns)
+                    // Check if search is a regex pattern (between forward slashes)
+                    const regexMatch = trimmedSearch.match(/^\/(.+?)\/([gimuy]*)$/);
+                    
+                    if (regexMatch) {
+                        // Global regex search mode
+                        try {
+                            const pattern = regexMatch[1];
+                            const flags = regexMatch[2];
+                            const regex = new RegExp(pattern, flags);
+                            
+                            filteredData = filteredData.filter(item => {
+                                // Test regex against all fields
+                                if (regex.test(item.guid)) return true;
+                                if (regex.test(item.entity)) return true;
+                                if (regex.test(item.name)) return true;
+                                if (regex.test(item.fileName)) return true;
+                                
+                                // Test in all property sets
+                                for (let pset of Object.values(item.propertySets)) {
+                                    for (let [key, value] of Object.entries(pset)) {
+                                        if (regex.test(key) || regex.test(String(value))) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                return false;
+                            });
+                        } catch (e) {
+                            console.error('Invalid regex:', e.message);
+                            alert('Neplatný regex pattern: ' + e.message);
+                        }
+                    } else {
+                        // Normal multi-word search (AND logic)
+                        const searchWords = trimmedSearch.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+                        
+                        filteredData = filteredData.filter(item => {
+                            // For each word, check if it's found anywhere in the row
+                            return searchWords.every(word => {
+                                // Check in basic fields
+                                if (item.guid.toLowerCase().includes(word)) return true;
+                                if (item.entity.toLowerCase().includes(word)) return true;
+                                if (item.name.toLowerCase().includes(word)) return true;
+                                if (item.fileName.toLowerCase().includes(word)) return true;
+                                
+                                // Check in all property sets
+                                for (let pset of Object.values(item.propertySets)) {
+                                    for (let [key, value] of Object.entries(pset)) {
+                                        if (key.toLowerCase().includes(word) || 
+                                            String(value).toLowerCase().includes(word)) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                return false;
+                            });
+                        });
+                    }
+                }
+            }
+            
+            if (entityFilterValue) {
+                filteredData = filteredData.filter(item => item.entity === entityFilterValue);
+            }
+
+            if (fileFilterValue) {
+                filteredData = filteredData.filter(item => item.fileName === fileFilterValue);
+            }
+            
+            if (sortColumn) {
+                filteredData.sort((a, b) => {
+                    let valA, valB;
+                    
+                    if (sortColumn === 'Soubor') {
+                        valA = a.fileName;
+                        valB = b.fileName;
+                    } else if (sortColumn === 'GUID') {
+                        valA = a.guid;
+                        valB = b.guid;
+                    } else if (sortColumn === 'Entita') {
+                        valA = a.entity;
+                        valB = b.entity;
+                    } else if (sortColumn === 'Name') {
+                        valA = a.name;
+                        valB = b.name;
+                    } else {
+                        const [psetName, propName] = sortColumn.split('|||');
+                        valA = a.propertySets[psetName]?.[propName] || '';
+                        valB = b.propertySets[psetName]?.[propName] || '';
+                    }
+                    
+                    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+            
+            // Reset to first page when filters change
+            currentPage = 1;
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding:40px;">Žádná data</td></tr>';
+                updatePaginationInfo();
+                return;
+            }
+
+            // Calculate pagination
+            totalPages = pageSize === -1 ? 1 : Math.ceil(filteredData.length / pageSize);
+            currentPage = Math.min(currentPage, totalPages); // Ensure current page is valid
+            currentPage = Math.max(1, currentPage);
+            
+            const startIndex = pageSize === -1 ? 0 : (currentPage - 1) * pageSize;
+            const endIndex = pageSize === -1 ? filteredData.length : Math.min(startIndex + pageSize, filteredData.length);
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            const fileColWidth = 150;
+
+            for (let item of pageData) {
+                const row = document.createElement('tr');
+                
+                // File badge - always sticky at position 0
+                const fileInfo = loadedFiles.find(f => f.fileName === item.fileName);
+                const fileCell = document.createElement('td');
+                fileCell.innerHTML = `<span class="file-badge" style="background: ${fileInfo.color};" title="${item.fileName}">${item.fileName}</span>`;
+                fileCell.classList.add('sticky-col');
+                fileCell.style.left = '0px';
+                row.appendChild(fileCell);
+
+                let currentLeft = fileColWidth;
+
+                // Separate locked and unlocked columns
+                const lockedCols = [];
+                const unlockedCols = [];
+                
+                for (let col of window.currentColumns) {
+                    const isLocked = lockedColumns.some(lc => lc.psetName === col.psetName && lc.propName === col.propName);
+                    if (isLocked) {
+                        lockedCols.push(col);
+                    } else {
+                        unlockedCols.push(col);
+                    }
+                }
+
+                // Render locked columns first (sticky)
+                for (let col of lockedCols) {
+                    const cell = document.createElement('td');
+                    const value = item.propertySets[col.psetName]?.[col.propName];
+                    cell.textContent = value || '-';
+                    cell.style.color = value ? '#212529' : '#ccc';
+                    cell.classList.add('sticky-col');
+                    cell.style.left = currentLeft + 'px';
+                    row.appendChild(cell);
+                    currentLeft += 120;
+                }
+
+                // Fixed columns (GUID, Entita, Name) - not sticky
+                const guidCell = document.createElement('td');
+                guidCell.className = 'guid-cell';
+                guidCell.textContent = item.guid;
+                row.appendChild(guidCell);
+
+                const entityCell = document.createElement('td');
+                entityCell.innerHTML = `<span class="entity-badge">${item.entity}</span>`;
+                row.appendChild(entityCell);
+
+                const nameCell = document.createElement('td');
+                nameCell.textContent = item.name;
+                row.appendChild(nameCell);
+
+                // Render unlocked columns (normal)
+                for (let col of unlockedCols) {
+                    const cell = document.createElement('td');
+                    const value = item.propertySets[col.psetName]?.[col.propName];
+                    cell.textContent = value || '-';
+                    cell.style.color = value ? '#212529' : '#ccc';
+                    row.appendChild(cell);
+                }
+
+                tbody.appendChild(row);
+            }
+            
+            updatePaginationInfo();
+        }
+        
+        function updatePaginationInfo() {
+            const paginationContainer = document.getElementById('paginationContainer');
+            const paginationInfo = document.getElementById('paginationInfo');
+            const totalPagesSpan = document.getElementById('totalPages');
+            const pageInput = document.getElementById('pageInput');
+            
+            if (filteredData.length === 0) {
+                paginationContainer.style.display = 'none';
+                return;
+            }
+            
+            paginationContainer.style.display = 'flex';
+            
+            const startIndex = pageSize === -1 ? 0 : (currentPage - 1) * pageSize;
+            const endIndex = pageSize === -1 ? filteredData.length : Math.min(startIndex + pageSize, filteredData.length);
+            
+            paginationInfo.textContent = `Zobrazeno ${startIndex + 1}-${endIndex} z ${filteredData.length} entit`;
+            totalPagesSpan.textContent = totalPages;
+            pageInput.value = currentPage;
+            pageInput.max = totalPages;
+            
+            // Update button states
+            document.getElementById('firstPageBtn').disabled = currentPage === 1;
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextPageBtn').disabled = currentPage === totalPages;
+            document.getElementById('lastPageBtn').disabled = currentPage === totalPages;
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchTerm = e.target.value;
+            applyFiltersAndRender();
+        });
+
+        document.getElementById('entityFilter').addEventListener('change', (e) => {
+            entityFilterValue = e.target.value;
+            applyFiltersAndRender();
+        });
+
+        document.getElementById('fileFilter').addEventListener('change', (e) => {
+            fileFilterValue = e.target.value;
+            applyFiltersAndRender();
+        });
+
+        document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+            searchTerm = '';
+            entityFilterValue = '';
+            fileFilterValue = '';
+            sortColumn = null;
+            document.getElementById('searchInput').value = '';
+            document.getElementById('entityFilter').value = '';
+            document.getElementById('fileFilter').value = '';
+            applyFiltersAndRender();
+        });
+
+        function showStatistics() {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = '';
+
+            // Total entities
+            const totalCard = document.createElement('div');
+            totalCard.style.cssText = 'background: white; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #667eea;';
+            totalCard.innerHTML = `
+                <div style="font-size: 2em; font-weight: 700; color: #667eea;">${allData.length}</div>
+                <div style="font-size: 0.85em; color: #6c757d;">Celkem entit</div>
+            `;
+            statsGrid.appendChild(totalCard);
+
+            // Per file stats
+            loadedFiles.forEach(file => {
+                const card = document.createElement('div');
+                card.style.cssText = `background: white; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid ${file.color};`;
+                card.innerHTML = `
+                    <div style="font-size: 2em; font-weight: 700; color: ${file.color};">${file.entityCount}</div>
+                    <div style="font-size: 0.85em; color: #6c757d;">${file.fileName}</div>
+                `;
+                statsGrid.appendChild(card);
+            });
+
+            // Entity type stats
+            const entityCounts = {};
+            for (let item of allData) {
+                entityCounts[item.entity] = (entityCounts[item.entity] || 0) + 1;
+            }
+            const sorted = Object.entries(entityCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+            
+            for (let [entity, count] of sorted) {
+                const card = document.createElement('div');
+                card.style.cssText = 'background: white; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef;';
+                card.innerHTML = `
+                    <div style="font-size: 2em; font-weight: 700; color: #667eea;">${count}</div>
+                    <div style="font-size: 0.85em; color: #6c757d;">${entity}</div>
+                `;
+                statsGrid.appendChild(card);
+            }
+        }
+
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            let csv = 'Soubor,GUID,Entita,Name';
+            for (let col of window.currentColumns) {
+                csv += ',"' + col.psetName + ' ' + col.propName + '"';
+            }
+            csv += '\n';
+
+            for (let item of filteredData) {
+                const row = ['"' + item.fileName + '"', item.guid, item.entity, '"' + item.name + '"'];
+                for (let col of window.currentColumns) {
+                    const val = item.propertySets[col.psetName]?.[col.propName] || '';
+                    row.push('"' + val + '"');
+                }
+                csv += row.join(',') + '\n';
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'ifc-multi-export.csv';
+            link.click();
+        });
+        
+        // Pagination event listeners
+        document.getElementById('firstPageBtn').addEventListener('click', () => {
+            currentPage = 1;
+            renderTable();
+        });
+        
+        document.getElementById('prevPageBtn').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        });
+        
+        document.getElementById('nextPageBtn').addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        });
+        
+        document.getElementById('lastPageBtn').addEventListener('click', () => {
+            currentPage = totalPages;
+            renderTable();
+        });
+        
+        document.getElementById('goToPageBtn').addEventListener('click', () => {
+            const pageInput = document.getElementById('pageInput');
+            const page = parseInt(pageInput.value);
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                renderTable();
+            } else {
+                alert(`Zadejte stránku mezi 1 a ${totalPages}`);
+                pageInput.value = currentPage;
+            }
+        });
+        
+        document.getElementById('pageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('goToPageBtn').click();
+            }
+        });
+        
+        // Synchronize both page size selectors (top and bottom)
+        document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
+            pageSize = parseInt(e.target.value);
+            document.getElementById('pageSizeSelectTop').value = e.target.value; // Sync top selector
+            currentPage = 1; // Reset to first page when changing page size
+            renderTable();
+        });
+        
+        document.getElementById('pageSizeSelectTop').addEventListener('change', (e) => {
+            pageSize = parseInt(e.target.value);
+            document.getElementById('pageSizeSelect').value = e.target.value; // Sync bottom selector
+            currentPage = 1; // Reset to first page when changing page size
+            renderTable();
+        });
+    </script>
+</body>
+</html>

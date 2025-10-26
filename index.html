@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIM Checker - Nástroje pro práci s IFC a IDS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.95;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .content {
+            padding: 60px 40px;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .tool-card {
+            background: white;
+            border: 3px solid #e9ecef;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+
+        .tool-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .tool-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .tool-description {
+            color: #6c757d;
+            line-height: 1.6;
+            font-size: 1em;
+            margin-bottom: 20px;
+        }
+
+        .tool-features {
+            text-align: left;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .tool-features ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .tool-features li {
+            padding: 5px 0;
+            color: #495057;
+            font-size: 0.9em;
+        }
+
+        .tool-features li:before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .about-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 40px;
+            margin-top: 40px;
+            border: 2px solid #e9ecef;
+        }
+
+        .about-section h2 {
+            color: #2d3748;
+            font-size: 2em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .about-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .about-item {
+            text-align: center;
+        }
+
+        .about-icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+
+        .about-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .about-text {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+            border-top: 2px solid #e9ecef;
+            margin-top: 40px;
+        }
+
+        .footer p {
+            margin-bottom: 10px;
+        }
+
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .tech-badge {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .header p {
+                font-size: 1em;
+            }
+
+            .content {
+                padding: 40px 20px;
+            }
+
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .about-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <div class="header">
+            <h1>🏗️ BIM Checker</h1>
+            <p>Profesionální nástroje pro validaci a analýzu BIM dat</p>
+        </div>
+
+        <div class="content">
+            <div class="tools-grid">
+                <a href="pages/ifc-viewer-multi-file.html" class="tool-card">
+                    <div class="tool-icon">📊</div>
+                    <div class="tool-title">IFC Multi-File Viewer</div>
+                    <div class="tool-description">
+                        Pokročilý prohlížeč pro analýzu a porovnání více IFC souborů současně
+                    </div>
+                    <div class="tool-features">
+                        <ul>
+                            <li>Načtení více IFC souborů</li>
+                            <li>Společná tabulka všech entit</li>
+                            <li>Pokročilé vyhledávání (text/regex)</li>
+                            <li>Správa PropertySetů</li>
+                            <li>Export do CSV</li>
+                            <li>Stránkování a filtry</li>
+                        </ul>
+                    </div>
+                </a>
+
+                <a href="pages/ids-parser-visualizer.html" class="tool-card">
+                    <div class="tool-icon">🔍</div>
+                    <div class="tool-title">IDS Parser a Vizualizér</div>
+                    <div class="tool-description">
+                        Nástroj pro zobrazení a analýzu IDS (Information Delivery Specification) souborů
+                    </div>
+                    <div class="tool-features">
+                        <ul>
+                            <li>Parsování IDS souborů</li>
+                            <li>Vizuální zobrazení specifikací</li>
+                            <li>Stromová struktura</li>
+                            <li>Raw XML zobrazení</li>
+                            <li>Regex pattern vysvětlení</li>
+                            <li>Rozbalovací sekce</li>
+                        </ul>
+                    </div>
+                </a>
+
+                <a href="pages/ids-ifc-validator.html" class="tool-card">
+                    <div class="tool-icon">✅</div>
+                    <div class="tool-title">IDS-IFC Validátor</div>
+                    <div class="tool-description">
+                        Validace IFC modelů proti IDS specifikacím pro kontrolu kvality dat
+                    </div>
+                    <div class="tool-features">
+                        <ul>
+                            <li>Validace IFC podle IDS</li>
+                            <li>Applicability & Requirements</li>
+                            <li>Detailní výsledky validace</li>
+                            <li>Statistiky úspěšnosti</li>
+                            <li>Filtrování výsledků</li>
+                            <li>CSV export</li>
+                        </ul>
+                    </div>
+                </a>
+            </div>
+
+            <div class="about-section">
+                <h2>📚 O projektu</h2>
+                <div class="about-content">
+                    <div class="about-item">
+                        <div class="about-icon">🎯</div>
+                        <div class="about-title">Účel</div>
+                        <div class="about-text">
+                            BIM Checker je sada nástrojů pro práci s IFC a IDS standardy.
+                            Umožňuje kontrolu kvality, analýzu a validaci BIM dat podle
+                            buildingSMART standardů.
+                        </div>
+                    </div>
+
+                    <div class="about-item">
+                        <div class="about-icon">🔧</div>
+                        <div class="about-title">Technologie</div>
+                        <div class="about-text">
+                            Aplikace běží přímo v prohlížeči bez nutnosti instalace.
+                            Veškeré zpracování probíhá lokálně na vašem zařízení,
+                            data nejsou odesílána na server.
+                        </div>
+                    </div>
+
+                    <div class="about-item">
+                        <div class="about-icon">🌟</div>
+                        <div class="about-title">Výhody</div>
+                        <div class="about-text">
+                            Rychlé, bezpečné a bez závislostí. Žádná registrace,
+                            žádné limity, žádné nahrávání dat na cloud.
+                            Vše funguje offline po prvním načtení.
+                        </div>
+                    </div>
+
+                    <div class="about-item">
+                        <div class="about-icon">📖</div>
+                        <div class="about-title">Standardy</div>
+                        <div class="about-text">
+                            Implementováno podle buildingSMART standardů.
+                            Podporuje IFC 4.x a IDS 1.0 specifikace
+                            pro zajištění interoperability.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p><strong>BIM Checker</strong> - Nástroje pro práci s BIM daty</p>
+                <p>Verze 1.0 | 2024</p>
+                <div class="tech-stack">
+                    <span class="tech-badge">HTML5</span>
+                    <span class="tech-badge">CSS3</span>
+                    <span class="tech-badge">JavaScript</span>
+                    <span class="tech-badge">IFC</span>
+                    <span class="tech-badge">IDS</span>
+                    <span class="tech-badge">buildingSMART</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
