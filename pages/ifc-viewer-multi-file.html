@@ -15,12 +15,34 @@
         }
         
         .container {
+            width: calc(100% - 40px);
             max-width: 1900px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             overflow: hidden;
+        }
+
+        /* Pro větší monitory než FullHD */
+        @media (min-width: 1920px) {
+            .container {
+                max-width: 95%;
+            }
+        }
+
+        /* Pro ultrawidescreen monitory */
+        @media (min-width: 2560px) {
+            .container {
+                max-width: 97%;
+            }
+        }
+
+        /* Pro extrémně široké monitory */
+        @media (min-width: 3440px) {
+            .container {
+                max-width: 98%;
+            }
         }
         
         .header {
@@ -479,6 +501,174 @@
         .file-color-3 { background: #43e97b !important; }
         .file-color-4 { background: #fa709a !important; }
         .file-color-5 { background: #feca57 !important; }
+
+        /* Edit Mode Styles */
+        .edit-mode .data-table td.editable {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .edit-mode .data-table td.editable:hover {
+            background: #fff3cd !important;
+            outline: 2px solid #ffc107;
+        }
+
+        .data-table td input.cell-editor {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #667eea;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+
+        .edit-panel {
+            display: none;
+            padding: 20px 40px;
+            background: #fff3cd;
+            border-bottom: 2px solid #ffc107;
+            border-top: 2px solid #ffc107;
+        }
+
+        .edit-panel.active {
+            display: block;
+        }
+
+        .edit-panel-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .selected-count {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .checkbox-cell {
+            text-align: center;
+            width: 40px;
+        }
+
+        .checkbox-cell input {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Modal for adding PSet/Property */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.6em;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 2px solid #e9ecef;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .modified-cell {
+            background: #d4edda !important;
+            border-left: 3px solid #28a745;
+        }
     </style>
 </head>
 <body>
@@ -503,6 +693,19 @@
             <div>Načítám IFC soubory...</div>
         </div>
 
+        <div class="edit-panel" id="editPanel">
+            <h3>🎯 Hromadné operace</h3>
+            <p>Vybráno: <span class="selected-count" id="selectedCount">0</span> entit <span id="totalFilteredCount" style="color: #6c757d; font-weight: normal;"></span></p>
+            <div class="edit-panel-buttons">
+                <button class="btn btn-warning" id="bulkEditBtn" disabled>✏️ Hromadná úprava PSetu</button>
+                <button class="btn btn-success" id="addPsetBtn" disabled>➕ Přidat PropertySet</button>
+                <button class="btn btn-primary" id="exportIfcBtn" disabled>💾 Uložit upravený IFC</button>
+                <button class="btn btn-secondary" id="selectAllVisibleBtn">☑️ Vybrat vše na stránce</button>
+                <button class="btn btn-success" id="selectAllPagesBtn">☑️☑️ Vybrat vše na VŠECH stránkách</button>
+                <button class="btn btn-secondary" id="deselectAllBtn">☐ Zrušit výběr</button>
+            </div>
+        </div>
+
         <div class="controls" id="controls">
             <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
                 <input type="text" id="searchInput" placeholder="🔍 Hledat... (text, /regex/, nebo Sloupec /regex/)" style="flex: 1; min-width: 250px; padding: 12px 20px; border: 2px solid #e9ecef; border-radius: 8px;">
@@ -522,6 +725,7 @@
                 </select>
                 <button class="btn btn-success" id="columnManagerBtn">⚙️ Správa PropertySetů</button>
                 <button class="btn btn-secondary" id="clearFiltersBtn">Vymazat filtry</button>
+                <button class="btn btn-primary" id="toggleEditModeBtn">✏️ Editační režim</button>
                 <button class="btn btn-primary" id="exportBtn">📥 Export CSV</button>
             </div>
 
@@ -581,8 +785,77 @@
         </div>
     </div>
 
+    <!-- Modals -->
+    <div id="bulkEditModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Hromadná úprava PropertySetu</h2>
+                <button class="modal-close" onclick="closeBulkEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>PropertySet:</label>
+                    <select id="bulkPsetName">
+                        <option value="">-- Vyberte PropertySet --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Property:</label>
+                    <select id="bulkPropName" disabled>
+                        <option value="">-- Nejprve vyberte PropertySet --</option>
+                    </select>
+                </div>
+                <div id="currentValuesSection" style="display: none; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                    <h4 style="margin: 0 0 10px 0; color: #2d3748; font-size: 1em;">📋 Aktuální hodnoty:</h4>
+                    <div id="currentValuesList" style="max-height: 150px; overflow-y: auto;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Nová hodnota:</label>
+                    <input type="text" id="bulkValue" placeholder="Zadejte novou hodnotu">
+                </div>
+                <p style="color: #6c757d; font-size: 0.9em;">
+                    Tato hodnota bude nastavena pro všech <span id="bulkEditCount" style="font-weight: 700;">0</span> vybraných entit.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeBulkEditModal()">Zrušit</button>
+                <button class="btn btn-warning" onclick="applyBulkEdit()">Použít změny</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addPsetModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Přidat PropertySet</h2>
+                <button class="modal-close" onclick="closeAddPsetModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Název PropertySetu:</label>
+                    <input type="text" id="newPsetName" placeholder="např. Pset_WallCommon">
+                </div>
+                <div class="form-group">
+                    <label>Název Property:</label>
+                    <input type="text" id="newPropName" placeholder="např. FireRating">
+                </div>
+                <div class="form-group">
+                    <label>Hodnota:</label>
+                    <input type="text" id="newPropValue" placeholder="Zadejte hodnotu">
+                </div>
+                <p style="color: #6c757d; font-size: 0.9em;">
+                    PropertySet a property budou přidány k <span id="addPsetCount" style="font-weight: 700;">0</span> vybraným entitám.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddPsetModal()">Zrušit</button>
+                <button class="btn btn-success" onclick="applyAddPset()">Přidat</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        let loadedFiles = []; // Array of {fileName, ifcData, color}
+        let loadedFiles = []; // Array of {fileName, ifcData, color, originalContent}
         let allData = []; // Combined data from all files
         let filteredData = [];
         let propertySetGroups = {};
@@ -595,11 +868,17 @@
         let fileFilterValue = '';
         let autoScrollInterval = null;
         let lockedColumns = []; // Array of {psetName, propName} for locked columns
-        
+
         // Pagination variables
         let currentPage = 1;
         let pageSize = 500;
         let totalPages = 1;
+
+        // Edit mode variables
+        let editMode = false;
+        let selectedEntities = new Set(); // Set of GUIDs
+        let modifications = {}; // {guid: {psetName: {propName: value}}}
+        let editingCell = null;
 
         const fileColors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#feca57'];
 
@@ -720,7 +999,8 @@
                     fileName,
                     data: fileData,
                     color,
-                    entityCount: fileData.length
+                    entityCount: fileData.length,
+                    originalContent: content // Store original IFC content for export
                 });
 
                 updateFileList();
@@ -1211,17 +1491,40 @@
             const fileColWidth = 150;
             const fixedColWidth = 120; // GUID, Entita, Name
             
-            // File column - always sticky at position 0
+            // Checkbox column in edit mode
+            if (editMode) {
+                const checkHeader = document.createElement('th');
+                checkHeader.innerHTML = '<input type="checkbox" id="selectAllCheckbox">';
+                checkHeader.rowSpan = 2;
+                checkHeader.classList.add('sticky-col', 'checkbox-cell');
+                checkHeader.style.left = '0px';
+                headerPset.appendChild(checkHeader);
+
+                document.getElementById('selectAllCheckbox').addEventListener('change', (e) => {
+                    const startIndex = pageSize === -1 ? 0 : (currentPage - 1) * pageSize;
+                    const endIndex = pageSize === -1 ? filteredData.length : Math.min(startIndex + pageSize, filteredData.length);
+                    const pageData = filteredData.slice(startIndex, endIndex);
+                    if (e.target.checked) {
+                        pageData.forEach(item => selectedEntities.add(item.guid));
+                    } else {
+                        pageData.forEach(item => selectedEntities.delete(item.guid));
+                    }
+                    updateSelectedCount();
+                    renderTable();
+                });
+            }
+
+            // File column - always sticky
             const fileHeader = document.createElement('th');
             fileHeader.textContent = 'Soubor';
             fileHeader.rowSpan = 2;
             fileHeader.style.cursor = 'pointer';
             fileHeader.classList.add('sticky-col');
-            fileHeader.style.left = '0px';
+            fileHeader.style.left = editMode ? '40px' : '0px';
             fileHeader.addEventListener('click', () => sortByColumn('Soubor'));
             headerPset.appendChild(fileHeader);
 
-            let currentLeft = fileColWidth;
+            let currentLeft = (editMode ? 40 : 0) + fileColWidth;
 
             // Build locked columns first
             const lockedCols = [];
@@ -1586,16 +1889,29 @@
 
             for (let item of pageData) {
                 const row = document.createElement('tr');
-                
-                // File badge - always sticky at position 0
+
+                // Checkbox column in edit mode
+                if (editMode) {
+                    const checkCell = document.createElement('td');
+                    checkCell.classList.add('sticky-col', 'checkbox-cell');
+                    checkCell.style.left = '0px';
+                    checkCell.innerHTML = `<input type="checkbox" ${selectedEntities.has(item.guid) ? 'checked' : ''}>`;
+                    checkCell.querySelector('input').addEventListener('change', () => {
+                        toggleEntitySelection(item.guid);
+                        renderTable();
+                    });
+                    row.appendChild(checkCell);
+                }
+
+                // File badge - always sticky
                 const fileInfo = loadedFiles.find(f => f.fileName === item.fileName);
                 const fileCell = document.createElement('td');
                 fileCell.innerHTML = `<span class="file-badge" style="background: ${fileInfo.color};" title="${item.fileName}">${item.fileName}</span>`;
                 fileCell.classList.add('sticky-col');
-                fileCell.style.left = '0px';
+                fileCell.style.left = editMode ? '40px' : '0px';
                 row.appendChild(fileCell);
 
-                let currentLeft = fileColWidth;
+                let currentLeft = (editMode ? 40 : 0) + fileColWidth;
 
                 // Separate locked and unlocked columns
                 const lockedCols = [];
@@ -1618,6 +1934,18 @@
                     cell.style.color = value ? '#212529' : '#ccc';
                     cell.classList.add('sticky-col');
                     cell.style.left = currentLeft + 'px';
+
+                    // Make editable in edit mode
+                    if (editMode) {
+                        cell.classList.add('editable');
+                        cell.addEventListener('click', () => makeEditable(cell, item.guid, col.psetName, col.propName));
+                    }
+
+                    // Mark as modified if changed
+                    if (modifications[item.guid]?.[col.psetName]?.[col.propName] !== undefined) {
+                        cell.classList.add('modified-cell');
+                    }
+
                     row.appendChild(cell);
                     currentLeft += 120;
                 }
@@ -1642,6 +1970,18 @@
                     const value = item.propertySets[col.psetName]?.[col.propName];
                     cell.textContent = value || '-';
                     cell.style.color = value ? '#212529' : '#ccc';
+
+                    // Make editable in edit mode
+                    if (editMode) {
+                        cell.classList.add('editable');
+                        cell.addEventListener('click', () => makeEditable(cell, item.guid, col.psetName, col.propName));
+                    }
+
+                    // Mark as modified if changed
+                    if (modifications[item.guid]?.[col.psetName]?.[col.propName] !== undefined) {
+                        cell.classList.add('modified-cell');
+                    }
+
                     row.appendChild(cell);
                 }
 
@@ -1827,6 +2167,845 @@
             currentPage = 1; // Reset to first page when changing page size
             renderTable();
         });
+
+        // ============================================
+        // EDIT MODE FUNCTIONS
+        // ============================================
+
+        document.getElementById('toggleEditModeBtn').addEventListener('click', () => {
+            editMode = !editMode;
+            const btn = document.getElementById('toggleEditModeBtn');
+            const editPanel = document.getElementById('editPanel');
+
+            if (editMode) {
+                btn.textContent = '👁️ Režim zobrazení';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-warning');
+                editPanel.classList.add('active');
+                document.body.classList.add('edit-mode');
+            } else {
+                btn.textContent = '✏️ Editační režim';
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-primary');
+                editPanel.classList.remove('active');
+                document.body.classList.remove('edit-mode');
+                selectedEntities.clear();
+            }
+
+            buildTable();
+        });
+
+        function updateSelectedCount() {
+            const count = selectedEntities.size;
+            const totalFiltered = filteredData.length;
+
+            console.log('Selected entities count:', count);
+            document.getElementById('selectedCount').textContent = count;
+
+            // Show total filtered count
+            const totalFilteredSpan = document.getElementById('totalFilteredCount');
+            if (totalFilteredSpan) {
+                if (totalFiltered > 0) {
+                    totalFilteredSpan.textContent = `(z ${totalFiltered} celkem)`;
+                } else {
+                    totalFilteredSpan.textContent = '';
+                }
+            }
+
+            const bulkBtn = document.getElementById('bulkEditBtn');
+            const addBtn = document.getElementById('addPsetBtn');
+            const exportBtn = document.getElementById('exportIfcBtn');
+
+            if (bulkBtn) bulkBtn.disabled = count === 0;
+            if (addBtn) addBtn.disabled = count === 0;
+            if (exportBtn) exportBtn.disabled = Object.keys(modifications).length === 0;
+
+            console.log('Bulk Edit Button disabled:', bulkBtn ? bulkBtn.disabled : 'not found');
+        }
+
+        document.getElementById('selectAllVisibleBtn').addEventListener('click', () => {
+            const startIndex = pageSize === -1 ? 0 : (currentPage - 1) * pageSize;
+            const endIndex = pageSize === -1 ? filteredData.length : Math.min(startIndex + pageSize, filteredData.length);
+            const pageData = filteredData.slice(startIndex, endIndex);
+            pageData.forEach(item => selectedEntities.add(item.guid));
+            updateSelectedCount();
+            renderTable();
+        });
+
+        document.getElementById('selectAllPagesBtn').addEventListener('click', () => {
+            console.log('=== SELECT ALL PAGES CLICKED ===');
+            console.log('Edit mode:', editMode);
+            console.log('Filtered data length:', filteredData.length);
+            console.log('Selected entities before:', selectedEntities.size);
+
+            if (!editMode) {
+                alert('Nejprve zapněte Editační režim!');
+                return;
+            }
+
+            const totalCount = filteredData.length;
+
+            if (totalCount === 0) {
+                alert('Žádné entity k výběru. Zkontrolujte filtry.');
+                return;
+            }
+
+            // Warning if selecting a lot of entities
+            if (totalCount > 1000) {
+                const confirmed = confirm(
+                    `Opravdu chcete vybrat všech ${totalCount} entit?\n\n` +
+                    `To může trvat déle a může zpomalit prohlížeč.`
+                );
+                if (!confirmed) return;
+            }
+
+            // Select all filtered entities
+            console.log(`Selecting all ${totalCount} entities across all pages`);
+            let addedCount = 0;
+            filteredData.forEach(item => {
+                if (item && item.guid) {
+                    selectedEntities.add(item.guid);
+                    addedCount++;
+                } else {
+                    console.warn('Invalid item:', item);
+                }
+            });
+
+            console.log('Selected entities after:', selectedEntities.size);
+            console.log('Added:', addedCount);
+
+            updateSelectedCount();
+            renderTable();
+
+            // Show success message
+            const message = document.createElement('div');
+            message.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #28a745; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-weight: 600;';
+            message.textContent = `✓ Vybráno všech ${totalCount} entit`;
+            document.body.appendChild(message);
+
+            setTimeout(() => {
+                message.remove();
+            }, 3000);
+        });
+
+        document.getElementById('deselectAllBtn').addEventListener('click', () => {
+            selectedEntities.clear();
+            updateSelectedCount();
+            renderTable();
+        });
+
+        function toggleEntitySelection(guid) {
+            if (selectedEntities.has(guid)) {
+                selectedEntities.delete(guid);
+            } else {
+                selectedEntities.add(guid);
+            }
+            updateSelectedCount();
+        }
+
+        function makeEditable(cell, guid, psetName, propName) {
+            if (!editMode || editingCell === cell) return;
+
+            editingCell = cell;
+            const currentValue = cell.textContent;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'cell-editor';
+            input.value = currentValue === '-' ? '' : currentValue;
+
+            input.addEventListener('blur', () => {
+                saveCell(input, cell, guid, psetName, propName);
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    saveCell(input, cell, guid, psetName, propName);
+                } else if (e.key === 'Escape') {
+                    cell.textContent = currentValue;
+                    editingCell = null;
+                }
+            });
+
+            cell.textContent = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+        }
+
+        function saveCell(input, cell, guid, psetName, propName) {
+            const newValue = input.value.trim();
+            const entity = allData.find(e => e.guid === guid);
+
+            if (!entity) {
+                editingCell = null;
+                return;
+            }
+
+            // Initialize modification structure
+            if (!modifications[guid]) {
+                modifications[guid] = {};
+            }
+            if (!modifications[guid][psetName]) {
+                modifications[guid][psetName] = {};
+            }
+
+            // Save modification
+            modifications[guid][psetName][propName] = newValue;
+
+            // Update entity data
+            if (!entity.propertySets[psetName]) {
+                entity.propertySets[psetName] = {};
+            }
+            entity.propertySets[psetName][propName] = newValue;
+
+            // Update cell display
+            cell.textContent = newValue || '-';
+            cell.style.color = newValue ? '#212529' : '#ccc';
+            cell.classList.add('modified-cell');
+
+            editingCell = null;
+            updateSelectedCount();
+        }
+
+        // Bulk Edit Modal
+        document.getElementById('bulkEditBtn').addEventListener('click', () => {
+            console.log('Bulk Edit Button clicked!');
+            console.log('Selected entities:', Array.from(selectedEntities));
+            console.log('PropertySet order:', psetOrder);
+
+            const modal = document.getElementById('bulkEditModal');
+            const psetSelect = document.getElementById('bulkPsetName');
+            const propSelect = document.getElementById('bulkPropName');
+
+            // Populate PropertySet dropdown
+            psetSelect.innerHTML = '<option value="">-- Vyberte PropertySet --</option>';
+            for (let psetName of psetOrder) {
+                if (propertySetGroups[psetName]) {
+                    psetSelect.innerHTML += `<option value="${psetName}">${psetName}</option>`;
+                }
+            }
+
+            console.log('PropertySets in dropdown:', psetOrder.length);
+
+            document.getElementById('bulkEditCount').textContent = selectedEntities.size;
+            modal.classList.add('active');
+            console.log('Modal should be visible now');
+        });
+
+        document.getElementById('bulkPsetName').addEventListener('change', (e) => {
+            const psetName = e.target.value;
+            const propSelect = document.getElementById('bulkPropName');
+            const currentValuesSection = document.getElementById('currentValuesSection');
+
+            // Hide current values when changing PropertySet
+            currentValuesSection.style.display = 'none';
+
+            if (!psetName) {
+                propSelect.disabled = true;
+                propSelect.innerHTML = '<option value="">-- Nejprve vyberte PropertySet --</option>';
+                return;
+            }
+
+            propSelect.disabled = false;
+            propSelect.innerHTML = '<option value="">-- Vyberte Property --</option>';
+
+            if (propertySetGroups[psetName]) {
+                for (let propName of propertySetGroups[psetName]) {
+                    propSelect.innerHTML += `<option value="${propName}">${propName}</option>`;
+                }
+            }
+        });
+
+        document.getElementById('bulkPropName').addEventListener('change', (e) => {
+            const psetName = document.getElementById('bulkPsetName').value;
+            const propName = e.target.value;
+            const currentValuesSection = document.getElementById('currentValuesSection');
+            const currentValuesList = document.getElementById('currentValuesList');
+
+            if (!psetName || !propName) {
+                currentValuesSection.style.display = 'none';
+                return;
+            }
+
+            // Collect current values from selected entities
+            const valueCount = {};
+            let emptyCount = 0;
+
+            for (let guid of selectedEntities) {
+                const entity = allData.find(e => e.guid === guid);
+                if (!entity) continue;
+
+                const value = entity.propertySets[psetName]?.[propName];
+                if (value) {
+                    valueCount[value] = (valueCount[value] || 0) + 1;
+                } else {
+                    emptyCount++;
+                }
+            }
+
+            // Display values
+            let html = '';
+            const uniqueValues = Object.keys(valueCount);
+
+            if (uniqueValues.length > 0) {
+                html += '<div style="display: grid; gap: 8px;">';
+                uniqueValues.sort().forEach(value => {
+                    const count = valueCount[value];
+                    const percentage = Math.round((count / selectedEntities.size) * 100);
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
+                            <span style="font-weight: 600; color: #667eea; flex: 1;">${escapeHtml(value)}</span>
+                            <span style="color: #6c757d; font-size: 0.9em; margin-left: 10px;">${count}× (${percentage}%)</span>
+                            <button onclick="document.getElementById('bulkValue').value = '${escapeHtml(value).replace(/'/g, "\\'")}';"
+                                    style="margin-left: 10px; padding: 4px 10px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                                Použít
+                            </button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            if (emptyCount > 0) {
+                const percentage = Math.round((emptyCount / selectedEntities.size) * 100);
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107; margin-top: 8px;">
+                        <span style="font-style: italic; color: #856404;">Prázdné / neexistuje</span>
+                        <span style="color: #856404; font-size: 0.9em;">${emptyCount}× (${percentage}%)</span>
+                    </div>
+                `;
+            }
+
+            if (uniqueValues.length === 0 && emptyCount === 0) {
+                html = '<p style="color: #6c757d; font-style: italic;">Žádné hodnoty nenalezeny</p>';
+            }
+
+            currentValuesList.innerHTML = html;
+            currentValuesSection.style.display = 'block';
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function closeBulkEditModal() {
+            document.getElementById('bulkEditModal').classList.remove('active');
+            document.getElementById('currentValuesSection').style.display = 'none';
+            document.getElementById('bulkValue').value = '';
+            document.getElementById('bulkPsetName').value = '';
+            document.getElementById('bulkPropName').value = '';
+            document.getElementById('bulkPropName').disabled = true;
+        }
+
+        function applyBulkEdit() {
+            const psetName = document.getElementById('bulkPsetName').value;
+            const propName = document.getElementById('bulkPropName').value;
+            const value = document.getElementById('bulkValue').value.trim();
+
+            if (!psetName || !propName) {
+                alert('Vyberte PropertySet a Property');
+                return;
+            }
+
+            // Apply to all selected entities
+            for (let guid of selectedEntities) {
+                const entity = allData.find(e => e.guid === guid);
+                if (!entity) continue;
+
+                // Initialize modification structure
+                if (!modifications[guid]) {
+                    modifications[guid] = {};
+                }
+                if (!modifications[guid][psetName]) {
+                    modifications[guid][psetName] = {};
+                }
+
+                // Save modification
+                modifications[guid][psetName][propName] = value;
+
+                // Update entity data
+                if (!entity.propertySets[psetName]) {
+                    entity.propertySets[psetName] = {};
+                }
+                entity.propertySets[psetName][propName] = value;
+            }
+
+            closeBulkEditModal();
+            renderTable();
+            updateSelectedCount();
+
+            alert(`Hodnota "${value}" byla nastavena pro ${selectedEntities.size} entit v ${psetName}.${propName}`);
+        }
+
+        // Add PSet Modal
+        document.getElementById('addPsetBtn').addEventListener('click', () => {
+            const modal = document.getElementById('addPsetModal');
+            document.getElementById('addPsetCount').textContent = selectedEntities.size;
+            modal.classList.add('active');
+        });
+
+        function closeAddPsetModal() {
+            document.getElementById('addPsetModal').classList.remove('active');
+            document.getElementById('newPsetName').value = '';
+            document.getElementById('newPropName').value = '';
+            document.getElementById('newPropValue').value = '';
+        }
+
+        function applyAddPset() {
+            const psetName = document.getElementById('newPsetName').value.trim();
+            const propName = document.getElementById('newPropName').value.trim();
+            const value = document.getElementById('newPropValue').value.trim();
+
+            if (!psetName || !propName) {
+                alert('Vyplňte název PropertySetu a Property');
+                return;
+            }
+
+            // Add new PropertySet/Property to structure if it doesn't exist
+            if (!propertySetGroups[psetName]) {
+                propertySetGroups[psetName] = [];
+                psetOrder.push(psetName);
+                visiblePsets[psetName] = {};
+            }
+
+            if (!propertySetGroups[psetName].includes(propName)) {
+                propertySetGroups[psetName].push(propName);
+                visiblePsets[psetName][propName] = true;
+            }
+
+            // Apply to all selected entities
+            for (let guid of selectedEntities) {
+                const entity = allData.find(e => e.guid === guid);
+                if (!entity) continue;
+
+                // Initialize modification structure
+                if (!modifications[guid]) {
+                    modifications[guid] = {};
+                }
+                if (!modifications[guid][psetName]) {
+                    modifications[guid][psetName] = {};
+                }
+
+                // Save modification
+                modifications[guid][psetName][propName] = value;
+
+                // Update entity data
+                if (!entity.propertySets[psetName]) {
+                    entity.propertySets[psetName] = {};
+                }
+                entity.propertySets[psetName][propName] = value;
+            }
+
+            closeAddPsetModal();
+            buildTable(); // Rebuild table to include new columns
+            updateSelectedCount();
+
+            alert(`PropertySet "${psetName}" s property "${propName}" byl přidán k ${selectedEntities.size} entitám`);
+        }
+
+        // Export modified IFC
+        document.getElementById('exportIfcBtn').addEventListener('click', () => {
+            if (Object.keys(modifications).length === 0) {
+                alert('Žádné změny k uložení');
+                return;
+            }
+
+            console.log('Starting IFC export with modifications...');
+            console.log('Modified entities:', Object.keys(modifications).length);
+            console.log('Modifications:', modifications);
+
+            if (loadedFiles.length === 0) {
+                alert('Nejsou načtené žádné IFC soubory');
+                return;
+            }
+
+            // Ask which file to export (if multiple files loaded)
+            let fileToExport;
+            if (loadedFiles.length === 1) {
+                fileToExport = loadedFiles[0];
+            } else {
+                // Show dialog to select file
+                const fileNames = loadedFiles.map((f, i) => `${i + 1}. ${f.fileName}`).join('\n');
+                const choice = prompt(
+                    `Vyberte soubor pro export (zadejte číslo 1-${loadedFiles.length}):\n\n${fileNames}`
+                );
+                const index = parseInt(choice) - 1;
+                if (isNaN(index) || index < 0 || index >= loadedFiles.length) {
+                    alert('Neplatný výběr');
+                    return;
+                }
+                fileToExport = loadedFiles[index];
+            }
+
+            if (!fileToExport.originalContent) {
+                alert('Původní obsah IFC souboru není dostupný. Nahrajte soubor znovu.');
+                return;
+            }
+
+            console.log('Exporting file:', fileToExport.fileName);
+
+            // Start export using stored original content
+            exportModifiedIFC(fileToExport);
+        });
+
+        function exportModifiedIFC(fileInfo) {
+            try {
+                const ifcContent = fileInfo.originalContent;
+                const modifiedIfc = applyModificationsToIFC(ifcContent, modifications, fileInfo.fileName);
+
+                if (!modifiedIfc) {
+                    console.error('Export cancelled due to data integrity check failure');
+                    return;
+                }
+
+                downloadModifiedIFC(modifiedIfc, fileInfo.fileName);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Chyba při exportu: ' + error.message);
+            }
+        }
+
+        function applyModificationsToIFC(ifcContent, modifications, fileName) {
+            console.log('=== APPLYING MODIFICATIONS TO IFC ===');
+            console.log('Original IFC content length:', ifcContent.length, 'characters');
+
+            const lines = ifcContent.split('\n');
+            console.log('Total lines in IFC:', lines.length);
+            let modifiedLines = [...lines];
+            console.log('Copied lines for modification:', modifiedLines.length);
+
+            // Build a map of entity IDs to line numbers
+            const entityMap = new Map();
+            const propertySetMap = new Map();
+            const propertySingleValueMap = new Map();
+            const elementQuantityMap = new Map();
+
+            lines.forEach((originalLine, lineIndex) => {
+                // Trim line for parsing but keep original in modifiedLines
+                const line = originalLine.trim();
+                if (!line || !line.startsWith('#')) return;
+
+                // More flexible regex that handles multiline and various formats
+                const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?\s*$/i);
+                if (!match) {
+                    // Debug: log lines that don't match
+                    if (lineIndex < 100 && line.includes('IFCPROPERTY')) {
+                        console.log(`Line ${lineIndex} doesn't match regex:`, line.substring(0, 80));
+                    }
+                    return;
+                }
+
+                const [, id, entityType, params] = match;
+                entityMap.set(id, { lineIndex, type: entityType, params, line: originalLine });
+
+                // Property sets and quantities
+                if (entityType === 'IFCPROPERTYSET' || entityType === 'IFCELEMENTQUANTITY') {
+                    propertySetMap.set(id, { lineIndex, params, line: originalLine, type: entityType });
+                } else if (entityType === 'IFCPROPERTYSINGLEVALUE' ||
+                           entityType.startsWith('IFCQUANTITY')) {
+                    propertySingleValueMap.set(id, { lineIndex, params, line: originalLine, type: entityType });
+                }
+            });
+
+            console.log('Found entities:', entityMap.size);
+            console.log('Found property sets:', propertySetMap.size);
+            console.log('Found property single values:', propertySingleValueMap.size);
+
+            // Debug: List all PropertySet names found
+            console.log('PropertySets found in IFC:');
+            for (const [psetId, psetInfo] of propertySetMap) {
+                const quotedStrings = [];
+                const regex = /'([^']*(?:\\'[^']*)*)'/g;
+                let match;
+                while ((match = regex.exec(psetInfo.params)) !== null) {
+                    quotedStrings.push(match[1]);
+                }
+                // PropertySet name is at index 1
+                let foundPsetName = quotedStrings.length > 1 ? quotedStrings[1] : 'UNKNOWN';
+                console.log(`  #${psetId}: "${foundPsetName}" - Type: ${psetInfo.type} - Line: ${psetInfo.line.substring(0, 100)}...`);
+            }
+
+            // Find GUID to entity ID mapping
+            const guidToEntityId = new Map();
+            entityMap.forEach((entity, id) => {
+                if (entity.type.startsWith('IFC') && !entity.type.includes('REL') && !entity.type.includes('PROPERTY')) {
+                    const guidMatch = entity.params.match(/'([^']+)'/);
+                    if (guidMatch) {
+                        guidToEntityId.set(guidMatch[1], id);
+                    }
+                }
+            });
+
+            console.log('GUID to Entity ID mappings:', guidToEntityId.size);
+
+            // Apply modifications
+            let modificationCount = 0;
+
+            for (const [guid, psetModifications] of Object.entries(modifications)) {
+                // Filter modifications only for this file
+                const entity = allData.find(e => e.guid === guid && e.fileName === fileName);
+                if (!entity) continue;
+
+                console.log(`Processing entity GUID: ${guid}`);
+
+                for (const [psetName, propModifications] of Object.entries(psetModifications)) {
+                    console.log(`  PropertySet: ${psetName}`);
+
+                    for (const [propName, newValue] of Object.entries(propModifications)) {
+                        console.log(`    Property: ${propName} = ${newValue}`);
+
+                        // Find the property in IFC and update it
+                        const updated = updatePropertyInIFC(
+                            modifiedLines,
+                            entityMap,
+                            propertySetMap,
+                            propertySingleValueMap,
+                            psetName,
+                            propName,
+                            newValue
+                        );
+
+                        if (updated) {
+                            modificationCount++;
+                            console.log(`      ✓ Updated`);
+                        } else {
+                            console.log(`      ✗ Not found (will need to create new)`);
+                        }
+                    }
+                }
+            }
+
+            console.log(`Total modifications applied: ${modificationCount}`);
+
+            // Verify line count before joining
+            console.log('Lines before join:', modifiedLines.length);
+            const result = modifiedLines.join('\n');
+            console.log('Result length after join:', result.length, 'characters');
+
+            // Verify by counting newlines
+            const resultLineCount = (result.match(/\n/g) || []).length + 1;
+            console.log('Result line count:', resultLineCount);
+
+            if (resultLineCount < lines.length * 0.9) {
+                console.error('WARNING: Significant line loss detected!');
+                console.error(`Original lines: ${lines.length}, Result lines: ${resultLineCount}`);
+                alert(`VAROVÁNÍ: Při exportu došlo ke ztrátě dat!\nPůvodní řádky: ${lines.length}\nVýsledné řádky: ${resultLineCount}\n\nExport byl zrušen pro bezpečnost.`);
+                return null;
+            }
+
+            return result;
+        }
+
+        function updatePropertyInIFC(lines, entityMap, propertySetMap, propertySingleValueMap, psetName, propName, newValue) {
+            console.log(`    Searching for ALL PSets: "${psetName}", Property: "${propName}"`);
+
+            let updatedCount = 0;
+
+            // Find ALL PropertySets with this name (there can be multiple!)
+            for (const [psetId, psetInfo] of propertySetMap) {
+                // Extract all quoted strings from the params
+                const quotedStrings = [];
+                const regex = /'([^']*(?:\\'[^']*)*)'/g;
+                let match;
+                while ((match = regex.exec(psetInfo.params)) !== null) {
+                    quotedStrings.push(match[1]);
+                }
+
+                // PropertySet name is the second quoted string (index 1)
+                // Format: IFCPROPERTYSET('GUID',#owner,'Name','Description',(props))
+                let foundPsetName = null;
+                if (quotedStrings.length > 1) {
+                    foundPsetName = quotedStrings[1];
+                } else if (quotedStrings.length > 0) {
+                    // Fallback: try to find first non-GUID string
+                    for (let i = 0; i < quotedStrings.length; i++) {
+                        const str = quotedStrings[i];
+                        // Skip if looks like GUID (contains $ or is very long with weird chars)
+                        if (str && str.length > 0 && !str.includes('$') && str.length < 50) {
+                            foundPsetName = str;
+                            break;
+                        }
+                    }
+                }
+
+                if (foundPsetName !== psetName) continue;
+
+                console.log(`      ✓ Found matching PropertySet #${psetId}!`);
+
+                // Found the PropertySet, now find properties in it
+                // Extract all references to property IDs (the list in parentheses at the end)
+                const propIdsMatch = psetInfo.params.match(/\(([#\d,\s]+)\)[^)]*$/);
+                if (!propIdsMatch) {
+                    console.log(`      ✗ No property IDs found in this PSet`);
+                    continue;
+                }
+
+                const propIds = propIdsMatch[1].match(/#\d+/g);
+                if (!propIds) {
+                    console.log(`      ✗ Could not parse property IDs`);
+                    continue;
+                }
+
+                console.log(`      Found ${propIds.length} properties in this PSet`);
+
+                // Check each property
+                for (const propIdRef of propIds) {
+                    const propId = propIdRef.substring(1);
+                    const propInfo = propertySingleValueMap.get(propId);
+                    if (!propInfo) {
+                        console.log(`        Property #${propId} not found in map`);
+                        continue;
+                    }
+
+                    // Extract property name (first quoted string)
+                    const propNameMatch = propInfo.params.match(/'([^']*)'/);
+                    if (!propNameMatch) {
+                        console.log(`        Property #${propId} has no name`);
+                        continue;
+                    }
+
+                    const currentPropName = propNameMatch[1];
+                    console.log(`        Checking property #${propId}: "${currentPropName}"`);
+
+                    if (currentPropName !== propName) continue;
+
+                    console.log(`        ✓ Found matching property! Updating value...`);
+
+                    // Found the property! Update its value
+                    const oldLine = propInfo.line;
+                    console.log(`        Old line: ${oldLine}`);
+
+                    const newLine = updatePropertyValue(oldLine, newValue);
+                    console.log(`        New line: ${newLine}`);
+
+                    if (newLine !== oldLine) {
+                        lines[propInfo.lineIndex] = newLine;
+                        console.log(`        ✓ Line updated at index ${propInfo.lineIndex}`);
+                        updatedCount++;
+                    } else {
+                        console.log(`        ✗ No change in line`);
+                    }
+                }
+            }
+
+            if (updatedCount > 0) {
+                console.log(`    ✓ Updated ${updatedCount} property instance(s)`);
+                return true;
+            } else {
+                console.log(`    ✗ PropertySet or Property not found`);
+                return false;
+            }
+        }
+
+        function updatePropertyValue(line, newValue) {
+            // Update the value in IFCPROPERTYSINGLEVALUE
+            // Format examples:
+            // #123=IFCPROPERTYSINGLEVALUE('PropertyName',$,IFCLABEL('OldValue'),$);
+            // #123=IFCPROPERTYSINGLEVALUE('PropertyName',$,IFCTEXT('OldValue'),$);
+            // #123=IFCPROPERTYSINGLEVALUE('PropertyName',$,IFCREAL(123.45),$);
+
+            // Try to match IFC type with value in parentheses (string values)
+            const stringValuePattern = /(IFC(?:LABEL|TEXT|IDENTIFIER|DESCRIPTIVEMEASURE))\s*\(\s*'([^']*)'\s*\)/;
+            let match = line.match(stringValuePattern);
+
+            if (match) {
+                const [fullMatch, ifcType, oldValue] = match;
+                const encodedValue = encodeIFCString(newValue);
+                const newMatch = `${ifcType}('${encodedValue}')`;
+                console.log(`          Replacing "${fullMatch}" with "${newMatch}"`);
+                return line.replace(fullMatch, newMatch);
+            }
+
+            // Try to match numeric values
+            const numericValuePattern = /(IFC(?:REAL|INTEGER|NUMERIC|POSITIVE(?:LENGTH|PLANE)?MEASURE|LENGTH|AREA|VOLUME|COUNT|TIME)MEASURE?)\s*\(\s*([^)]+)\s*\)/;
+            match = line.match(numericValuePattern);
+
+            if (match) {
+                const [fullMatch, ifcType, oldValue] = match;
+                // For numeric types, try to parse as number, otherwise keep as is
+                const numValue = parseFloat(newValue);
+                const finalValue = isNaN(numValue) ? newValue : numValue;
+                const newMatch = `${ifcType}(${finalValue})`;
+                console.log(`          Replacing "${fullMatch}" with "${newMatch}"`);
+                return line.replace(fullMatch, newMatch);
+            }
+
+            // Try to match boolean values
+            const booleanValuePattern = /(IFCBOOLEAN|IFCLOGICAL)\s*\(\s*\.(T|F|UNKNOWN)\.\s*\)/;
+            match = line.match(booleanValuePattern);
+
+            if (match) {
+                const [fullMatch, ifcType] = match;
+                const boolValue = newValue.toUpperCase() === 'TRUE' || newValue === '1' || newValue.toUpperCase() === 'T' ? 'T' :
+                                 newValue.toUpperCase() === 'FALSE' || newValue === '0' || newValue.toUpperCase() === 'F' ? 'F' : 'UNKNOWN';
+                const newMatch = `${ifcType}(.${boolValue}.)`;
+                console.log(`          Replacing "${fullMatch}" with "${newMatch}"`);
+                return line.replace(fullMatch, newMatch);
+            }
+
+            // Fallback: try to find the third parameter (value is typically 3rd param after property name and description)
+            // Format: IFCPROPERTYSINGLEVALUE('Name', $, <VALUE>, $)
+            const parts = line.split(',');
+            if (parts.length >= 4) {
+                // The value is typically at index 2 (0-based: name, description, value, unit)
+                const valuePart = parts[2].trim();
+
+                // If it's an IFC type, replace just the content
+                if (valuePart.includes('IFC')) {
+                    const simpleMatch = valuePart.match(/(IFC\w+)\s*\(([^)]*)\)/);
+                    if (simpleMatch) {
+                        const [, ifcType, oldValue] = simpleMatch;
+                        let newValueFormatted;
+
+                        // If old value has quotes, use quotes for new value
+                        if (oldValue.includes("'")) {
+                            newValueFormatted = `${ifcType}('${encodeIFCString(newValue)}')`;
+                        } else {
+                            // Numeric or boolean value
+                            const numValue = parseFloat(newValue);
+                            newValueFormatted = `${ifcType}(${isNaN(numValue) ? newValue : numValue})`;
+                        }
+
+                        parts[2] = parts[2].replace(simpleMatch[0], newValueFormatted);
+                        console.log(`          Fallback replacement successful`);
+                        return parts.join(',');
+                    }
+                }
+            }
+
+            console.log(`          ✗ Could not find value pattern to replace`);
+            return line;
+        }
+
+        function encodeIFCString(str) {
+            if (!str) return '';
+            // Basic IFC string encoding
+            // TODO: Add proper encoding for special characters if needed
+            return String(str).replace(/'/g, "\\'");
+        }
+
+        function downloadModifiedIFC(ifcContent, originalFileName) {
+            const blob = new Blob([ifcContent], { type: 'application/ifc' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+
+            // Create new filename
+            const nameParts = originalFileName.split('.');
+            nameParts[nameParts.length - 1] = 'ifc';
+            const baseName = nameParts.slice(0, -1).join('.');
+            a.download = `${baseName}_modified.ifc`;
+
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert(`✓ IFC soubor byl úspěšně uložen jako:\n${a.download}`);
+        }
     </script>
 </body>
 </html>

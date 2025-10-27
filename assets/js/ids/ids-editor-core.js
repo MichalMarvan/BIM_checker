@@ -216,7 +216,15 @@ class IDSEditorCore {
 
         // Render specifications
         html += '<div class="specifications-container">';
-        html += '<h3>Specifications</h3>';
+        html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">';
+        html += '<h3 style="margin: 0;">Specifications</h3>';
+        if (this.idsData.specifications.length > 0) {
+            html += '<div class="collapse-controls">';
+            html += '<button class="btn btn-sm btn-secondary" onclick="idsEditorCore.collapseAll()">⬆ Sbalit vše</button>';
+            html += '<button class="btn btn-sm btn-secondary" onclick="idsEditorCore.expandAll()">⬇ Rozbalit vše</button>';
+            html += '</div>';
+        }
+        html += '</div>';
 
         if (this.idsData.specifications.length === 0) {
             html += '<p class="empty-message">Žádné specifikace. Klikněte na "Editační režim" a přidejte novou.</p>';
@@ -271,23 +279,30 @@ class IDSEditorCore {
      * Render specification
      */
     renderSpecification(spec, index) {
+        const totalFacets = (spec.applicability ? spec.applicability.length : 0) + (spec.requirements ? spec.requirements.length : 0);
         let html = `
-            <div class="specification-item" data-index="${index}">
-                <div class="spec-header">
-                    <h4>${this.escapeHtml(spec.name)}</h4>
+            <div class="specification-item collapsible-section" data-index="${index}">
+                <div class="spec-header collapsible-header" onclick="idsEditorCore.toggleSection(this)">
+                    <span class="collapse-icon">▼</span>
+                    <h4 style="margin: 0; flex: 1;">${this.escapeHtml(spec.name)}</h4>
+                    <span class="facet-count">${totalFacets} facets</span>
                     ${this.editMode ? `
-                        <div class="edit-controls">
-                            <button class="edit-btn" onclick="idsEditorCore.editSpecification(${index})">✏️ Upravit</button>
-                            <button class="delete-btn" onclick="idsEditorCore.deleteSpecification(${index})">🗑️ Smazat</button>
-                        </div>
+                        <button class="edit-btn" onclick="event.stopPropagation(); idsEditorCore.editSpecification(${index})">✏️</button>
+                        <button class="delete-btn" onclick="event.stopPropagation(); idsEditorCore.deleteSpecification(${index})">🗑️</button>
                     ` : ''}
                 </div>
-                ${spec.description ? `<p class="spec-description">${this.escapeHtml(spec.description)}</p>` : ''}
+                <div class="collapsible-content">
+                    ${spec.description ? `<p class="spec-description">${this.escapeHtml(spec.description)}</p>` : ''}
         `;
 
         // Applicability
-        html += '<div class="applicability-section">';
-        html += '<h5>Applicability</h5>';
+        const applicabilityCount = spec.applicability ? spec.applicability.length : 0;
+        html += '<div class="applicability-section collapsible-section">';
+        html += `<h5 class="collapsible-header" onclick="idsEditorCore.toggleSection(this)">
+            <span class="collapse-icon">▼</span>
+            Applicability <span class="facet-count">(${applicabilityCount})</span>
+        </h5>`;
+        html += '<div class="collapsible-content">';
         if (spec.applicability && spec.applicability.length > 0) {
             spec.applicability.forEach((facet, facetIndex) => {
                 html += this.renderFacet(facet, index, 'applicability', facetIndex);
@@ -299,10 +314,16 @@ class IDSEditorCore {
             html += `<button class="add-facet-btn" onclick="idsEditorCore.addFacet(${index}, 'applicability')">+ Přidat applicability</button>`;
         }
         html += '</div>';
+        html += '</div>';
 
         // Requirements
-        html += '<div class="requirements-section">';
-        html += '<h5>Requirements</h5>';
+        const requirementsCount = spec.requirements ? spec.requirements.length : 0;
+        html += '<div class="requirements-section collapsible-section">';
+        html += `<h5 class="collapsible-header" onclick="idsEditorCore.toggleSection(this)">
+            <span class="collapse-icon">▼</span>
+            Requirements <span class="facet-count">(${requirementsCount})</span>
+        </h5>`;
+        html += '<div class="collapsible-content">';
         if (spec.requirements && spec.requirements.length > 0) {
             spec.requirements.forEach((facet, facetIndex) => {
                 html += this.renderFacet(facet, index, 'requirements', facetIndex);
@@ -314,8 +335,10 @@ class IDSEditorCore {
             html += `<button class="add-facet-btn" onclick="idsEditorCore.addFacet(${index}, 'requirements')">+ Přidat requirement</button>`;
         }
         html += '</div>';
-
         html += '</div>';
+
+        html += '</div>'; // close collapsible-content
+        html += '</div>'; // close specification-item
         return html;
     }
 
@@ -672,6 +695,47 @@ class IDSEditorCore {
         setTimeout(() => {
             message.remove();
         }, 3000);
+    }
+
+    /**
+     * Toggle collapsible section
+     */
+    toggleSection(headerElement) {
+        const section = headerElement.closest('.collapsible-section');
+        const content = section.querySelector('.collapsible-content');
+        const icon = headerElement.querySelector('.collapse-icon');
+
+        if (section.classList.contains('collapsed')) {
+            section.classList.remove('collapsed');
+            icon.textContent = '▼';
+        } else {
+            section.classList.add('collapsed');
+            icon.textContent = '▶';
+        }
+    }
+
+    /**
+     * Collapse all sections
+     */
+    collapseAll() {
+        const sections = document.querySelectorAll('.collapsible-section');
+        sections.forEach(section => {
+            const icon = section.querySelector('.collapse-icon');
+            section.classList.add('collapsed');
+            if (icon) icon.textContent = '▶';
+        });
+    }
+
+    /**
+     * Expand all sections
+     */
+    expandAll() {
+        const sections = document.querySelectorAll('.collapsible-section');
+        sections.forEach(section => {
+            const icon = section.querySelector('.collapse-icon');
+            section.classList.remove('collapsed');
+            if (icon) icon.textContent = '▼';
+        });
     }
 
     /**
