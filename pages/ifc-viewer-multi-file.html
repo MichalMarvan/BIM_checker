@@ -1130,9 +1130,30 @@
                 combineData();
                 updateUI();
             } else {
+                // Reset to initial state when all files are removed
                 document.getElementById('controls').style.display = 'none';
                 document.getElementById('tableContainer').style.display = 'none';
                 document.getElementById('statsSection').style.display = 'none';
+                document.getElementById('paginationContainer').style.display = 'none';
+                document.getElementById('editPanel').classList.remove('active');
+
+                // Reset data and state
+                allData = [];
+                filteredData = [];
+                selectedEntities.clear();
+                modifications = {};
+                propertySetGroups = {};
+                psetOrder = [];
+                visiblePsets = {};
+                currentPage = 1;
+                editMode = false;
+
+                // Reset edit mode button
+                const editModeBtn = document.getElementById('toggleEditModeBtn');
+                if (editModeBtn) {
+                    editModeBtn.textContent = '✏️ Editační režim';
+                }
+                document.body.classList.remove('edit-mode');
             }
         }
 
@@ -2682,6 +2703,8 @@
             const propertySetMap = new Map();
             const propertySingleValueMap = new Map();
             const elementQuantityMap = new Map();
+            const relDefinesMap = new Map();
+            let maxEntityId = 0;
 
             lines.forEach((originalLine, lineIndex) => {
                 // Trim line for parsing but keep original in modifiedLines
@@ -2699,6 +2722,9 @@
                 }
 
                 const [, id, entityType, params] = match;
+                const numId = parseInt(id);
+                if (numId > maxEntityId) maxEntityId = numId;
+
                 entityMap.set(id, { lineIndex, type: entityType, params, line: originalLine });
 
                 // Property sets and quantities
@@ -2707,8 +2733,12 @@
                 } else if (entityType === 'IFCPROPERTYSINGLEVALUE' ||
                            entityType.startsWith('IFCQUANTITY')) {
                     propertySingleValueMap.set(id, { lineIndex, params, line: originalLine, type: entityType });
+                } else if (entityType === 'IFCRELDEFINESBYPROPERTIES') {
+                    relDefinesMap.set(id, { lineIndex, params, line: originalLine });
                 }
             });
+
+            console.log('Max entity ID found:', maxEntityId);
 
             console.log('Found entities:', entityMap.size);
             console.log('Found property sets:', propertySetMap.size);
@@ -2743,16 +2773,28 @@
 
             // Apply modifications
             let modificationCount = 0;
+            let createdCount = 0;
+            const newEntities = []; // New lines to add before ENDSEC
 
             for (const [guid, psetModifications] of Object.entries(modifications)) {
                 // Filter modifications only for this file
                 const entity = allData.find(e => e.guid === guid && e.fileName === fileName);
                 if (!entity) continue;
 
-                console.log(`Processing entity GUID: ${guid}`);
+                const entityId = guidToEntityId.get(guid);
+                if (!entityId) {
+                    console.log(`Entity GUID ${guid} not found in IFC`);
+                    continue;
+                }
+
+                console.log(`Processing entity GUID: ${guid} (ID: #${entityId})`);
 
                 for (const [psetName, propModifications] of Object.entries(psetModifications)) {
                     console.log(`  PropertySet: ${psetName}`);
+
+                    // Try to update existing properties
+                    const existingUpdates = {};
+                    const newProperties = {};
 
                     for (const [propName, newValue] of Object.entries(propModifications)) {
                         console.log(`    Property: ${propName} = ${newValue}`);
@@ -2770,15 +2812,74 @@
 
                         if (updated) {
                             modificationCount++;
-                            console.log(`      ✓ Updated`);
+                            existingUpdates[propName] = newValue;
+                            console.log(`      ✓ Updated existing property`);
                         } else {
-                            console.log(`      ✗ Not found (will need to create new)`);
+                            newProperties[propName] = newValue;
+                            console.log(`      ⚠ Property not found - will create new`);
                         }
+                    }
+
+                    // If there are new properties, create PropertySet with all properties
+                    if (Object.keys(newProperties).length > 0) {
+                        console.log(`    Creating new PropertySet "${psetName}" with ${Object.keys(newProperties).length} properties`);
+
+                        // Create property single values
+                        const propertyIds = [];
+                        for (const [propName, value] of Object.entries(newProperties)) {
+                            maxEntityId++;
+                            const propLine = createPropertySingleValue(maxEntityId, propName, value);
+                            newEntities.push(propLine);
+                            propertyIds.push(maxEntityId);
+                            console.log(`      Created property #${maxEntityId}: ${propName}`);
+                        }
+
+                        // Create PropertySet
+                        maxEntityId++;
+                        const psetId = maxEntityId;
+                        const psetGuid = generateGUID();
+                        const psetLine = createPropertySet(psetId, psetGuid, psetName, propertyIds);
+                        newEntities.push(psetLine);
+                        console.log(`      Created PropertySet #${psetId}: ${psetName}`);
+
+                        // Create or update IFCRELDEFINESBYPROPERTIES
+                        maxEntityId++;
+                        const relGuid = generateGUID();
+                        const relLine = createRelDefinesByProperties(maxEntityId, relGuid, [entityId], psetId);
+                        newEntities.push(relLine);
+                        console.log(`      Created relationship #${maxEntityId}: entity #${entityId} -> PSet #${psetId}`);
+
+                        createdCount += Object.keys(newProperties).length;
                     }
                 }
             }
 
             console.log(`Total modifications applied: ${modificationCount}`);
+            console.log(`Total new properties created: ${createdCount}`);
+            console.log(`New entities to insert: ${newEntities.length}`);
+
+            // Insert new entities before ENDSEC (end of DATA section)
+            if (newEntities.length > 0) {
+                // Find the last ENDSEC (which closes the DATA section)
+                let endsecIndex = -1;
+                for (let i = modifiedLines.length - 1; i >= 0; i--) {
+                    if (modifiedLines[i].trim() === 'ENDSEC;') {
+                        endsecIndex = i;
+                        break;
+                    }
+                }
+
+                if (endsecIndex !== -1) {
+                    console.log(`Found ENDSEC at line ${endsecIndex}, inserting ${newEntities.length} new entities`);
+                    // Insert new entities before ENDSEC
+                    modifiedLines.splice(endsecIndex, 0, ...newEntities);
+                    console.log(`New entities inserted. Total lines now: ${modifiedLines.length}`);
+                } else {
+                    console.error('ERROR: ENDSEC not found in IFC file!');
+                    alert('Chyba: Nelze najít ENDSEC v IFC souboru. Export byl zrušen.');
+                    return null;
+                }
+            }
 
             // Verify line count before joining
             console.log('Lines before join:', modifiedLines.length);
@@ -2789,13 +2890,16 @@
             const resultLineCount = (result.match(/\n/g) || []).length + 1;
             console.log('Result line count:', resultLineCount);
 
-            if (resultLineCount < lines.length * 0.9) {
+            // Adjust validation to account for new entities
+            const expectedMinLines = lines.length * 0.9;
+            if (resultLineCount < expectedMinLines && newEntities.length === 0) {
                 console.error('WARNING: Significant line loss detected!');
                 console.error(`Original lines: ${lines.length}, Result lines: ${resultLineCount}`);
                 alert(`VAROVÁNÍ: Při exportu došlo ke ztrátě dat!\nPůvodní řádky: ${lines.length}\nVýsledné řádky: ${resultLineCount}\n\nExport byl zrušen pro bezpečnost.`);
                 return null;
             }
 
+            console.log(`✓ Export successful: ${modificationCount} modifications, ${createdCount} new properties`);
             return result;
         }
 
@@ -3005,6 +3109,60 @@
             URL.revokeObjectURL(url);
 
             alert(`✓ IFC soubor byl úspěšně uložen jako:\n${a.download}`);
+        }
+
+        // ============================================
+        // CREATE NEW IFC ENTITIES
+        // ============================================
+
+        function generateGUID() {
+            // Generate IFC GUID (base64 encoded 128-bit)
+            const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
+            let guid = '';
+            for (let i = 0; i < 22; i++) {
+                guid += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return guid;
+        }
+
+        function createPropertySingleValue(id, propName, value, ownerHistory = '#2') {
+            // Format: #ID=IFCPROPERTYSINGLEVALUE('PropertyName','Description',IFCLABEL('Value'),$);
+            const encodedName = encodeIFCString(propName);
+            const encodedValue = encodeIFCString(value);
+
+            // Determine IFC type based on value
+            let ifcType = 'IFCLABEL';
+            let formattedValue;
+
+            if (!isNaN(parseFloat(value)) && value.trim() !== '') {
+                // Numeric value
+                ifcType = 'IFCREAL';
+                formattedValue = parseFloat(value);
+            } else if (value.toLowerCase() === 'true' || value.toLowerCase() === 'false') {
+                // Boolean value
+                ifcType = 'IFCBOOLEAN';
+                formattedValue = `.${value.toUpperCase() === 'TRUE' ? 'T' : 'F'}.`;
+            } else {
+                // String value
+                formattedValue = `'${encodedValue}'`;
+            }
+
+            return `#${id}=IFCPROPERTYSINGLEVALUE('${encodedName}','Simple property set',${ifcType}(${formattedValue}),$);`;
+        }
+
+        function createPropertySet(id, guid, psetName, propertyIds, ownerHistory = '#2') {
+            // Format: #ID=IFCPROPERTYSET('GUID',#OwnerHistory,'Name','Description',(#prop1,#prop2,...));
+            const encodedName = encodeIFCString(psetName);
+            const propRefs = propertyIds.map(pid => `#${pid}`).join(',');
+
+            return `#${id}=IFCPROPERTYSET('${guid}',${ownerHistory},'${encodedName}','Property Set',(${propRefs}));`;
+        }
+
+        function createRelDefinesByProperties(id, guid, relatedObjects, relatingPset, ownerHistory = '#2') {
+            // Format: #ID=IFCRELDEFINESBYPROPERTIES('GUID',#OwnerHistory,$,$,(#obj1,#obj2,...),#PSet);
+            const objRefs = relatedObjects.map(oid => `#${oid}`).join(',');
+
+            return `#${id}=IFCRELDEFINESBYPROPERTIES('${guid}',${ownerHistory},$,$,(${objRefs}),#${relatingPset});`;
         }
     </script>
 </body>
