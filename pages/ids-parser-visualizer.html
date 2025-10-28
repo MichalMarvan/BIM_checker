@@ -249,7 +249,7 @@
         
         .spec-header h4 {
             margin: 0;
-            color: #2d3748;
+            color: #667eea;
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -581,7 +581,10 @@
                 <h3>Přetáhněte IDS soubor sem</h3>
                 <p>nebo klikněte pro výběr souboru (.ids, .xml)</p>
                 <input type="file" id="fileInput" class="file-input" accept=".ids,.xml">
-                <button class="sample-button" onclick="loadSampleIDS()">Načíst ukázkový IDS</button>
+                <div style="display: flex; gap: 10px; margin-top: 1rem; justify-content: center;">
+                    <button class="sample-button" onclick="event.stopPropagation(); loadSampleIDS()">Načíst ukázkový IDS</button>
+                    <button class="sample-button" style="background: #28a745;" onclick="event.stopPropagation(); openStoragePicker()">📦 Načíst z úložiště</button>
+                </div>
             </div>
             <div class="error-message" id="errorMessage"></div>
         </div>
@@ -1566,9 +1569,247 @@
         };
     </script>
 
+    <!-- Storage Picker Modal -->
+    <div id="idsStorageModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-container" style="background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px 30px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 1.6em;">📦 Načíst IDS soubor z úložiště</h2>
+                <button class="modal-close" onclick="closeIdsStoragePicker()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 1.5em; width: 35px; height: 35px; border-radius: 50%; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 30px;">
+                <p style="margin-bottom: 15px; color: #6c757d;">
+                    Vyberte jeden IDS soubor z úložiště:
+                </p>
+                <div id="idsStorageFileTree" style="max-height: 400px; overflow-y: auto; border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; background: #f8f9fa;">
+                    <!-- Zde bude stromová struktura souborů -->
+                </div>
+                <div style="margin-top: 15px; padding: 10px; background: #eef2ff; border-radius: 6px;">
+                    <strong>Vybraný soubor:</strong> <span id="selectedIdsFileName">Žádný</span>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 20px 30px; border-top: 2px solid #e9ecef; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-secondary" onclick="closeIdsStoragePicker()">Zrušit</button>
+                <button class="btn btn-primary" onclick="loadSelectedIdsFromStorage()">Načíst soubor</button>
+            </div>
+        </div>
+    </div>
+
     <!-- IDS Editor Modules -->
     <script src="../assets/js/ids/ids-xml-generator.js"></script>
     <script src="../assets/js/ids/ids-editor-modals.js"></script>
     <script src="../assets/js/ids/ids-editor-core.js"></script>
+
+    <script>
+        // Storage variables
+        let idsStorageDB = null;
+        let idsStorageData = null;
+        let expandedIdsStorageFolders = new Set(['root']);
+        let selectedIdsFile = null;
+
+        // Initialize IndexedDB
+        async function initIdsStorageDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('bim_checker_storage', 1);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('storage')) {
+                        db.createObjectStore('storage', { keyPath: 'key' });
+                    }
+                };
+            });
+        }
+
+        // Open storage picker modal
+        async function openStoragePicker() {
+            if (!idsStorageDB) {
+                idsStorageDB = await initIdsStorageDB();
+            }
+
+            selectedIdsFile = null;
+            expandedIdsStorageFolders = new Set(['root']);
+            await renderIdsStorageTree();
+            document.getElementById('idsStorageModal').style.display = 'flex';
+        }
+
+        // Close storage picker modal
+        function closeIdsStoragePicker() {
+            document.getElementById('idsStorageModal').style.display = 'none';
+        }
+
+        // Toggle folder expand/collapse
+        function toggleIdsStorageFolder(folderId) {
+            if (expandedIdsStorageFolders.has(folderId)) {
+                expandedIdsStorageFolders.delete(folderId);
+            } else {
+                expandedIdsStorageFolders.add(folderId);
+            }
+            renderIdsStorageTree();
+        }
+
+        // Render storage tree
+        async function renderIdsStorageTree() {
+            try {
+                const transaction = idsStorageDB.transaction(['storage'], 'readonly');
+                const store = transaction.objectStore('storage');
+                const request = store.get('bim_checker_ids_storage');
+
+                request.onsuccess = () => {
+                    idsStorageData = request.result?.value;
+
+                    if (!idsStorageData || !idsStorageData.files || Object.keys(idsStorageData.files).length === 0) {
+                        document.getElementById('idsStorageFileTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IDS soubory v úložišti</p>';
+                        return;
+                    }
+
+                    const html = renderIdsStorageFolderRecursive('root', 0);
+                    document.getElementById('idsStorageFileTree').innerHTML = html;
+                    updateSelectedIdsFileName();
+                };
+
+                request.onerror = () => {
+                    console.error('Error loading storage:', request.error);
+                    document.getElementById('idsStorageFileTree').innerHTML = '<p style="color: red;">Chyba při načítání úložiště</p>';
+                };
+            } catch (e) {
+                console.error('Error loading storage:', e);
+                document.getElementById('idsStorageFileTree').innerHTML = '<p style="color: red;">Chyba při načítání úložiště</p>';
+            }
+        }
+
+        // Render folder recursively
+        function renderIdsStorageFolderRecursive(folderId, level) {
+            const folder = idsStorageData.folders[folderId];
+            if (!folder) return '';
+
+            const isExpanded = expandedIdsStorageFolders.has(folderId);
+            const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
+            const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
+
+            let html = '';
+
+            // Folder header (only if not root)
+            if (folderId !== 'root') {
+                const allFolderFiles = getAllIdsFilesInFolder(folderId);
+
+                html += `
+                    <div style="margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
+                            <span onclick="toggleIdsStorageFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
+                            <span onclick="toggleIdsStorageFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
+                                📁 ${folder.name}
+                                ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} souborů)</span>` : ''}
+                            </span>
+                        </div>
+                `;
+            }
+
+            // Content (only if expanded)
+            if (isExpanded) {
+                // Render child folders first
+                if (folder.children && folder.children.length > 0) {
+                    const sortedChildren = folder.children
+                        .map(id => idsStorageData.folders[id])
+                        .filter(f => f)
+                        .sort((a, b) => a.name.localeCompare(b.name));
+
+                    sortedChildren.forEach(childFolder => {
+                        html += renderIdsStorageFolderRecursive(childFolder.id, level + 1);
+                    });
+                }
+
+                // Render files
+                if (folder.files && folder.files.length > 0) {
+                    const files = folder.files
+                        .map(id => idsStorageData.files[id])
+                        .filter(f => f)
+                        .sort((a, b) => a.name.localeCompare(b.name));
+
+                    files.forEach(file => {
+                        const isSelected = selectedIdsFile === file.id;
+                        const sizeKB = (file.size / 1024).toFixed(1);
+                        html += `
+                            <div class="storage-file-item ${isSelected ? 'selected' : ''}"
+                                 onclick="selectIdsFile('${file.id}')"
+                                 style="padding: 8px; margin: 4px 0; cursor: pointer; border-radius: 6px; background: white; border: 2px solid ${isSelected ? '#667eea' : '#e9ecef'}; display: flex; align-items: center; margin-left: ${(level + 1) * 20}px; transition: all 0.2s;">
+                                <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectIdsFile('${file.id}');" style="margin-right: 10px;">
+                                <span style="flex: 1;">📄 ${file.name}</span>
+                                <span style="color: #a0aec0; font-size: 0.9em;">${sizeKB} KB</span>
+                            </div>
+                        `;
+                    });
+                }
+            }
+
+            if (folderId !== 'root') {
+                html += '</div>';
+            }
+
+            return html;
+        }
+
+        // Get all files in folder recursively
+        function getAllIdsFilesInFolder(folderId) {
+            const folder = idsStorageData.folders[folderId];
+            if (!folder) return [];
+
+            let files = [...(folder.files || [])];
+
+            if (folder.children) {
+                folder.children.forEach(childId => {
+                    files = files.concat(getAllIdsFilesInFolder(childId));
+                });
+            }
+
+            return files;
+        }
+
+        // Select IDS file
+        function selectIdsFile(fileId) {
+            selectedIdsFile = fileId;
+            renderIdsStorageTree();
+        }
+
+        // Update selected file name display
+        function updateSelectedIdsFileName() {
+            const display = document.getElementById('selectedIdsFileName');
+            if (selectedIdsFile && idsStorageData.files[selectedIdsFile]) {
+                display.textContent = idsStorageData.files[selectedIdsFile].name;
+                display.style.color = '#667eea';
+                display.style.fontWeight = '600';
+            } else {
+                display.textContent = 'Žádný';
+                display.style.color = '#6c757d';
+                display.style.fontWeight = 'normal';
+            }
+        }
+
+        // Load selected IDS file from storage
+        function loadSelectedIdsFromStorage() {
+            if (!selectedIdsFile) {
+                alert('Vyberte IDS soubor!');
+                return;
+            }
+
+            const file = idsStorageData.files[selectedIdsFile];
+            if (!file) {
+                alert('Soubor nenalezen!');
+                return;
+            }
+
+            closeIdsStoragePicker();
+            parseIDS(file.content);
+        }
+
+        // Click on overlay to close
+        document.getElementById('idsStorageModal').addEventListener('click', (e) => {
+            if (e.target.id === 'idsStorageModal') {
+                closeIdsStoragePicker();
+            }
+        });
+    </script>
 </body>
 </html>

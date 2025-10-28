@@ -196,6 +196,199 @@
             padding-top: 20px;
         }
 
+        .validation-group {
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .validation-group:hover {
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .group-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .group-delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .group-delete-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .group-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .group-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .group-section h4 {
+            margin: 0 0 15px 0;
+            color: #4a5568;
+            font-size: 1.1em;
+        }
+
+        .storage-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.05em;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+
+        .storage-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .selected-files-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .selected-file-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            border: 2px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .selected-file-item .file-icon {
+            font-size: 1.2em;
+        }
+
+        .selected-file-item .file-name {
+            flex: 1;
+            font-weight: 500;
+            color: #2d3748;
+        }
+
+        /* Modal Styles - stejné jako v IFC vieweru */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.6em;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 2px solid #e9ecef;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -538,29 +731,20 @@
         </div>
 
         <div class="upload-section">
-            <div class="upload-grid">
-                <div class="upload-box" id="ifcUploadBox">
-                    <div class="upload-icon">📦</div>
-                    <h3>IFC Soubory</h3>
-                    <p>Přetáhněte nebo vyberte IFC soubory k validaci</p>
-                    <input type="file" id="ifcInput" class="file-input" accept=".ifc" multiple>
-                    <div class="file-list" id="ifcFileList"></div>
-                </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 style="margin: 0; color: #2d3748;">📋 Validační skupiny</h2>
+                <button class="btn btn-success" onclick="addValidationGroup()">➕ Přidat validační skupinu</button>
+            </div>
 
-                <div class="upload-box" id="idsUploadBox">
-                    <div class="upload-icon">📋</div>
-                    <h3>IDS Specifikace</h3>
-                    <p>Přetáhněte nebo vyberte IDS soubory</p>
-                    <input type="file" id="idsInput" class="file-input" accept=".ids,.xml" multiple>
-                    <div class="file-list" id="idsFileList"></div>
-                </div>
+            <div id="validationGroups">
+                <!-- Validační skupiny se zde vygenerují dynamicky -->
             </div>
 
             <div class="error-message" id="errorMessage"></div>
 
-            <div class="validate-button-container">
-                <button class="btn btn-primary" id="validateBtn" disabled>
-                    🔍 Spustit validaci
+            <div class="validate-button-container" style="margin-top: 30px;">
+                <button class="btn btn-primary" id="validateBtn" onclick="validateAll()" disabled>
+                    🔍 Validovat vše
                 </button>
             </div>
         </div>
@@ -610,31 +794,42 @@
         let validationResults = null;
         let allEntities = [];
 
-        // Upload handlers
-        document.getElementById('ifcUploadBox').addEventListener('click', () => {
-            document.getElementById('ifcInput').click();
-        });
+        // Upload handlers (with null checks)
+        const ifcUploadBox = document.getElementById('ifcUploadBox');
+        const idsUploadBox = document.getElementById('idsUploadBox');
+        const ifcInput = document.getElementById('ifcInput');
+        const idsInput = document.getElementById('idsInput');
 
-        document.getElementById('idsUploadBox').addEventListener('click', () => {
-            document.getElementById('idsInput').click();
-        });
+        if (ifcUploadBox && ifcInput) {
+            ifcUploadBox.addEventListener('click', () => {
+                ifcInput.click();
+            });
+        }
 
-        document.getElementById('ifcInput').addEventListener('change', (e) => {
-            handleIFCFiles(Array.from(e.target.files));
-        });
+        if (idsUploadBox && idsInput) {
+            idsUploadBox.addEventListener('click', () => {
+                idsInput.click();
+            });
+        }
 
-        document.getElementById('idsInput').addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleIDSFiles(Array.from(e.target.files));
-            }
-        });
+        if (ifcInput) {
+            ifcInput.addEventListener('change', (e) => {
+                handleIFCFiles(Array.from(e.target.files));
+            });
+        }
+
+        if (idsInput) {
+            idsInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleIDSFiles(Array.from(e.target.files));
+                }
+            });
+        }
 
         // Drag and drop for IFC
-        setupDragDrop('ifcUploadBox', 'ifcInput', handleIFCFiles);
-        setupDragDrop('idsUploadBox', 'idsInput', handleIDSFiles);
-
         function setupDragDrop(boxId, inputId, handler) {
             const box = document.getElementById(boxId);
+            if (!box) return; // Skip if element doesn't exist
 
             box.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -652,6 +847,9 @@
                 handler(files);
             });
         }
+
+        setupDragDrop('ifcUploadBox', 'ifcInput', handleIFCFiles);
+        setupDragDrop('idsUploadBox', 'idsInput', handleIDSFiles);
 
         function handleIFCFiles(files) {
             const ifcFiles_filtered = files.filter(f => f.name.endsWith('.ifc'));
@@ -705,6 +903,9 @@
             const list = document.getElementById('ifcFileList');
             const box = document.getElementById('ifcUploadBox');
 
+            // These elements don't exist on this page (old version), so skip
+            if (!list || !box) return;
+
             if (ifcFiles.length > 0) {
                 box.classList.add('has-files');
                 list.innerHTML = ifcFiles.map((file, idx) => `
@@ -722,6 +923,9 @@
         function updateIDSFileList() {
             const list = document.getElementById('idsFileList');
             const box = document.getElementById('idsUploadBox');
+
+            // These elements don't exist on this page (old version), so skip
+            if (!list || !box) return;
 
             if (idsFiles.length > 0) {
                 box.classList.add('has-files');
@@ -903,7 +1107,7 @@
         }
 
         // Validation
-        document.getElementById('validateBtn').addEventListener('click', performValidation);
+        // Note: validateBtn uses onclick="validateAll()" in HTML, so no addEventListener needed here
 
         async function performValidation() {
             document.getElementById('loading').style.display = 'block';
@@ -992,6 +1196,93 @@
         }
 
         // IFC Parsing (simplified version)
+        // Async version with chunking for large files
+        async function parseIFCFileAsync(content, fileName) {
+            const entities = [];
+            const lines = content.split('\n');
+            const entityMap = new Map();
+            const propertySetMap = new Map();
+            const relDefinesMap = new Map();
+
+            const CHUNK_SIZE = 1000;
+            const totalLines = lines.length;
+
+            // Phase 1: Collect entities (chunked)
+            for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
+                const chunk = lines.slice(i, i + CHUNK_SIZE);
+                for (let line of chunk) {
+                    line = line.trim();
+                    if (!line.startsWith('#')) continue;
+                    const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
+                    if (!match) continue;
+                    const [, id, entityType, params] = match;
+                    entityMap.set(id, { id, type: entityType, params });
+                }
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            // Phase 2: Parse property sets (chunked)
+            const entities_array = Array.from(entityMap.entries());
+            for (let i = 0; i < entities_array.length; i += CHUNK_SIZE) {
+                const chunk = entities_array.slice(i, i + CHUNK_SIZE);
+                for (let [id, entity] of chunk) {
+                    if (entity.type === 'IFCPROPERTYSET') {
+                        const props = parsePropertySet(entity.params, entityMap);
+                        propertySetMap.set(id, props);
+                    } else if (entity.type === 'IFCRELDEFINESBYPROPERTIES') {
+                        const rel = parseRelDefines(entity.params);
+                        relDefinesMap.set(id, rel);
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            // Phase 3: Build entities list (chunked)
+            for (let i = 0; i < entities_array.length; i += CHUNK_SIZE) {
+                const chunk = entities_array.slice(i, i + CHUNK_SIZE);
+                for (let [id, entity] of chunk) {
+                    if (entity.type.startsWith('IFC') &&
+                        !entity.type.includes('REL') &&
+                        !entity.type.includes('PROPERTY') &&
+                        entity.params.includes("'")) {
+
+                        const guid = extractGUID(entity.params);
+                        const name = extractName(entity.params);
+
+                        if (guid) {
+                            const propertySets = {};
+
+                            for (let [relId, rel] of relDefinesMap) {
+                                if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
+                                    const psetId = rel.relatingPropertyDefinition;
+                                    if (propertySetMap.has(psetId)) {
+                                        const pset = propertySetMap.get(psetId);
+                                        propertySets[pset.name] = pset.properties;
+                                    }
+                                }
+                            }
+
+                            entities.push({
+                                guid,
+                                entity: entity.type,
+                                name: name || '-',
+                                propertySets,
+                                fileName,
+                                attributes: {
+                                    Name: name || '-',
+                                    GlobalId: guid
+                                }
+                            });
+                        }
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            return entities;
+        }
+
+        // Sync version for compatibility
         function parseIFCFile(content, fileName) {
             const entities = [];
             const lines = content.split('\n');
@@ -1176,6 +1467,54 @@
                     } else {
                         specResult.failCount++;
                         specResult.status = 'fail';
+                    }
+                }
+
+                // Only add specification if it has entities
+                if (specResult.entityResults.length > 0) {
+                    results.push(specResult);
+                }
+            }
+
+            return results;
+        }
+
+        // Async version with chunking to prevent browser freezing
+        async function validateEntitiesAgainstIDSAsync(entities, specifications) {
+            const results = [];
+            const CHUNK_SIZE = 50; // Process 50 entities at a time
+
+            for (let spec of specifications) {
+                const specResult = {
+                    specification: spec.name,
+                    status: 'pass',
+                    passCount: 0,
+                    failCount: 0,
+                    entityResults: []
+                };
+
+                // Find applicable entities
+                const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability);
+
+                // Validate entities in chunks
+                for (let i = 0; i < applicableEntities.length; i += CHUNK_SIZE) {
+                    const chunk = applicableEntities.slice(i, i + CHUNK_SIZE);
+
+                    for (let entity of chunk) {
+                        const entityResult = validateEntityAgainstRequirements(entity, spec.requirements, spec.name);
+                        specResult.entityResults.push(entityResult);
+
+                        if (entityResult.status === 'pass') {
+                            specResult.passCount++;
+                        } else {
+                            specResult.failCount++;
+                            specResult.status = 'fail';
+                        }
+                    }
+
+                    // Yield to browser after each chunk
+                    if (i + CHUNK_SIZE < applicableEntities.length) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
                     }
                 }
 
@@ -1664,9 +2003,6 @@
         }
 
         // Expand/Collapse All
-        document.getElementById('expandAllBtn').addEventListener('click', expandAll);
-        document.getElementById('collapseAllBtn').addEventListener('click', collapseAll);
-
         function expandAll() {
             // Rozbalit všechny IDS sekce
             document.querySelectorAll('.specification-result').forEach(div => {
@@ -1759,40 +2095,36 @@
         }
 
         // Export to XLSX
-        document.getElementById('exportBtn').addEventListener('click', exportToXLSX);
-
         function exportToXLSX() {
             const wb = XLSX.utils.book_new();
 
-            // Create a sheet for each IDS file
+            // Create a sheet for each IFC+IDS combination
             for (let idsResult of validationResults) {
-                const sheetData = [];
-
-                // Header row
-                sheetData.push([
-                    'IFC File',
-                    'Specification',
-                    'Entity Type',
-                    'Entity Name',
-                    'GUID',
-                    'Status',
-                    'Validation Type',
-                    'Validation Message',
-                    'Details'
-                ]);
-
-                // Data rows - only include non-empty results
                 for (let ifcResult of idsResult.ifcResults) {
                     // Skip if no specifications with results
                     if (!ifcResult.specificationResults || ifcResult.specificationResults.length === 0) {
                         continue;
                     }
 
+                    const sheetData = [];
+
+                    // Header row
+                    sheetData.push([
+                        'Specification',
+                        'Entity Type',
+                        'Entity Name',
+                        'GUID',
+                        'Status',
+                        'Validation Type',
+                        'Validation Message',
+                        'Details'
+                    ]);
+
+                    // Data rows
                     for (let specResult of ifcResult.specificationResults) {
                         for (let entityResult of specResult.entityResults) {
                             for (let validation of entityResult.validations) {
                                 sheetData.push([
-                                    ifcResult.ifcFileName,
                                     specResult.specification,
                                     entityResult.entity,
                                     entityResult.name,
@@ -1805,81 +2137,94 @@
                             }
                         }
                     }
+
+                    // Skip if no data rows (only header)
+                    if (sheetData.length <= 1) {
+                        continue;
+                    }
+
+                    // Create worksheet
+                    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+                    // Set column widths
+                    ws['!cols'] = [
+                        { wch: 30 }, // Specification
+                        { wch: 20 }, // Entity Type
+                        { wch: 30 }, // Entity Name
+                        { wch: 25 }, // GUID
+                        { wch: 10 }, // Status
+                        { wch: 15 }, // Validation Type
+                        { wch: 35 }, // Validation Message
+                        { wch: 50 }  // Details
+                    ];
+
+                    // Create sheet name: ifcname_idsname
+                    // Remove file extensions
+                    let ifcName = ifcResult.ifcFileName.replace(/\.ifc$/i, '');
+                    let idsName = idsResult.idsFileName.replace(/\.(ids|xml)$/i, '');
+
+                    // Sanitize (Excel doesn't allow: \ / : * ? " < > |)
+                    ifcName = ifcName.replace(/[:\\\/\?\*\"\<\>\|]/g, '_');
+                    idsName = idsName.replace(/[:\\\/\?\*\"\<\>\|]/g, '_');
+
+                    // Create combined name and limit to 31 chars
+                    let sheetName = `${ifcName}_${idsName}`;
+                    if (sheetName.length > 31) {
+                        // Try to shorten intelligently
+                        const maxLen = 31 - 1; // -1 for underscore
+                        const halfLen = Math.floor(maxLen / 2);
+                        ifcName = ifcName.substring(0, halfLen);
+                        idsName = idsName.substring(0, maxLen - halfLen);
+                        sheetName = `${ifcName}_${idsName}`;
+                    }
+
+                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
                 }
-
-                // Skip this IDS if no data rows (only header)
-                if (sheetData.length <= 1) {
-                    continue;
-                }
-
-                // Create worksheet
-                const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-                // Set column widths
-                ws['!cols'] = [
-                    { wch: 25 }, // IFC File
-                    { wch: 30 }, // Specification
-                    { wch: 20 }, // Entity Type
-                    { wch: 30 }, // Entity Name
-                    { wch: 25 }, // GUID
-                    { wch: 10 }, // Status
-                    { wch: 15 }, // Validation Type
-                    { wch: 35 }, // Validation Message
-                    { wch: 50 }  // Details
-                ];
-
-                // Sanitize sheet name (Excel has restrictions)
-                let sheetName = idsResult.idsTitle || idsResult.idsFileName;
-                sheetName = sheetName.replace(/[:\\\/\?\*\[\]]/g, '_').substring(0, 31);
-
-                XLSX.utils.book_append_sheet(wb, ws, sheetName);
             }
 
             // Create summary sheet
             const summaryData = [];
             summaryData.push(['IDS Validation Summary']);
             summaryData.push([]);
-            summaryData.push(['IDS File', 'IDS Title', 'IFC Files with Results', 'Total Validations', 'Passed', 'Failed']);
+            summaryData.push(['IFC File', 'IDS File', 'Total Validations', 'Passed', 'Failed', 'Pass Rate']);
 
             for (let idsResult of validationResults) {
-                let totalPass = 0;
-                let totalFail = 0;
-                let nonEmptyIfcCount = 0;
-
                 for (let ifcResult of idsResult.ifcResults) {
-                    // Only count IFC files that have specifications with results
-                    if (ifcResult.specificationResults && ifcResult.specificationResults.length > 0) {
-                        nonEmptyIfcCount++;
-                        for (let specResult of ifcResult.specificationResults) {
-                            totalPass += specResult.passCount;
-                            totalFail += specResult.failCount;
-                        }
+                    // Only process IFC files that have specifications with results
+                    if (!ifcResult.specificationResults || ifcResult.specificationResults.length === 0) {
+                        continue;
                     }
-                }
 
-                // Skip this IDS if no validations
-                if (totalPass + totalFail === 0) {
-                    continue;
-                }
+                    let totalPass = 0;
+                    let totalFail = 0;
 
-                summaryData.push([
-                    idsResult.idsFileName,
-                    idsResult.idsTitle,
-                    nonEmptyIfcCount,
-                    totalPass + totalFail,
-                    totalPass,
-                    totalFail
-                ]);
+                    for (let specResult of ifcResult.specificationResults) {
+                        totalPass += specResult.passCount;
+                        totalFail += specResult.failCount;
+                    }
+
+                    const totalValidations = totalPass + totalFail;
+                    const passRate = totalValidations > 0 ? ((totalPass / totalValidations) * 100).toFixed(1) + '%' : '0%';
+
+                    summaryData.push([
+                        ifcResult.ifcFileName,
+                        idsResult.idsFileName,
+                        totalValidations,
+                        totalPass,
+                        totalFail,
+                        passRate
+                    ]);
+                }
             }
 
             const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
             summaryWs['!cols'] = [
-                { wch: 30 },
-                { wch: 30 },
-                { wch: 15 },
-                { wch: 18 },
-                { wch: 12 },
-                { wch: 12 }
+                { wch: 30 }, // IFC File
+                { wch: 30 }, // IDS File
+                { wch: 18 }, // Total Validations
+                { wch: 12 }, // Passed
+                { wch: 12 }, // Failed
+                { wch: 12 }  // Pass Rate
             ];
 
             XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary', true);
@@ -1889,17 +2234,630 @@
         }
 
         // New validation button
-        document.getElementById('newValidationBtn').addEventListener('click', () => {
+        function newValidation() {
             document.getElementById('resultsSection').style.display = 'none';
-            document.querySelector('.upload-section').style.display = 'block';
 
-            // Reset
-            ifcFiles = [];
-            idsFiles = [];
+            const uploadSection = document.querySelector('.upload-section');
+            if (uploadSection) uploadSection.style.display = 'block';
+
+            // Reset validation results
             validationResults = null;
 
-            updateIFCFileList();
-            updateIDSFileList();
+            // Reset old variables (for compatibility, but these aren't used anymore)
+            ifcFiles = [];
+            idsFiles = [];
+
+            // Note: We keep validation groups - user can modify them for new validation
+            // If you want to clear groups too, uncomment:
+            // validationGroups = [];
+            // renderValidationGroups();
+
+            updateValidateButton();
+        }
+
+        // Add event listeners
+        const expandAllBtn = document.getElementById('expandAllBtn');
+        const collapseAllBtn = document.getElementById('collapseAllBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const newValidationBtn = document.getElementById('newValidationBtn');
+
+        if (expandAllBtn) {
+            expandAllBtn.addEventListener('click', expandAll);
+        }
+
+        if (collapseAllBtn) {
+            collapseAllBtn.addEventListener('click', collapseAll);
+        }
+
+        if (exportBtn) {
+            exportBtn.addEventListener('click', exportToXLSX);
+        }
+
+        if (newValidationBtn) {
+            newValidationBtn.addEventListener('click', newValidation);
+        }
+    </script>
+
+    <!-- IFC Storage Picker Modal -->
+    <div id="ifcStorageModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>📦 Vybrat IFC soubory z úložiště</h2>
+                <button class="modal-close" onclick="closeIfcStorageModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: #6c757d;">
+                    Vyberte jeden nebo více IFC souborů:
+                </p>
+                <div id="ifcStorageTree" style="max-height: 400px; overflow-y: auto; border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; background: #f8f9fa;">
+                    <!-- Stromová struktura -->
+                </div>
+                <div style="margin-top: 15px; padding: 10px; background: #eef2ff; border-radius: 6px;">
+                    <strong>Vybráno souborů:</strong> <span id="ifcSelectedCount">0</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeIfcStorageModal()">Zrušit</button>
+                <button class="btn btn-primary" onclick="confirmIfcSelection()">Potvrdit výběr</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- IDS Storage Picker Modal -->
+    <div id="idsStorageModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>📋 Vybrat IDS soubor z úložiště</h2>
+                <button class="modal-close" onclick="closeIdsStorageModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: #6c757d;">
+                    Vyberte jeden IDS soubor:
+                </p>
+                <div id="idsStorageTree" style="max-height: 400px; overflow-y: auto; border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; background: #f8f9fa;">
+                    <!-- Stromová struktura -->
+                </div>
+                <div style="margin-top: 15px; padding: 10px; background: #eef2ff; border-radius: 6px;">
+                    <strong>Vybraný soubor:</strong> <span id="idsSelectedName">Žádný</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeIdsStorageModal()">Zrušit</button>
+                <button class="btn btn-primary" onclick="confirmIdsSelection()">Potvrdit výběr</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Validační skupiny
+        let validationGroups = [];
+        let currentGroupIndex = null;
+
+        // Storage variables
+        let storageDB = null;
+        let ifcStorageData = null;
+        let idsStorageData = null;
+        let selectedIfcFiles = new Set();
+        let selectedIdsFile = null;
+        let expandedIfcFolders = new Set(['root']);
+        let expandedIdsFolders = new Set(['root']);
+
+        // Initialize IndexedDB
+        async function initStorageDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('bim_checker_storage', 1);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('storage')) {
+                        db.createObjectStore('storage', { keyPath: 'key' });
+                    }
+                };
+            });
+        }
+
+        // Add validation group
+        function addValidationGroup() {
+            validationGroups.push({
+                id: Date.now(),
+                ifcFiles: [],
+                idsFile: null
+            });
+            renderValidationGroups();
+            updateValidateButton();
+        }
+
+        // Delete validation group
+        function deleteValidationGroup(index) {
+            if (confirm('Opravdu chcete smazat tuto validační skupinu?')) {
+                validationGroups.splice(index, 1);
+                renderValidationGroups();
+                updateValidateButton();
+            }
+        }
+
+        // Render validation groups
+        function renderValidationGroups() {
+            const container = document.getElementById('validationGroups');
+
+            if (validationGroups.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px; color: #a0aec0;">
+                        <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
+                        <h3 style="color: #6c757d;">Žádné validační skupiny</h3>
+                        <p>Klikněte na "➕ Přidat validační skupinu" pro začátek</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            validationGroups.forEach((group, index) => {
+                html += `
+                    <div class="validation-group" id="group-${index}">
+                        <div class="group-header">
+                            <div class="group-title">📊 Skupina ${index + 1}</div>
+                            <button class="group-delete-btn" onclick="deleteValidationGroup(${index})">🗑️ Smazat</button>
+                        </div>
+                        <div class="group-content">
+                            <div class="group-section">
+                                <h4>📦 IFC Soubory (${group.ifcFiles.length})</h4>
+                                <button class="storage-btn" onclick="openIfcStoragePicker(${index})">
+                                    📂 Vybrat z úložiště
+                                </button>
+                                <div class="selected-files-list" id="ifc-files-${index}">
+                                    ${group.ifcFiles.length === 0 ? '<p style="color: #a0aec0; text-align: center; padding: 20px;">Žádné soubory</p>' : ''}
+                                    ${group.ifcFiles.map(file => `
+                                        <div class="selected-file-item">
+                                            <span class="file-icon">📄</span>
+                                            <span class="file-name">${file.name}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div class="group-section">
+                                <h4>📋 IDS Specifikace</h4>
+                                <button class="storage-btn" onclick="openIdsStoragePicker(${index})">
+                                    📂 Vybrat z úložiště
+                                </button>
+                                <div class="selected-files-list">
+                                    ${group.idsFile ? `
+                                        <div class="selected-file-item">
+                                            <span class="file-icon">📋</span>
+                                            <span class="file-name">${group.idsFile.name}</span>
+                                        </div>
+                                    ` : '<p style="color: #a0aec0; text-align: center; padding: 20px;">Žádný soubor</p>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Update validate button
+        function updateValidateButton() {
+            const btn = document.getElementById('validateBtn');
+            const hasValidGroups = validationGroups.some(g => g.ifcFiles.length > 0 && g.idsFile);
+            btn.disabled = !hasValidGroups;
+        }
+
+        // Open IFC storage picker
+        async function openIfcStoragePicker(groupIndex) {
+            currentGroupIndex = groupIndex;
+
+            // Pre-fill selection with existing files in this group
+            selectedIfcFiles.clear();
+            const group = validationGroups[groupIndex];
+            if (group && group.ifcFiles && group.ifcFiles.length > 0) {
+                group.ifcFiles.forEach(file => {
+                    selectedIfcFiles.add(file.id);
+                });
+            }
+
+            if (!storageDB) {
+                storageDB = await initStorageDB();
+            }
+
+            await renderIfcStorageTree();
+            document.getElementById('ifcStorageModal').classList.add('active');
+        }
+
+        // Close IFC storage modal
+        function closeIfcStorageModal() {
+            document.getElementById('ifcStorageModal').classList.remove('active');
+        }
+
+        // Render IFC storage tree
+        async function renderIfcStorageTree() {
+            const transaction = storageDB.transaction(['storage'], 'readonly');
+            const store = transaction.objectStore('storage');
+            const request = store.get('bim_checker_ifc_storage');
+
+            request.onsuccess = () => {
+                ifcStorageData = request.result?.value;
+
+                if (!ifcStorageData || !ifcStorageData.files || Object.keys(ifcStorageData.files).length === 0) {
+                    document.getElementById('ifcStorageTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IFC soubory v úložišti</p>';
+                    return;
+                }
+
+                const html = renderIfcFolderRecursive('root', 0);
+                document.getElementById('ifcStorageTree').innerHTML = html;
+                document.getElementById('ifcSelectedCount').textContent = selectedIfcFiles.size;
+            };
+        }
+
+        // Get all files in folder recursively
+        function getAllIfcFilesInFolder(folderId) {
+            if (!ifcStorageData) return [];
+
+            const folder = ifcStorageData.folders[folderId];
+            if (!folder) return [];
+
+            let files = [...folder.files];
+
+            // Recursively get files from child folders
+            if (folder.children) {
+                folder.children.forEach(childId => {
+                    files = files.concat(getAllIfcFilesInFolder(childId));
+                });
+            }
+
+            return files;
+        }
+
+        // Select all files in folder (toggle)
+        function selectAllIfcFilesInFolder(folderId) {
+            if (!ifcStorageData) return;
+
+            const folder = ifcStorageData.folders[folderId];
+            if (!folder) return;
+
+            // Get all files in this folder and subfolders
+            const allFiles = getAllIfcFilesInFolder(folderId);
+
+            // Check if all are already selected
+            const allSelected = allFiles.every(fileId => selectedIfcFiles.has(fileId));
+
+            if (allSelected) {
+                // Deselect all
+                allFiles.forEach(fileId => selectedIfcFiles.delete(fileId));
+            } else {
+                // Select all
+                allFiles.forEach(fileId => selectedIfcFiles.add(fileId));
+            }
+
+            renderIfcStorageTree();
+        }
+
+        // Render IFC folder recursively
+        function renderIfcFolderRecursive(folderId, level) {
+            const folder = ifcStorageData.folders[folderId];
+            if (!folder) return '';
+
+            const isExpanded = expandedIfcFolders.has(folderId);
+            const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
+            const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
+
+            let html = '';
+
+            if (folderId !== 'root') {
+                // Check if all files in this folder are selected
+                const allFolderFiles = getAllIfcFilesInFolder(folderId);
+                const allFolderSelected = allFolderFiles.length > 0 && allFolderFiles.every(fileId => selectedIfcFiles.has(fileId));
+
+                html += `
+                    <div style="margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
+                            <span onclick="toggleIfcFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
+                            <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllIfcFilesInFolder('${folderId}')" style="margin-right: 10px;" title="Vybrat všechny soubory ve složce">
+                            <span onclick="toggleIfcFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
+                                📁 ${folder.name}
+                                ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} souborů)</span>` : ''}
+                            </span>
+                        </div>
+                `;
+            }
+
+            if (isExpanded) {
+                if (folder.children && folder.children.length > 0) {
+                    folder.children.forEach(childId => {
+                        html += renderIfcFolderRecursive(childId, level + 1);
+                    });
+                }
+
+                if (folder.files && folder.files.length > 0) {
+                    folder.files.forEach(fileId => {
+                        const file = ifcStorageData.files[fileId];
+                        if (!file) return;
+
+                        const isSelected = selectedIfcFiles.has(fileId);
+                        const sizeKB = (file.size / 1024).toFixed(1);
+                        html += `
+                            <div onclick="toggleIfcFileSelection('${fileId}')"
+                                 style="padding: 8px; margin: 4px 0; cursor: pointer; border-radius: 6px; background: white; border: 2px solid ${isSelected ? '#667eea' : '#e9ecef'}; display: flex; align-items: center; margin-left: ${(level + 1) * 20}px;">
+                                <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleIfcFileSelection('${fileId}');" style="margin-right: 10px;">
+                                <span style="flex: 1;">📄 ${file.name}</span>
+                                <span style="color: #a0aec0; font-size: 0.9em;">${sizeKB} KB</span>
+                            </div>
+                        `;
+                    });
+                }
+            }
+
+            if (folderId !== 'root') {
+                html += '</div>';
+            }
+
+            return html;
+        }
+
+        // Toggle IFC folder
+        function toggleIfcFolder(folderId) {
+            if (expandedIfcFolders.has(folderId)) {
+                expandedIfcFolders.delete(folderId);
+            } else {
+                expandedIfcFolders.add(folderId);
+            }
+            renderIfcStorageTree();
+        }
+
+        // Toggle IFC file selection
+        function toggleIfcFileSelection(fileId) {
+            if (selectedIfcFiles.has(fileId)) {
+                selectedIfcFiles.delete(fileId);
+            } else {
+                selectedIfcFiles.add(fileId);
+            }
+            renderIfcStorageTree();
+        }
+
+        // Confirm IFC selection
+        function confirmIfcSelection() {
+            const files = Array.from(selectedIfcFiles).map(id => ifcStorageData.files[id]);
+            validationGroups[currentGroupIndex].ifcFiles = files;
+            closeIfcStorageModal();
+            renderValidationGroups();
+            updateValidateButton();
+        }
+
+        // Open IDS storage picker
+        async function openIdsStoragePicker(groupIndex) {
+            currentGroupIndex = groupIndex;
+            selectedIdsFile = null;
+
+            if (!storageDB) {
+                storageDB = await initStorageDB();
+            }
+
+            await renderIdsStorageTree();
+            document.getElementById('idsStorageModal').classList.add('active');
+        }
+
+        // Close IDS storage modal
+        function closeIdsStorageModal() {
+            document.getElementById('idsStorageModal').classList.remove('active');
+        }
+
+        // Render IDS storage tree (similar to IFC, but single-select)
+        async function renderIdsStorageTree() {
+            const transaction = storageDB.transaction(['storage'], 'readonly');
+            const store = transaction.objectStore('storage');
+            const request = store.get('bim_checker_ids_storage');
+
+            request.onsuccess = () => {
+                idsStorageData = request.result?.value;
+
+                if (!idsStorageData || !idsStorageData.files || Object.keys(idsStorageData.files).length === 0) {
+                    document.getElementById('idsStorageTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IDS soubory v úložišti</p>';
+                    return;
+                }
+
+                const html = renderIdsFolderRecursive('root', 0);
+                document.getElementById('idsStorageTree').innerHTML = html;
+                updateIdsSelectedName();
+            };
+        }
+
+        // Render IDS folder recursively
+        function renderIdsFolderRecursive(folderId, level) {
+            const folder = idsStorageData.folders[folderId];
+            if (!folder) return '';
+
+            const isExpanded = expandedIdsFolders.has(folderId);
+            const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
+            const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
+
+            let html = '';
+
+            if (folderId !== 'root') {
+                html += `
+                    <div style="margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
+                            <span onclick="toggleIdsFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
+                            <span onclick="toggleIdsFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
+                                📁 ${folder.name}
+                            </span>
+                        </div>
+                `;
+            }
+
+            if (isExpanded) {
+                if (folder.children && folder.children.length > 0) {
+                    folder.children.forEach(childId => {
+                        html += renderIdsFolderRecursive(childId, level + 1);
+                    });
+                }
+
+                if (folder.files && folder.files.length > 0) {
+                    folder.files.forEach(fileId => {
+                        const file = idsStorageData.files[fileId];
+                        if (!file) return;
+
+                        const isSelected = selectedIdsFile === fileId;
+                        const sizeKB = (file.size / 1024).toFixed(1);
+                        html += `
+                            <div onclick="selectIdsFile('${fileId}')"
+                                 style="padding: 8px; margin: 4px 0; cursor: pointer; border-radius: 6px; background: white; border: 2px solid ${isSelected ? '#667eea' : '#e9ecef'}; display: flex; align-items: center; margin-left: ${(level + 1) * 20}px;">
+                                <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); selectIdsFile('${fileId}');" style="margin-right: 10px;">
+                                <span style="flex: 1;">📋 ${file.name}</span>
+                                <span style="color: #a0aec0; font-size: 0.9em;">${sizeKB} KB</span>
+                            </div>
+                        `;
+                    });
+                }
+            }
+
+            if (folderId !== 'root') {
+                html += '</div>';
+            }
+
+            return html;
+        }
+
+        // Toggle IDS folder
+        function toggleIdsFolder(folderId) {
+            if (expandedIdsFolders.has(folderId)) {
+                expandedIdsFolders.delete(folderId);
+            } else {
+                expandedIdsFolders.add(folderId);
+            }
+            renderIdsStorageTree();
+        }
+
+        // Select IDS file
+        function selectIdsFile(fileId) {
+            selectedIdsFile = fileId;
+            renderIdsStorageTree();
+        }
+
+        // Update IDS selected name
+        function updateIdsSelectedName() {
+            const display = document.getElementById('idsSelectedName');
+            if (selectedIdsFile && idsStorageData.files[selectedIdsFile]) {
+                display.textContent = idsStorageData.files[selectedIdsFile].name;
+                display.style.color = '#667eea';
+                display.style.fontWeight = '600';
+            } else {
+                display.textContent = 'Žádný';
+                display.style.color = '#6c757d';
+                display.style.fontWeight = 'normal';
+            }
+        }
+
+        // Confirm IDS selection
+        function confirmIdsSelection() {
+            if (!selectedIdsFile) {
+                alert('Vyberte IDS soubor!');
+                return;
+            }
+
+            validationGroups[currentGroupIndex].idsFile = idsStorageData.files[selectedIdsFile];
+            closeIdsStorageModal();
+            renderValidationGroups();
+            updateValidateButton();
+        }
+
+        // Validate all groups
+        async function validateAll() {
+            // Filter out groups that don't have both IFC and IDS files
+            const validGroups = validationGroups.filter(g => g.ifcFiles.length > 0 && g.idsFile);
+
+            if (validGroups.length === 0) {
+                alert('Žádné kompletní validační skupiny k validaci!');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingText').textContent = 'Probíhá validace...';
+            document.getElementById('progressText').textContent = '';
+            document.getElementById('currentFile').textContent = '';
+
+            // Reset results
+            validationResults = [];
+
+            try {
+                // Process each group
+                for (let groupIndex = 0; groupIndex < validGroups.length; groupIndex++) {
+                    const group = validGroups[groupIndex];
+
+                    document.getElementById('progressText').textContent = `Skupina ${groupIndex + 1} z ${validGroups.length}`;
+
+                    // Parse IDS file
+                    document.getElementById('currentFile').textContent = `Parsování IDS: ${group.idsFile.name}`;
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Yield
+
+                    const idsData = parseIDS(group.idsFile.content, group.idsFile.name);
+                    if (!idsData) {
+                        console.error('Chyba při parsování IDS:', group.idsFile.name);
+                        continue;
+                    }
+
+                    const idsResult = {
+                        idsFileName: group.idsFile.name,
+                        idsTitle: idsData.title || group.idsFile.name,
+                        ifcResults: []
+                    };
+
+                    // Process each IFC file in the group
+                    for (let ifcIndex = 0; ifcIndex < group.ifcFiles.length; ifcIndex++) {
+                        const ifcFile = group.ifcFiles[ifcIndex];
+
+                        document.getElementById('currentFile').textContent = `Parsování IFC ${ifcIndex + 1}/${group.ifcFiles.length}: ${ifcFile.name}`;
+                        await new Promise(resolve => setTimeout(resolve, 100)); // Yield
+
+                        // Parse IFC file with chunking
+                        document.getElementById('currentFile').textContent = `Parsování IFC: ${ifcFile.name}`;
+                        const entities = await parseIFCFileAsync(ifcFile.content, ifcFile.name);
+                        if (!entities || entities.length === 0) {
+                            console.warn('Žádné entity v IFC souboru:', ifcFile.name);
+                            continue;
+                        }
+
+                        // Validate with chunking
+                        document.getElementById('currentFile').textContent = `Validace: ${ifcFile.name} proti ${group.idsFile.name}`;
+                        await new Promise(resolve => setTimeout(resolve, 100)); // Yield
+
+                        const specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
+
+                        idsResult.ifcResults.push({
+                            ifcFileName: ifcFile.name,
+                            specificationResults: specificationResults
+                        });
+                    }
+
+                    validationResults.push(idsResult);
+                }
+
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+
+                // Show results
+                if (validationResults.length > 0) {
+                    document.getElementById('resultsSection').style.display = 'block';
+                    displayResults();
+
+                    // Scroll to results
+                    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert('Žádné výsledky validace!');
+                }
+
+            } catch (error) {
+                console.error('Chyba při validaci:', error);
+                alert('Chyba při validaci: ' + error.message);
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderValidationGroups();
             updateValidateButton();
         });
     </script>
