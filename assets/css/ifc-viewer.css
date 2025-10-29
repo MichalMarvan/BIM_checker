@@ -1,0 +1,617 @@
+/* ===========================================
+   BIM CHECKER - IFC VIEWER STYLES
+   Styles specific to IFC Multi-File Viewer
+   =========================================== */
+
+/* Upload Section */
+.upload-section {
+    padding: 40px;
+    background: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.upload-area {
+    border: 3px dashed #667eea;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    border-color: #764ba2;
+    background: #f8f9ff;
+}
+
+.upload-icon { font-size: 4em; color: #667eea; margin-bottom: 20px; }
+.upload-text { font-size: 1.2em; color: #495057; margin-bottom: 10px; }
+
+#fileInput { display: none; }
+
+.file-list {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+}
+
+.file-card {
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-info {
+    flex: 1;
+}
+
+.file-name {
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 5px;
+}
+
+.file-stats {
+    font-size: 0.85em;
+    color: #6c757d;
+}
+
+.file-remove {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.file-remove:hover {
+    background: #c82333;
+}
+
+/* Controls */
+.controls {
+    padding: 20px 40px;
+    background: #fff;
+    border-bottom: 1px solid #e9ecef;
+    display: none;
+}
+
+/* Column Manager */
+.column-manager {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 15px;
+    display: none;
+}
+
+#psetList {
+    max-height: 600px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.pset-group {
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    padding: 15px;
+}
+
+.pset-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #e8eaff;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    cursor: move;
+}
+
+.pset-group-header:hover {
+    background: #d5d7ff;
+}
+
+.pset-group.dragging {
+    opacity: 0.5;
+}
+
+.prop-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    margin-left: 20px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    cursor: move;
+}
+
+.prop-item:hover {
+    background: #e9ecef;
+}
+
+.prop-item.dragging {
+    opacity: 0.5;
+}
+
+.drag-handle {
+    cursor: grab;
+    color: #6c757d;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Table Container */
+.table-container {
+    padding: 0 40px 40px 40px;
+    overflow-x: auto;
+    display: none;
+}
+
+/* Pagination */
+.pagination-container {
+    padding: 20px 40px;
+    background: #f8f9fa;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 2px solid #e9ecef;
+}
+
+.pagination-info {
+    color: #495057;
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.pagination-controls button {
+    padding: 8px 16px;
+    border: 2px solid #667eea;
+    background: white;
+    color: #667eea;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+    background: #667eea;
+    color: white;
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination-controls select {
+    padding: 8px 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 1em;
+    background: white;
+}
+
+.page-input-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.page-input-group input {
+    width: 60px;
+    padding: 8px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.page-input-group button {
+    padding: 8px 12px;
+}
+
+/* Data Table */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.data-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.data-table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.85em;
+    white-space: nowrap;
+    border-right: 1px solid rgba(255,255,255,0.2);
+    left: unset; /* Explicitly prevent left positioning unless overridden */
+}
+
+.data-table th.sticky-col,
+.data-table td.sticky-col {
+    position: sticky !important;
+    background: white;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+.data-table thead th.sticky-col {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    z-index: 20;
+}
+
+.data-table thead .header-row-prop th.sticky-col {
+    background: linear-gradient(135deg, #5568d3 0%, #6640a2 100%);
+    z-index: 20;
+}
+
+.data-table tbody td.sticky-col {
+    background: white;
+    z-index: 5;
+}
+
+.data-table tbody tr:hover td.sticky-col {
+    background-color: #f8f9ff;
+}
+
+/* Normal cells should NOT have position relative - causes issues */
+.data-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e9ecef;
+    border-right: 1px solid #f0f0f0;
+    font-size: 0.95em;
+    left: unset; /* Explicitly prevent left positioning unless overridden */
+}
+
+.lock-icon {
+    cursor: pointer;
+    margin-left: 5px;
+    font-size: 0.9em;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.lock-icon:hover {
+    opacity: 1;
+}
+
+.lock-icon.locked {
+    opacity: 1;
+    color: #ffd700;
+}
+
+.data-table .header-row-pset {
+    /* Removed sticky positioning that was causing issues */
+}
+
+.data-table .header-row-prop {
+    background: linear-gradient(135deg, #5568d3 0%, #6640a2 100%);
+}
+
+/* Only sticky headers get position sticky */
+.data-table .header-row-pset th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.data-table .header-row-prop th {
+    position: sticky;
+    top: 38px;
+    z-index: 10;
+    background: linear-gradient(135deg, #5568d3 0%, #6640a2 100%);
+}
+
+/* Horizontally sticky columns - two-axis sticky (both top and left) */
+.data-table .header-row-pset th.sticky-col,
+.data-table .header-row-prop th.sticky-col {
+    z-index: 20 !important;
+    /* left is set inline via JavaScript */
+}
+
+/* Non-sticky columns in body should not stick horizontally */
+.data-table tbody td:not(.sticky-col) {
+    position: static; /* Override any inherited positioning */
+}
+
+.data-table .pset-header {
+    text-align: center;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.data-table .pset-header.sticky-col {
+    min-width: 120px;
+}
+
+.data-table .prop-header {
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.data-table tbody tr:hover {
+    background-color: #f8f9ff;
+}
+
+.file-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #667eea;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 600;
+    cursor: help;
+}
+
+.guid-cell {
+    font-family: 'Courier New', monospace;
+    color: #667eea;
+    font-weight: 600;
+    font-size: 0.85em;
+}
+
+.entity-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #e8eaff;
+    color: #667eea;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    padding: 40px;
+    display: none;
+}
+
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+.progress-container {
+    width: 100%;
+    max-width: 500px;
+    margin: 20px auto;
+    background: #f3f3f3;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 30px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    width: 0%;
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.loading-status {
+    margin-top: 15px;
+    color: #666;
+    font-size: 0.95em;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* File Colors */
+.file-color-0 { background: #667eea !important; }
+.file-color-1 { background: #f093fb !important; }
+.file-color-2 { background: #4facfe !important; }
+.file-color-3 { background: #43e97b !important; }
+.file-color-4 { background: #fa709a !important; }
+.file-color-5 { background: #feca57 !important; }
+
+/* Edit Mode Styles */
+.edit-mode .data-table td.editable {
+    cursor: pointer;
+    position: relative;
+}
+
+.edit-mode .data-table td.editable:hover {
+    background: #fff3cd !important;
+    outline: 2px solid #ffc107;
+}
+
+.data-table td input.cell-editor {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid #667eea;
+    border-radius: 4px;
+    font-size: 0.95em;
+}
+
+.edit-panel {
+    display: none;
+    padding: 20px 40px;
+    background: #fff3cd;
+    border-bottom: 2px solid #ffc107;
+    border-top: 2px solid #ffc107;
+}
+
+.edit-panel.active {
+    display: block;
+}
+
+.edit-panel-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.selected-count {
+    font-weight: 700;
+    color: #667eea;
+    font-size: 1.1em;
+}
+
+.checkbox-cell {
+    text-align: center;
+    width: 40px;
+}
+
+.checkbox-cell input {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+}
+
+/* Modal for adding PSet/Property */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.6em;
+}
+
+.modal-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 1.5em;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 0.95em;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.modal-footer {
+    padding: 20px 30px;
+    border-top: 2px solid #e9ecef;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
+.modified-cell {
+    background: #d4edda !important;
+    border-left: 3px solid #28a745;
+}
