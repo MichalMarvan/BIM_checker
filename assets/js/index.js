@@ -1,0 +1,308 @@
+/**
+ * BIM Checker - Index Page JavaScript
+ * Main page logic for file storage management
+ *
+ * Dependencies: storage.js (IndexedDBStorage, StorageManager)
+ */
+
+// =======================
+// FILE PANEL
+// =======================
+class FilePanel {
+    constructor(type, storageKey) {
+        this.type = type; // 'ifc' or 'ids'
+        this.storage = new StorageManager(storageKey);
+        this.selectedFolder = 'root';
+        this.selectedFile = null;
+
+        this.elements = {
+            dropZone: document.getElementById(`${type}DropZone`),
+            fileTree: document.getElementById(`${type}FileTree`),
+            fileInput: document.getElementById(`${type}FileInput`),
+            stats: document.getElementById(`${type}Stats`),
+            newFolderBtn: document.getElementById(`${type}NewFolderBtn`),
+            uploadBtn: document.getElementById(`${type}UploadBtn`),
+            expandAllBtn: document.getElementById(`${type}ExpandAllBtn`),
+            collapseAllBtn: document.getElementById(`${type}CollapseAllBtn`)
+        };
+
+        this.init();
+    }
+
+    async init() {
+        // Wait for storage to be ready
+        await this.storage.init();
+        // Drop zone events
+        this.elements.dropZone.addEventListener('click', () => {
+            this.elements.fileInput.click();
+        });
+
+        this.elements.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.elements.dropZone.classList.add('drag-over');
+        });
+
+        this.elements.dropZone.addEventListener('dragleave', () => {
+            this.elements.dropZone.classList.remove('drag-over');
+        });
+
+        this.elements.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.elements.dropZone.classList.remove('drag-over');
+            this.handleFiles(Array.from(e.dataTransfer.files));
+        });
+
+        // File input
+        this.elements.fileInput.addEventListener('change', (e) => {
+            this.handleFiles(Array.from(e.target.files));
+            e.target.value = ''; // Reset
+        });
+
+        // Buttons
+        this.elements.newFolderBtn.addEventListener('click', () => this.createNewFolder());
+        this.elements.uploadBtn.addEventListener('click', () => this.elements.fileInput.click());
+        this.elements.expandAllBtn.addEventListener('click', () => this.expandAll());
+        this.elements.collapseAllBtn.addEventListener('click', () => this.collapseAll());
+
+        this.render();
+    }
+
+    async handleFiles(files) {
+        const extensions = this.type === 'ifc' ? ['.ifc'] : ['.ids', '.xml'];
+        const validFiles = files.filter(f => {
+            const name = f.name.toLowerCase();
+            return extensions.some(ext => name.endsWith(ext));
+        });
+
+        if (validFiles.length === 0) {
+            alert(`Pouze ${extensions.join(', ')} soubory jsou povoleny!`);
+            return;
+        }
+
+        // Check for large files and warn user
+        const largeFiles = validFiles.filter(f => f.size > 50 * 1024 * 1024); // 50 MB
+        if (largeFiles.length > 0) {
+            const fileList = largeFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`).join('\n');
+            const proceed = confirm(
+                `Nkteré soubory jsou velké a nahrávání mo~e trvat déle:\n\n${fileList}\n\nPokraovat?`
+            );
+            if (!proceed) return;
+        }
+
+        // Show loading overlay
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const progressBar = document.getElementById('progressBar');
+        const loadingSubtext = document.getElementById('loadingSubtext');
+        const fileInfo = document.getElementById('fileInfo');
+
+        loadingOverlay.classList.add('show');
+
+        let processed = 0;
+        for (const file of validFiles) {
+            const fileNum = processed + 1;
+            const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+
+            loadingSubtext.textContent = `Soubor ${fileNum} z ${validFiles.length}`;
+            fileInfo.textContent = `${file.name} (${sizeMB} MB)`;
+
+            const reader = new FileReader();
+
+            // Progress for reading file
+            reader.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percentRead = Math.round((e.loaded / e.total) * 100);
+                    const overallPercent = Math.round(
+                        ((processed + (percentRead / 100)) / validFiles.length) * 100
+                    );
+                    progressBar.style.width = overallPercent + '%';
+                    progressBar.textContent = overallPercent + '%';
+                }
+            };
+
+            await new Promise((resolve) => {
+                reader.onload = async (e) => {
+                    loadingSubtext.textContent = 'Ukládám do databáze...';
+                    await this.storage.addFile({
+                        name: file.name,
+                        size: file.size,
+                        content: e.target.result
+                    }, this.selectedFolder);
+                    processed++;
+
+                    const overallPercent = Math.round((processed / validFiles.length) * 100);
+                    progressBar.style.width = overallPercent + '%';
+                    progressBar.textContent = overallPercent + '%';
+
+                    resolve();
+                };
+                reader.onerror = () => {
+                    alert(`Chyba pYi tení souboru: ${file.name}`);
+                    processed++;
+                    resolve();
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        // Hide loading overlay
+        loadingOverlay.classList.remove('show');
+
+        this.render();
+        alert(` Úspan nahráno ${validFiles.length} souboro`);
+    }
+
+    async createNewFolder() {
+        const name = prompt('Název nové slo~ky:');
+        if (name && name.trim()) {
+            await this.storage.createFolder(name.trim(), this.selectedFolder);
+            this.render();
+        }
+    }
+
+    async deleteFolder(folderId) {
+        if (confirm('Smazat slo~ku a vaechny její soubory?')) {
+            await this.storage.deleteFolder(folderId);
+            this.render();
+        }
+    }
+
+    async renameFolder(folderId) {
+        const folder = this.storage.data.folders[folderId];
+        const newName = prompt('Nový název slo~ky:', folder.name);
+        if (newName && newName.trim()) {
+            await this.storage.renameFolder(folderId, newName.trim());
+            this.render();
+        }
+    }
+
+    async deleteFile(fileId) {
+        if (confirm('Smazat soubor?')) {
+            await this.storage.deleteFile(fileId);
+            this.render();
+        }
+    }
+
+    async expandAll() {
+        Object.values(this.storage.data.folders).forEach(folder => {
+            folder.expanded = true;
+        });
+        await this.storage.save();
+        this.render();
+    }
+
+    async collapseAll() {
+        Object.values(this.storage.data.folders).forEach(folder => {
+            if (folder.id !== 'root') folder.expanded = false;
+        });
+        await this.storage.save();
+        this.render();
+    }
+
+    renderFolder(folderId, level = 0) {
+        const folder = this.storage.data.folders[folderId];
+        if (!folder) return '';
+
+        const isExpanded = folder.expanded;
+        const hasChildren = folder.children.length > 0 || folder.files.length > 0;
+
+        // Arrow for expand/collapse
+        const arrow = hasChildren ? (isExpanded ? '¼' : '¶') : '';
+
+        let html = `
+            <div class="tree-folder" data-folder-id="${folderId}">
+                <div class="tree-folder-header ${this.selectedFolder === folderId ? 'selected' : ''}"
+                     onclick="filePanel_${this.type}.selectFolder('${folderId}')">
+                    <span class="folder-arrow">${arrow}</span>
+                    <span class="folder-icon">=Á</span>
+                    <span class="folder-name">${folder.name}</span>
+                    ${folderId !== 'root' ? `
+                    <div class="folder-actions">
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="PYejmenovat"></button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFolder('${folderId}')" title="Smazat">=Ñ</button>
+                    </div>` : ''}
+                </div>
+                <div class="tree-folder-children ${isExpanded ? 'expanded' : ''}">
+        `;
+
+        // Render child folders FIRST (sorted by name)
+        const childFolders = folder.children
+            .map(id => this.storage.data.folders[id])
+            .filter(f => f)
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        childFolders.forEach(childFolder => {
+            html += this.renderFolder(childFolder.id, level + 1);
+        });
+
+        // Render files AFTER folders (sorted by name)
+        const files = folder.files
+            .map(id => this.storage.data.files[id])
+            .filter(f => f)
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        files.forEach(file => {
+            const sizeKB = (file.size / 1024).toFixed(1);
+            html += `
+                <div class="tree-file ${this.selectedFile === file.id ? 'selected' : ''}"
+                     data-file-id="${file.id}"
+                     onclick="filePanel_${this.type}.selectFile('${file.id}')">
+                    <span class="file-icon">=Ä</span>
+                    <span class="file-name">${file.name}</span>
+                    <span class="file-size">${sizeKB} KB</span>
+                    <div class="file-actions">
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFile('${file.id}')" title="Smazat">=Ñ</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div></div>';
+        return html;
+    }
+
+    render() {
+        this.elements.fileTree.innerHTML = this.renderFolder('root');
+
+        // Update stats
+        const stats = this.storage.getStats();
+        const sizeKB = (stats.totalSize / 1024).toFixed(1);
+        this.elements.stats.innerHTML = `
+            <span>Souboro: <strong>${stats.fileCount}</strong></span>
+            <span>Velikost: <strong>${sizeKB} KB</strong></span>
+        `;
+    }
+
+    async selectFolder(folderId) {
+        const folder = this.storage.data.folders[folderId];
+        if (folder) {
+            // Toggle expand/collapse
+            await this.storage.toggleFolder(folderId);
+            this.selectedFolder = folderId;
+            this.render();
+        }
+    }
+
+    selectFile(fileId) {
+        this.selectedFile = fileId;
+        this.render();
+    }
+
+    // Public API for other pages
+    getFile(fileId) {
+        return this.storage.data.files[fileId];
+    }
+
+    getAllFiles() {
+        return Object.values(this.storage.data.files);
+    }
+}
+
+// =======================
+// INITIALIZE
+// =======================
+let filePanel_ifc, filePanel_ids;
+
+window.addEventListener('DOMContentLoaded', () => {
+    filePanel_ifc = new FilePanel('ifc', 'bim_checker_ifc_storage');
+    filePanel_ids = new FilePanel('ids', 'bim_checker_ids_storage');
+});
