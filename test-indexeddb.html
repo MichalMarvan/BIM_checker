@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test IndexedDB</title></head>
+<body>
+<h1>Test IndexedDB - IDS Storage</h1>
+<button onclick="testRead()">Načíst IDS storage</button>
+<pre id="output"></pre>
+<script>
+async function testRead() {
+    const output = document.getElementById('output');
+    
+    try {
+        const request = indexedDB.open('BIMCheckerStorage', 1);
+        
+        request.onsuccess = () => {
+            const db = request.result;
+            const transaction = db.transaction(['storage'], 'readonly');
+            const store = transaction.objectStore('storage');
+            const getRequest = store.get('bim_checker_ids_storage');
+            
+            getRequest.onsuccess = () => {
+                const data = getRequest.result;
+                output.textContent = JSON.stringify(data, null, 2);
+            };
+            
+            getRequest.onerror = () => {
+                output.textContent = 'Chyba: ' + getRequest.error;
+            };
+        };
+        
+        request.onerror = () => {
+            output.textContent = 'Chyba DB: ' + request.error;
+        };
+    } catch (e) {
+        output.textContent = 'Exception: ' + e.message;
+    }
+}
+</script>
+</body>
+</html>

@@ -24,3 +24,8 @@ podklady/
 podpora/
 *.ifc
 *.ids
+*.bak
+*.backup
+*.backup2
+*.backup3
+*.backup4
