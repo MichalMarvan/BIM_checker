@@ -84,7 +84,7 @@ class FilePanel {
         if (largeFiles.length > 0) {
             const fileList = largeFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`).join('\n');
             const proceed = confirm(
-                `Nkteré soubory jsou velké a nahrávání mo~e trvat déle:\n\n${fileList}\n\nPokraovat?`
+                `NÄ›kterÃ© soubory jsou velkÃ© a nahrÃ¡vÃ¡nÃ­ mÅ¯Å¾e trvat dÃ©le:\n\n${fileList}\n\nPokraÄovat?`
             );
             if (!proceed) return;
         }
@@ -121,7 +121,7 @@ class FilePanel {
 
             await new Promise((resolve) => {
                 reader.onload = async (e) => {
-                    loadingSubtext.textContent = 'Ukládám do databáze...';
+                    loadingSubtext.textContent = 'UklÃ¡dÃ¡m do databÃ¡ze...';
                     await this.storage.addFile({
                         name: file.name,
                         size: file.size,
@@ -136,7 +136,7 @@ class FilePanel {
                     resolve();
                 };
                 reader.onerror = () => {
-                    alert(`Chyba pYi tení souboru: ${file.name}`);
+                    alert(`Chyba pÅ™i ÄtenÃ­ souboru: ${file.name}`);
                     processed++;
                     resolve();
                 };
@@ -148,11 +148,11 @@ class FilePanel {
         loadingOverlay.classList.remove('show');
 
         this.render();
-        alert(` Úspan nahráno ${validFiles.length} souboro`);
+        alert(`ÃšspÄ›Å¡nÄ› nahrÃ¡no ${validFiles.length} souborÅ¯`);
     }
 
     async createNewFolder() {
-        const name = prompt('Název nové slo~ky:');
+        const name = prompt('NÃ¡zev novÃ© sloÅ¾ky:');
         if (name && name.trim()) {
             await this.storage.createFolder(name.trim(), this.selectedFolder);
             this.render();
@@ -160,7 +160,7 @@ class FilePanel {
     }
 
     async deleteFolder(folderId) {
-        if (confirm('Smazat slo~ku a vaechny její soubory?')) {
+        if (confirm('Smazat sloÅ¾ku a vÅ¡echny jejÃ­ soubory?')) {
             await this.storage.deleteFolder(folderId);
             this.render();
         }
@@ -168,7 +168,7 @@ class FilePanel {
 
     async renameFolder(folderId) {
         const folder = this.storage.data.folders[folderId];
-        const newName = prompt('Novı název slo~ky:', folder.name);
+        const newName = prompt('NovÃ½ nÃ¡zev sloÅ¾ky:', folder.name);
         if (newName && newName.trim()) {
             await this.storage.renameFolder(folderId, newName.trim());
             this.render();
@@ -206,19 +206,19 @@ class FilePanel {
         const hasChildren = folder.children.length > 0 || folder.files.length > 0;
 
         // Arrow for expand/collapse
-        const arrow = hasChildren ? (isExpanded ? '¼' : '¶') : '';
+        const arrow = hasChildren ? (isExpanded ? 'â–¼' : 'â–¶') : '';
 
         let html = `
             <div class="tree-folder" data-folder-id="${folderId}">
                 <div class="tree-folder-header ${this.selectedFolder === folderId ? 'selected' : ''}"
                      onclick="filePanel_${this.type}.selectFolder('${folderId}')">
                     <span class="folder-arrow">${arrow}</span>
-                    <span class="folder-icon">=Á</span>
+                    <span class="folder-icon">ğŸ“</span>
                     <span class="folder-name">${folder.name}</span>
                     ${folderId !== 'root' ? `
                     <div class="folder-actions">
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="PYejmenovat"></button>
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFolder('${folderId}')" title="Smazat">=Ñ</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="PÅ™ejmenovat">âœï¸</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFolder('${folderId}')" title="Smazat">ğŸ—‘ï¸</button>
                     </div>` : ''}
                 </div>
                 <div class="tree-folder-children ${isExpanded ? 'expanded' : ''}">
@@ -246,11 +246,11 @@ class FilePanel {
                 <div class="tree-file ${this.selectedFile === file.id ? 'selected' : ''}"
                      data-file-id="${file.id}"
                      onclick="filePanel_${this.type}.selectFile('${file.id}')">
-                    <span class="file-icon">=Ä</span>
+                    <span class="file-icon">ğŸ“„</span>
                     <span class="file-name">${file.name}</span>
                     <span class="file-size">${sizeKB} KB</span>
                     <div class="file-actions">
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFile('${file.id}')" title="Smazat">=Ñ</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFile('${file.id}')" title="Smazat">ğŸ—‘ï¸</button>
                     </div>
                 </div>
             `;
@@ -267,7 +267,7 @@ class FilePanel {
         const stats = this.storage.getStats();
         const sizeKB = (stats.totalSize / 1024).toFixed(1);
         this.elements.stats.innerHTML = `
-            <span>Souboro: <strong>${stats.fileCount}</strong></span>
+            <span>SouborÅ¯: <strong>${stats.fileCount}</strong></span>
             <span>Velikost: <strong>${sizeKB} KB</strong></span>
         `;
     }

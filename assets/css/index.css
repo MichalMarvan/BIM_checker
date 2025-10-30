@@ -3,6 +3,37 @@
    Styles specific to the main index page
    =========================================== */
 
+/* Index page specific body styling */
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Index page specific container width */
+.page-container {
+    max-width: 1200px !important;
+}
+
+/* Index page content padding - spacing from edges */
+.content {
+    padding: 60px 40px;
+}
+
+/* Index page header styling - more prominent */
+.header {
+    padding: 60px 30px !important;
+}
+
+.header h1 {
+    font-size: 3em !important;
+    margin-bottom: 15px !important;
+}
+
+.header p {
+    font-size: 1.3em !important;
+}
+
 /* Tools Grid Section */
 .tools-grid {
     display: grid;
@@ -241,7 +272,7 @@
 }
 
 .file-tree:empty::before {
-    content: "}ádné soubory";
+    content: "}ï¿½dnï¿½ soubory";
     color: #a0aec0;
     font-style: italic;
     display: block;
@@ -503,6 +534,36 @@
 .file-info {
     font-size: 0.9em;
     color: #6c757d;
+}
+
+/* Footer Section */
+.footer {
+    text-align: center;
+    padding: 30px;
+    color: #6c757d;
+    border-top: 2px solid #e9ecef;
+    margin-top: 40px;
+}
+
+.footer p {
+    margin-bottom: 10px;
+}
+
+.tech-stack {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.tech-badge {
+    background: #667eea;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: 600;
 }
 
 /* Responsive */
