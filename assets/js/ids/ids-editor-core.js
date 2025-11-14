@@ -280,11 +280,13 @@ class IDSEditorCore {
      */
     renderSpecification(spec, index) {
         const totalFacets = (spec.applicability ? spec.applicability.length : 0) + (spec.requirements ? spec.requirements.length : 0);
+        const ifcVersion = spec.ifcVersion || 'IFC4';
         let html = `
             <div class="specification-item collapsible-section" data-index="${index}">
                 <div class="spec-header collapsible-header" onclick="idsEditorCore.toggleSection(this)">
                     <span class="collapse-icon">▼</span>
                     <h4 style="margin: 0; flex: 1;">${this.escapeHtml(spec.name)}</h4>
+                    <span class="ifc-version-badge" style="background: #667eea; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; margin-right: 10px;">${ifcVersion}</span>
                     <span class="facet-count">${totalFacets} facets</span>
                     ${this.editMode ? `
                         <button class="edit-btn" onclick="event.stopPropagation(); idsEditorCore.editSpecification(${index})">✏️</button>
@@ -475,20 +477,19 @@ class IDSEditorCore {
      * Add specification
      */
     addSpecification() {
-        const name = prompt('Název specifikace:');
-        if (!name) return;
+        idsEditorModals.showSpecificationModal({}, (specData) => {
+            const newSpec = {
+                name: specData.name,
+                ifcVersion: specData.ifcVersion,
+                description: specData.description,
+                applicability: [],
+                requirements: []
+            };
 
-        const newSpec = {
-            name: name,
-            ifcVersion: 'IFC4',
-            description: '',
-            applicability: [],
-            requirements: []
-        };
-
-        this.idsData.specifications.push(newSpec);
-        this.hasUnsavedChanges = true;
-        this.renderIDS();
+            this.idsData.specifications.push(newSpec);
+            this.hasUnsavedChanges = true;
+            this.renderIDS();
+        });
     }
 
     /**
@@ -496,12 +497,14 @@ class IDSEditorCore {
      */
     editSpecification(index) {
         const spec = this.idsData.specifications[index];
-        const name = prompt('Název specifikace:', spec.name);
-        if (name === null) return;
 
-        spec.name = name;
-        this.hasUnsavedChanges = true;
-        this.renderIDS();
+        idsEditorModals.showSpecificationModal(spec, (specData) => {
+            spec.name = specData.name;
+            spec.ifcVersion = specData.ifcVersion;
+            spec.description = specData.description;
+            this.hasUnsavedChanges = true;
+            this.renderIDS();
+        });
     }
 
     /**
@@ -519,21 +522,27 @@ class IDSEditorCore {
      * Add facet to specification
      */
     addFacet(specIndex, section) {
+        const spec = this.idsData.specifications[specIndex];
+        const ifcVersion = spec.ifcVersion || 'IFC4';
+
         idsEditorModals.showFacetTypeSelector((facetData) => {
             this.idsData.specifications[specIndex][section].push(facetData);
             this.hasUnsavedChanges = true;
             this.renderIDS();
-        });
+        }, ifcVersion);
     }
 
     /**
      * Edit facet
      */
     editFacet(specIndex, section, facetIndex) {
-        const facet = this.idsData.specifications[specIndex][section][facetIndex];
+        const spec = this.idsData.specifications[specIndex];
+        const facet = spec[section][facetIndex];
+        const ifcVersion = spec.ifcVersion || 'IFC4';
 
         // Show appropriate form based on facet type
         idsEditorModals.currentFacetType = facet.type;
+        idsEditorModals.currentIfcVersion = ifcVersion; // Set IFC version for modal
         idsEditorModals.currentCallback = (updatedFacet) => {
             this.idsData.specifications[specIndex][section][facetIndex] = updatedFacet;
             this.hasUnsavedChanges = true;

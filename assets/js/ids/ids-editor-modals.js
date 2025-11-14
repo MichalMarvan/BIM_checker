@@ -7,6 +7,7 @@ class IDSEditorModals {
     constructor() {
         this.currentCallback = null;
         this.currentFacetType = null;
+        this.currentIfcVersion = 'IFC4'; // Default IFC version
         this.initializeModals();
     }
 
@@ -14,7 +15,7 @@ class IDSEditorModals {
      * Initialize modal structure
      */
     initializeModals() {
-        // Create modal overlay if it doesn't exist
+        // Create facet modal overlay if it doesn't exist
         let overlay = document.getElementById('facetModalOverlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -44,13 +45,45 @@ class IDSEditorModals {
                 }
             });
         }
+
+        // Create specification modal overlay
+        let specOverlay = document.getElementById('specificationModalOverlay');
+        if (!specOverlay) {
+            specOverlay = document.createElement('div');
+            specOverlay.id = 'specificationModalOverlay';
+            specOverlay.className = 'modal-overlay';
+            specOverlay.innerHTML = `
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h2 id="specModalTitle">Specifikace</h2>
+                        <button class="modal-close" onclick="idsEditorModals.closeSpecificationModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="specModalBody">
+                        <!-- Dynamic content -->
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="idsEditorModals.closeSpecificationModal()">Zrušit</button>
+                        <button class="btn btn-primary" onclick="idsEditorModals.saveSpecification()">Uložit</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(specOverlay);
+
+            // Close on overlay click
+            specOverlay.addEventListener('click', (e) => {
+                if (e.target === specOverlay) {
+                    this.closeSpecificationModal();
+                }
+            });
+        }
     }
 
     /**
      * Show modal for selecting facet type
      */
-    showFacetTypeSelector(callback) {
+    showFacetTypeSelector(callback, ifcVersion = 'IFC4') {
         this.currentCallback = callback;
+        this.currentIfcVersion = ifcVersion; // Store IFC version for facet modals
         document.getElementById('modalTitle').textContent = 'Vyberte typ facetu';
         document.getElementById('modalBody').innerHTML = `
             <div class="facet-type-selector">
@@ -129,10 +162,19 @@ class IDSEditorModals {
      */
     showEntityForm(data = {}) {
         document.getElementById('modalTitle').textContent = '🏢 Entity Facet';
+
+        // Generate datalist options from IFC_ENTITY_TYPES
+        const datalistOptions = window.IFC_ENTITY_TYPES
+            ? window.IFC_ENTITY_TYPES.map(type => `<option value="${type}">`).join('')
+            : '';
+
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>Entity Name:</label>
-                <input type="text" id="entityName" value="${data.name || ''}" placeholder="např. IFCWALL">
+                <input type="text" id="entityName" list="ifcEntityTypes" value="${data.name || ''}" placeholder="např. IFCWALL" autocomplete="off">
+                <datalist id="ifcEntityTypes">
+                    ${datalistOptions}
+                </datalist>
                 <small>IFC entity type (např. IFCWALL, IFCBEAM, IFCDOOR)</small>
             </div>
 
@@ -167,12 +209,25 @@ class IDSEditorModals {
         const propertySetValue = this.extractSimpleValue(data.propertySet);
         const baseNameValue = this.extractSimpleValue(data.baseName);
 
-        document.getElementById('modalTitle').textContent = '📋 Property Facet';
+        // Get PropertySets for current IFC version
+        const propertySets = window.getPropertySetsForVersion
+            ? window.getPropertySetsForVersion(this.currentIfcVersion)
+            : (window.IFC_PROPERTY_SETS || []);
+
+        // Generate datalist options from IFC_PROPERTY_SETS
+        const psetDatalistOptions = propertySets
+            ? propertySets.map(pset => `<option value="${pset}">`).join('')
+            : '';
+
+        document.getElementById('modalTitle').textContent = `📋 Property Facet (${this.currentIfcVersion})`;
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>PropertySet Name:</label>
-                <input type="text" id="propertySet" value="${propertySetValue}" placeholder="např. Pset_WallCommon">
-                <small>Název PropertySetu</small>
+                <input type="text" id="propertySet" list="ifcPropertySets" value="${propertySetValue}" placeholder="např. Pset_WallCommon" autocomplete="off">
+                <datalist id="ifcPropertySets">
+                    ${psetDatalistOptions}
+                </datalist>
+                <small>Název PropertySetu (${propertySets.length} dostupných pro ${this.currentIfcVersion})</small>
             </div>
 
             <div class="form-group">
@@ -689,6 +744,80 @@ class IDSEditorModals {
         const div = document.createElement('div');
         div.textContent = String(text);
         return div.innerHTML;
+    }
+
+    /**
+     * Show specification modal for add/edit
+     */
+    showSpecificationModal(specData = {}, callback) {
+        this.currentSpecCallback = callback;
+
+        const isEdit = !!specData.name;
+        document.getElementById('specModalTitle').textContent = isEdit ? '✏️ Upravit specifikaci' : '➕ Přidat specifikaci';
+
+        document.getElementById('specModalBody').innerHTML = `
+            <div class="form-group">
+                <label>Název specifikace:</label>
+                <input type="text" id="specName" value="${this.escapeHtml(specData.name || '')}" placeholder="např. Walls Fire Rating Check">
+                <small>Popisný název požadavku</small>
+            </div>
+
+            <div class="form-group">
+                <label>IFC Verze:</label>
+                <select id="specIfcVersion">
+                    <option value="IFC2X3" ${specData.ifcVersion === 'IFC2X3' ? 'selected' : ''}>IFC2X3</option>
+                    <option value="IFC4" ${!specData.ifcVersion || specData.ifcVersion === 'IFC4' ? 'selected' : ''}>IFC4</option>
+                    <option value="IFC4X3" ${specData.ifcVersion === 'IFC4X3' ? 'selected' : ''}>IFC4X3</option>
+                    <option value="IFC4X3_ADD2" ${specData.ifcVersion === 'IFC4X3_ADD2' ? 'selected' : ''}>IFC4X3_ADD2</option>
+                </select>
+                <small>Verze IFC schématu pro tuto specifikaci</small>
+            </div>
+
+            <div class="form-group">
+                <label>Popis (volitelné):</label>
+                <textarea id="specDescription" rows="3" placeholder="Podrobný popis požadavku...">${this.escapeHtml(specData.description || '')}</textarea>
+            </div>
+        `;
+
+        this.openSpecificationModal();
+    }
+
+    /**
+     * Save specification data
+     */
+    saveSpecification() {
+        const name = document.getElementById('specName').value.trim();
+        if (!name) {
+            alert('Název specifikace je povinný!');
+            return;
+        }
+
+        const specData = {
+            name: name,
+            ifcVersion: document.getElementById('specIfcVersion').value,
+            description: document.getElementById('specDescription').value.trim()
+        };
+
+        if (this.currentSpecCallback) {
+            this.currentSpecCallback(specData);
+        }
+
+        this.closeSpecificationModal();
+    }
+
+    /**
+     * Open specification modal
+     */
+    openSpecificationModal() {
+        document.getElementById('specificationModalOverlay').classList.add('active');
+    }
+
+    /**
+     * Close specification modal
+     */
+    closeSpecificationModal() {
+        document.getElementById('specificationModalOverlay').classList.remove('active');
+        this.currentSpecCallback = null;
     }
 }
 

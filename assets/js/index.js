@@ -14,6 +14,7 @@ class FilePanel {
         this.storage = new StorageManager(storageKey);
         this.selectedFolder = 'root';
         this.selectedFile = null;
+        this.draggedFileId = null;
 
         this.elements = {
             dropZone: document.getElementById(`${type}DropZone`),
@@ -75,19 +76,25 @@ class FilePanel {
         });
 
         if (validFiles.length === 0) {
-            alert(`Pouze ${extensions.join(', ')} soubory jsou povoleny!`);
+            ErrorHandler.error(`Pouze ${extensions.join(', ')} soubory jsou povoleny!`);
             return;
         }
 
         // Check for large files and warn user
         const largeFiles = validFiles.filter(f => f.size > 50 * 1024 * 1024); // 50 MB
         if (largeFiles.length > 0) {
-            const fileList = largeFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`).join('\n');
-            const proceed = confirm(
-                `Některé soubory jsou velké a nahrávání může trvat déle:\n\n${fileList}\n\nPokračovat?`
+            const fileList = largeFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`).join(', ');
+            ErrorHandler.confirm(
+                `Některé soubory jsou velké a nahrávání může trvat déle: ${fileList}. Pokračovat?`,
+                () => this.uploadFiles(validFiles)
             );
-            if (!proceed) return;
+            return;
         }
+
+        await this.uploadFiles(validFiles);
+    }
+
+    async uploadFiles(validFiles) {
 
         // Show loading overlay
         const loadingOverlay = document.getElementById('loadingOverlay');
@@ -136,7 +143,7 @@ class FilePanel {
                     resolve();
                 };
                 reader.onerror = () => {
-                    alert(`Chyba při čtení souboru: ${file.name}`);
+                    ErrorHandler.error(`Chyba při čtení souboru: ${file.name}`);
                     processed++;
                     resolve();
                 };
@@ -148,58 +155,60 @@ class FilePanel {
         loadingOverlay.classList.remove('show');
 
         this.render();
-        alert(`Úspěšně nahráno ${validFiles.length} souborů`);
+        ErrorHandler.success(`Úspěšně nahráno ${validFiles.length} souborů`);
     }
 
     async createNewFolder() {
-        const name = prompt('Název nové složky:');
-        if (name && name.trim()) {
-            await this.storage.createFolder(name.trim(), this.selectedFolder);
+        ErrorHandler.prompt('Název nové složky:', '', async (name) => {
+            await this.storage.createFolder(name, this.selectedFolder);
             this.render();
-        }
+        });
     }
 
     async deleteFolder(folderId) {
-        if (confirm('Smazat složku a všechny její soubory?')) {
+        ErrorHandler.confirm('Smazat složku a všechny její soubory?', async () => {
             await this.storage.deleteFolder(folderId);
             this.render();
-        }
+        });
     }
 
     async renameFolder(folderId) {
-        const folder = this.storage.data.folders[folderId];
-        const newName = prompt('Nový název složky:', folder.name);
-        if (newName && newName.trim()) {
-            await this.storage.renameFolder(folderId, newName.trim());
+        const folder = this.storage.metadata.folders[folderId];
+        ErrorHandler.prompt('Nový název složky:', folder.name, async (newName) => {
+            await this.storage.renameFolder(folderId, newName);
             this.render();
-        }
+        });
     }
 
     async deleteFile(fileId) {
-        if (confirm('Smazat soubor?')) {
+        ErrorHandler.confirm('Smazat soubor?', async () => {
             await this.storage.deleteFile(fileId);
             this.render();
-        }
+        });
     }
 
     async expandAll() {
-        Object.values(this.storage.data.folders).forEach(folder => {
+        // Expand all in metadata (fast!)
+        Object.values(this.storage.metadata.folders).forEach(folder => {
             folder.expanded = true;
         });
-        await this.storage.save();
+        // Save to localStorage (instant!)
+        this.storage.saveExpandedStates();
         this.render();
     }
 
     async collapseAll() {
-        Object.values(this.storage.data.folders).forEach(folder => {
+        // Collapse all in metadata (fast!)
+        Object.values(this.storage.metadata.folders).forEach(folder => {
             if (folder.id !== 'root') folder.expanded = false;
         });
-        await this.storage.save();
+        // Save to localStorage (instant!)
+        this.storage.saveExpandedStates();
         this.render();
     }
 
     renderFolder(folderId, level = 0) {
-        const folder = this.storage.data.folders[folderId];
+        const folder = this.storage.metadata.folders[folderId];
         if (!folder) return '';
 
         const isExpanded = folder.expanded;
@@ -211,8 +220,11 @@ class FilePanel {
         let html = `
             <div class="tree-folder" data-folder-id="${folderId}">
                 <div class="tree-folder-header ${this.selectedFolder === folderId ? 'selected' : ''}"
-                     onclick="filePanel_${this.type}.selectFolder('${folderId}')">
-                    <span class="folder-arrow">${arrow}</span>
+                     onclick="filePanel_${this.type}.selectFolder('${folderId}')"
+                     ondragover="filePanel_${this.type}.handleDragOver(event, '${folderId}')"
+                     ondragleave="filePanel_${this.type}.handleDragLeave(event)"
+                     ondrop="filePanel_${this.type}.handleDrop(event, '${folderId}')">
+                    <span class="folder-arrow" onclick="event.stopPropagation(); filePanel_${this.type}.toggleFolder('${folderId}')">${arrow}</span>
                     <span class="folder-icon">📁</span>
                     <span class="folder-name">${folder.name}</span>
                     ${folderId !== 'root' ? `
@@ -226,7 +238,7 @@ class FilePanel {
 
         // Render child folders FIRST (sorted by name)
         const childFolders = folder.children
-            .map(id => this.storage.data.folders[id])
+            .map(id => this.storage.metadata.folders[id])
             .filter(f => f)
             .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -236,7 +248,7 @@ class FilePanel {
 
         // Render files AFTER folders (sorted by name)
         const files = folder.files
-            .map(id => this.storage.data.files[id])
+            .map(id => this.storage.metadata.files[id])
             .filter(f => f)
             .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -245,6 +257,9 @@ class FilePanel {
             html += `
                 <div class="tree-file ${this.selectedFile === file.id ? 'selected' : ''}"
                      data-file-id="${file.id}"
+                     draggable="true"
+                     ondragstart="filePanel_${this.type}.handleDragStart(event, '${file.id}')"
+                     ondragend="filePanel_${this.type}.handleDragEnd(event)"
                      onclick="filePanel_${this.type}.selectFile('${file.id}')">
                     <span class="file-icon">📄</span>
                     <span class="file-name">${file.name}</span>
@@ -273,11 +288,17 @@ class FilePanel {
     }
 
     async selectFolder(folderId) {
-        const folder = this.storage.data.folders[folderId];
+        const folder = this.storage.metadata.folders[folderId];
         if (folder) {
-            // Toggle expand/collapse
-            await this.storage.toggleFolder(folderId);
             this.selectedFolder = folderId;
+            this.render();
+        }
+    }
+
+    async toggleFolder(folderId) {
+        const folder = this.storage.metadata.folders[folderId];
+        if (folder) {
+            await this.storage.toggleFolder(folderId);
             this.render();
         }
     }
@@ -287,13 +308,58 @@ class FilePanel {
         this.render();
     }
 
+    // Drag & Drop handlers
+    handleDragStart(event, fileId) {
+        this.draggedFileId = fileId;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', fileId);
+        event.target.style.opacity = '0.4';
+    }
+
+    handleDragEnd(event) {
+        event.target.style.opacity = '1';
+    }
+
+    handleDragOver(event, folderId) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = 'move';
+
+        // Add visual feedback
+        const folderHeader = event.currentTarget;
+        folderHeader.classList.add('drag-over');
+    }
+
+    handleDragLeave(event) {
+        event.currentTarget.classList.remove('drag-over');
+    }
+
+    async handleDrop(event, targetFolderId) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.classList.remove('drag-over');
+
+        if (!this.draggedFileId) return;
+
+        const file = this.storage.metadata.files[this.draggedFileId];
+        if (!file) return;
+
+        // Don't move if already in target folder
+        if (file.folderId === targetFolderId) return;
+
+        // Move file to target folder
+        await this.storage.moveFile(this.draggedFileId, targetFolderId);
+        this.draggedFileId = null;
+        this.render();
+    }
+
     // Public API for other pages
     getFile(fileId) {
-        return this.storage.data.files[fileId];
+        return this.storage.metadata.files[fileId];
     }
 
     getAllFiles() {
-        return Object.values(this.storage.data.files);
+        return Object.values(this.storage.metadata.files);
     }
 }
 

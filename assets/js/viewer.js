@@ -1,5 +1,106 @@
-let loadedFiles = []; // Array of {fileName, ifcData, color, originalContent}
-let allData = []; // Combined data from all files
+// =======================
+// VIRTUAL ARRAY (memory optimization)
+// =======================
+class VirtualArray {
+    constructor() {
+        this.arrays = []; // Array of references to file.data arrays
+    }
+
+    setArrays(arrays) {
+        this.arrays = arrays;
+    }
+
+    get length() {
+        return this.arrays.reduce((sum, arr) => sum + arr.length, 0);
+    }
+
+    // Get item at index (across all arrays)
+    at(index) {
+        let currentIndex = 0;
+        for (let arr of this.arrays) {
+            if (index < currentIndex + arr.length) {
+                return arr[index - currentIndex];
+            }
+            currentIndex += arr.length;
+        }
+        return undefined;
+    }
+
+    // Array methods
+    find(callback) {
+        for (let arr of this.arrays) {
+            const result = arr.find(callback);
+            if (result !== undefined) return result;
+        }
+        return undefined;
+    }
+
+    filter(callback) {
+        const result = [];
+        for (let arr of this.arrays) {
+            result.push(...arr.filter(callback));
+        }
+        return result;
+    }
+
+    map(callback) {
+        const result = [];
+        for (let arr of this.arrays) {
+            result.push(...arr.map(callback));
+        }
+        return result;
+    }
+
+    forEach(callback) {
+        for (let arr of this.arrays) {
+            arr.forEach(callback);
+        }
+    }
+
+    slice(start, end) {
+        const combined = [];
+        for (let arr of this.arrays) {
+            combined.push(...arr);
+        }
+        return combined.slice(start, end);
+    }
+
+    [Symbol.iterator]() {
+        let arrayIndex = 0;
+        let itemIndex = 0;
+        const arrays = this.arrays;
+
+        return {
+            next() {
+                while (arrayIndex < arrays.length) {
+                    if (itemIndex < arrays[arrayIndex].length) {
+                        const value = arrays[arrayIndex][itemIndex];
+                        itemIndex++;
+                        return { value, done: false };
+                    }
+                    arrayIndex++;
+                    itemIndex = 0;
+                }
+                return { done: true };
+            }
+        };
+    }
+
+    // Convert to real array if needed
+    toArray() {
+        const result = [];
+        for (let arr of this.arrays) {
+            result.push(...arr);
+        }
+        return result;
+    }
+}
+
+// =======================
+// GLOBAL VARIABLES
+// =======================
+let loadedFiles = []; // Array of {fileName, data, color, entityCount} - originalContent is in IndexedDB
+let allData = new VirtualArray(); // Virtual view over all file data (no duplication)
 let filteredData = [];
 let propertySetGroups = {};
 let psetOrder = [];
@@ -24,6 +125,69 @@ let modifications = {}; // {guid: {psetName: {propName: value}}}
 let editingCell = null;
 
 const fileColors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#feca57'];
+
+// =======================
+// IFC FILE CACHE (IndexedDB)
+// =======================
+let ifcCacheDB = null;
+
+async function initIFCCache() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('bim_checker_ifc_cache', 1);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            ifcCacheDB = request.result;
+            resolve();
+        };
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('ifc_files')) {
+                db.createObjectStore('ifc_files', { keyPath: 'fileName' });
+            }
+        };
+    });
+}
+
+async function storeIFCContent(fileName, content) {
+    if (!ifcCacheDB) await initIFCCache();
+
+    return new Promise((resolve, reject) => {
+        const transaction = ifcCacheDB.transaction(['ifc_files'], 'readwrite');
+        const store = transaction.objectStore('ifc_files');
+        const request = store.put({ fileName, content });
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function getIFCContent(fileName) {
+    if (!ifcCacheDB) await initIFCCache();
+
+    return new Promise((resolve, reject) => {
+        const transaction = ifcCacheDB.transaction(['ifc_files'], 'readonly');
+        const store = transaction.objectStore('ifc_files');
+        const request = store.get(fileName);
+
+        request.onsuccess = () => resolve(request.result?.content);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function deleteIFCContent(fileName) {
+    if (!ifcCacheDB) await initIFCCache();
+
+    return new Promise((resolve, reject) => {
+        const transaction = ifcCacheDB.transaction(['ifc_files'], 'readwrite');
+        const store = transaction.objectStore('ifc_files');
+        const request = store.delete(fileName);
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
 
 const uploadArea = document.getElementById('uploadArea');
 const fileInput = document.getElementById('fileInput');
@@ -103,12 +267,14 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         const entityMap = new Map();
         const propertySetMap = new Map();
         const relDefinesMap = new Map();
+        const layerMap = new Map(); // Map shape representation ID -> layer name
+        const productShapeMap = new Map(); // Map IFCPRODUCTDEFINITIONSHAPE ID -> [shape rep IDs]
 
         const CHUNK_SIZE = 2000; // Process 2000 lines at a time
         const totalLines = lines.length;
 
         // Phase 1: Collect entities (chunked)
-        updateProgress(0, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 1/3 (načítání entit)`);
+        updateProgress(0, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 1/4 (načítání entit)`);
         for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
             const chunk = lines.slice(i, i + CHUNK_SIZE);
 
@@ -121,16 +287,20 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 entityMap.set(id, { id, type: entityType, params });
             }
 
-            const progress = ((i + CHUNK_SIZE) / totalLines) * 33;
-            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 1/3 (${i + CHUNK_SIZE}/${totalLines} řádků)`);
+            const progress = ((i + CHUNK_SIZE) / totalLines) * 25;
+            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 1/4 (${i + CHUNK_SIZE}/${totalLines} řádků)`);
 
             // Yield to browser
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
-        // Phase 2: Parse property sets (chunked)
-        updateProgress(33, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 2/3 (property sety)`);
+        // Phase 2: Parse property sets and relationships (chunked)
+        updateProgress(25, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 2/4 (property sety a vztahy)`);
         const entities = Array.from(entityMap.entries());
+        const spatialStructureMap = new Map(); // Map entity ID -> { children: [], parent: null }
+        const containedInSpatialMap = new Map(); // IFCRELCONTAINEDINSPATIALSTRUCTURE relations
+        const aggregatesMap = new Map(); // IFCRELAGGREGATES relations
+
         for (let i = 0; i < entities.length; i += CHUNK_SIZE) {
             const chunk = entities.slice(i, i + CHUNK_SIZE);
 
@@ -141,18 +311,327 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 } else if (entity.type === 'IFCRELDEFINESBYPROPERTIES') {
                     const rel = parseRelDefines(entity.params);
                     relDefinesMap.set(id, rel);
+                } else if (entity.type === 'IFCPRESENTATIONLAYERASSIGNMENT') {
+                    const layer = parseLayerAssignment(entity.params, entityMap);
+                    if (layer && layer.assignedItems) {
+                        layer.assignedItems.forEach(itemId => {
+                            layerMap.set(itemId, layer.name);
+                        });
+                    }
+                } else if (entity.type === 'IFCPRODUCTDEFINITIONSHAPE') {
+                    // Parse shape representations from IFCPRODUCTDEFINITIONSHAPE
+                    // Format: IFCPRODUCTDEFINITIONSHAPE(Name, Description, (#123,#124,#125))
+                    const shapeReps = entity.params.match(/#\d+/g);
+                    if (shapeReps) {
+                        productShapeMap.set(id, shapeReps.map(r => r.substring(1)));
+                    }
+                } else if (entity.type === 'IFCRELCONTAINEDINSPATIALSTRUCTURE') {
+                    // Parse spatial containment
+                    // Format: IFCRELCONTAINEDINSPATIALSTRUCTURE(..., (#1,#2,#3), #100)
+                    const relatedElements = entity.params.match(/\(([#\d,\s]+)\)/);
+                    const relatingStructure = entity.params.match(/,\s*#(\d+)\s*\)/);
+                    if (relatedElements && relatingStructure) {
+                        const children = relatedElements[1].match(/#\d+/g)?.map(r => r.substring(1)) || [];
+                        const parent = relatingStructure[1];
+                        containedInSpatialMap.set(id, { parent, children });
+                        if (containedInSpatialMap.size <= 3) {
+                            console.log(`IFCRELCONTAINEDINSPATIALSTRUCTURE #${id}: parent=${parent}, children=[${children.join(',')}]`);
+                        }
+                    }
+                } else if (entity.type === 'IFCRELAGGREGATES') {
+                    // Parse aggregation
+                    // Format: IFCRELAGGREGATES(..., #parent, (#children))
+                    const match = entity.params.match(/#(\d+)\s*,\s*\(([#\d,\s]+)\)/);
+                    if (match) {
+                        const parent = match[1];
+                        const children = match[2].match(/#\d+/g)?.map(r => r.substring(1)) || [];
+                        aggregatesMap.set(id, { parent, children });
+                    }
                 }
             }
 
-            const progress = 33 + ((i + CHUNK_SIZE) / entities.length) * 33;
-            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 2/3 (${i + CHUNK_SIZE}/${entities.length} entit)`);
+            const progress = 25 + ((i + CHUNK_SIZE) / entities.length) * 25;
+            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 2/4 (${i + CHUNK_SIZE}/${entities.length} entit)`);
 
             // Yield to browser
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
-        // Phase 3: Build final data (chunked)
-        updateProgress(66, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 3/3 (stavba dat)`);
+        // Phase 3: Build spatial structure tree
+        updateProgress(50, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 3/4 (prostorová struktura)`);
+
+        console.log('=== SPATIAL TREE DEBUG ===');
+        console.log('aggregatesMap size:', aggregatesMap.size);
+        console.log('containedInSpatialMap size:', containedInSpatialMap.size);
+        console.log('Sample aggregatesMap entries:', Array.from(aggregatesMap.entries()).slice(0, 3));
+        console.log('Sample containedInSpatialMap entries:', Array.from(containedInSpatialMap.entries()).slice(0, 3));
+
+        // Check what entity 338925 is
+        for (let [relId, rel] of containedInSpatialMap) {
+            const parentEntity = entityMap.get(rel.parent);
+            console.log(`Containment parent: #${rel.parent} = ${parentEntity?.type} (${extractName(parentEntity?.params) || '-'}), children: ${rel.children.length}`);
+        }
+
+        // Build parent-child relationships
+        const childToParentMap = new Map();
+
+        // Process IFCRELAGGREGATES (hierarchical decomposition)
+        for (let [relId, rel] of aggregatesMap) {
+            rel.children.forEach(childId => {
+                if (!childToParentMap.has(childId)) {
+                    childToParentMap.set(childId, []);
+                }
+                childToParentMap.get(childId).push({ parentId: rel.parent, type: 'aggregate' });
+            });
+        }
+
+        // Process IFCRELCONTAINEDINSPATIALSTRUCTURE (spatial containment)
+        for (let [relId, rel] of containedInSpatialMap) {
+            rel.children.forEach(childId => {
+                if (!childToParentMap.has(childId)) {
+                    childToParentMap.set(childId, []);
+                }
+                childToParentMap.get(childId).push({ parentId: rel.parent, type: 'contained' });
+            });
+        }
+
+        // Build tree structure starting from IFCPROJECT
+        const spatialTree = [];
+        const processedNodes = new Set();
+
+        function buildNode(entityId) {
+            if (processedNodes.has(entityId)) return null;
+            processedNodes.add(entityId);
+
+            const entity = entityMap.get(entityId);
+            if (!entity) return null;
+
+            const node = {
+                id: entityId,
+                type: entity.type,
+                name: extractName(entity.params) || '-',
+                children: []
+            };
+
+            let childrenCount = 0;
+
+            // Find children from aggregatesMap
+            for (let [relId, rel] of aggregatesMap) {
+                if (rel.parent === entityId) {
+                    rel.children.forEach(childId => {
+                        const childNode = buildNode(childId);
+                        if (childNode) {
+                            node.children.push(childNode);
+                            childrenCount++;
+                        }
+                    });
+                }
+            }
+
+            // Find children from containedInSpatialMap
+            for (let [relId, rel] of containedInSpatialMap) {
+                if (rel.parent === entityId) {
+                    rel.children.forEach(childId => {
+                        const childNode = buildNode(childId);
+                        if (childNode) {
+                            node.children.push(childNode);
+                            childrenCount++;
+                        }
+                    });
+                }
+            }
+
+
+            return node;
+        }
+
+        // Find root (IFCPROJECT)
+        let projectId = null;
+        for (let [id, entity] of entityMap) {
+            if (entity.type === 'IFCPROJECT') {
+                projectId = id;
+                console.log('Found IFCPROJECT:', id);
+                const rootNode = buildNode(id);
+                if (rootNode) {
+                    spatialTree.push(rootNode);
+                    console.log('Root node created, children:', rootNode.children.length);
+                }
+                break;
+            }
+        }
+
+        if (!projectId) {
+            console.warn('No IFCPROJECT found in file!');
+        }
+
+        // Add orphaned nodes that have children in containedInSpatialMap but aren't in the tree
+        console.log('Checking for orphaned spatial containers...');
+        const orphanedContainers = [];
+
+        for (let [relId, rel] of containedInSpatialMap) {
+            if (!processedNodes.has(rel.parent)) {
+                const parentEntity = entityMap.get(rel.parent);
+                console.log(`Found orphaned container: #${rel.parent} = ${parentEntity?.type} with ${rel.children.length} children`);
+
+                orphanedContainers.push({
+                    id: rel.parent,
+                    entity: parentEntity,
+                    children: rel.children
+                });
+            }
+        }
+
+        // Attach orphaned containers to the tree
+        if (orphanedContainers.length > 0) {
+            console.log(`Attempting to attach ${orphanedContainers.length} orphaned containers to tree...`);
+
+            // Helper to find a node in the tree by ID
+            function findNodeInTree(tree, targetId) {
+                for (let node of tree) {
+                    if (node.id === targetId) return node;
+                    if (node.children && node.children.length > 0) {
+                        const found = findNodeInTree(node.children, targetId);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            }
+
+            // Helper to find appropriate parent based on entity type hierarchy
+            function findAppropriateParent(tree, orphanType) {
+                // Define strict hierarchy - most specific first
+                const typeHierarchy = {
+                    // Spatial containers
+                    'IFCBUILDINGSTOREY': ['IFCBUILDING'],
+                    'IFCBUILDING': ['IFCSITE'],
+                    'IFCSITE': ['IFCPROJECT'],
+                    'IFCSPACE': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+
+                    // Building elements - should be in BUILDING or BUILDINGSTOREY
+                    'IFCWALL': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCSLAB': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCROOF': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCBEAM': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCCOLUMN': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCDOOR': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCWINDOW': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCSTAIR': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCRAILING': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCCOVERING': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCFURNISHINGELEMENT': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCFURNITURE': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCBUILDINGELEMENTPROXY': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCMEMBER': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCPLATE': ['IFCBUILDINGSTOREY', 'IFCBUILDING']
+                };
+
+                const preferredParents = typeHierarchy[orphanType] || ['IFCBUILDINGSTOREY', 'IFCBUILDING'];
+
+                // Recursively search for ALL matching parent types and pick the DEEPEST one
+                let candidates = [];
+
+                function searchTree(nodes, depth = 0) {
+                    for (let node of nodes) {
+                        if (preferredParents.includes(node.type)) {
+                            candidates.push({ node, depth });
+                        }
+                        if (node.children && node.children.length > 0) {
+                            searchTree(node.children, depth + 1);
+                        }
+                    }
+                }
+
+                searchTree(tree);
+
+                // Pick the deepest candidate (most specific location in hierarchy)
+                if (candidates.length > 0) {
+                    candidates.sort((a, b) => b.depth - a.depth);  // Sort by depth descending
+                    return candidates[0].node;
+                }
+
+                return null;
+            }
+
+            // Helper to create or find BUILDINGSTOREY under a BUILDING
+            const buildingStoreyCache = new Map();  // Cache created storeys
+
+            function getOrCreateStorey(buildingNode) {
+                if (buildingStoreyCache.has(buildingNode.id)) {
+                    return buildingStoreyCache.get(buildingNode.id);
+                }
+
+                // Check if BUILDING already has a BUILDINGSTOREY child
+                const existingStorey = buildingNode.children.find(child => child.type === 'IFCBUILDINGSTOREY');
+                if (existingStorey) {
+                    buildingStoreyCache.set(buildingNode.id, existingStorey);
+                    return existingStorey;
+                }
+
+                // Create a virtual BUILDINGSTOREY
+                const storeyNode = {
+                    id: `virtual_storey_${buildingNode.id}`,
+                    type: 'IFCBUILDINGSTOREY',
+                    name: 'Unknown Floor',
+                    children: []
+                };
+
+                buildingNode.children.push(storeyNode);
+                buildingStoreyCache.set(buildingNode.id, storeyNode);
+                console.log(`  Created virtual BUILDINGSTOREY under ${buildingNode.type} #${buildingNode.id}`);
+
+                return storeyNode;
+            }
+
+            // Physical building elements that should go into BUILDINGSTOREY
+            const physicalElements = new Set([
+                'IFCWALL', 'IFCSLAB', 'IFCROOF', 'IFCBEAM', 'IFCCOLUMN', 'IFCDOOR', 'IFCWINDOW',
+                'IFCSTAIR', 'IFCRAILING', 'IFCCOVERING', 'IFCFURNISHINGELEMENT', 'IFCFURNITURE',
+                'IFCBUILDINGELEMENTPROXY', 'IFCMEMBER', 'IFCPLATE', 'IFCFLOWSEGMENT',
+                'IFCFLOWTERMINAL', 'IFCFLOWFITTING'
+            ]);
+
+            // Attach each orphan
+            for (let orphan of orphanedContainers) {
+                const orphanNode = {
+                    id: orphan.id,
+                    type: orphan.entity.type,
+                    name: extractName(orphan.entity.params) || '-',
+                    children: []
+                };
+
+                // Add the contained children to this orphan node
+                for (let childId of orphan.children) {
+                    const childEntity = entityMap.get(childId);
+                    if (childEntity) {
+                        orphanNode.children.push({
+                            id: childId,
+                            type: childEntity.type,
+                            name: extractName(childEntity.params) || '-',
+                            children: []
+                        });
+                    }
+                }
+
+                // Find appropriate parent in the tree
+                let parentNode = findAppropriateParent(spatialTree, orphan.entity.type);
+
+                // If parent is BUILDING and orphan is a physical element, use/create BUILDINGSTOREY
+                if (parentNode && parentNode.type === 'IFCBUILDING' && physicalElements.has(orphan.entity.type)) {
+                    parentNode = getOrCreateStorey(parentNode);
+                }
+
+                if (parentNode) {
+                    parentNode.children.push(orphanNode);
+                    processedNodes.add(orphan.id);
+                    console.log(`  ✓ Attached ${orphan.entity.type} #${orphan.id} to ${parentNode.type} #${parentNode.id} (${orphanNode.children.length} children)`);
+                } else {
+                    console.warn(`  ✗ Could not find appropriate parent for ${orphan.entity.type} #${orphan.id}`);
+                }
+            }
+        }
+
+        // Phase 4: Build final data (chunked)
+        updateProgress(60, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 4/4 (stavba dat)`);
         let processedEntities = 0;
         for (let i = 0; i < entities.length; i += CHUNK_SIZE) {
             const chunk = entities.slice(i, i + CHUNK_SIZE);
@@ -179,10 +658,36 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                             }
                         }
 
+                        // Find layer by traversing Representation -> IFCPRODUCTDEFINITIONSHAPE -> IFCSHAPEREPRESENTATION
+                        let entityLayer = '-';
+                        const representationMatch = entity.params.match(/#(\d+)/g);
+                        if (representationMatch) {
+                            for (let refId of representationMatch) {
+                                const cleanRefId = refId.substring(1);
+                                const refEntity = entityMap.get(cleanRefId);
+
+                                // Check if this is IFCPRODUCTDEFINITIONSHAPE
+                                if (refEntity && refEntity.type === 'IFCPRODUCTDEFINITIONSHAPE') {
+                                    const shapeReps = productShapeMap.get(cleanRefId);
+                                    if (shapeReps) {
+                                        for (let shapeRepId of shapeReps) {
+                                            if (layerMap.has(shapeRepId)) {
+                                                entityLayer = layerMap.get(shapeRepId);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (entityLayer !== '-') break;
+                                }
+                            }
+                        }
+
                         fileData.push({
                             guid,
+                            ifcId: id,  // Add IFC numeric ID for spatial tree filtering
                             entity: entity.type,
                             name: name || '-',
+                            layer: entityLayer,
                             propertySets,
                             fileName: fileName
                         });
@@ -191,20 +696,25 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 processedEntities++;
             }
 
-            const progress = 66 + ((i + CHUNK_SIZE) / entities.length) * 34;
-            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 3/3 (${processedEntities}/${entities.length} entit)`);
+            const progress = 60 + ((i + CHUNK_SIZE) / entities.length) * 40;
+            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 4/4 (${processedEntities}/${entities.length} entit)`);
 
             // Yield to browser
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         const color = fileColors[loadedFiles.length % fileColors.length];
+
+        // Store original content in IndexedDB to save RAM
+        await storeIFCContent(fileName, content);
+
         loadedFiles.push({
             fileName,
             data: fileData,
             color,
             entityCount: fileData.length,
-            originalContent: content
+            spatialTree: spatialTree // Spatial structure tree
+            // originalContent removed - stored in IndexedDB instead
         });
 
         updateFileList();
@@ -217,7 +727,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
     }
 }
 
-function parseIFC(content, fileName) {
+async function parseIFC(content, fileName) {
     try {
         const fileData = [];
         const lines = content.split('\n');
@@ -235,7 +745,10 @@ function parseIFC(content, fileName) {
             entityMap.set(id, { id, type: entityType, params });
         }
 
-        // Parse property sets
+        // Parse property sets and spatial relationships
+        const containedInSpatialMap = new Map();
+        const aggregatesMap = new Map();
+
         for (let [id, entity] of entityMap) {
             if (entity.type === 'IFCPROPERTYSET') {
                 const props = parsePropertySet(entity.params, entityMap);
@@ -243,7 +756,96 @@ function parseIFC(content, fileName) {
             } else if (entity.type === 'IFCRELDEFINESBYPROPERTIES') {
                 const rel = parseRelDefines(entity.params);
                 relDefinesMap.set(id, rel);
+            } else if (entity.type === 'IFCRELCONTAINEDINSPATIALSTRUCTURE') {
+                const relatedElements = entity.params.match(/\(([#\d,\s]+)\)/);
+                const relatingStructure = entity.params.match(/,\s*#(\d+)\s*\)/);
+                if (relatedElements && relatingStructure) {
+                    const children = relatedElements[1].match(/#\d+/g)?.map(r => r.substring(1)) || [];
+                    const parent = relatingStructure[1];
+                    containedInSpatialMap.set(id, { parent, children });
+                }
+            } else if (entity.type === 'IFCRELAGGREGATES') {
+                // Format: IFCRELAGGREGATES(..., #parent, (#children))
+                const match = entity.params.match(/#(\d+)\s*,\s*\(([#\d,\s]+)\)/);
+                if (match) {
+                    const parent = match[1];
+                    const children = match[2].match(/#\d+/g)?.map(r => r.substring(1)) || [];
+                    aggregatesMap.set(id, { parent, children });
+                }
             }
+        }
+
+        // Build spatial structure tree
+        console.log('=== SPATIAL TREE DEBUG (parseIFC) ===');
+        console.log('aggregatesMap size:', aggregatesMap.size);
+        console.log('containedInSpatialMap size:', containedInSpatialMap.size);
+
+        const spatialTree = [];
+        const processedNodes = new Set();
+
+        function buildNode(entityId) {
+            if (processedNodes.has(entityId)) return null;
+            processedNodes.add(entityId);
+
+            const entity = entityMap.get(entityId);
+            if (!entity) return null;
+
+            const node = {
+                id: entityId,
+                type: entity.type,
+                name: extractName(entity.params) || '-',
+                children: []
+            };
+
+            let childrenCount = 0;
+
+            // Find children from aggregatesMap
+            for (let [relId, rel] of aggregatesMap) {
+                if (rel.parent === entityId) {
+                    rel.children.forEach(childId => {
+                        const childNode = buildNode(childId);
+                        if (childNode) {
+                            node.children.push(childNode);
+                            childrenCount++;
+                        }
+                    });
+                }
+            }
+
+            // Find children from containedInSpatialMap
+            for (let [relId, rel] of containedInSpatialMap) {
+                if (rel.parent === entityId) {
+                    rel.children.forEach(childId => {
+                        const childNode = buildNode(childId);
+                        if (childNode) {
+                            node.children.push(childNode);
+                            childrenCount++;
+                        }
+                    });
+                }
+            }
+
+
+            return node;
+        }
+
+        // Find root (IFCPROJECT)
+        let projectId = null;
+        for (let [id, entity] of entityMap) {
+            if (entity.type === 'IFCPROJECT') {
+                projectId = id;
+                console.log('Found IFCPROJECT:', id);
+                const rootNode = buildNode(id);
+                if (rootNode) {
+                    spatialTree.push(rootNode);
+                    console.log('Root node created, children:', rootNode.children.length);
+                }
+                break;
+            }
+        }
+
+        if (!projectId) {
+            console.warn('No IFCPROJECT found in file!');
         }
 
         // Build data
@@ -281,12 +883,17 @@ function parseIFC(content, fileName) {
         }
 
         const color = fileColors[loadedFiles.length % fileColors.length];
+
+        // Store original content in IndexedDB to save RAM
+        await storeIFCContent(fileName, content);
+
         loadedFiles.push({
             fileName,
             data: fileData,
             color,
             entityCount: fileData.length,
-            originalContent: content // Store original IFC content for export
+            spatialTree: spatialTree // Spatial structure tree
+            // originalContent removed - stored in IndexedDB instead
         });
 
         updateFileList();
@@ -363,6 +970,19 @@ function parseRelDefines(params) {
     };
 }
 
+function parseLayerAssignment(params, entityMap) {
+    const parts = splitParams(params);
+    // IFCPRESENTATIONLAYERASSIGNMENT(Name, Description, AssignedItems, LayerStyles)
+    const rawName = parts[0] ? parts[0].replace(/'/g, '') : 'Unknown';
+    const name = decodeIFCString(rawName);
+    const assignedItems = parts[2] ? parts[2].match(/#\d+/g)?.map(r => r.substring(1)) : [];
+
+    return {
+        name,
+        assignedItems
+    };
+}
+
 function splitParams(params) {
     const parts = [];
     let current = '';
@@ -409,7 +1029,12 @@ function updateFileList() {
     });
 }
 
-function removeFile(index) {
+async function removeFile(index) {
+    const file = loadedFiles[index];
+
+    // Delete from IndexedDB cache
+    await deleteIFCContent(file.fileName);
+
     loadedFiles.splice(index, 1);
     updateFileList();
     if (loadedFiles.length > 0) {
@@ -424,7 +1049,7 @@ function removeFile(index) {
         document.getElementById('editPanel').classList.remove('active');
 
         // Reset data and state
-        allData = [];
+        allData.setArrays([]);
         filteredData = [];
         selectedEntities.clear();
         modifications = {};
@@ -444,14 +1069,13 @@ function removeFile(index) {
 }
 
 function combineData() {
-    allData = [];
+    // Use VirtualArray to avoid data duplication
+    allData.setArrays(loadedFiles.map(f => f.data));
+
     const newPropertySetGroups = {};
-    
-    // Combine all data
+
+    // Track all property sets
     for (let file of loadedFiles) {
-        allData.push(...file.data);
-        
-        // Track all property sets
         for (let item of file.data) {
             for (let [psetName, props] of Object.entries(item.propertySets)) {
                 if (!newPropertySetGroups[psetName]) {
@@ -867,8 +1491,8 @@ function buildTable() {
         }
     }
 
-    // Fixed columns (GUID, Entita, Name) - NOT sticky, will scroll away
-    ['GUID', 'Entita', 'Name'].forEach(label => {
+    // Fixed columns (GUID, Entita, Name, Layer) - NOT sticky, will scroll away
+    ['GUID', 'Entita', 'Name', 'Layer'].forEach(label => {
         const th = document.createElement('th');
         th.textContent = label;
         th.rowSpan = 2;
@@ -1004,8 +1628,17 @@ function sortByProperty(psetName, propName) {
 
 function applyFiltersAndRender() {
     filteredData = [...allData];
-    
-    if (searchTerm) {
+
+    // Apply spatial tree filter first (if active)
+    if (window.selectedSpatialIds && window.selectedSpatialIds.size > 0) {
+        filteredData = filteredData.filter(item => {
+            return item.ifcId && window.selectedSpatialIds.has(item.ifcId);
+        });
+        console.log(`Spatial filter active: ${filteredData.length} entities match`);
+    }
+
+    // Only apply text search if it's not a spatial filter indicator
+    if (searchTerm && !searchTerm.startsWith('🌳')) {
         const trimmedSearch = searchTerm.trim();
         
         // Check for column-specific search: "ColumnName /regex/" or "ColumnName text"
@@ -1156,6 +1789,9 @@ function applyFiltersAndRender() {
             } else if (sortColumn === 'Name') {
                 valA = a.name;
                 valB = b.name;
+            } else if (sortColumn === 'Layer') {
+                valA = a.layer || '';
+                valB = b.layer || '';
             } else {
                 const [psetName, propName] = sortColumn.split('|||');
                 valA = a.propertySets[psetName]?.[propName] || '';
@@ -1257,7 +1893,7 @@ function renderTable() {
             currentLeft += 120;
         }
 
-        // Fixed columns (GUID, Entita, Name) - not sticky
+        // Fixed columns (GUID, Entita, Name, Layer) - not sticky
         const guidCell = document.createElement('td');
         guidCell.className = 'guid-cell';
         guidCell.textContent = item.guid;
@@ -1270,6 +1906,11 @@ function renderTable() {
         const nameCell = document.createElement('td');
         nameCell.textContent = item.name;
         row.appendChild(nameCell);
+
+        const layerCell = document.createElement('td');
+        layerCell.textContent = item.layer || '-';
+        layerCell.style.color = item.layer && item.layer !== '-' ? '#212529' : '#ccc';
+        row.appendChild(layerCell);
 
         // Render unlocked columns (normal)
         for (let col of unlockedCols) {
@@ -1328,6 +1969,23 @@ function updatePaginationInfo() {
 
 document.getElementById('searchInput').addEventListener('input', (e) => {
     searchTerm = e.target.value;
+
+    // If user modifies the spatial filter text, clear the spatial filter
+    if (!searchTerm.startsWith('🌳')) {
+        if (window.selectedSpatialIds) {
+            window.selectedSpatialIds = null;
+            console.log('Spatial filter cleared by user input');
+
+            // Remove visual indicator
+            e.target.classList.remove('spatial-filter-active');
+
+            // Clear tree node highlights
+            document.querySelectorAll('.tree-node-header').forEach(header => {
+                header.classList.remove('active');
+            });
+        }
+    }
+
     applyFiltersAndRender();
 });
 
@@ -1346,9 +2004,20 @@ document.getElementById('clearFiltersBtn').addEventListener('click', () => {
     entityFilterValue = '';
     fileFilterValue = '';
     sortColumn = null;
-    document.getElementById('searchInput').value = '';
+    window.selectedSpatialIds = null;  // Clear spatial tree filter
+
+    const searchInput = document.getElementById('searchInput');
+    searchInput.value = '';
+    searchInput.classList.remove('spatial-filter-active');  // Remove spatial filter indicator
+
     document.getElementById('entityFilter').value = '';
     document.getElementById('fileFilter').value = '';
+
+    // Clear active highlight from tree nodes
+    document.querySelectorAll('.tree-node-header').forEach(header => {
+        header.classList.remove('active');
+    });
+
     applyFiltersAndRender();
 });
 
@@ -1395,14 +2064,14 @@ function showStatistics() {
 }
 
 document.getElementById('exportBtn').addEventListener('click', () => {
-    let csv = 'Soubor,GUID,Entita,Name';
+    let csv = 'Soubor,GUID,Entita,Name,Layer';
     for (let col of window.currentColumns) {
         csv += ',"' + col.psetName + ' ' + col.propName + '"';
     }
     csv += '\n';
 
     for (let item of filteredData) {
-        const row = ['"' + item.fileName + '"', item.guid, item.entity, '"' + item.name + '"'];
+        const row = ['"' + item.fileName + '"', item.guid, item.entity, '"' + item.name + '"', '"' + (item.layer || '-') + '"'];
         for (let col of window.currentColumns) {
             const val = item.propertySets[col.psetName]?.[col.propName] || '';
             row.push('"' + val + '"');
@@ -1521,10 +2190,14 @@ function updateSelectedCount() {
 
     const bulkBtn = document.getElementById('bulkEditBtn');
     const addBtn = document.getElementById('addPsetBtn');
+    const renameBtn = document.getElementById('renamePsetBtn');
+    const renamePropBtn = document.getElementById('renamePropertyBtn');
     const exportBtn = document.getElementById('exportIfcBtn');
 
     if (bulkBtn) bulkBtn.disabled = count === 0;
     if (addBtn) addBtn.disabled = count === 0;
+    if (renameBtn) renameBtn.disabled = count === 0;
+    if (renamePropBtn) renamePropBtn.disabled = count === 0;
     if (exportBtn) exportBtn.disabled = Object.keys(modifications).length === 0;
 
     console.log('Bulk Edit Button disabled:', bulkBtn ? bulkBtn.disabled : 'not found');
@@ -1865,6 +2538,203 @@ function closeAddPsetModal() {
     document.getElementById('newPropValue').value = '';
 }
 
+// Rename PropertySet Modal
+document.getElementById('renamePsetBtn').addEventListener('click', () => {
+    const modal = document.getElementById('renamePsetModal');
+    const dropdown = document.getElementById('oldPsetName');
+
+    // Collect all unique PropertySets from selected entities
+    const allPsets = new Set();
+    for (let guid of selectedEntities) {
+        const entity = allData.find(e => e.guid === guid);
+        if (entity && entity.propertySets) {
+            Object.keys(entity.propertySets).forEach(pset => allPsets.add(pset));
+        }
+    }
+
+    // Populate dropdown
+    dropdown.innerHTML = '<option value="">-- Vyberte PropertySet --</option>';
+    Array.from(allPsets).sort().forEach(pset => {
+        const option = document.createElement('option');
+        option.value = pset;
+        option.textContent = pset;
+        dropdown.appendChild(option);
+    });
+
+    document.getElementById('renamePsetCount').textContent = selectedEntities.size;
+    modal.classList.add('active');
+});
+
+function closeRenamePsetModal() {
+    document.getElementById('renamePsetModal').classList.remove('active');
+    document.getElementById('oldPsetName').value = '';
+    document.getElementById('newPsetNameRename').value = '';
+}
+
+function applyPsetRename() {
+    const oldName = document.getElementById('oldPsetName').value.trim();
+    const newName = document.getElementById('newPsetNameRename').value.trim();
+
+    if (!oldName) {
+        ErrorHandler.error('Vyberte PropertySet k přejmenování');
+        return;
+    }
+
+    if (!newName) {
+        ErrorHandler.error('Zadejte nový název PropertySetu');
+        return;
+    }
+
+    if (oldName === newName) {
+        ErrorHandler.warning('Nový název je stejný jako starý');
+        return;
+    }
+
+    // Apply rename to all selected entities
+    let count = 0;
+    for (let guid of selectedEntities) {
+        const entity = allData.find(e => e.guid === guid);
+        if (!entity || !entity.propertySets[oldName]) continue;
+
+        // Initialize modification structure
+        if (!modifications[guid]) {
+            modifications[guid] = {};
+        }
+        if (!modifications[guid].renamedPsets) {
+            modifications[guid].renamedPsets = {};
+        }
+
+        modifications[guid].renamedPsets[oldName] = newName;
+        count++;
+    }
+
+    closeRenamePsetModal();
+    updateSelectedCount();
+    ErrorHandler.success(`PropertySet "${oldName}" bude přejmenován na "${newName}" u ${count} entit při exportu`);
+}
+
+// Rename Property Modal
+document.getElementById('renamePropertyBtn').addEventListener('click', () => {
+    const modal = document.getElementById('renamePropertyModal');
+    const psetDropdown = document.getElementById('renamePropPsetName');
+
+    // Collect all unique PropertySets from selected entities
+    const allPsets = new Set();
+    for (let guid of selectedEntities) {
+        const entity = allData.find(e => e.guid === guid);
+        if (entity && entity.propertySets) {
+            Object.keys(entity.propertySets).forEach(pset => allPsets.add(pset));
+        }
+    }
+
+    // Populate PropertySet dropdown
+    psetDropdown.innerHTML = '<option value="">-- Vyberte PropertySet --</option>';
+    Array.from(allPsets).sort().forEach(pset => {
+        const option = document.createElement('option');
+        option.value = pset;
+        option.textContent = pset;
+        psetDropdown.appendChild(option);
+    });
+
+    // Reset property dropdown
+    document.getElementById('oldPropertyName').disabled = true;
+    document.getElementById('oldPropertyName').innerHTML = '<option value="">-- Nejprve vyberte PropertySet --</option>';
+    document.getElementById('newPropertyName').value = '';
+
+    document.getElementById('renamePropertyCount').textContent = selectedEntities.size;
+    modal.classList.add('active');
+});
+
+function closeRenamePropertyModal() {
+    document.getElementById('renamePropertyModal').classList.remove('active');
+    document.getElementById('renamePropPsetName').value = '';
+    document.getElementById('oldPropertyName').value = '';
+    document.getElementById('oldPropertyName').disabled = true;
+    document.getElementById('newPropertyName').value = '';
+}
+
+function updatePropertyDropdown() {
+    const psetName = document.getElementById('renamePropPsetName').value;
+    const propDropdown = document.getElementById('oldPropertyName');
+
+    if (!psetName) {
+        propDropdown.disabled = true;
+        propDropdown.innerHTML = '<option value="">-- Nejprve vyberte PropertySet --</option>';
+        return;
+    }
+
+    // Collect all unique properties from selected entities for this PropertySet
+    const allProperties = new Set();
+    for (let guid of selectedEntities) {
+        const entity = allData.find(e => e.guid === guid);
+        if (entity && entity.propertySets && entity.propertySets[psetName]) {
+            Object.keys(entity.propertySets[psetName]).forEach(prop => allProperties.add(prop));
+        }
+    }
+
+    // Populate property dropdown
+    propDropdown.innerHTML = '<option value="">-- Vyberte Property --</option>';
+    Array.from(allProperties).sort().forEach(prop => {
+        const option = document.createElement('option');
+        option.value = prop;
+        option.textContent = prop;
+        propDropdown.appendChild(option);
+    });
+
+    propDropdown.disabled = false;
+}
+
+function applyPropertyRename() {
+    const psetName = document.getElementById('renamePropPsetName').value.trim();
+    const oldPropName = document.getElementById('oldPropertyName').value.trim();
+    const newPropName = document.getElementById('newPropertyName').value.trim();
+
+    if (!psetName) {
+        ErrorHandler.error('Vyberte PropertySet');
+        return;
+    }
+
+    if (!oldPropName) {
+        ErrorHandler.error('Vyberte Property k přejmenování');
+        return;
+    }
+
+    if (!newPropName) {
+        ErrorHandler.error('Zadejte nový název Property');
+        return;
+    }
+
+    if (oldPropName === newPropName) {
+        ErrorHandler.warning('Nový název je stejný jako starý');
+        return;
+    }
+
+    // Apply rename to all selected entities
+    let count = 0;
+    for (let guid of selectedEntities) {
+        const entity = allData.find(e => e.guid === guid);
+        if (!entity || !entity.propertySets[psetName] || !entity.propertySets[psetName][oldPropName]) continue;
+
+        // Initialize modification structure
+        if (!modifications[guid]) {
+            modifications[guid] = {};
+        }
+        if (!modifications[guid].renamedProperties) {
+            modifications[guid].renamedProperties = {};
+        }
+        if (!modifications[guid].renamedProperties[psetName]) {
+            modifications[guid].renamedProperties[psetName] = {};
+        }
+
+        modifications[guid].renamedProperties[psetName][oldPropName] = newPropName;
+        count++;
+    }
+
+    closeRenamePropertyModal();
+    updateSelectedCount();
+    ErrorHandler.success(`Property "${oldPropName}" v PropertySetu "${psetName}" bude přejmenována na "${newPropName}" u ${count} entit při exportu`);
+}
+
 function applyAddPset() {
     const psetName = document.getElementById('newPsetName').value.trim();
     const propName = document.getElementById('newPropName').value.trim();
@@ -1951,20 +2821,22 @@ document.getElementById('exportIfcBtn').addEventListener('click', () => {
         fileToExport = loadedFiles[index];
     }
 
-    if (!fileToExport.originalContent) {
-        alert('Původní obsah IFC souboru není dostupný. Nahrajte soubor znovu.');
-        return;
-    }
-
     console.log('Exporting file:', fileToExport.fileName);
 
-    // Start export using stored original content
+    // Load original content from IndexedDB and start export
     exportModifiedIFC(fileToExport);
 });
 
-function exportModifiedIFC(fileInfo) {
+async function exportModifiedIFC(fileInfo) {
     try {
-        const ifcContent = fileInfo.originalContent;
+        // Retrieve original content from IndexedDB
+        const ifcContent = await getIFCContent(fileInfo.fileName);
+
+        if (!ifcContent) {
+            ErrorHandler.error('Původní obsah IFC souboru není dostupný v cache. Nahrajte soubor znovu.');
+            return;
+        }
+
         const modifiedIfc = applyModificationsToIFC(ifcContent, modifications, fileInfo.fileName);
 
         if (!modifiedIfc) {
@@ -2079,7 +2951,154 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
         console.log(`Processing entity GUID: ${guid} (ID: #${entityId})`);
 
+        // Handle PropertySet renames first
+        if (psetModifications.renamedPsets) {
+            console.log('  Processing PropertySet renames...');
+
+            for (const [oldPsetName, newPsetName] of Object.entries(psetModifications.renamedPsets)) {
+                console.log(`    Renaming PropertySet: "${oldPsetName}" -> "${newPsetName}"`);
+
+                // Find all PropertySets with this name for this entity
+                for (const [psetId, psetInfo] of propertySetMap) {
+                    // Extract all quoted strings from the params
+                    const quotedStrings = [];
+                    const regex = /'([^']*(?:\\'[^']*)*)'/g;
+                    let match;
+                    while ((match = regex.exec(psetInfo.params)) !== null) {
+                        quotedStrings.push(match[1]);
+                    }
+
+                    // PropertySet name is the second quoted string (index 1)
+                    // Format: IFCPROPERTYSET('GUID',#owner,'Name','Description',(props))
+                    let foundPsetName = quotedStrings.length > 1 ? quotedStrings[1] : null;
+
+                    if (foundPsetName !== oldPsetName) continue;
+
+                    // Check if this PropertySet belongs to our entity
+                    // We need to check IFCRELDEFINESBYPROPERTIES to verify relationship
+                    let belongsToEntity = false;
+                    for (const [relId, relInfo] of relDefinesMap) {
+                        // Check if relationship references this PropertySet
+                        if (relInfo.params.includes(`#${psetId}`)) {
+                            // Check if relationship references our entity
+                            if (relInfo.params.includes(`#${entityId}`)) {
+                                belongsToEntity = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!belongsToEntity) continue;
+
+                    console.log(`      ✓ Found PropertySet #${psetId} for entity #${entityId}`);
+
+                    // Replace the PropertySet name in the line
+                    const oldLine = modifiedLines[psetInfo.lineIndex];
+
+                    // Build regex to match the second quoted string (the name)
+                    // This is safer than string replacement since names might appear multiple times
+                    const nameRegex = /(IFCPROPERTYSET\s*\(\s*'[^']*'\s*,\s*[^,]+\s*,\s*)'([^']*)'/i;
+                    const newLine = oldLine.replace(nameRegex, `$1'${newPsetName}'`);
+
+                    if (newLine !== oldLine) {
+                        modifiedLines[psetInfo.lineIndex] = newLine;
+                        modificationCount++;
+                        console.log(`      ✓ Renamed PropertySet in line ${psetInfo.lineIndex}`);
+                    } else {
+                        console.log(`      ⚠ Failed to rename PropertySet in line ${psetInfo.lineIndex}`);
+                    }
+                }
+            }
+        }
+
+        // Handle Property renames
+        if (psetModifications.renamedProperties) {
+            console.log('  Processing Property renames...');
+
+            for (const [psetName, propertyRenames] of Object.entries(psetModifications.renamedProperties)) {
+                console.log(`    In PropertySet: "${psetName}"`);
+
+                // Find the PropertySet for this entity
+                for (const [psetId, psetInfo] of propertySetMap) {
+                    // Extract all quoted strings from the params
+                    const quotedStrings = [];
+                    const regex = /'([^']*(?:\\'[^']*)*)'/g;
+                    let match;
+                    while ((match = regex.exec(psetInfo.params)) !== null) {
+                        quotedStrings.push(match[1]);
+                    }
+
+                    // PropertySet name is the second quoted string (index 1)
+                    let foundPsetName = quotedStrings.length > 1 ? quotedStrings[1] : null;
+                    if (foundPsetName !== psetName) continue;
+
+                    // Check if this PropertySet belongs to our entity
+                    let belongsToEntity = false;
+                    for (const [relId, relInfo] of relDefinesMap) {
+                        if (relInfo.params.includes(`#${psetId}`) && relInfo.params.includes(`#${entityId}`)) {
+                            belongsToEntity = true;
+                            break;
+                        }
+                    }
+
+                    if (!belongsToEntity) continue;
+
+                    console.log(`      ✓ Found PropertySet #${psetId} for entity #${entityId}`);
+
+                    // Get property references from PropertySet
+                    // Format: IFCPROPERTYSET(...,(#123,#124,#125))
+                    const propertyRefs = psetInfo.params.match(/#\d+/g);
+                    if (!propertyRefs) continue;
+
+                    // Process each property rename
+                    for (const [oldPropName, newPropName] of Object.entries(propertyRenames)) {
+                        console.log(`        Renaming Property: "${oldPropName}" -> "${newPropName}"`);
+
+                        // Find the IFCPROPERTYSINGLEVALUE with this name
+                        for (const propRef of propertyRefs) {
+                            const propId = propRef.substring(1);
+                            const propInfo = propertySingleValueMap.get(propId);
+
+                            if (!propInfo) continue;
+
+                            // Extract property name (first quoted string)
+                            // Format: IFCPROPERTYSINGLEVALUE('Name','Description',value,unit)
+                            const propQuotedStrings = [];
+                            const propRegex = /'([^']*(?:\\'[^']*)*)'/g;
+                            let propMatch;
+                            while ((propMatch = propRegex.exec(propInfo.params)) !== null) {
+                                propQuotedStrings.push(propMatch[1]);
+                            }
+
+                            const foundPropName = propQuotedStrings.length > 0 ? propQuotedStrings[0] : null;
+                            if (foundPropName !== oldPropName) continue;
+
+                            console.log(`          ✓ Found Property #${propId}`);
+
+                            // Replace the property name in the line
+                            const oldLine = modifiedLines[propInfo.lineIndex];
+
+                            // Build regex to match the first quoted string (the name)
+                            const propNameRegex = /(IFCPROPERTYSINGLEVALUE\s*\(\s*)'([^']*)'/i;
+                            const newLine = oldLine.replace(propNameRegex, `$1'${newPropName}'`);
+
+                            if (newLine !== oldLine) {
+                                modifiedLines[propInfo.lineIndex] = newLine;
+                                modificationCount++;
+                                console.log(`          ✓ Renamed Property in line ${propInfo.lineIndex}`);
+                            } else {
+                                console.log(`          ⚠ Failed to rename Property in line ${propInfo.lineIndex}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         for (const [psetName, propModifications] of Object.entries(psetModifications)) {
+            // Skip the renamedPsets and renamedProperties objects
+            if (psetName === 'renamedPsets' || psetName === 'renamedProperties') continue;
+
             console.log(`  PropertySet: ${psetName}`);
 
             // Try to update existing properties
@@ -2463,21 +3482,76 @@ function createRelDefinesByProperties(id, guid, relatedObjects, relatingPset, ow
 let storageDB = null;
 let selectedStorageFiles = new Set();
 let expandedStorageFolders = new Set(['root']); // Default: root is expanded
-let storageData = null; // Cache storage data
+let storageMetadata = null; // Lightweight cache: folders + file metadata (NO content)
 
-// Initialize storage on page load
+// Initialize storage on page load and pre-load metadata
 (async function() {
     try {
-        storageDB = new IndexedDBStorage('bim_checker_storage');
-        await storageDB.init();
-        console.log('✓ Storage initialized');
+        // Use initStorageDB() from storage.js (returns native IndexedDB)
+        storageDB = await initStorageDB();
+
+        // Pre-load metadata (without file contents) for instant modal opening
+        await loadStorageMetadata();
+
+        console.log('✓ Storage initialized and metadata cached');
     } catch (e) {
         console.error('Failed to initialize storage:', e);
     }
 })();
 
-// Open storage picker modal
-document.getElementById('loadFromStorageBtn').addEventListener('click', async () => {
+// Load metadata (folders + file info WITHOUT content) into memory
+async function loadStorageMetadata() {
+    try {
+        // Read from IndexedDB directly
+        const transaction = storageDB.transaction(['storage'], 'readonly');
+        const store = transaction.objectStore('storage');
+        const request = store.get('bim_checker_ifc_storage');
+
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => {
+                const fullData = request.result?.value;
+
+                if (!fullData) {
+                    storageMetadata = null;
+                    resolve();
+                    return;
+                }
+
+                // Create lightweight copy: keep folders and file metadata, remove content
+                storageMetadata = {
+                    folders: fullData.folders,
+                    files: {}
+                };
+
+                // Copy file metadata without content
+                for (let fileId in fullData.files) {
+                    const file = fullData.files[fileId];
+                    storageMetadata.files[fileId] = {
+                        id: file.id,
+                        name: file.name,
+                        size: file.size,
+                        folder: file.folder,
+                        uploadDate: file.uploadDate
+                        // content is NOT copied - saves memory!
+                    };
+                }
+                resolve();
+            };
+
+            request.onerror = () => {
+                console.error('Failed to load storage metadata:', request.error);
+                storageMetadata = null;
+                reject(request.error);
+            };
+        });
+    } catch (e) {
+        console.error('Failed to load storage metadata:', e);
+        storageMetadata = null;
+    }
+}
+
+// Open storage picker modal (instant - no loading!)
+document.getElementById('loadFromStorageBtn').addEventListener('click', () => {
     if (!storageDB) {
         alert('Úložiště není inicializováno!');
         return;
@@ -2485,7 +3559,7 @@ document.getElementById('loadFromStorageBtn').addEventListener('click', async ()
 
     selectedStorageFiles.clear();
     expandedStorageFolders = new Set(['root']);
-    await renderStorageTree();
+    renderStorageTree(); // Synchronous - uses cached metadata
     document.getElementById('storagePickerModal').classList.add('active');
 });
 
@@ -2503,9 +3577,9 @@ function toggleStorageFolder(folderId) {
 }
 
 function selectAllFilesInFolder(folderId) {
-    if (!storageData) return;
+    if (!storageMetadata) return;
 
-    const folder = storageData.folders[folderId];
+    const folder = storageMetadata.folders[folderId];
     if (!folder) return;
 
     // Get all files in this folder and subfolders
@@ -2526,9 +3600,9 @@ function selectAllFilesInFolder(folderId) {
 }
 
 function getAllFilesInFolder(folderId) {
-    if (!storageData) return [];
+    if (!storageMetadata) return [];
 
-    const folder = storageData.folders[folderId];
+    const folder = storageMetadata.folders[folderId];
     if (!folder) return [];
 
     let files = [...folder.files];
@@ -2543,11 +3617,10 @@ function getAllFilesInFolder(folderId) {
     return files;
 }
 
-async function renderStorageTree() {
+function renderStorageTree() {
+    // Synchronous - uses pre-loaded metadata (instant!)
     try {
-        storageData = await storageDB.get('bim_checker_ifc_storage');
-
-        if (!storageData || !storageData.files || Object.keys(storageData.files).length === 0) {
+        if (!storageMetadata || !storageMetadata.files || Object.keys(storageMetadata.files).length === 0) {
             document.getElementById('storageFileTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IFC soubory v úložišti</p>';
             return;
         }
@@ -2556,13 +3629,13 @@ async function renderStorageTree() {
         document.getElementById('storageFileTree').innerHTML = html;
         updateSelectedFilesCount();
     } catch (e) {
-        console.error('Error loading storage:', e);
-        document.getElementById('storageFileTree').innerHTML = '<p style="color: red;">Chyba při načítání úložiště</p>';
+        console.error('Error rendering storage tree:', e);
+        document.getElementById('storageFileTree').innerHTML = '<p style="color: red;">Chyba při zobrazení úložiště</p>';
     }
 }
 
 function renderStorageFolderRecursive(folderId, level) {
-    const folder = storageData.folders[folderId];
+    const folder = storageMetadata.folders[folderId];
     if (!folder) return '';
 
     const isExpanded = expandedStorageFolders.has(folderId);
@@ -2594,7 +3667,7 @@ function renderStorageFolderRecursive(folderId, level) {
         // Render child folders first
         if (folder.children && folder.children.length > 0) {
             const sortedChildren = folder.children
-                .map(id => storageData.folders[id])
+                .map(id => storageMetadata.folders[id])
                 .filter(f => f)
                 .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -2606,7 +3679,7 @@ function renderStorageFolderRecursive(folderId, level) {
         // Render files
         if (folder.files && folder.files.length > 0) {
             const files = folder.files
-                .map(id => storageData.files[id])
+                .map(id => storageMetadata.files[id])
                 .filter(f => f)
                 .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -2653,28 +3726,420 @@ async function loadSelectedFilesFromStorage() {
     }
 
     try {
-        const data = await storageDB.get('bim_checker_ifc_storage');
-        document.getElementById('loading').style.display = 'block';
-        updateProgress(0, `Načítám soubory z úložiště... (0/${selectedStorageFiles.size})`);
-        closeStoragePickerModal();
+        // Load full data from IndexedDB (including file contents)
+        const transaction = storageDB.transaction(['storage'], 'readonly');
+        const store = transaction.objectStore('storage');
+        const request = store.get('bim_checker_ifc_storage');
 
-        const fileArray = Array.from(selectedStorageFiles);
-        for (let i = 0; i < fileArray.length; i++) {
-            const fileId = fileArray[i];
-            const file = data.files[fileId];
-            if (file) {
-                await parseIFCAsync(file.content, file.name, i + 1, fileArray.length);
+        request.onsuccess = async () => {
+            const data = request.result?.value;
+            if (!data) {
+                alert('Chyba při načítání dat z úložiště!');
+                return;
             }
-        }
 
-        document.getElementById('loading').style.display = 'none';
-        combineData();
-        updateUI();
+            document.getElementById('loading').style.display = 'block';
+            updateProgress(0, `Načítám soubory z úložiště... (0/${selectedStorageFiles.size})`);
+            closeStoragePickerModal();
 
-        selectedStorageFiles.clear();
+            const fileArray = Array.from(selectedStorageFiles);
+            for (let i = 0; i < fileArray.length; i++) {
+                const fileId = fileArray[i];
+                const file = data.files[fileId];
+                if (file) {
+                    await parseIFCAsync(file.content, file.name, i + 1, fileArray.length);
+                }
+            }
+
+            document.getElementById('loading').style.display = 'none';
+            combineData();
+            updateUI();
+
+            selectedStorageFiles.clear();
+        };
+
+        request.onerror = () => {
+            console.error('Error loading files from storage:', request.error);
+            alert('Chyba při načítání souborů z úložiště!');
+            document.getElementById('loading').style.display = 'none';
+        };
     } catch (e) {
         console.error('Error loading files from storage:', e);
         alert('Chyba při načítání souborů z úložiště!');
         document.getElementById('loading').style.display = 'none';
     }
+}
+
+// Initialize IFC cache on page load
+initIFCCache().catch(err => console.error('Failed to initialize IFC cache:', err));
+
+// =======================
+// SPATIAL TREE VISUALIZATION
+// =======================
+
+let currentTreeFileIndex = 0;
+let spatialTreeOpen = false;
+
+// Toggle spatial tree panel
+function toggleSpatialTree() {
+    console.log('toggleSpatialTree called, current state:', spatialTreeOpen);
+    spatialTreeOpen = !spatialTreeOpen;
+    const panel = document.getElementById('spatialTreePanel');
+    const overlay = document.getElementById('spatialTreeOverlay');
+
+    console.log('Panel element:', panel);
+    console.log('Overlay element:', overlay);
+    console.log('New state:', spatialTreeOpen);
+
+    if (spatialTreeOpen) {
+        panel.classList.add('open');
+        overlay.classList.add('visible');
+        renderSpatialTree();
+    } else {
+        panel.classList.remove('open');
+        overlay.classList.remove('visible');
+    }
+}
+
+// Close spatial tree panel
+function closeSpatialTree() {
+    if (spatialTreeOpen) {
+        toggleSpatialTree();
+    }
+}
+
+// Get icon for IFC entity type
+function getEntityIcon(type) {
+    const icons = {
+        'IFCPROJECT': '🏗️',
+        'IFCSITE': '🌍',
+        'IFCBUILDING': '🏢',
+        'IFCBUILDINGSTOREY': '📐',
+        'IFCSPACE': '📦',
+        'IFCWALL': '🧱',
+        'IFCDOOR': '🚪',
+        'IFCWINDOW': '🪟',
+        'IFCSLAB': '⬜',
+        'IFCBEAM': '━',
+        'IFCCOLUMN': '⊥',
+        'IFCROOF': '⌂',
+        'IFCSTAIR': '🪜',
+        'IFCRAILING': '🛤️',
+        'IFCFURNISHINGELEMENT': '🪑',
+        'IFCMEMBER': '═',
+        'IFCPLATE': '▭',
+        'IFCCOVERING': '▦',
+        'IFCFLOWSEGMENT': '🔧',
+        'IFCFLOWTERMINAL': '💧',
+        'IFCFLOWFITTING': '🔩',
+        'IFCROAD': '🛣️',
+        'IFCRAILWAY': '🚂',
+        'IFCBRIDGE': '🌉',
+        'IFCALIGNMENT': '↗️'
+    };
+    return icons[type] || '📦';
+}
+
+// Count children recursively
+function countChildren(node) {
+    if (!node.children || node.children.length === 0) return 0;
+    let count = node.children.length;
+    for (let child of node.children) {
+        count += countChildren(child);
+    }
+    return count;
+}
+
+// Render tree node
+function renderTreeNode(node, depth = 0) {
+    const hasChildren = node.children && node.children.length > 0;
+    const childCount = hasChildren ? countChildren(node) : 0;
+    const nodeId = `tree-node-${node.id}`;
+
+    // Format label: "TYPE" or "TYPE (name)" if name exists and is not "-"
+    const typeName = node.type.replace('IFC', '');
+    let displayLabel = typeName;
+    if (node.name && node.name !== '-') {
+        displayLabel = `${typeName} (${node.name})`;
+    }
+
+    let html = `
+        <div class="tree-node" data-node-id="${node.id}" data-type="${node.type}">
+            <div class="tree-node-header" onclick="handleTreeNodeClick('${node.id}', '${node.type}', event)">
+                <span class="tree-node-toggle ${hasChildren ? 'collapsed' : 'leaf'}" onclick="event.stopPropagation(); toggleTreeNode('${node.id}')"></span>
+                <span class="tree-node-icon">${getEntityIcon(node.type)}</span>
+                <span class="tree-node-label">${displayLabel}</span>
+                ${childCount > 0 ? `<span class="tree-node-count">${childCount}</span>` : ''}
+            </div>
+    `;
+
+    if (hasChildren) {
+        html += `<div class="tree-node-children" id="children-${node.id}">`;
+        for (let child of node.children) {
+            html += renderTreeNode(child, depth + 1);
+        }
+        html += `</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+}
+
+// Handle tree node click (filter table)
+function handleTreeNodeClick(nodeId, nodeType, event) {
+    console.log('Tree node clicked:', nodeId, nodeType);
+
+    // Remove active class from all nodes
+    document.querySelectorAll('.tree-node-header').forEach(header => {
+        header.classList.remove('active');
+    });
+
+    // Add active class to clicked node
+    const nodeDiv = document.querySelector(`[data-node-id="${nodeId}"]`);
+    if (nodeDiv) {
+        const header = nodeDiv.querySelector('.tree-node-header');
+        if (header) {
+            header.classList.add('active');
+        }
+    }
+
+    // Get all child IDs recursively
+    const currentFile = loadedFiles[currentTreeFileIndex];
+    if (!currentFile || !currentFile.spatialTree) return;
+
+    function getAllChildIds(node) {
+        let ids = [node.id];
+        if (node.children) {
+            node.children.forEach(child => {
+                ids = ids.concat(getAllChildIds(child));
+            });
+        }
+        return ids;
+    }
+
+    // Find the clicked node in the tree
+    function findNodeById(nodes, targetId) {
+        for (let node of nodes) {
+            if (node.id === targetId) return node;
+            if (node.children) {
+                const found = findNodeById(node.children, targetId);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    const clickedNode = findNodeById(currentFile.spatialTree, nodeId);
+    if (!clickedNode) {
+        console.warn('Node not found in tree:', nodeId);
+        return;
+    }
+
+    const allIds = getAllChildIds(clickedNode);
+    console.log(`Filtering by node ${nodeId} and ${allIds.length - 1} descendants`);
+
+    // Store the selected spatial node IDs for filtering
+    window.selectedSpatialIds = new Set(allIds);
+
+    // Format display name for the filter indicator
+    const typeName = clickedNode.type.replace('IFC', '');
+    let displayName = typeName;
+    if (clickedNode.name && clickedNode.name !== '-') {
+        displayName = `${typeName} (${clickedNode.name})`;
+    }
+
+    // Show spatial filter in search input
+    const searchInput = document.getElementById('searchInput');
+    const entityFilter = document.getElementById('entityFilter');
+    const fileFilter = document.getElementById('fileFilter');
+
+    if (searchInput) {
+        searchInput.value = `🌳 ${displayName}`;
+        searchInput.classList.add('spatial-filter-active');
+    }
+    if (entityFilter) entityFilter.value = '';
+    // Keep file filter as-is to allow single-file filtering
+
+    // Apply filters
+    applyFiltersAndRender();
+
+    console.log(`✓ Table filtered to show ${allIds.length} entities from ${displayName}`);
+}
+
+// Toggle tree node expand/collapse
+function toggleTreeNode(nodeId) {
+    const childrenDiv = document.getElementById(`children-${nodeId}`);
+    const nodeDiv = document.querySelector(`[data-node-id="${nodeId}"]`);
+
+    if (!childrenDiv || !nodeDiv) return;
+
+    const toggle = nodeDiv.querySelector('.tree-node-toggle');
+    const isExpanded = childrenDiv.classList.contains('expanded');
+
+    if (isExpanded) {
+        childrenDiv.classList.remove('expanded');
+        toggle.classList.remove('expanded');
+        toggle.classList.add('collapsed');
+    } else {
+        childrenDiv.classList.add('expanded');
+        toggle.classList.remove('collapsed');
+        toggle.classList.add('expanded');
+    }
+}
+
+// Render spatial tree
+function renderSpatialTree() {
+    const content = document.getElementById('spatialTreeContent');
+
+    console.log('renderSpatialTree called, loadedFiles:', loadedFiles.length);
+
+    if (loadedFiles.length === 0) {
+        content.innerHTML = '<div class="spatial-tree-info">Načtěte IFC soubor pro zobrazení struktury</div>';
+        return;
+    }
+
+    // Check if current file has spatial tree
+    const currentFile = loadedFiles[currentTreeFileIndex];
+    console.log('Current file:', currentFile?.fileName);
+    console.log('Spatial tree:', currentFile?.spatialTree);
+
+    if (!currentFile || !currentFile.spatialTree || currentFile.spatialTree.length === 0) {
+        content.innerHTML = '<div class="spatial-tree-info">Tento soubor nemá dostupnou prostorovou strukturu</div>';
+        return;
+    }
+
+    // Build file selector if multiple files
+    let html = '';
+    if (loadedFiles.length > 1) {
+        html += `
+            <div class="tree-file-selector">
+                <label>Soubor (${loadedFiles.length}):</label>
+                <select id="treeSpatialFileSelect" onchange="changeSpatialTreeFile(this.value)">
+        `;
+        loadedFiles.forEach((file, index) => {
+            const treeSize = file.spatialTree?.length ? countChildren(file.spatialTree[0]) : 0;
+            html += `<option value="${index}" ${index === currentTreeFileIndex ? 'selected' : ''}>${file.fileName} (${treeSize} entit)</option>`;
+        });
+        html += `
+                </select>
+            </div>
+        `;
+    } else {
+        // Single file - show file name
+        const treeSize = currentFile.spatialTree?.length ? countChildren(currentFile.spatialTree[0]) : 0;
+        html += `
+            <div class="tree-file-selector" style="border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-bottom: 10px;">
+                <label style="font-size: 0.9em; color: #6c757d;">📄 ${currentFile.fileName}</label>
+                <div style="font-size: 0.85em; color: #6c757d; margin-top: 5px;">${treeSize} entit ve struktuře</div>
+            </div>
+        `;
+    }
+
+    // Add expand/collapse all buttons
+    html += `
+        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+            <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 0.85em;" onclick="expandAllTreeNodes()">▼ Rozbalit vše</button>
+            <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 0.85em;" onclick="collapseAllTreeNodes()">▶ Zabalit vše</button>
+        </div>
+    `;
+
+    // Render tree
+    for (let rootNode of currentFile.spatialTree) {
+        html += renderTreeNode(rootNode);
+    }
+
+    content.innerHTML = html;
+    console.log('Tree rendered');
+}
+
+// Change spatial tree file
+function changeSpatialTreeFile(fileIndex) {
+    currentTreeFileIndex = parseInt(fileIndex);
+    renderSpatialTree();
+}
+
+// Expand all tree nodes
+function expandAllTreeNodes() {
+    const allChildrenDivs = document.querySelectorAll('.tree-node-children');
+    const allToggles = document.querySelectorAll('.tree-node-toggle:not(.leaf)');
+
+    allChildrenDivs.forEach(div => {
+        div.classList.add('expanded');
+    });
+
+    allToggles.forEach(toggle => {
+        toggle.classList.remove('collapsed');
+        toggle.classList.add('expanded');
+    });
+
+    console.log('Expanded all nodes');
+}
+
+// Collapse all tree nodes
+function collapseAllTreeNodes() {
+    const allChildrenDivs = document.querySelectorAll('.tree-node-children');
+    const allToggles = document.querySelectorAll('.tree-node-toggle:not(.leaf)');
+
+    allChildrenDivs.forEach(div => {
+        div.classList.remove('expanded');
+    });
+
+    allToggles.forEach(toggle => {
+        toggle.classList.remove('expanded');
+        toggle.classList.add('collapsed');
+    });
+
+    console.log('Collapsed all nodes');
+}
+
+// Event listeners - inicializace až po načtení DOM
+function initSpatialTreeListeners() {
+    console.log('Initializing spatial tree listeners...');
+    const toggleBtn = document.getElementById('toggleSpatialTreeBtn');
+    const closeBtn = document.getElementById('closeSpatialTreeBtn');
+    const overlay = document.getElementById('spatialTreeOverlay');
+    const panel = document.getElementById('spatialTreePanel');
+
+    // DŮLEŽITÉ: Zajistit, že panel začne ve skrytém stavu
+    if (panel) {
+        panel.classList.remove('open');
+        console.log('Panel initial state: closed');
+    }
+    if (overlay) {
+        overlay.classList.remove('visible');
+        console.log('Overlay initial state: hidden');
+    }
+
+    // Reset stavu
+    spatialTreeOpen = false;
+
+    console.log('Toggle button:', toggleBtn);
+    console.log('Close button:', closeBtn);
+    console.log('Overlay:', overlay);
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', toggleSpatialTree);
+        console.log('Toggle button listener attached');
+    } else {
+        console.error('Toggle button not found!');
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeSpatialTree);
+        console.log('Close button listener attached');
+    } else {
+        console.error('Close button not found!');
+    }
+    if (overlay) {
+        overlay.addEventListener('click', closeSpatialTree);
+        console.log('Overlay listener attached');
+    } else {
+        console.error('Overlay not found!');
+    }
+}
+
+// Inicializace po načtení DOM
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSpatialTreeListeners);
+} else {
+    initSpatialTreeListeners();
 }

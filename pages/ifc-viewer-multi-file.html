@@ -43,6 +43,8 @@
             <div class="edit-panel-buttons">
                 <button class="btn btn-warning" id="bulkEditBtn" disabled>✏️ Hromadná úprava PSetu</button>
                 <button class="btn btn-success" id="addPsetBtn" disabled>➕ Přidat PropertySet</button>
+                <button class="btn btn-info" id="renamePsetBtn" disabled>🔄 Přejmenovat PropertySet</button>
+                <button class="btn btn-info" id="renamePropertyBtn" disabled>🔄 Přejmenovat Property</button>
                 <button class="btn btn-primary" id="exportIfcBtn" disabled>💾 Uložit upravený IFC</button>
                 <button class="btn btn-secondary" id="selectAllVisibleBtn">☑️ Vybrat vše na stránce</button>
                 <button class="btn btn-success" id="selectAllPagesBtn">☑️☑️ Vybrat vše na VŠECH stránkách</button>
@@ -52,6 +54,7 @@
 
         <div class="controls" id="controls">
             <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                <button class="btn btn-info" id="toggleSpatialTreeBtn">🌳 Stromová struktura</button>
                 <input type="text" id="searchInput" placeholder="🔍 Hledat... (text, /regex/, nebo Sloupec /regex/)" style="flex: 1; min-width: 250px; padding: 12px 20px; border: 2px solid #e9ecef; border-radius: 8px;">
                 <select id="entityFilter" style="padding: 10px 15px; border: 2px solid #e9ecef; border-radius: 8px;">
                     <option value="">Všechny entity</option>
@@ -128,6 +131,20 @@
             <div id="statsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px;"></div>
         </div>
     </div>
+
+    <!-- Spatial Tree Panel -->
+    <div class="spatial-tree-panel" id="spatialTreePanel">
+        <div class="spatial-tree-header">
+            <h3>🌳 Prostorová struktura</h3>
+            <button class="spatial-tree-close" id="closeSpatialTreeBtn">✕</button>
+        </div>
+        <div class="spatial-tree-content" id="spatialTreeContent">
+            <div class="spatial-tree-info">Načtěte IFC soubor pro zobrazení struktury</div>
+        </div>
+    </div>
+
+    <!-- Spatial Tree Overlay -->
+    <div class="spatial-tree-overlay" id="spatialTreeOverlay"></div>
 
     <!-- Modals -->
     <div id="bulkEditModal" class="modal-overlay">
@@ -223,6 +240,69 @@
         </div>
     </div>
 
+    <div id="renamePsetModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Přejmenovat PropertySet</h2>
+                <button class="modal-close" onclick="closeRenamePsetModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Původní název PropertySetu:</label>
+                    <select id="oldPsetName" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;">
+                        <option value="">-- Vyberte PropertySet --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Nový název PropertySetu:</label>
+                    <input type="text" id="newPsetNameRename" placeholder="např. Pset_Custom">
+                </div>
+                <p style="color: #6c757d; font-size: 0.9em;">
+                    PropertySet bude přejmenován u <span id="renamePsetCount" style="font-weight: 700;">0</span> vybraných entit.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRenamePsetModal()">Zrušit</button>
+                <button class="btn btn-info" onclick="applyPsetRename()">Přejmenovat</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="renamePropertyModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Přejmenovat Property</h2>
+                <button class="modal-close" onclick="closeRenamePropertyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>PropertySet:</label>
+                    <select id="renamePropPsetName" onchange="updatePropertyDropdown()" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;">
+                        <option value="">-- Vyberte PropertySet --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Původní název Property:</label>
+                    <select id="oldPropertyName" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;" disabled>
+                        <option value="">-- Nejprve vyberte PropertySet --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Nový název Property:</label>
+                    <input type="text" id="newPropertyName" placeholder="např. CustomProperty">
+                </div>
+                <p style="color: #6c757d; font-size: 0.9em;">
+                    Property bude přejmenována u <span id="renamePropertyCount" style="font-weight: 700;">0</span> vybraných entit.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRenamePropertyModal()">Zrušit</button>
+                <button class="btn btn-info" onclick="applyPropertyRename()">Přejmenovat</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common/error-handler.js"></script>
     <script src="../assets/js/common/storage.js"></script>
     <script src="../assets/js/viewer.js"></script>
 </body>

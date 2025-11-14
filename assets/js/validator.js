@@ -1494,6 +1494,8 @@ let currentGroupIndex = null;
 let storageDB = null;
 let ifcStorageData = null;
 let idsStorageData = null;
+let ifcMetadata = null; // Lightweight cache without file contents
+let idsMetadata = null; // Lightweight cache without file contents
 let selectedIfcFiles = new Set();
 let selectedIdsFile = null;
 let expandedIfcFolders = new Set(['root']);
@@ -1563,6 +1565,13 @@ function renderValidationGroups() {
                         <button class="storage-btn" onclick="openIfcStoragePicker(${index})">
                             📂 Vybrat z úložiště
                         </button>
+                        <div class="drop-zone" data-group-index="${index}" data-type="ifc">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-icon">📁</span>
+                                <span class="drop-zone-text">Přetáhněte IFC soubory sem</span>
+                                <span class="drop-zone-hint">nebo vyberte z úložiště výše</span>
+                            </div>
+                        </div>
                         <div class="selected-files-list" id="ifc-files-${index}">
                             ${group.ifcFiles.length === 0 ? '<p style="color: #a0aec0; text-align: center; padding: 20px;">Žádné soubory</p>' : ''}
                             ${group.ifcFiles.map(file => `
@@ -1578,6 +1587,13 @@ function renderValidationGroups() {
                         <button class="storage-btn" onclick="openIdsStoragePicker(${index})">
                             📂 Vybrat z úložiště
                         </button>
+                        <div class="drop-zone" data-group-index="${index}" data-type="ids">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-icon">📋</span>
+                                <span class="drop-zone-text">Přetáhněte IDS soubor sem</span>
+                                <span class="drop-zone-hint">nebo vyberte z úložiště výše</span>
+                            </div>
+                        </div>
                         <div class="selected-files-list">
                             ${group.idsFile ? `
                                 <div class="selected-file-item">
@@ -1593,6 +1609,127 @@ function renderValidationGroups() {
     });
 
     container.innerHTML = html;
+
+    // Add drop zone event listeners
+    setupDropZones();
+}
+
+// Setup drop zone event listeners
+function setupDropZones() {
+    const dropZones = document.querySelectorAll('.drop-zone');
+    dropZones.forEach(zone => {
+        const groupIndex = parseInt(zone.getAttribute('data-group-index'));
+        const type = zone.getAttribute('data-type');
+
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.add('drag-over');
+        });
+
+        zone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('drag-over');
+        });
+
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('drag-over');
+
+            const files = Array.from(e.dataTransfer.files);
+            if (type === 'ifc') {
+                handleIfcDrop(files, groupIndex);
+            } else if (type === 'ids') {
+                handleIdsDrop(files, groupIndex);
+            }
+        });
+
+        // Make drop zone clickable to open file picker
+        zone.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = (type === 'ifc');
+            input.accept = (type === 'ifc') ? '.ifc' : '.ids,.xml';
+            input.onchange = (e) => {
+                const files = Array.from(e.target.files);
+                if (type === 'ifc') {
+                    handleIfcDrop(files, groupIndex);
+                } else {
+                    handleIdsDrop(files, groupIndex);
+                }
+            };
+            input.click();
+        });
+    });
+}
+
+// Handle IFC file drop
+async function handleIfcDrop(files, groupIndex) {
+    const ifcFiles = files.filter(f => f.name.toLowerCase().endsWith('.ifc'));
+
+    if (ifcFiles.length === 0) {
+        ErrorHandler.error('Pouze .ifc soubory jsou povoleny!');
+        return;
+    }
+
+    const group = validationGroups[groupIndex];
+
+    for (const file of ifcFiles) {
+        const content = await readFileAsText(file);
+        group.ifcFiles.push({
+            id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            name: file.name,
+            size: file.size,
+            content: content
+        });
+    }
+
+    renderValidationGroups();
+    updateValidateButton();
+}
+
+// Handle IDS file drop
+async function handleIdsDrop(files, groupIndex) {
+    const idsFiles = files.filter(f => {
+        const name = f.name.toLowerCase();
+        return name.endsWith('.ids') || name.endsWith('.xml');
+    });
+
+    if (idsFiles.length === 0) {
+        ErrorHandler.error('Pouze .ids nebo .xml soubory jsou povoleny!');
+        return;
+    }
+
+    if (idsFiles.length > 1) {
+        ErrorHandler.error('Vyberte pouze jeden IDS soubor!');
+        return;
+    }
+
+    const file = idsFiles[0];
+    const content = await readFileAsText(file);
+
+    const group = validationGroups[groupIndex];
+    group.idsFile = {
+        id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        size: file.size,
+        content: content
+    };
+
+    renderValidationGroups();
+    updateValidateButton();
+}
+
+// Helper function to read file as text
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsText(file);
+    });
 }
 
 // Update validate button
@@ -1631,18 +1768,47 @@ function closeIfcStorageModal() {
 
 // Render IFC storage tree
 async function renderIfcStorageTree() {
+    // Use pre-loaded metadata if available (instant!)
+    if (ifcMetadata) {
+        ifcStorageData = ifcMetadata;
+        const html = renderIfcFolderRecursive('root', 0);
+        document.getElementById('ifcStorageTree').innerHTML = html;
+        document.getElementById('ifcSelectedCount').textContent = selectedIfcFiles.size;
+        return;
+    }
+
+    // Fallback: load from IndexedDB if metadata not pre-loaded
     return new Promise((resolve, reject) => {
         const transaction = storageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
         const request = store.get('bim_checker_ifc_storage');
 
         request.onsuccess = () => {
-            ifcStorageData = request.result?.value;
+            const fullData = request.result?.value;
 
-            if (!ifcStorageData || !ifcStorageData.files || Object.keys(ifcStorageData.files).length === 0) {
+            if (!fullData || !fullData.files || Object.keys(fullData.files).length === 0) {
                 document.getElementById('ifcStorageTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IFC soubory v úložišti</p>';
                 resolve();
                 return;
+            }
+
+            // OPTIMIZATION: Remove file contents to prevent UI lag
+            ifcStorageData = {
+                folders: fullData.folders,
+                files: {}
+            };
+
+            // Copy only metadata (no content!)
+            for (let fileId in fullData.files) {
+                const file = fullData.files[fileId];
+                ifcStorageData.files[fileId] = {
+                    id: file.id,
+                    name: file.name,
+                    size: file.size,
+                    folder: file.folder,
+                    uploadDate: file.uploadDate
+                    // content NOT copied - saves memory and speeds up rendering!
+                };
             }
 
             const html = renderIfcFolderRecursive('root', 0);
@@ -1784,12 +1950,30 @@ function toggleIfcFileSelection(fileId) {
 }
 
 // Confirm IFC selection
-function confirmIfcSelection() {
-    const files = Array.from(selectedIfcFiles).map(id => ifcStorageData.files[id]);
-    validationGroups[currentGroupIndex].ifcFiles = files;
-    closeIfcStorageModal();
-    renderValidationGroups();
-    updateValidateButton();
+async function confirmIfcSelection() {
+    // Load full file data from IndexedDB (including content)
+    const transaction = storageDB.transaction(['storage'], 'readonly');
+    const store = transaction.objectStore('storage');
+    const request = store.get('bim_checker_ifc_storage');
+
+    request.onsuccess = () => {
+        const fullData = request.result?.value;
+        if (!fullData) {
+            ErrorHandler.error('Chyba při načítání souborů z úložiště!');
+            return;
+        }
+
+        // Get full file objects (with content) for selected IDs
+        const files = Array.from(selectedIfcFiles).map(id => fullData.files[id]).filter(f => f);
+        validationGroups[currentGroupIndex].ifcFiles = files;
+        closeIfcStorageModal();
+        renderValidationGroups();
+        updateValidateButton();
+    };
+
+    request.onerror = () => {
+        ErrorHandler.error('Chyba při načítání souborů z úložiště!');
+    };
 }
 
 // Open IDS storage picker
@@ -1812,18 +1996,47 @@ function closeIdsStorageModal() {
 
 // Render IDS storage tree (similar to IFC, but single-select)
 async function renderIdsStorageTree() {
+    // Use pre-loaded metadata if available (instant!)
+    if (idsMetadata) {
+        idsStorageData = idsMetadata;
+        const html = renderIdsFolderRecursive('root', 0);
+        document.getElementById('idsStorageTree').innerHTML = html;
+        updateIdsSelectedName();
+        return;
+    }
+
+    // Fallback: load from IndexedDB if metadata not pre-loaded
     return new Promise((resolve, reject) => {
         const transaction = storageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
         const request = store.get('bim_checker_ids_storage');
 
         request.onsuccess = () => {
-            idsStorageData = request.result?.value;
+            const fullData = request.result?.value;
 
-            if (!idsStorageData || !idsStorageData.files || Object.keys(idsStorageData.files).length === 0) {
+            if (!fullData || !fullData.files || Object.keys(fullData.files).length === 0) {
                 document.getElementById('idsStorageTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IDS soubory v úložišti</p>';
                 resolve();
                 return;
+            }
+
+            // OPTIMIZATION: Remove file contents to prevent UI lag
+            idsStorageData = {
+                folders: fullData.folders,
+                files: {}
+            };
+
+            // Copy only metadata (no content!)
+            for (let fileId in fullData.files) {
+                const file = fullData.files[fileId];
+                idsStorageData.files[fileId] = {
+                    id: file.id,
+                    name: file.name,
+                    size: file.size,
+                    folder: file.folder,
+                    uploadDate: file.uploadDate
+                    // content NOT copied - saves memory and speeds up rendering!
+                };
             }
 
             const html = renderIdsFolderRecursive('root', 0);
@@ -1832,7 +2045,10 @@ async function renderIdsStorageTree() {
             resolve();
         };
 
-        request.onerror = () => reject(request.error);
+        request.onerror = () => {
+            console.error('Error loading IDS storage:', request.error);
+            reject(request.error);
+        };
     });
 }
 
@@ -1923,16 +2139,40 @@ function updateIdsSelectedName() {
 }
 
 // Confirm IDS selection
-function confirmIdsSelection() {
+async function confirmIdsSelection() {
     if (!selectedIdsFile) {
-        alert('Vyberte IDS soubor!');
+        ErrorHandler.error('Vyberte IDS soubor!');
         return;
     }
 
-    validationGroups[currentGroupIndex].idsFile = idsStorageData.files[selectedIdsFile];
-    closeIdsStorageModal();
-    renderValidationGroups();
-    updateValidateButton();
+    // Load full file data from IndexedDB (including content)
+    const transaction = storageDB.transaction(['storage'], 'readonly');
+    const store = transaction.objectStore('storage');
+    const request = store.get('bim_checker_ids_storage');
+
+    request.onsuccess = () => {
+        const fullData = request.result?.value;
+        if (!fullData) {
+            ErrorHandler.error('Chyba při načítání souborů z úložiště!');
+            return;
+        }
+
+        // Get full file object (with content) for selected ID
+        const file = fullData.files[selectedIdsFile];
+        if (!file) {
+            ErrorHandler.error('Soubor nebyl nalezen!');
+            return;
+        }
+
+        validationGroups[currentGroupIndex].idsFile = file;
+        closeIdsStorageModal();
+        renderValidationGroups();
+        updateValidateButton();
+    };
+
+    request.onerror = () => {
+        ErrorHandler.error('Chyba při načítání souborů z úložiště!');
+    };
 }
 
 // Validate all groups
@@ -1941,7 +2181,7 @@ async function validateAll() {
     const validGroups = validationGroups.filter(g => g.ifcFiles.length > 0 && g.idsFile);
 
     if (validGroups.length === 0) {
-        alert('Žádné kompletní validační skupiny k validaci!');
+        ErrorHandler.error('Žádné kompletní validační skupiny k validaci!');
         return;
     }
 
@@ -2018,12 +2258,12 @@ async function validateAll() {
             // Scroll to results
             document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
         } else {
-            alert('Žádné výsledky validace!');
+            ErrorHandler.warning('Žádné výsledky validace!');
         }
 
     } catch (error) {
         console.error('Chyba při validaci:', error);
-        alert('Chyba při validaci: ' + error.message);
+        ErrorHandler.error('Chyba při validaci: ' + error.message);
         document.getElementById('loading').style.display = 'none';
     }
 }
@@ -2043,6 +2283,70 @@ window.toggleIdsFolder = toggleIdsFolder;
 window.selectAllIfcFilesInFolder = selectAllIfcFilesInFolder;
 window.toggleIfcFileSelection = toggleIfcFileSelection;
 window.selectIdsFile = selectIdsFile;
+
+// Pre-load storage metadata on page load for instant modal opening
+(async function preloadStorageMetadata() {
+    try {
+        if (!storageDB) {
+            storageDB = await initStorageDB();
+        }
+
+        // Pre-load IFC metadata (without file contents)
+        const ifcTransaction = storageDB.transaction(['storage'], 'readonly');
+        const ifcStore = ifcTransaction.objectStore('storage');
+        const ifcRequest = ifcStore.get('bim_checker_ifc_storage');
+
+        ifcRequest.onsuccess = () => {
+            const fullData = ifcRequest.result?.value;
+            if (fullData && fullData.files) {
+                ifcMetadata = {
+                    folders: fullData.folders,
+                    files: {}
+                };
+                for (let fileId in fullData.files) {
+                    const file = fullData.files[fileId];
+                    ifcMetadata.files[fileId] = {
+                        id: file.id,
+                        name: file.name,
+                        size: file.size,
+                        folder: file.folder,
+                        uploadDate: file.uploadDate
+                    };
+                }
+                console.log('✓ IFC storage metadata pre-loaded');
+            }
+        };
+
+        // Pre-load IDS metadata (without file contents)
+        const idsTransaction = storageDB.transaction(['storage'], 'readonly');
+        const idsStore = idsTransaction.objectStore('storage');
+        const idsRequest = idsStore.get('bim_checker_ids_storage');
+
+        idsRequest.onsuccess = () => {
+            const fullData = idsRequest.result?.value;
+            if (fullData && fullData.files) {
+                idsMetadata = {
+                    folders: fullData.folders,
+                    files: {}
+                };
+                for (let fileId in fullData.files) {
+                    const file = fullData.files[fileId];
+                    idsMetadata.files[fileId] = {
+                        id: file.id,
+                        name: file.name,
+                        size: file.size,
+                        folder: file.folder,
+                        uploadDate: file.uploadDate
+                    };
+                }
+                console.log('✓ IDS storage metadata pre-loaded');
+            }
+        };
+
+    } catch (e) {
+        console.error('Failed to pre-load storage metadata:', e);
+    }
+})();
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {

@@ -303,6 +303,12 @@ body {
     border: 2px solid #667eea;
 }
 
+.tree-folder-header.drag-over {
+    background: #c3dafe;
+    border: 2px dashed #667eea;
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
+}
+
 .folder-arrow {
     margin-right: 6px;
     font-size: 0.8em;
@@ -311,6 +317,8 @@ body {
     display: inline-block;
     width: 12px;
     text-align: center;
+    cursor: pointer;
+    user-select: none;
 }
 
 .folder-icon {
@@ -363,9 +371,9 @@ body {
     align-items: center;
     padding: 6px 8px;
     margin: 4px 0;
-    cursor: pointer;
+    cursor: move;
     border-radius: 6px;
-    transition: background 0.2s;
+    transition: background 0.2s, opacity 0.2s;
 }
 
 .tree-file:hover {

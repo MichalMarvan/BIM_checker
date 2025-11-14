@@ -62,12 +62,13 @@ class StorageManager {
         this.storageKey = storageKey;
         this.idb = new IndexedDBStorage('bim_checker_storage');
         this.data = null;
+        this.metadata = null; // Lightweight cache without file contents
         this.ready = false;
     }
 
     async init() {
         await this.idb.init();
-        await this.load();
+        await this.loadMetadata(); // Load metadata first (fast!)
         this.ready = true;
     }
 
@@ -92,19 +93,65 @@ class StorageManager {
         }
     }
 
+    async loadMetadata() {
+        const stored = await this.idb.get(this.storageKey);
+        if (stored) {
+            // Create lightweight copy without file contents
+            this.metadata = {
+                folders: stored.folders,
+                files: {}
+            };
+
+            // Copy only metadata (no content)
+            for (let fileId in stored.files) {
+                const file = stored.files[fileId];
+                this.metadata.files[fileId] = {
+                    id: file.id,
+                    name: file.name,
+                    size: file.size,
+                    folder: file.folder,
+                    uploadDate: file.uploadDate
+                    // content NOT included!
+                };
+            }
+
+            // Load expanded states from localStorage (instant!)
+            this.loadExpandedStates();
+        } else {
+            this.metadata = {
+                folders: {
+                    root: {
+                        id: 'root',
+                        name: 'Kořenová složka',
+                        parent: null,
+                        children: [],
+                        files: [],
+                        expanded: true
+                    }
+                },
+                files: {}
+            };
+        }
+    }
+
     async save() {
         try {
             await this.idb.set(this.storageKey, this.data);
+            // Refresh metadata cache after save
+            await this.loadMetadata();
             return true;
         } catch (e) {
             console.error('Error saving storage:', e);
-            alert('Chyba při ukládání dat!');
+            ErrorHandler.error('Chyba při ukládání dat!');
             return false;
         }
     }
 
     // Folder operations
     async createFolder(name, parentId = 'root') {
+        // Load full data if not loaded
+        if (!this.data) await this.load();
+
         const id = 'folder_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         this.data.folders[id] = {
             id,
@@ -115,13 +162,22 @@ class StorageManager {
             expanded: false
         };
         this.data.folders[parentId].children.push(id);
+
+        // Update metadata too
+        this.metadata.folders[id] = { ...this.data.folders[id] };
+
         await this.save();
         return id;
     }
 
     async renameFolder(folderId, newName) {
+        if (!this.data) await this.load();
+
         if (this.data.folders[folderId]) {
             this.data.folders[folderId].name = newName;
+            if (this.metadata.folders[folderId]) {
+                this.metadata.folders[folderId].name = newName;
+            }
             await this.save();
             return true;
         }
@@ -130,11 +186,16 @@ class StorageManager {
 
     async deleteFolder(folderId) {
         if (folderId === 'root') return false;
+        if (!this.data) await this.load();
+
         const folder = this.data.folders[folderId];
         if (!folder) return false;
 
         // Delete all files in folder
-        folder.files.forEach(fileId => delete this.data.files[fileId]);
+        folder.files.forEach(fileId => {
+            delete this.data.files[fileId];
+            delete this.metadata.files[fileId];
+        });
 
         // Recursively delete child folders
         folder.children.forEach(childId => this.deleteFolder(childId));
@@ -146,12 +207,15 @@ class StorageManager {
         }
 
         delete this.data.folders[folderId];
+        delete this.metadata.folders[folderId];
         await this.save();
         return true;
     }
 
     // File operations
     async addFile(file, folderId = 'root') {
+        if (!this.data) await this.load();
+
         const id = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         this.data.files[id] = {
             id,
@@ -161,26 +225,46 @@ class StorageManager {
             folder: folderId,
             uploadDate: new Date().toISOString()
         };
+
+        // Add to metadata (without content)
+        this.metadata.files[id] = {
+            id,
+            name: file.name,
+            size: file.size,
+            folder: folderId,
+            uploadDate: this.data.files[id].uploadDate
+        };
+
         this.data.folders[folderId].files.push(id);
+        this.metadata.folders[folderId].files.push(id);
+
         await this.save();
         return id;
     }
 
     async deleteFile(fileId) {
+        if (!this.data) await this.load();
+
         const file = this.data.files[fileId];
         if (!file) return false;
 
         const folder = this.data.folders[file.folder];
         if (folder) {
             folder.files = folder.files.filter(id => id !== fileId);
+            if (this.metadata.folders[file.folder]) {
+                this.metadata.folders[file.folder].files = this.metadata.folders[file.folder].files.filter(id => id !== fileId);
+            }
         }
 
         delete this.data.files[fileId];
+        delete this.metadata.files[fileId];
         await this.save();
         return true;
     }
 
     async moveFile(fileId, targetFolderId) {
+        if (!this.data) await this.load();
+
         const file = this.data.files[fileId];
         if (!file || !this.data.folders[targetFolderId]) return false;
 
@@ -188,25 +272,63 @@ class StorageManager {
         const oldFolder = this.data.folders[file.folder];
         if (oldFolder) {
             oldFolder.files = oldFolder.files.filter(id => id !== fileId);
+            if (this.metadata.folders[file.folder]) {
+                this.metadata.folders[file.folder].files = this.metadata.folders[file.folder].files.filter(id => id !== fileId);
+            }
         }
 
         // Add to new folder
         file.folder = targetFolderId;
         this.data.folders[targetFolderId].files.push(fileId);
+        this.metadata.folders[targetFolderId].files.push(fileId);
+        if (this.metadata.files[fileId]) {
+            this.metadata.files[fileId].folder = targetFolderId;
+        }
+
         await this.save();
         return true;
     }
 
     async toggleFolder(folderId) {
-        if (this.data.folders[folderId]) {
-            this.data.folders[folderId].expanded = !this.data.folders[folderId].expanded;
-            await this.save();
+        // Toggle in metadata only (fast - no save to IndexedDB!)
+        if (this.metadata.folders[folderId]) {
+            this.metadata.folders[folderId].expanded = !this.metadata.folders[folderId].expanded;
+
+            // Save expanded states to localStorage (instant!)
+            this.saveExpandedStates();
+        }
+    }
+
+    saveExpandedStates() {
+        // Save only expanded states to localStorage (very fast!)
+        const expandedStates = {};
+        for (let folderId in this.metadata.folders) {
+            expandedStates[folderId] = this.metadata.folders[folderId].expanded;
+        }
+        localStorage.setItem(`${this.storageKey}_expanded`, JSON.stringify(expandedStates));
+    }
+
+    loadExpandedStates() {
+        // Load expanded states from localStorage
+        try {
+            const saved = localStorage.getItem(`${this.storageKey}_expanded`);
+            if (saved) {
+                const expandedStates = JSON.parse(saved);
+                for (let folderId in expandedStates) {
+                    if (this.metadata.folders[folderId]) {
+                        this.metadata.folders[folderId].expanded = expandedStates[folderId];
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load expanded states:', e);
         }
     }
 
     getStats() {
-        const fileCount = Object.keys(this.data.files).length;
-        const totalSize = Object.values(this.data.files).reduce((sum, file) => sum + file.size, 0);
+        // Use metadata for stats (faster, no file contents needed)
+        const fileCount = Object.keys(this.metadata.files).length;
+        const totalSize = Object.values(this.metadata.files).reduce((sum, file) => sum + file.size, 0);
         return { fileCount, totalSize };
     }
 }
