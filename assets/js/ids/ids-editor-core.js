@@ -108,17 +108,28 @@ class IDSEditorCore {
         };
 
         if (parsed.specifications) {
-            idsData.specifications = parsed.specifications.map(spec => ({
-                name: spec.name,
-                ifcVersion: spec.ifcVersion || '',
-                identifier: spec.identifier || '',
-                description: spec.description || '',
-                instructions: spec.instructions || '',
-                minOccurs: spec.minOccurs,
-                maxOccurs: spec.maxOccurs,
-                applicability: this.convertFacets(spec.applicability),
-                requirements: this.convertFacets(spec.requirements)
-            }));
+            idsData.specifications = parsed.specifications.map(spec => {
+                // Determine cardinality from minOccurs/maxOccurs
+                let cardinality = 'required'; // default
+                if (spec.minOccurs === '0' && spec.maxOccurs === '0') {
+                    cardinality = 'prohibited';
+                } else if (spec.minOccurs === '0') {
+                    cardinality = 'optional';
+                }
+
+                return {
+                    name: spec.name,
+                    ifcVersion: spec.ifcVersion || '',
+                    identifier: spec.identifier || '',
+                    description: spec.description || '',
+                    instructions: spec.instructions || '',
+                    minOccurs: spec.minOccurs,
+                    maxOccurs: spec.maxOccurs,
+                    cardinality: cardinality,
+                    applicability: this.convertFacets(spec.applicability),
+                    requirements: this.convertFacets(spec.requirements)
+                };
+            });
         }
 
         return idsData;
@@ -281,11 +292,14 @@ class IDSEditorCore {
     renderSpecification(spec, index) {
         const totalFacets = (spec.applicability ? spec.applicability.length : 0) + (spec.requirements ? spec.requirements.length : 0);
         const ifcVersion = spec.ifcVersion || 'IFC4';
+        const cardinality = spec.cardinality || 'required';
+        const cardinalityBadge = this.getCardinalityBadge(cardinality);
         let html = `
             <div class="specification-item collapsible-section" data-index="${index}">
                 <div class="spec-header collapsible-header" onclick="idsEditorCore.toggleSection(this)">
                     <span class="collapse-icon">▼</span>
                     <h4 style="margin: 0; flex: 1;">${this.escapeHtml(spec.name)}</h4>
+                    ${cardinalityBadge}
                     <span class="ifc-version-badge" style="background: #667eea; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; margin-right: 10px;">${ifcVersion}</span>
                     <span class="facet-count">${totalFacets} facets</span>
                     ${this.editMode ? `
@@ -349,11 +363,15 @@ class IDSEditorCore {
      */
     renderFacet(facet, specIndex, section, facetIndex) {
         const icon = this.getFacetIcon(facet.type);
+        // Show cardinality badge for requirements section (except entity which is always required)
+        const showCardinality = section === 'requirements' && facet.type !== 'entity' && facet.cardinality;
+        const cardinalityBadge = showCardinality ? this.getFacetCardinalityBadge(facet.cardinality) : '';
         let html = `
             <div class="facet-item ${facet.type}-facet" data-spec="${specIndex}" data-section="${section}" data-facet="${facetIndex}">
                 <div class="facet-header">
                     <span class="facet-icon">${icon}</span>
                     <span class="facet-type">${facet.type.toUpperCase()}</span>
+                    ${cardinalityBadge}
                     ${this.editMode ? `
                         <div class="edit-controls">
                             <button class="edit-btn" onclick="idsEditorCore.editFacet(${specIndex}, '${section}', ${facetIndex})">✏️</button>
@@ -376,7 +394,8 @@ class IDSEditorCore {
         let html = '';
 
         Object.keys(facet).forEach(key => {
-            if (key === 'type') return;
+            // Skip type and cardinality (shown in header badge)
+            if (key === 'type' || key === 'cardinality') return;
 
             const value = facet[key];
             if (typeof value === 'object') {
@@ -423,6 +442,50 @@ class IDSEditorCore {
             'partOf': '🔗'
         };
         return icons[type] || '📄';
+    }
+
+    /**
+     * Get cardinality badge HTML (for specifications)
+     */
+    getCardinalityBadge(cardinality) {
+        const styles = {
+            'required': 'background: #48bb78; color: white;',
+            'optional': 'background: #ed8936; color: white;',
+            'prohibited': 'background: #f56565; color: white;'
+        };
+        const labels = {
+            'required': t('cardinality.required'),
+            'optional': t('cardinality.optional'),
+            'prohibited': t('cardinality.prohibited')
+        };
+        const style = styles[cardinality] || styles['required'];
+        const label = labels[cardinality] || labels['required'];
+        return `<span class="cardinality-badge" style="${style} padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-right: 10px;">${label}</span>`;
+    }
+
+    /**
+     * Get facet cardinality badge HTML (smaller, for facets)
+     */
+    getFacetCardinalityBadge(cardinality) {
+        const styles = {
+            'required': 'background: #48bb78; color: white;',
+            'optional': 'background: #ed8936; color: white;',
+            'prohibited': 'background: #f56565; color: white;'
+        };
+        const labels = {
+            'required': 'REQ',
+            'optional': 'OPT',
+            'prohibited': 'PROH'
+        };
+        const titles = {
+            'required': t('cardinality.facetRequiredDesc'),
+            'optional': t('cardinality.facetOptionalDesc'),
+            'prohibited': t('cardinality.facetProhibitedDesc')
+        };
+        const style = styles[cardinality] || styles['required'];
+        const label = labels[cardinality] || labels['required'];
+        const title = titles[cardinality] || '';
+        return `<span class="facet-cardinality-badge" style="${style} padding: 2px 6px; border-radius: 8px; font-size: 0.7em; font-weight: 600; margin-left: 8px;" title="${title}">${label}</span>`;
     }
 
     /**
@@ -502,6 +565,9 @@ class IDSEditorCore {
             spec.name = specData.name;
             spec.ifcVersion = specData.ifcVersion;
             spec.description = specData.description;
+            spec.minOccurs = specData.minOccurs;
+            spec.maxOccurs = specData.maxOccurs;
+            spec.cardinality = specData.cardinality;
             this.hasUnsavedChanges = true;
             this.renderIDS();
         });
@@ -529,7 +595,7 @@ class IDSEditorCore {
             this.idsData.specifications[specIndex][section].push(facetData);
             this.hasUnsavedChanges = true;
             this.renderIDS();
-        }, ifcVersion);
+        }, ifcVersion, section);
     }
 
     /**
@@ -543,6 +609,7 @@ class IDSEditorCore {
         // Show appropriate form based on facet type
         idsEditorModals.currentFacetType = facet.type;
         idsEditorModals.currentIfcVersion = ifcVersion; // Set IFC version for modal
+        idsEditorModals.currentSection = section; // Store section for cardinality
         idsEditorModals.currentCallback = (updatedFacet) => {
             this.idsData.specifications[specIndex][section][facetIndex] = updatedFacet;
             this.hasUnsavedChanges = true;

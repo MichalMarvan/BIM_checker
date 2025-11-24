@@ -81,10 +81,11 @@ class IDSEditorModals {
     /**
      * Show modal for selecting facet type
      */
-    showFacetTypeSelector(callback, ifcVersion = 'IFC4') {
+    showFacetTypeSelector(callback, ifcVersion = 'IFC4', section = 'applicability') {
         this.currentCallback = callback;
         this.currentIfcVersion = ifcVersion; // Store IFC version for facet modals
-        document.getElementById('modalTitle').textContent = 'Vyberte typ facetu';
+        this.currentSection = section; // Store section for cardinality (requirements vs applicability)
+        document.getElementById('modalTitle').textContent = t('editor.selectFacetType');
         document.getElementById('modalBody').innerHTML = `
             <div class="facet-type-selector">
                 <div class="facet-type-card" onclick="idsEditorModals.selectFacetType('entity')">
@@ -221,6 +222,8 @@ class IDSEditorModals {
 
         document.getElementById('modalTitle').textContent = `📋 Property Facet (${this.currentIfcVersion})`;
         document.getElementById('modalBody').innerHTML = `
+            ${this.getFacetCardinalityField(data.cardinality || 'required')}
+
             <div class="form-group">
                 <label>PropertySet Name:</label>
                 <input type="text" id="propertySet" list="ifcPropertySets" value="${propertySetValue}" placeholder="${t('editor.example')} Pset_WallCommon" autocomplete="off">
@@ -290,6 +293,8 @@ class IDSEditorModals {
     showAttributeForm(data = {}) {
         document.getElementById('modalTitle').textContent = '🏷️ Attribute Facet';
         document.getElementById('modalBody').innerHTML = `
+            ${this.getFacetCardinalityField(data.cardinality || 'required')}
+
             <div class="form-group">
                 <label>Attribute Name:</label>
                 <input type="text" id="attributeName" value="${data.name || ''}" placeholder="${t('editor.example')} Name, GlobalId, Description">
@@ -317,6 +322,8 @@ class IDSEditorModals {
     showClassificationForm(data = {}) {
         document.getElementById('modalTitle').textContent = '📚 Classification Facet';
         document.getElementById('modalBody').innerHTML = `
+            ${this.getFacetCardinalityField(data.cardinality || 'required')}
+
             <div class="form-group">
                 <label>Classification System:</label>
                 <input type="text" id="classificationSystem" value="${data.system || ''}" placeholder="${t('editor.example')} Uniclass, OmniClass">
@@ -349,6 +356,8 @@ class IDSEditorModals {
     showMaterialForm(data = {}) {
         document.getElementById('modalTitle').textContent = '🧱 Material Facet';
         document.getElementById('modalBody').innerHTML = `
+            ${this.getFacetCardinalityField(data.cardinality || 'required')}
+
             <div class="form-group">
                 <label>Material Value:</label>
                 <input type="text" id="materialValue" value="${data.value || ''}" placeholder="${t('editor.example')} Concrete, Steel">
@@ -376,6 +385,8 @@ class IDSEditorModals {
     showPartOfForm(data = {}) {
         document.getElementById('modalTitle').textContent = '🔗 PartOf Facet';
         document.getElementById('modalBody').innerHTML = `
+            ${this.getFacetCardinalityField(data.cardinality || 'required')}
+
             <div class="form-group">
                 <label>Parent Entity:</label>
                 <input type="text" id="partOfEntity" value="${data.entity || ''}" placeholder="${t('editor.example')} IFCBUILDING">
@@ -391,7 +402,7 @@ class IDSEditorModals {
                     <option value="IFCRELVOIDSELEMENT" ${data.relation === 'IFCRELVOIDSELEMENT' ? 'selected' : ''}>IFCRELVOIDSELEMENT</option>
                     <option value="IFCRELFILLSELEMENT" ${data.relation === 'IFCRELFILLSELEMENT' ? 'selected' : ''}>IFCRELFILLSELEMENT</option>
                 </select>
-                <small>Typ vazby mezi entitami</small>
+                <small>${t('editor.relationTypeDesc')}</small>
             </div>
         `;
     }
@@ -623,6 +634,12 @@ class IDSEditorModals {
             facet.dataType = dataType;
         }
 
+        // Add cardinality if in requirements section
+        const cardinality = this.getCurrentFacetCardinality();
+        if (cardinality) {
+            facet.cardinality = cardinality;
+        }
+
         return facet;
     }
 
@@ -636,11 +653,19 @@ class IDSEditorModals {
         const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
         const value = this.getRestrictionData(restrictionType);
 
-        return {
+        const facet = {
             type: 'attribute',
             name,
             value
         };
+
+        // Add cardinality if in requirements section
+        const cardinality = this.getCurrentFacetCardinality();
+        if (cardinality) {
+            facet.cardinality = cardinality;
+        }
+
+        return facet;
     }
 
     /**
@@ -651,11 +676,19 @@ class IDSEditorModals {
         const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
         const value = this.getRestrictionData(restrictionType);
 
-        return {
+        const facet = {
             type: 'classification',
             system,
             value
         };
+
+        // Add cardinality if in requirements section
+        const cardinality = this.getCurrentFacetCardinality();
+        if (cardinality) {
+            facet.cardinality = cardinality;
+        }
+
+        return facet;
     }
 
     /**
@@ -665,10 +698,18 @@ class IDSEditorModals {
         const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
         const value = this.getRestrictionData(restrictionType);
 
-        return {
+        const facet = {
             type: 'material',
             value
         };
+
+        // Add cardinality if in requirements section
+        const cardinality = this.getCurrentFacetCardinality();
+        if (cardinality) {
+            facet.cardinality = cardinality;
+        }
+
+        return facet;
     }
 
     /**
@@ -688,7 +729,24 @@ class IDSEditorModals {
             facet.relation = relation;
         }
 
+        // Add cardinality if in requirements section
+        const cardinality = this.getCurrentFacetCardinality();
+        if (cardinality) {
+            facet.cardinality = cardinality;
+        }
+
         return facet;
+    }
+
+    /**
+     * Get current facet cardinality from form (if in requirements section)
+     */
+    getCurrentFacetCardinality() {
+        const cardinalitySelect = document.getElementById('facetCardinality');
+        if (cardinalitySelect) {
+            return cardinalitySelect.value;
+        }
+        return null; // No cardinality (applicability section or entity facet)
     }
 
     /**
@@ -755,6 +813,14 @@ class IDSEditorModals {
         const isEdit = !!specData.name;
         document.getElementById('specModalTitle').textContent = isEdit ? t('editor.editSpec') : t('editor.addSpec');
 
+        // Determine current cardinality based on minOccurs/maxOccurs
+        let currentCardinality = 'required'; // default
+        if (specData.minOccurs === '0' && specData.maxOccurs === '0') {
+            currentCardinality = 'prohibited';
+        } else if (specData.minOccurs === '0') {
+            currentCardinality = 'optional';
+        }
+
         document.getElementById('specModalBody').innerHTML = `
             <div class="form-group">
                 <label>${t('editor.specName')}</label>
@@ -774,12 +840,92 @@ class IDSEditorModals {
             </div>
 
             <div class="form-group">
+                <label>${t('cardinality.specLabel')}</label>
+                <select id="specCardinality" onchange="idsEditorModals.updateCardinalityDescription()">
+                    <option value="required" ${currentCardinality === 'required' ? 'selected' : ''}>${t('cardinality.required')}</option>
+                    <option value="optional" ${currentCardinality === 'optional' ? 'selected' : ''}>${t('cardinality.optional')}</option>
+                    <option value="prohibited" ${currentCardinality === 'prohibited' ? 'selected' : ''}>${t('cardinality.prohibited')}</option>
+                </select>
+                <small id="cardinalityDesc">${this.getCardinalityDescription(currentCardinality)}</small>
+            </div>
+
+            <div class="form-group">
                 <label>${t('editor.descriptionOptional')}</label>
                 <textarea id="specDescription" rows="3" placeholder="${t('editor.detailedDesc')}">${this.escapeHtml(specData.description || '')}</textarea>
             </div>
         `;
 
         this.openSpecificationModal();
+    }
+
+    /**
+     * Get cardinality description text
+     */
+    getCardinalityDescription(cardinality) {
+        switch (cardinality) {
+            case 'required':
+                return t('cardinality.requiredDesc');
+            case 'optional':
+                return t('cardinality.optionalDesc');
+            case 'prohibited':
+                return t('cardinality.prohibitedDesc');
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * Get facet cardinality description text
+     */
+    getFacetCardinalityDescription(cardinality) {
+        switch (cardinality) {
+            case 'required':
+                return t('cardinality.facetRequiredDesc');
+            case 'optional':
+                return t('cardinality.facetOptionalDesc');
+            case 'prohibited':
+                return t('cardinality.facetProhibitedDesc');
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * Get facet cardinality field HTML (only for requirements section)
+     */
+    getFacetCardinalityField(currentCardinality = 'required') {
+        // Only show cardinality for requirements section, not applicability
+        if (this.currentSection !== 'requirements') {
+            return '';
+        }
+
+        return `
+            <div class="form-group facet-cardinality-group">
+                <label>${t('cardinality.facetLabel')}</label>
+                <select id="facetCardinality" onchange="idsEditorModals.updateFacetCardinalityDescription()">
+                    <option value="required" ${currentCardinality === 'required' ? 'selected' : ''}>${t('cardinality.required')}</option>
+                    <option value="optional" ${currentCardinality === 'optional' ? 'selected' : ''}>${t('cardinality.optional')}</option>
+                    <option value="prohibited" ${currentCardinality === 'prohibited' ? 'selected' : ''}>${t('cardinality.prohibited')}</option>
+                </select>
+                <small id="facetCardinalityDesc">${this.getFacetCardinalityDescription(currentCardinality)}</small>
+            </div>
+        `;
+    }
+
+    /**
+     * Update facet cardinality description when selection changes
+     */
+    updateFacetCardinalityDescription() {
+        const cardinality = document.getElementById('facetCardinality').value;
+        document.getElementById('facetCardinalityDesc').textContent = this.getFacetCardinalityDescription(cardinality);
+    }
+
+    /**
+     * Update cardinality description when selection changes
+     */
+    updateCardinalityDescription() {
+        const cardinality = document.getElementById('specCardinality').value;
+        document.getElementById('cardinalityDesc').textContent = this.getCardinalityDescription(cardinality);
     }
 
     /**
@@ -792,10 +938,32 @@ class IDSEditorModals {
             return;
         }
 
+        const cardinality = document.getElementById('specCardinality').value;
+
+        // Convert cardinality to minOccurs/maxOccurs
+        let minOccurs, maxOccurs;
+        switch (cardinality) {
+            case 'required':
+                minOccurs = '1';
+                maxOccurs = 'unbounded';
+                break;
+            case 'optional':
+                minOccurs = '0';
+                maxOccurs = 'unbounded';
+                break;
+            case 'prohibited':
+                minOccurs = '0';
+                maxOccurs = '0';
+                break;
+        }
+
         const specData = {
             name: name,
             ifcVersion: document.getElementById('specIfcVersion').value,
-            description: document.getElementById('specDescription').value.trim()
+            description: document.getElementById('specDescription').value.trim(),
+            minOccurs: minOccurs,
+            maxOccurs: maxOccurs,
+            cardinality: cardinality
         };
 
         if (this.currentSpecCallback) {

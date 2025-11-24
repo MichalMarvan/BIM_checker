@@ -163,7 +163,8 @@ class IDSXMLGenerator {
      * Generate property facet as string
      */
     generatePropertyFacetString(data, indent) {
-        let xml = `${indent}<property cardinality="required">\n`;
+        const cardinality = data.cardinality || 'required';
+        let xml = `${indent}<property cardinality="${cardinality}">\n`;
         if (data.propertySet) {
             xml += this.addRestrictionString(data.propertySet, 'propertySet', indent + '  ');
         }
@@ -181,7 +182,8 @@ class IDSXMLGenerator {
      * Generate attribute facet as string
      */
     generateAttributeFacetString(data, indent) {
-        let xml = `${indent}<attribute cardinality="required">\n`;
+        const cardinality = data.cardinality || 'required';
+        let xml = `${indent}<attribute cardinality="${cardinality}">\n`;
         if (data.name) {
             xml += this.addRestrictionString(data.name, 'name', indent + '  ');
         }
@@ -196,7 +198,8 @@ class IDSXMLGenerator {
      * Generate classification facet as string
      */
     generateClassificationFacetString(data, indent) {
-        let xml = `${indent}<classification cardinality="required">\n`;
+        const cardinality = data.cardinality || 'required';
+        let xml = `${indent}<classification cardinality="${cardinality}">\n`;
         if (data.system) {
             xml += this.addRestrictionString(data.system, 'system', indent + '  ');
         }
@@ -211,7 +214,8 @@ class IDSXMLGenerator {
      * Generate material facet as string
      */
     generateMaterialFacetString(data, indent) {
-        let xml = `${indent}<material cardinality="required">\n`;
+        const cardinality = data.cardinality || 'required';
+        let xml = `${indent}<material cardinality="${cardinality}">\n`;
         if (data.value) {
             xml += this.addRestrictionString(data.value, 'value', indent + '  ');
         }
@@ -223,11 +227,12 @@ class IDSXMLGenerator {
      * Generate partOf facet as string
      */
     generatePartOfFacetString(data, indent) {
+        const cardinality = data.cardinality || 'required';
         let xml = `${indent}<partOf`;
         if (data.relation) {
             xml += ` relation="${this.escapeXml(data.relation)}"`;
         }
-        xml += ' cardinality="required">\n';
+        xml += ` cardinality="${cardinality}">\n`;
         if (data.entity) {
             xml += this.addRestrictionString(data.entity, 'entity', indent + '  ');
         }

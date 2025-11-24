@@ -265,6 +265,20 @@ const translations = {
     'regex.range.to': 'až',
 
     // === IDS EDITOR ===
+    // === CARDINALITY ===
+    'cardinality.label': 'Kardinalita:',
+    'cardinality.specLabel': 'Kardinalita specifikace:',
+    'cardinality.facetLabel': 'Kardinalita požadavku:',
+    'cardinality.required': 'Povinné (Required)',
+    'cardinality.optional': 'Volitelné (Optional)',
+    'cardinality.prohibited': 'Zakázané (Prohibited)',
+    'cardinality.requiredDesc': 'Entita MUSÍ existovat a splňovat požadavky',
+    'cardinality.optionalDesc': 'Entita MŮŽE existovat, pokud ano, MUSÍ splňovat požadavky',
+    'cardinality.prohibitedDesc': 'Entita NESMÍ existovat',
+    'cardinality.facetRequiredDesc': 'Facet MUSÍ existovat a mít správnou hodnotu',
+    'cardinality.facetOptionalDesc': 'Facet MŮŽE existovat, pokud ano, MUSÍ mít správnou hodnotu',
+    'cardinality.facetProhibitedDesc': 'Facet NESMÍ existovat',
+
     'editor.unsavedChanges': 'Máte neuložené změny. Opravdu chcete vytvořit nový IDS?',
     'editor.confirmDeleteSpec': 'Opravdu chcete smazat tuto specifikaci?',
     'editor.confirmDeleteFacet': 'Opravdu chcete smazat tento facet?',
@@ -322,6 +336,7 @@ const translations = {
     'editor.materialName': 'Název nebo typ materiálu',
     'editor.parentEntity': 'Nadřazená IFC entita',
     'editor.allRelations': '-- Všechny relace --',
+    'editor.relationTypeDesc': 'Typ vazby mezi entitami',
     'editor.regexPattern': 'Regulární výraz pro matching hodnot',
     'viewer.fileError': 'Chyba v souboru',
     'viewer.invalidRegex': 'Neplatný regulární výraz',
@@ -750,6 +765,20 @@ const translations = {
     'regex.range.to': 'to',
 
     // === IDS EDITOR ===
+    // === CARDINALITY ===
+    'cardinality.label': 'Cardinality:',
+    'cardinality.specLabel': 'Specification cardinality:',
+    'cardinality.facetLabel': 'Requirement cardinality:',
+    'cardinality.required': 'Required',
+    'cardinality.optional': 'Optional',
+    'cardinality.prohibited': 'Prohibited',
+    'cardinality.requiredDesc': 'Entity MUST exist and meet requirements',
+    'cardinality.optionalDesc': 'Entity MAY exist, if present, MUST meet requirements',
+    'cardinality.prohibitedDesc': 'Entity MUST NOT exist',
+    'cardinality.facetRequiredDesc': 'Facet MUST exist and have correct value',
+    'cardinality.facetOptionalDesc': 'Facet MAY exist, if present, MUST have correct value',
+    'cardinality.facetProhibitedDesc': 'Facet MUST NOT exist',
+
     'editor.unsavedChanges': 'You have unsaved changes. Are you sure you want to create a new IDS?',
     'editor.confirmDeleteSpec': 'Are you sure you want to delete this specification?',
     'editor.confirmDeleteFacet': 'Are you sure you want to delete this facet?',
@@ -807,6 +836,7 @@ const translations = {
     'editor.materialName': 'Material name or type',
     'editor.parentEntity': 'Parent IFC entity',
     'editor.allRelations': '-- All relations --',
+    'editor.relationTypeDesc': 'Type of relationship between entities',
     'editor.regexPattern': 'Regular expression for value matching',
     'viewer.fileError': 'Error in file',
     'viewer.invalidRegex': 'Invalid regular expression',

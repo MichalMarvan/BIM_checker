@@ -99,17 +99,22 @@
         function extractSpecifications(xmlDoc) {
             const specifications = [];
             const specElements = xmlDoc.querySelectorAll('specification');
-            
+
             specElements.forEach((spec, index) => {
                 const specification = {
                     name: spec.getAttribute('name') || `${t('parser.info.noSpec')} ${index + 1}`,
                     ifcVersion: spec.getAttribute('ifcVersion') || t('parser.info.unspecified'),
+                    minOccurs: spec.getAttribute('minOccurs'),
+                    maxOccurs: spec.getAttribute('maxOccurs'),
+                    identifier: spec.getAttribute('identifier') || '',
+                    description: spec.getAttribute('description') || '',
+                    instructions: spec.getAttribute('instructions') || '',
                     applicability: extractFacets(spec.querySelector('applicability')),
                     requirements: extractFacets(spec.querySelector('requirements'))
                 };
                 specifications.push(specification);
             });
-            
+
             return specifications;
         }
         
@@ -350,6 +355,10 @@
             `;
             
             specs.forEach((spec, index) => {
+                // Determine specification cardinality from minOccurs/maxOccurs
+                const specCardinality = getSpecificationCardinality(spec);
+                const cardinalityBadge = getCardinalityBadge(specCardinality);
+
                 html += `
                     <div class="specification-card collapsed" id="spec-${index}">
                         <div class="spec-header" onclick="toggleSpecification(${index})">
@@ -357,7 +366,10 @@
                                 <span class="expand-icon">▶</span>
                                 ${spec.name}
                             </h4>
-                            <span class="spec-badge">IFC ${spec.ifcVersion}</span>
+                            <div class="spec-badges" style="display: flex; align-items: center; gap: 8px;">
+                                ${cardinalityBadge}
+                                <span class="spec-badge">IFC ${spec.ifcVersion}</span>
+                            </div>
                         </div>
                         <div class="spec-content">
                             <div class="facet-section">
@@ -365,14 +377,14 @@
                                     <span class="facet-icon applicability-icon">✓</span>
                                     ${t('parser.specs.applicability')}
                                 </div>
-                                ${formatFacets(spec.applicability)}
+                                ${formatFacets(spec.applicability, false)}
                             </div>
                             <div class="facet-section">
                                 <div class="facet-header">
                                     <span class="facet-icon requirements-icon">!</span>
                                     ${t('parser.specs.requirements')}
                                 </div>
-                                ${formatFacets(spec.requirements)}
+                                ${formatFacets(spec.requirements, true)}
                             </div>
                         </div>
                     </div>
@@ -399,16 +411,20 @@
             });
         }
         
-        function formatFacets(facets) {
+        function formatFacets(facets, isRequirements = false) {
             if (!facets || facets.length === 0) {
                 return `<div class="facet-item">${t('parser.specs.noFacets')}</div>`;
             }
-            
+
             return facets.map(facet => {
+                // Show cardinality badge for requirements facets (not entity, which is always required)
+                const showCardinalityBadge = isRequirements && facet.type !== 'entity' && facet.cardinality;
+                const cardinalityBadge = showCardinalityBadge ? getFacetCardinalityBadge(facet.cardinality) : '';
+
                 let html = '<div class="facet-item">';
-                html += `<div class="facet-type">${getFacetTypeName(facet.type)}</div>`;
+                html += `<div class="facet-type">${getFacetTypeName(facet.type)}${cardinalityBadge}</div>`;
                 html += '<div class="facet-details">';
-                
+
                 // Zobrazení názvu
                 if (facet.name) {
                     html += `${t('parser.facet.name')} <span class="facet-value">${formatValue(facet.name)}</span><br>`;
@@ -439,11 +455,6 @@
                     html += `<br>${t('parser.facet.predefinedType')} <span class="facet-value">${formatValue(facet.predefinedType)}</span>`;
                 }
 
-                // Zobrazení kardinality
-                if (facet.cardinality !== 'required') {
-                    html += `<br>${t('parser.facet.cardinality')} <span class="facet-value">${facet.cardinality}</span>`;
-                }
-                
                 html += '</div></div>';
                 return html;
             }).join('');
@@ -603,7 +614,57 @@
             };
             return typeNames[type] || type;
         }
-        
+
+        /**
+         * Determine specification cardinality from minOccurs/maxOccurs
+         */
+        function getSpecificationCardinality(spec) {
+            if (spec.minOccurs === '0' && spec.maxOccurs === '0') {
+                return 'prohibited';
+            } else if (spec.minOccurs === '0') {
+                return 'optional';
+            }
+            return 'required'; // default
+        }
+
+        /**
+         * Generate cardinality badge HTML
+         */
+        function getCardinalityBadge(cardinality) {
+            const styles = {
+                'required': 'background: #48bb78; color: white;',
+                'optional': 'background: #ed8936; color: white;',
+                'prohibited': 'background: #f56565; color: white;'
+            };
+            const labels = {
+                'required': t('cardinality.required'),
+                'optional': t('cardinality.optional'),
+                'prohibited': t('cardinality.prohibited')
+            };
+            const style = styles[cardinality] || styles['required'];
+            const label = labels[cardinality] || labels['required'];
+            return `<span class="cardinality-badge" style="${style} padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-right: 10px;">${label}</span>`;
+        }
+
+        /**
+         * Generate facet cardinality badge HTML (smaller)
+         */
+        function getFacetCardinalityBadge(cardinality) {
+            const styles = {
+                'required': 'background: #48bb78; color: white;',
+                'optional': 'background: #ed8936; color: white;',
+                'prohibited': 'background: #f56565; color: white;'
+            };
+            const labels = {
+                'required': 'REQ',
+                'optional': 'OPT',
+                'prohibited': 'PROH'
+            };
+            const style = styles[cardinality] || styles['required'];
+            const label = labels[cardinality] || labels['required'];
+            return `<span class="facet-cardinality-badge" style="${style} padding: 2px 6px; border-radius: 8px; font-size: 0.75em; font-weight: 600; margin-left: 8px;">${label}</span>`;
+        }
+
         function displayTree() {
             const treeView = document.getElementById('treeView');
             const tree = generateTreeView(currentIDSData.doc.documentElement, 0);
