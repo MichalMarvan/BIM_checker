@@ -38,16 +38,16 @@
         
         function handleFile(file) {
             if (!file.name.match(/\.(ids|xml)$/i)) {
-                showError('Prosím vyberte IDS nebo XML soubor');
+                showError(t('parser.error.invalidFile'));
                 return;
             }
-            
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     parseIDS(e.target.result);
                 } catch (error) {
-                    showError('Chyba při parsování souboru: ' + error.message);
+                    showError(t('parser.error.parsingError') + ' ' + error.message);
                 }
             };
             reader.readAsText(file);
@@ -60,7 +60,7 @@
             // Kontrola chyb parsování
             const parserError = xmlDoc.querySelector('parsererror');
             if (parserError) {
-                showError('Neplatný XML soubor');
+                showError(t('parser.error.invalidXml'));
                 return;
             }
             
@@ -83,7 +83,7 @@
             const infoElement = xmlDoc.querySelector('info');
             
             if (infoElement) {
-                info.title = infoElement.querySelector('title')?.textContent || 'Bez názvu';
+                info.title = infoElement.querySelector('title')?.textContent || t('parser.info.noTitle');
                 info.copyright = infoElement.querySelector('copyright')?.textContent || '';
                 info.version = infoElement.querySelector('version')?.textContent || '';
                 info.description = infoElement.querySelector('description')?.textContent || '';
@@ -102,8 +102,8 @@
             
             specElements.forEach((spec, index) => {
                 const specification = {
-                    name: spec.getAttribute('name') || `Specifikace ${index + 1}`,
-                    ifcVersion: spec.getAttribute('ifcVersion') || 'Nespecifikováno',
+                    name: spec.getAttribute('name') || `${t('parser.info.noSpec')} ${index + 1}`,
+                    ifcVersion: spec.getAttribute('ifcVersion') || t('parser.info.unspecified'),
                     applicability: extractFacets(spec.querySelector('applicability')),
                     requirements: extractFacets(spec.querySelector('requirements'))
                 };
@@ -277,46 +277,46 @@
             let infoContent = '<div class="ids-info-grid">';
             
             if (info.title) {
-                infoContent += `<div class="info-item"><div class="info-label">Název</div><div class="info-value">${info.title}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.name')}</div><div class="info-value">${info.title}</div></div>`;
                 hasInfo = true;
             }
             if (info.version) {
-                infoContent += `<div class="info-item"><div class="info-label">Verze</div><div class="info-value">${info.version}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.version')}</div><div class="info-value">${info.version}</div></div>`;
                 hasInfo = true;
             }
             if (info.author) {
-                infoContent += `<div class="info-item"><div class="info-label">Autor</div><div class="info-value">${info.author}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.author')}</div><div class="info-value">${info.author}</div></div>`;
                 hasInfo = true;
             }
             if (info.date) {
-                infoContent += `<div class="info-item"><div class="info-label">Datum</div><div class="info-value">${info.date}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.date')}</div><div class="info-value">${info.date}</div></div>`;
                 hasInfo = true;
             }
             if (info.purpose) {
-                infoContent += `<div class="info-item"><div class="info-label">Účel</div><div class="info-value">${info.purpose}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.purpose')}</div><div class="info-value">${info.purpose}</div></div>`;
                 hasInfo = true;
             }
             if (info.milestone) {
-                infoContent += `<div class="info-item"><div class="info-label">Milestone</div><div class="info-value">${info.milestone}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.milestone')}</div><div class="info-value">${info.milestone}</div></div>`;
                 hasInfo = true;
             }
-            
+
             infoContent += '</div>';
-            
+
             if (info.description) {
-                infoContent += `<div class="info-item" style="margin-top: 1rem;"><div class="info-label">Popis</div><div class="info-value">${info.description}</div></div>`;
+                infoContent += `<div class="info-item" style="margin-top: 1rem;"><div class="info-label">${t('parser.info.description')}</div><div class="info-value">${info.description}</div></div>`;
                 hasInfo = true;
             }
-            
+
             const infoHTML = `
                 <div style="cursor: pointer;" onclick="toggleInfoSection()">
                     <h3 style="user-select: none; display: flex; align-items: center; gap: 0.5rem;">
                         <span class="expand-icon" id="info-expand" style="font-size: 0.875rem;">▼</span>
-                        📋 Informace o IDS souboru
+                        📋 ${t('parser.info.idsFileInfo')}
                     </h3>
                 </div>
                 <div id="info-content">
-                    ${hasInfo ? infoContent : '<p style="color: #718096;">Žádné informace nejsou k dispozici</p>'}
+                    ${hasInfo ? infoContent : `<p style="color: #718096;">${t('parser.info.noInfo')}</p>`}
                 </div>
             `;
             
@@ -341,10 +341,10 @@
             
             let html = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="margin: 0;">📐 Specifikace (${specs.length})</h3>
+                    <h3 style="margin: 0;">📐 ${t('parser.specs.title')} (${specs.length})</h3>
                     <div>
-                        <button class="sample-button" style="padding: 0.5rem 1rem; font-size: 0.875rem;" onclick="expandAllSpecs()">Rozbalit vše</button>
-                        <button class="sample-button" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #e2e8f0; color: #4a5568;" onclick="collapseAllSpecs()">Sbalit vše</button>
+                        <button class="sample-button" style="padding: 0.5rem 1rem; font-size: 0.875rem;" onclick="expandAllSpecs()">${t('parser.specs.expandAll')}</button>
+                        <button class="sample-button" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #e2e8f0; color: #4a5568;" onclick="collapseAllSpecs()">${t('parser.specs.collapseAll')}</button>
                     </div>
                 </div>
             `;
@@ -363,14 +363,14 @@
                             <div class="facet-section">
                                 <div class="facet-header">
                                     <span class="facet-icon applicability-icon">✓</span>
-                                    Použitelnost (Applicability)
+                                    ${t('parser.specs.applicability')}
                                 </div>
                                 ${formatFacets(spec.applicability)}
                             </div>
                             <div class="facet-section">
                                 <div class="facet-header">
                                     <span class="facet-icon requirements-icon">!</span>
-                                    Požadavky (Requirements)
+                                    ${t('parser.specs.requirements')}
                                 </div>
                                 ${formatFacets(spec.requirements)}
                             </div>
@@ -401,7 +401,7 @@
         
         function formatFacets(facets) {
             if (!facets || facets.length === 0) {
-                return '<div class="facet-item">Žádné facety</div>';
+                return `<div class="facet-item">${t('parser.specs.noFacets')}</div>`;
             }
             
             return facets.map(facet => {
@@ -411,37 +411,37 @@
                 
                 // Zobrazení názvu
                 if (facet.name) {
-                    html += `Název: <span class="facet-value">${formatValue(facet.name)}</span><br>`;
+                    html += `${t('parser.facet.name')} <span class="facet-value">${formatValue(facet.name)}</span><br>`;
                 }
-                
+
                 // Zobrazení property setu
                 if (facet.propertySet) {
-                    html += `Property Set: <span class="facet-value">${formatValue(facet.propertySet)}</span><br>`;
+                    html += `${t('parser.facet.propertySet')} <span class="facet-value">${formatValue(facet.propertySet)}</span><br>`;
                 }
-                
+
                 // Zobrazení hodnoty
                 if (facet.value) {
-                    html += `Hodnota: <span class="facet-value">${formatValue(facet.value)}</span>`;
+                    html += `${t('parser.facet.value')} <span class="facet-value">${formatValue(facet.value)}</span>`;
                 }
-                
+
                 // Zobrazení relace
                 if (facet.relation) {
-                    html += `Relace: <span class="facet-value">${formatValue(facet.relation)}</span>`;
+                    html += `${t('parser.facet.relation')} <span class="facet-value">${formatValue(facet.relation)}</span>`;
                 }
-                
+
                 // Zobrazení systému
                 if (facet.system) {
-                    html += `Systém: <span class="facet-value">${formatValue(facet.system)}</span>`;
+                    html += `${t('parser.facet.system')} <span class="facet-value">${formatValue(facet.system)}</span>`;
                 }
-                
+
                 // Zobrazení predefined type
                 if (facet.predefinedType) {
-                    html += `<br>Předdefinovaný typ: <span class="facet-value">${formatValue(facet.predefinedType)}</span>`;
+                    html += `<br>${t('parser.facet.predefinedType')} <span class="facet-value">${formatValue(facet.predefinedType)}</span>`;
                 }
-                
+
                 // Zobrazení kardinality
                 if (facet.cardinality !== 'required') {
-                    html += `<br>Kardinalita: <span class="facet-value">${facet.cardinality}</span>`;
+                    html += `<br>${t('parser.facet.cardinality')} <span class="facet-value">${facet.cardinality}</span>`;
                 }
                 
                 html += '</div></div>';
@@ -457,25 +457,25 @@
                 if (value.isRegex && value.pattern) {
                     // Regex pattern display
                     result = `<div class="regex-label">
-                        <span class="regex-icon">🔍</span> 
-                        Regulární výraz (regex):
+                        <span class="regex-icon">🔍</span>
+                        ${t('parser.regex.label')}
                         <span class="regex-help">
                             <span class="regex-help-icon">?</span>
                             <div class="regex-tooltip">
-                                <strong>Regex znaky:</strong>
+                                <strong>${t('parser.regex.chars')}</strong>
                                 <table>
-                                    <tr><td>^</td><td>Začátek řetězce</td></tr>
-                                    <tr><td>$</td><td>Konec řetězce</td></tr>
-                                    <tr><td>.</td><td>Jakýkoliv znak</td></tr>
-                                    <tr><td>*</td><td>0 nebo více</td></tr>
-                                    <tr><td>+</td><td>1 nebo více</td></tr>
-                                    <tr><td>?</td><td>0 nebo 1</td></tr>
-                                    <tr><td>[A-Z]</td><td>Velká písmena</td></tr>
-                                    <tr><td>[a-z]</td><td>Malá písmena</td></tr>
-                                    <tr><td>\\d</td><td>Číslice</td></tr>
-                                    <tr><td>\\w</td><td>Písmeno/číslice/_</td></tr>
-                                    <tr><td>{n}</td><td>Přesně n výskytů</td></tr>
-                                    <tr><td>{n,m}</td><td>n až m výskytů</td></tr>
+                                    <tr><td>^</td><td>${t('regex.start')}</td></tr>
+                                    <tr><td>$</td><td>${t('regex.end')}</td></tr>
+                                    <tr><td>.</td><td>${t('regex.anyChar')}</td></tr>
+                                    <tr><td>*</td><td>${t('regex.zeroOrMore')}</td></tr>
+                                    <tr><td>+</td><td>${t('regex.oneOrMore')}</td></tr>
+                                    <tr><td>?</td><td>${t('regex.optional')}</td></tr>
+                                    <tr><td>[A-Z]</td><td>${t('regex.uppercase')}</td></tr>
+                                    <tr><td>[a-z]</td><td>${t('regex.lowercase')}</td></tr>
+                                    <tr><td>\\d</td><td>${t('regex.digit')}</td></tr>
+                                    <tr><td>\\w</td><td>${t('regex.wordChar')}</td></tr>
+                                    <tr><td>{n}</td><td>${t('regex.exactN')}</td></tr>
+                                    <tr><td>{n,m}</td><td>${t('regex.nToM')}</td></tr>
                                 </table>
                             </div>
                         </span>
@@ -486,24 +486,24 @@
                     const explanation = explainRegex(value.pattern);
                     if (explanation) {
                         result += `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: #718096;">
-                            <strong>Vysvětlení:</strong> ${explanation}
+                            <strong>${t('parser.regex.explanation')}</strong> ${explanation}
                         </div>`;
                     }
                 } else if (value.options) {
-                    result = `Možnosti: <ul class="restriction-list">`;
+                    result = `${t('parser.restriction.options')} <ul class="restriction-list">`;
                     value.options.forEach(opt => {
                         result += `<li>${opt}</li>`;
                     });
                     result += '</ul>';
                 } else if (value.minInclusive || value.maxInclusive) {
-                    result = `Rozsah: ${value.minInclusive || '-∞'} až ${value.maxInclusive || '+∞'}`;
+                    result = `${t('parser.restriction.range')} ${value.minInclusive || '-∞'} ${t('regex.range.to')} ${value.maxInclusive || '+∞'}`;
                 } else if (value.minExclusive || value.maxExclusive) {
-                    result = `Rozsah: >${value.minExclusive || '-∞'} až <${value.maxExclusive || '+∞'}`;
+                    result = `${t('parser.restriction.range')} >${value.minExclusive || '-∞'} ${t('regex.range.to')} <${value.maxExclusive || '+∞'}`;
                 } else if (value.minLength || value.maxLength || value.length) {
                     if (value.length) {
-                        result = `Přesná délka: ${value.length} znaků`;
+                        result = `${t('parser.restriction.exactLength')} ${value.length} ${t('parser.restriction.chars')}`;
                     } else {
-                        result = `Délka: ${value.minLength || '0'} až ${value.maxLength || '∞'} znaků`;
+                        result = `${t('parser.restriction.length')} ${value.minLength || '0'} ${t('regex.range.to')} ${value.maxLength || '∞'} ${t('parser.restriction.chars')}`;
                     }
                 }
                 return result;
@@ -523,83 +523,83 @@
         }
         
         function explainRegex(pattern) {
-            // Common regex patterns explanation
+            // Common regex patterns explanation - use translation keys
             const explanations = {
-                '^[A-Z]{3}\\d{3}$': 'Přesně 3 velká písmena následovaná 3 číslicemi',
-                '^\\d+$': 'Pouze číslice (jedno nebo více)',
-                '^[A-Za-z]+$': 'Pouze písmena (jedno nebo více)',
-                '^\\d{4}-\\d{2}-\\d{2}$': 'Datum ve formátu YYYY-MM-DD',
-                '^[\\w\\s]+$': 'Písmena, číslice, podtržítka a mezery',
-                '^\\w+@\\w+\\.\\w+$': 'Základní formát emailové adresy',
-                '^\\+?\\d{1,3}[- ]?\\d{3}[- ]?\\d{3}[- ]?\\d{3}$': 'Telefonní číslo s volitelnou předvolbou',
-                '^SO\\d{6}': 'Začíná "SO" následováno 6 číslicemi',
-                '^[a-zá-ž].*$': 'Začíná malým písmenem (včetně českých znaků)',
-                'PDPS': 'Přesně text "PDPS"',
-                'OTSKP': 'Přesně text "OTSKP"',
-                'CCI': 'Přesně text "CCI"',
-                'R': 'Přesně písmeno "R"',
-                'sejmutí ornice': 'Přesně text "sejmutí ornice"'
+                '^[A-Z]{3}\\d{3}$': t('regex.explain.3letters3digits'),
+                '^\\d+$': t('regex.explain.digitsOnly'),
+                '^[A-Za-z]+$': t('regex.explain.lettersOnly'),
+                '^\\d{4}-\\d{2}-\\d{2}$': t('regex.explain.dateFormat'),
+                '^[\\w\\s]+$': t('regex.explain.wordSpaces'),
+                '^\\w+@\\w+\\.\\w+$': t('regex.explain.emailBasic'),
+                '^\\+?\\d{1,3}[- ]?\\d{3}[- ]?\\d{3}[- ]?\\d{3}$': t('regex.explain.phoneNumber'),
+                '^SO\\d{6}': t('regex.explain.soPrefix'),
+                '^[a-zá-ž].*$': t('regex.explain.lowercaseStart'),
+                'PDPS': `${t('regex.explain.exactText')} "PDPS"`,
+                'OTSKP': `${t('regex.explain.exactText')} "OTSKP"`,
+                'CCI': `${t('regex.explain.exactText')} "CCI"`,
+                'R': `${t('regex.explain.exactLetter')} "R"`,
+                'sejmutí ornice': `${t('regex.explain.exactText')} "sejmutí ornice"`
             };
-            
+
             if (explanations[pattern]) {
                 return explanations[pattern];
             }
-            
+
             // Try to provide generic explanation based on pattern components
             let explanation = '';
             if (pattern.startsWith('^') && pattern.endsWith('$')) {
-                explanation = 'Musí odpovídat celému řetězci. ';
+                explanation = t('regex.explain.mustMatch') + ' ';
             } else if (pattern.startsWith('^')) {
-                explanation = 'Začíná: ';
+                explanation = t('regex.explain.startsWith') + ' ';
             }
-            
+
             // Czech characters
             if (pattern.includes('á-ž') || pattern.includes('Á-Ž')) {
-                explanation += 'Obsahuje české znaky. ';
+                explanation += t('regex.explain.czechChars') + ' ';
             }
-            
+
             if (pattern.includes('\\d')) {
-                explanation += 'Obsahuje číslice. ';
+                explanation += t('regex.explain.containsDigits') + ' ';
             }
             if (pattern.includes('[A-Z]') || pattern.includes('[a-z]')) {
-                explanation += 'Obsahuje písmena. ';
+                explanation += t('regex.explain.containsLetters') + ' ';
             }
             if (pattern.includes('+')) {
-                explanation += 'Jeden nebo více výskytů. ';
+                explanation += t('regex.explain.oneOrMoreOccur') + ' ';
             }
             if (pattern.includes('*')) {
-                explanation += 'Nula nebo více výskytů. ';
+                explanation += t('regex.explain.zeroOrMoreOccur') + ' ';
             }
             if (pattern.includes('?')) {
-                explanation += 'Volitelná část. ';
+                explanation += t('regex.explain.optionalPart') + ' ';
             }
             if (pattern.includes('.*')) {
-                explanation += 'Libovolný text. ';
+                explanation += t('regex.explain.anyText') + ' ';
             }
             if (pattern.includes('{')) {
                 const match = pattern.match(/\{(\d+)(,(\d+)?)?\}/);
                 if (match) {
                     if (match[3]) {
-                        explanation += `${match[1]} až ${match[3]} výskytů. `;
+                        explanation += `${match[1]} ${t('regex.explain.nToMOccur')} ${match[3]} ${t('regex.explain.occurrences')} `;
                     } else if (match[2]) {
-                        explanation += `Minimálně ${match[1]} výskytů. `;
+                        explanation += `${t('regex.explain.minOccur')} ${match[1]} ${t('regex.explain.occurrences')} `;
                     } else {
-                        explanation += `Přesně ${match[1]} výskytů. `;
+                        explanation += `${t('regex.explain.exactOccur')} ${match[1]} ${t('regex.explain.occurrences')} `;
                     }
                 }
             }
-            
+
             return explanation.trim() || null;
         }
         
         function getFacetTypeName(type) {
             const typeNames = {
-                'entity': '🏗️ Entita',
-                'partOf': '🔗 Část',
-                'classification': '📑 Klasifikace',
-                'attribute': '📌 Atribut',
-                'property': '🏷️ Vlastnost',
-                'material': '🧱 Materiál'
+                'entity': `🏗️ ${t('parser.facetType.entity')}`,
+                'partOf': `🔗 ${t('parser.facetType.partOf')}`,
+                'classification': `📑 ${t('parser.facetType.classification')}`,
+                'attribute': `📌 ${t('parser.facetType.attribute')}`,
+                'property': `🏷️ ${t('parser.facetType.property')}`,
+                'material': `🧱 ${t('parser.facetType.material')}`
             };
             return typeNames[type] || type;
         }
@@ -998,7 +998,7 @@
                     idsStorageData = request.result?.value;
 
                     if (!idsStorageData || !idsStorageData.files || Object.keys(idsStorageData.files).length === 0) {
-                        document.getElementById('idsStorageFileTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IDS soubory v úložišti</p>';
+                        document.getElementById('idsStorageFileTree').innerHTML = `<p style="text-align: center; color: #a0aec0; padding: 40px;">${t('parser.storage.noFiles')}</p>`;
                         return;
                     }
 
@@ -1009,11 +1009,11 @@
 
                 request.onerror = () => {
                     console.error('Error loading storage:', request.error);
-                    document.getElementById('idsStorageFileTree').innerHTML = '<p style="color: red;">Chyba při načítání úložiště</p>';
+                    document.getElementById('idsStorageFileTree').innerHTML = `<p style="color: red;">${t('parser.storage.error')}</p>`;
                 };
             } catch (e) {
                 console.error('Error loading storage:', e);
-                document.getElementById('idsStorageFileTree').innerHTML = '<p style="color: red;">Chyba při načítání úložiště</p>';
+                document.getElementById('idsStorageFileTree').innerHTML = `<p style="color: red;">${t('parser.storage.error')}</p>`;
             }
         }
 
@@ -1038,7 +1038,7 @@
                             <span onclick="toggleIdsStorageFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
                             <span onclick="toggleIdsStorageFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
                                 📁 ${folder.name}
-                                ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} souborů)</span>` : ''}
+                                ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} ${t('parser.storage.fileCount')})</span>` : ''}
                             </span>
                         </div>
                 `;
@@ -1118,7 +1118,7 @@
                 display.style.color = '#667eea';
                 display.style.fontWeight = '600';
             } else {
-                display.textContent = 'Žádný';
+                display.textContent = t('parser.storage.none');
                 display.style.color = '#6c757d';
                 display.style.fontWeight = 'normal';
             }
@@ -1127,13 +1127,13 @@
         // Load selected IDS file from storage
         function loadSelectedIdsFromStorage() {
             if (!selectedIdsFile) {
-                alert('Vyberte IDS soubor!');
+                alert(t('validator.error.selectIds'));
                 return;
             }
 
             const file = idsStorageData.files[selectedIdsFile];
             if (!file) {
-                alert('Soubor nenalezen!');
+                alert(t('validator.error.fileNotFound'));
                 return;
             }
 
@@ -1145,5 +1145,13 @@
         document.getElementById('idsStorageModal').addEventListener('click', (e) => {
             if (e.target.id === 'idsStorageModal') {
                 closeIdsStoragePicker();
+            }
+        });
+
+        // Re-render content when language changes
+        window.addEventListener('languageChanged', () => {
+            if (currentIDSData) {
+                displayInfo();
+                displaySpecifications();
             }
         });

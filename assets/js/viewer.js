@@ -216,12 +216,12 @@ fileInput.addEventListener('change', (e) => {
 async function handleFiles(files) {
     const ifcFiles = files.filter(f => f.name.endsWith('.ifc'));
     if (ifcFiles.length === 0) {
-        alert('Pouze .ifc soubory');
+        ErrorHandler.error(i18n.t('validator.error.onlyIfc'));
         return;
     }
 
     document.getElementById('loading').style.display = 'block';
-    updateProgress(0, `Načítám soubory... (0/${ifcFiles.length})`);
+    updateProgress(0, `${i18n.t('loading.files')} (0/${ifcFiles.length})`);
 
     try {
         for (let i = 0; i < ifcFiles.length; i++) {
@@ -235,7 +235,7 @@ async function handleFiles(files) {
         updateUI();
     } catch (error) {
         console.error('Error handling files:', error);
-        alert('Chyba při načítání souborů: ' + error.message);
+        ErrorHandler.error(`${i18n.t('parser.error.parsingError')}: ${error.message}`);
         document.getElementById('loading').style.display = 'none';
     }
 }
@@ -244,7 +244,7 @@ function readFileAsync(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(new Error('Chyba při čtení souboru'));
+        reader.onerror = (e) => reject(new Error(i18n.t('msg.readError')));
         reader.readAsText(file);
     });
 }
@@ -274,7 +274,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         const totalLines = lines.length;
 
         // Phase 1: Collect entities (chunked)
-        updateProgress(0, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 1/4 (načítání entit)`);
+        updateProgress(0, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')}`);
         for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
             const chunk = lines.slice(i, i + CHUNK_SIZE);
 
@@ -288,14 +288,14 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
             }
 
             const progress = ((i + CHUNK_SIZE) / totalLines) * 25;
-            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 1/4 (${i + CHUNK_SIZE}/${totalLines} řádků)`);
+            updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')} (${i + CHUNK_SIZE}/${totalLines} ${i18n.t('viewer.rows')})`);
 
             // Yield to browser
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         // Phase 2: Parse property sets and relationships (chunked)
-        updateProgress(25, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 2/4 (property sety a vztahy)`);
+        updateProgress(25, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase2')}`);
         const entities = Array.from(entityMap.entries());
         const spatialStructureMap = new Map(); // Map entity ID -> { children: [], parent: null }
         const containedInSpatialMap = new Map(); // IFCRELCONTAINEDINSPATIALSTRUCTURE relations
@@ -351,14 +351,14 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
             }
 
             const progress = 25 + ((i + CHUNK_SIZE) / entities.length) * 25;
-            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 2/4 (${i + CHUNK_SIZE}/${entities.length} entit)`);
+            updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase2')} (${i + CHUNK_SIZE}/${entities.length} ${i18n.t('viewer.entities')})`);
 
             // Yield to browser
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         // Phase 3: Build spatial structure tree
-        updateProgress(50, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 3/4 (prostorová struktura)`);
+        updateProgress(50, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase3')}`);
 
         console.log('=== SPATIAL TREE DEBUG ===');
         console.log('aggregatesMap size:', aggregatesMap.size);
@@ -631,7 +631,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         }
 
         // Phase 4: Build final data (chunked)
-        updateProgress(60, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 4/4 (stavba dat)`);
+        updateProgress(60, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase4')}`);
         let processedEntities = 0;
         for (let i = 0; i < entities.length; i += CHUNK_SIZE) {
             const chunk = entities.slice(i, i + CHUNK_SIZE);
@@ -697,7 +697,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
             }
 
             const progress = 60 + ((i + CHUNK_SIZE) / entities.length) * 40;
-            updateProgress(progress, `Zpracovávám soubor ${fileIndex}/${totalFiles}: ${fileName} - fáze 4/4 (${processedEntities}/${entities.length} entit)`);
+            updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase4')} (${processedEntities}/${entities.length} ${i18n.t('viewer.entities')})`);
 
             // Yield to browser
             await new Promise(resolve => setTimeout(resolve, 0));
@@ -718,11 +718,11 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         });
 
         updateFileList();
-        updateProgress(100, `Soubor ${fileIndex}/${totalFiles} dokončen: ${fileName}`);
+        updateProgress(100, `${i18n.t('viewer.fileProcessed')}: ${fileName}`);
 
     } catch (error) {
         console.error('Parse error:', error);
-        alert('Chyba v souboru ' + fileName + ': ' + error.message);
+        ErrorHandler.error(`${i18n.t('viewer.fileError')} ${fileName}: ${error.message}`);
         throw error;
     }
 }
@@ -900,7 +900,7 @@ async function parseIFC(content, fileName) {
 
     } catch (error) {
         console.error('Parse error:', error);
-        alert('Chyba v souboru ' + fileName + ': ' + error.message);
+        alert(t('viewer.fileError') + ' ' + fileName + ': ' + error.message);
     }
 }
 
@@ -1020,7 +1020,7 @@ function updateFileList() {
                 <div class="file-name">
                     <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${file.color}; margin-right: 8px;"></span>
                     ${file.fileName}
-                    <span style="color: #6c757d; font-weight: normal; margin-left: 8px;">(${file.entityCount} entit)</span>
+                    <span style="color: #6c757d; font-weight: normal; margin-left: 8px;">(${file.entityCount} ${i18n.t('viewer.entities')})</span>
                 </div>
             </div>
             <button class="file-remove" onclick="removeFile(${index})">×</button>
@@ -1062,7 +1062,7 @@ async function removeFile(index) {
         // Reset edit mode button
         const editModeBtn = document.getElementById('toggleEditModeBtn');
         if (editModeBtn) {
-            editModeBtn.textContent = '✏️ Editační režim';
+            editModeBtn.innerHTML = `✏️ ${i18n.t('viewer.editMode')}`;
         }
         document.body.classList.remove('edit-mode');
     }
@@ -1171,14 +1171,14 @@ function updateUI() {
     // Update entity filter
     const entityFilter = document.getElementById('entityFilter');
     const entities = [...new Set(allData.map(item => item.entity))].sort();
-    entityFilter.innerHTML = '<option value="">Všechny entity</option>';
+    entityFilter.innerHTML = `<option value="">${i18n.t('viewer.allEntities')}</option>`;
     for (let entity of entities) {
         entityFilter.innerHTML += `<option value="${entity}">${entity}</option>`;
     }
 
     // Update file filter
     const fileFilter = document.getElementById('fileFilter');
-    fileFilter.innerHTML = '<option value="">Všechny soubory</option>';
+    fileFilter.innerHTML = `<option value="">${i18n.t('viewer.allFiles')}</option>`;
     loadedFiles.forEach(file => {
         fileFilter.innerHTML += `<option value="${file.fileName}">${file.fileName}</option>`;
     });
@@ -1447,7 +1447,7 @@ function buildTable() {
 
     // File column - always sticky
     const fileHeader = document.createElement('th');
-    fileHeader.textContent = 'Soubor';
+    fileHeader.textContent = i18n.t('viewer.file');
     fileHeader.rowSpan = 2;
     fileHeader.style.cursor = 'pointer';
     fileHeader.classList.add('sticky-col');
@@ -1539,7 +1539,7 @@ function buildTable() {
         const lockIcon = document.createElement('span');
         lockIcon.className = 'lock-icon locked';
         lockIcon.textContent = '🔒';
-        lockIcon.title = 'Odemknout sloupec';
+        lockIcon.title = i18n.t('viewer.unlockColumn');
         lockIcon.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleLockColumn(col.psetName, col.propName);
@@ -1573,7 +1573,7 @@ function buildTable() {
         const lockIcon = document.createElement('span');
         lockIcon.className = 'lock-icon';
         lockIcon.textContent = '🔓';
-        lockIcon.title = 'Zamknout sloupec';
+        lockIcon.title = i18n.t('viewer.lockColumn');
         lockIcon.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleLockColumn(col.psetName, col.propName);
@@ -1679,7 +1679,7 @@ function applyFiltersAndRender() {
                     });
                 } catch (e) {
                     console.error('Invalid regex:', e.message);
-                    alert('Neplatný regex pattern: ' + e.message);
+                    ErrorHandler.error(`${i18n.t('viewer.invalidRegex')}: ${e.message}`);
                 }
             } else {
                 // Column-specific TEXT search
@@ -1734,7 +1734,7 @@ function applyFiltersAndRender() {
                     });
                 } catch (e) {
                     console.error('Invalid regex:', e.message);
-                    alert('Neplatný regex pattern: ' + e.message);
+                    ErrorHandler.error(`${i18n.t('viewer.invalidRegex')}: ${e.message}`);
                 }
             } else {
                 // Normal multi-word search (AND logic)
@@ -1814,7 +1814,7 @@ function renderTable() {
     tbody.innerHTML = '';
 
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding:40px;">Žádná data</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="100" style="text-align:center; padding:40px;">${i18n.t('viewer.noData')}</td></tr>`;
         updatePaginationInfo();
         return;
     }
@@ -1955,7 +1955,7 @@ function updatePaginationInfo() {
     const startIndex = pageSize === -1 ? 0 : (currentPage - 1) * pageSize;
     const endIndex = pageSize === -1 ? filteredData.length : Math.min(startIndex + pageSize, filteredData.length);
     
-    paginationInfo.textContent = `Zobrazeno ${startIndex + 1}-${endIndex} z ${filteredData.length} entit`;
+    paginationInfo.textContent = `${i18n.t('viewer.paginationInfo')} ${startIndex + 1}-${endIndex} ${i18n.t('viewer.of')} ${filteredData.length} ${i18n.t('viewer.entities')}`;
     totalPagesSpan.textContent = totalPages;
     pageInput.value = currentPage;
     pageInput.max = totalPages;
@@ -2030,7 +2030,7 @@ function showStatistics() {
     totalCard.style.cssText = 'background: white; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #667eea;';
     totalCard.innerHTML = `
         <div style="font-size: 2em; font-weight: 700; color: #667eea;">${allData.length}</div>
-        <div style="font-size: 0.85em; color: #6c757d;">Celkem entit</div>
+        <div style="font-size: 0.85em; color: #6c757d;">${i18n.t('viewer.totalEntities')}</div>
     `;
     statsGrid.appendChild(totalCard);
 
@@ -2118,7 +2118,7 @@ document.getElementById('goToPageBtn').addEventListener('click', () => {
         currentPage = page;
         renderTable();
     } else {
-        alert(`Zadejte stránku mezi 1 a ${totalPages}`);
+        alert(`${t('viewer.pageRange')} ${totalPages}`);
         pageInput.value = currentPage;
     }
 });
@@ -2154,13 +2154,13 @@ document.getElementById('toggleEditModeBtn').addEventListener('click', () => {
     const editPanel = document.getElementById('editPanel');
 
     if (editMode) {
-        btn.textContent = '👁️ Režim zobrazení';
+        btn.textContent = `👁️ ${t('viewer.viewMode')}`;
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-warning');
         editPanel.classList.add('active');
         document.body.classList.add('edit-mode');
     } else {
-        btn.textContent = '✏️ Editační režim';
+        btn.textContent = `✏️ ${t('viewer.editMode')}`;
         btn.classList.remove('btn-warning');
         btn.classList.add('btn-primary');
         editPanel.classList.remove('active');
@@ -2182,7 +2182,7 @@ function updateSelectedCount() {
     const totalFilteredSpan = document.getElementById('totalFilteredCount');
     if (totalFilteredSpan) {
         if (totalFiltered > 0) {
-            totalFilteredSpan.textContent = `(z ${totalFiltered} celkem)`;
+            totalFilteredSpan.textContent = `(${i18n.t('viewer.ofTotal')} ${totalFiltered} ${i18n.t('viewer.total')})`;
         } else {
             totalFilteredSpan.textContent = '';
         }
@@ -2205,7 +2205,7 @@ function updateSelectedCount() {
 
 document.getElementById('selectAllVisibleBtn').addEventListener('click', () => {
     if (!editMode) {
-        alert('Nejprve zapněte Editační režim!');
+        alert(t('viewer.enableEditFirst'));
         return;
     }
     const startIndex = pageSize === -1 ? 0 : (currentPage - 1) * pageSize;
@@ -2223,22 +2223,22 @@ document.getElementById('selectAllPagesBtn').addEventListener('click', () => {
     console.log('Selected entities before:', selectedEntities.size);
 
     if (!editMode) {
-        alert('Nejprve zapněte Editační režim!');
+        alert(t('viewer.enableEditFirst'));
         return;
     }
 
     const totalCount = filteredData.length;
 
     if (totalCount === 0) {
-        alert('Žádné entity k výběru. Zkontrolujte filtry.');
+        alert(t('viewer.noEntities'));
         return;
     }
 
     // Warning if selecting a lot of entities
     if (totalCount > 1000) {
         const confirmed = confirm(
-            `Opravdu chcete vybrat všech ${totalCount} entit?\n\n` +
-            `To může trvat déle a může zpomalit prohlížeč.`
+            `${t('viewer.confirmSelectAll')} ${totalCount} ${t('viewer.entities')}?\n\n` +
+            `${t('viewer.mayTakeLonger')}`
         );
         if (!confirmed) return;
     }
@@ -2264,7 +2264,7 @@ document.getElementById('selectAllPagesBtn').addEventListener('click', () => {
     // Show success message
     const message = document.createElement('div');
     message.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #28a745; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-weight: 600;';
-    message.textContent = `✓ Vybráno všech ${totalCount} entit`;
+    message.textContent = `✓ ${t('viewer.selectedAll')} ${totalCount} ${t('viewer.entities')}`;
     document.body.appendChild(message);
 
     setTimeout(() => {
@@ -2363,7 +2363,7 @@ document.getElementById('bulkEditBtn').addEventListener('click', () => {
     const propSelect = document.getElementById('bulkPropName');
 
     // Populate PropertySet dropdown
-    psetSelect.innerHTML = '<option value="">-- Vyberte PropertySet --</option>';
+    psetSelect.innerHTML = `<option value="">${i18n.t('viewer.selectPset')}</option>`;
     for (let psetName of psetOrder) {
         if (propertySetGroups[psetName]) {
             psetSelect.innerHTML += `<option value="${psetName}">${psetName}</option>`;
@@ -2387,12 +2387,12 @@ document.getElementById('bulkPsetName').addEventListener('change', (e) => {
 
     if (!psetName) {
         propSelect.disabled = true;
-        propSelect.innerHTML = '<option value="">-- Nejprve vyberte PropertySet --</option>';
+        propSelect.innerHTML = `<option value="">${i18n.t('viewer.selectPsetFirst')}</option>`;
         return;
     }
 
     propSelect.disabled = false;
-    propSelect.innerHTML = '<option value="">-- Vyberte Property --</option>';
+    propSelect.innerHTML = `<option value="">${i18n.t('viewer.selectProp')}</option>`;
 
     if (propertySetGroups[psetName]) {
         for (let propName of propertySetGroups[psetName]) {
@@ -2443,7 +2443,7 @@ document.getElementById('bulkPropName').addEventListener('change', (e) => {
                     <span style="color: #6c757d; font-size: 0.9em; margin-left: 10px;">${count}× (${percentage}%)</span>
                     <button onclick="document.getElementById('bulkValue').value = '${escapeHtml(value).replace(/'/g, "\\'")}';"
                             style="margin-left: 10px; padding: 4px 10px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
-                        Použít
+                        ${t('viewer.apply')}
                     </button>
                 </div>
             `;
@@ -2455,14 +2455,14 @@ document.getElementById('bulkPropName').addEventListener('change', (e) => {
         const percentage = Math.round((emptyCount / selectedEntities.size) * 100);
         html += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107; margin-top: 8px;">
-                <span style="font-style: italic; color: #856404;">Prázdné / neexistuje</span>
+                <span style="font-style: italic; color: #856404;">${t('viewer.emptyNotExists')}</span>
                 <span style="color: #856404; font-size: 0.9em;">${emptyCount}× (${percentage}%)</span>
             </div>
         `;
     }
 
     if (uniqueValues.length === 0 && emptyCount === 0) {
-        html = '<p style="color: #6c757d; font-style: italic;">Žádné hodnoty nenalezeny</p>';
+        html = `<p style="color: #6c757d; font-style: italic;">${t('viewer.noValuesFound')}</p>`;
     }
 
     currentValuesList.innerHTML = html;
@@ -2490,7 +2490,7 @@ function applyBulkEdit() {
     const value = document.getElementById('bulkValue').value.trim();
 
     if (!psetName || !propName) {
-        alert('Vyberte PropertySet a Property');
+        alert(t('viewer.selectPsetAndProperty'));
         return;
     }
 
@@ -2553,7 +2553,7 @@ document.getElementById('renamePsetBtn').addEventListener('click', () => {
     }
 
     // Populate dropdown
-    dropdown.innerHTML = '<option value="">-- Vyberte PropertySet --</option>';
+    dropdown.innerHTML = `<option value="">${i18n.t('viewer.selectPset')}</option>`;
     Array.from(allPsets).sort().forEach(pset => {
         const option = document.createElement('option');
         option.value = pset;
@@ -2576,17 +2576,17 @@ function applyPsetRename() {
     const newName = document.getElementById('newPsetNameRename').value.trim();
 
     if (!oldName) {
-        ErrorHandler.error('Vyberte PropertySet k přejmenování');
+        ErrorHandler.error(t('viewer.selectPsetRename'));
         return;
     }
 
     if (!newName) {
-        ErrorHandler.error('Zadejte nový název PropertySetu');
+        ErrorHandler.error(t('viewer.enterNewPsetName'));
         return;
     }
 
     if (oldName === newName) {
-        ErrorHandler.warning('Nový název je stejný jako starý');
+        ErrorHandler.warning(t('viewer.sameNameWarning'));
         return;
     }
 
@@ -2610,7 +2610,7 @@ function applyPsetRename() {
 
     closeRenamePsetModal();
     updateSelectedCount();
-    ErrorHandler.success(`PropertySet "${oldName}" bude přejmenován na "${newName}" u ${count} entit při exportu`);
+    ErrorHandler.success(`PropertySet "${oldName}" ${t('viewer.psetWillBeRenamed')} "${newName}" (${count} ${t('viewer.entities')}) ${t('viewer.atExport')}`);
 }
 
 // Rename Property Modal
@@ -2628,7 +2628,7 @@ document.getElementById('renamePropertyBtn').addEventListener('click', () => {
     }
 
     // Populate PropertySet dropdown
-    psetDropdown.innerHTML = '<option value="">-- Vyberte PropertySet --</option>';
+    psetDropdown.innerHTML = `<option value="">${i18n.t('viewer.selectPset')}</option>`;
     Array.from(allPsets).sort().forEach(pset => {
         const option = document.createElement('option');
         option.value = pset;
@@ -2638,7 +2638,7 @@ document.getElementById('renamePropertyBtn').addEventListener('click', () => {
 
     // Reset property dropdown
     document.getElementById('oldPropertyName').disabled = true;
-    document.getElementById('oldPropertyName').innerHTML = '<option value="">-- Nejprve vyberte PropertySet --</option>';
+    document.getElementById('oldPropertyName').innerHTML = `<option value="">${i18n.t('viewer.selectPsetFirst')}</option>`;
     document.getElementById('newPropertyName').value = '';
 
     document.getElementById('renamePropertyCount').textContent = selectedEntities.size;
@@ -2659,7 +2659,7 @@ function updatePropertyDropdown() {
 
     if (!psetName) {
         propDropdown.disabled = true;
-        propDropdown.innerHTML = '<option value="">-- Nejprve vyberte PropertySet --</option>';
+        propDropdown.innerHTML = `<option value="">${i18n.t('viewer.selectPsetFirst')}</option>`;
         return;
     }
 
@@ -2673,7 +2673,7 @@ function updatePropertyDropdown() {
     }
 
     // Populate property dropdown
-    propDropdown.innerHTML = '<option value="">-- Vyberte Property --</option>';
+    propDropdown.innerHTML = `<option value="">${i18n.t('viewer.selectProp')}</option>`;
     Array.from(allProperties).sort().forEach(prop => {
         const option = document.createElement('option');
         option.value = prop;
@@ -2690,22 +2690,22 @@ function applyPropertyRename() {
     const newPropName = document.getElementById('newPropertyName').value.trim();
 
     if (!psetName) {
-        ErrorHandler.error('Vyberte PropertySet');
+        ErrorHandler.error(i18n.t('viewer.errorSelectPset'));
         return;
     }
 
     if (!oldPropName) {
-        ErrorHandler.error('Vyberte Property k přejmenování');
+        ErrorHandler.error(t('viewer.selectPropertyRename'));
         return;
     }
 
     if (!newPropName) {
-        ErrorHandler.error('Zadejte nový název Property');
+        ErrorHandler.error(t('viewer.enterNewPropertyName'));
         return;
     }
 
     if (oldPropName === newPropName) {
-        ErrorHandler.warning('Nový název je stejný jako starý');
+        ErrorHandler.warning(t('viewer.sameNameWarning'));
         return;
     }
 
@@ -2732,7 +2732,7 @@ function applyPropertyRename() {
 
     closeRenamePropertyModal();
     updateSelectedCount();
-    ErrorHandler.success(`Property "${oldPropName}" v PropertySetu "${psetName}" bude přejmenována na "${newPropName}" u ${count} entit při exportu`);
+    ErrorHandler.success(`Property "${oldPropName}" ${t('viewer.inPset')} "${psetName}" ${t('viewer.propertyWillBeRenamed')} "${newPropName}" (${count} ${t('viewer.entities')}) ${t('viewer.atExport')}`);
 }
 
 function applyAddPset() {
@@ -2741,7 +2741,7 @@ function applyAddPset() {
     const value = document.getElementById('newPropValue').value.trim();
 
     if (!psetName || !propName) {
-        alert('Vyplňte název PropertySetu a Property');
+        alert(t('viewer.fillPsetAndProperty'));
         return;
     }
 
@@ -2784,13 +2784,13 @@ function applyAddPset() {
     buildTable(); // Rebuild table to include new columns
     updateSelectedCount();
 
-    alert(`PropertySet "${psetName}" s property "${propName}" byl přidán k ${selectedEntities.size} entitám`);
+    alert(`PropertySet "${psetName}" (${propName}) ${t('viewer.psetAdded')} ${selectedEntities.size} ${t('viewer.entities')}`);
 }
 
 // Export modified IFC
 document.getElementById('exportIfcBtn').addEventListener('click', () => {
     if (Object.keys(modifications).length === 0) {
-        alert('Žádné změny k uložení');
+        alert(t('viewer.noChangesToSave'));
         return;
     }
 
@@ -2799,7 +2799,7 @@ document.getElementById('exportIfcBtn').addEventListener('click', () => {
     console.log('Modifications:', modifications);
 
     if (loadedFiles.length === 0) {
-        alert('Nejsou načtené žádné IFC soubory');
+        alert(t('viewer.noIfcLoaded'));
         return;
     }
 
@@ -2811,11 +2811,11 @@ document.getElementById('exportIfcBtn').addEventListener('click', () => {
         // Show dialog to select file
         const fileNames = loadedFiles.map((f, i) => `${i + 1}. ${f.fileName}`).join('\n');
         const choice = prompt(
-            `Vyberte soubor pro export (zadejte číslo 1-${loadedFiles.length}):\n\n${fileNames}`
+            `${t('viewer.selectFileExport')}${loadedFiles.length}):\n\n${fileNames}`
         );
         const index = parseInt(choice) - 1;
         if (isNaN(index) || index < 0 || index >= loadedFiles.length) {
-            alert('Neplatný výběr');
+            alert(t('viewer.invalidSelection'));
             return;
         }
         fileToExport = loadedFiles[index];
@@ -2833,7 +2833,7 @@ async function exportModifiedIFC(fileInfo) {
         const ifcContent = await getIFCContent(fileInfo.fileName);
 
         if (!ifcContent) {
-            ErrorHandler.error('Původní obsah IFC souboru není dostupný v cache. Nahrajte soubor znovu.');
+            ErrorHandler.error(t('viewer.originalNotAvailable'));
             return;
         }
 
@@ -2847,7 +2847,7 @@ async function exportModifiedIFC(fileInfo) {
         downloadModifiedIFC(modifiedIfc, fileInfo.fileName);
     } catch (error) {
         console.error('Export error:', error);
-        alert('Chyba při exportu: ' + error.message);
+        alert(t('viewer.exportError') + ' ' + error.message);
     }
 }
 
@@ -3185,7 +3185,7 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
             console.log(`New entities inserted. Total lines now: ${modifiedLines.length}`);
         } else {
             console.error('ERROR: ENDSEC not found in IFC file!');
-            alert('Chyba: Nelze najít ENDSEC v IFC souboru. Export byl zrušen.');
+            alert(t('viewer.endSecNotFound'));
             return null;
         }
     }
@@ -3204,7 +3204,7 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
     if (resultLineCount < expectedMinLines && newEntities.length === 0) {
         console.error('WARNING: Significant line loss detected!');
         console.error(`Original lines: ${lines.length}, Result lines: ${resultLineCount}`);
-        alert(`VAROVÁNÍ: Při exportu došlo ke ztrátě dat!\nPůvodní řádky: ${lines.length}\nVýsledné řádky: ${resultLineCount}\n\nExport byl zrušen pro bezpečnost.`);
+        alert(`${t('viewer.dataLossWarning')}\n${t('viewer.originalLines')} ${lines.length}\n${t('viewer.resultLines')} ${resultLineCount}\n\n${t('viewer.exportCancelled')}`);
         return null;
     }
 
@@ -3417,7 +3417,7 @@ function downloadModifiedIFC(ifcContent, originalFileName) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert(`✓ IFC soubor byl úspěšně uložen jako:\n${a.download}`);
+    alert(`✓ ${t('viewer.fileSavedAs')}\n${a.download}`);
 }
 
 // ============================================
@@ -3553,7 +3553,7 @@ async function loadStorageMetadata() {
 // Open storage picker modal (instant - no loading!)
 document.getElementById('loadFromStorageBtn').addEventListener('click', () => {
     if (!storageDB) {
-        alert('Úložiště není inicializováno!');
+        alert(t('viewer.storageNotInit'));
         return;
     }
 
@@ -3621,7 +3621,7 @@ function renderStorageTree() {
     // Synchronous - uses pre-loaded metadata (instant!)
     try {
         if (!storageMetadata || !storageMetadata.files || Object.keys(storageMetadata.files).length === 0) {
-            document.getElementById('storageFileTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IFC soubory v úložišti</p>';
+            document.getElementById('storageFileTree').innerHTML = `<p style="text-align: center; color: #a0aec0; padding: 40px;">${t('viewer.noIfcInStorage')}</p>`;
             return;
         }
 
@@ -3630,7 +3630,7 @@ function renderStorageTree() {
         updateSelectedFilesCount();
     } catch (e) {
         console.error('Error rendering storage tree:', e);
-        document.getElementById('storageFileTree').innerHTML = '<p style="color: red;">Chyba při zobrazení úložiště</p>';
+        document.getElementById('storageFileTree').innerHTML = `<p style="color: red;">${t('viewer.storageDisplayError')}</p>`;
     }
 }
 
@@ -3653,10 +3653,10 @@ function renderStorageFolderRecursive(folderId, level) {
             <div style="margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
                     <span onclick="toggleStorageFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
-                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllFilesInFolder('${folderId}')" style="margin-right: 10px;" title="Vybrat všechny soubory ve složce">
+                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllFilesInFolder('${folderId}')" style="margin-right: 10px;" title="${t('viewer.selectAllInFolder')}">
                     <span onclick="toggleStorageFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
                         📁 ${folder.name}
-                        ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} souborů)</span>` : ''}
+                        ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} ${t('viewer.files')})</span>` : ''}
                     </span>
                 </div>
         `;
@@ -3721,7 +3721,7 @@ function updateSelectedFilesCount() {
 
 async function loadSelectedFilesFromStorage() {
     if (selectedStorageFiles.size === 0) {
-        alert('Vyberte alespoň jeden soubor!');
+        alert(t('viewer.selectAtLeastOne'));
         return;
     }
 
@@ -3734,12 +3734,12 @@ async function loadSelectedFilesFromStorage() {
         request.onsuccess = async () => {
             const data = request.result?.value;
             if (!data) {
-                alert('Chyba při načítání dat z úložiště!');
+                alert(t('viewer.storageLoadError'));
                 return;
             }
 
             document.getElementById('loading').style.display = 'block';
-            updateProgress(0, `Načítám soubory z úložiště... (0/${selectedStorageFiles.size})`);
+            updateProgress(0, `${t('viewer.loadingFromStorage')} (0/${selectedStorageFiles.size})`);
             closeStoragePickerModal();
 
             const fileArray = Array.from(selectedStorageFiles);
@@ -3760,12 +3760,12 @@ async function loadSelectedFilesFromStorage() {
 
         request.onerror = () => {
             console.error('Error loading files from storage:', request.error);
-            alert('Chyba při načítání souborů z úložiště!');
+            alert(t('viewer.storageLoadError'));
             document.getElementById('loading').style.display = 'none';
         };
     } catch (e) {
         console.error('Error loading files from storage:', e);
-        alert('Chyba při načítání souborů z úložiště!');
+        alert(t('viewer.storageLoadError'));
         document.getElementById('loading').style.display = 'none';
     }
 }
@@ -3994,7 +3994,7 @@ function renderSpatialTree() {
     console.log('renderSpatialTree called, loadedFiles:', loadedFiles.length);
 
     if (loadedFiles.length === 0) {
-        content.innerHTML = '<div class="spatial-tree-info">Načtěte IFC soubor pro zobrazení struktury</div>';
+        content.innerHTML = `<div class="spatial-tree-info">${t('viewer.loadIfcForStructure')}</div>`;
         return;
     }
 
@@ -4004,7 +4004,7 @@ function renderSpatialTree() {
     console.log('Spatial tree:', currentFile?.spatialTree);
 
     if (!currentFile || !currentFile.spatialTree || currentFile.spatialTree.length === 0) {
-        content.innerHTML = '<div class="spatial-tree-info">Tento soubor nemá dostupnou prostorovou strukturu</div>';
+        content.innerHTML = `<div class="spatial-tree-info">${t('viewer.noSpatialStructure')}</div>`;
         return;
     }
 
@@ -4013,12 +4013,12 @@ function renderSpatialTree() {
     if (loadedFiles.length > 1) {
         html += `
             <div class="tree-file-selector">
-                <label>Soubor (${loadedFiles.length}):</label>
+                <label>${t('viewer.fileLabel')} (${loadedFiles.length}):</label>
                 <select id="treeSpatialFileSelect" onchange="changeSpatialTreeFile(this.value)">
         `;
         loadedFiles.forEach((file, index) => {
             const treeSize = file.spatialTree?.length ? countChildren(file.spatialTree[0]) : 0;
-            html += `<option value="${index}" ${index === currentTreeFileIndex ? 'selected' : ''}>${file.fileName} (${treeSize} entit)</option>`;
+            html += `<option value="${index}" ${index === currentTreeFileIndex ? 'selected' : ''}>${file.fileName} (${treeSize} ${t('viewer.entities2')})</option>`;
         });
         html += `
                 </select>
@@ -4030,7 +4030,7 @@ function renderSpatialTree() {
         html += `
             <div class="tree-file-selector" style="border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-bottom: 10px;">
                 <label style="font-size: 0.9em; color: #6c757d;">📄 ${currentFile.fileName}</label>
-                <div style="font-size: 0.85em; color: #6c757d; margin-top: 5px;">${treeSize} entit ve struktuře</div>
+                <div style="font-size: 0.85em; color: #6c757d; margin-top: 5px;">${treeSize} ${t('viewer.entitiesInStructure')}</div>
             </div>
         `;
     }
@@ -4038,8 +4038,8 @@ function renderSpatialTree() {
     // Add expand/collapse all buttons
     html += `
         <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-            <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 0.85em;" onclick="expandAllTreeNodes()">▼ Rozbalit vše</button>
-            <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 0.85em;" onclick="collapseAllTreeNodes()">▶ Zabalit vše</button>
+            <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 0.85em;" onclick="expandAllTreeNodes()">▼ ${t('viewer.expandAll')}</button>
+            <button class="btn btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 0.85em;" onclick="collapseAllTreeNodes()">▶ ${t('viewer.collapseAll')}</button>
         </div>
     `;
 
@@ -4143,3 +4143,12 @@ if (document.readyState === 'loading') {
 } else {
     initSpatialTreeListeners();
 }
+
+// Re-render UI when language changes
+window.addEventListener('languageChanged', () => {
+    if (allData.length > 0) {
+        updateUI();
+        showStatistics();
+        applyFiltersAndRender();
+    }
+});

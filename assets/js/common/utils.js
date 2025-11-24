@@ -25,7 +25,7 @@ function escapeHtml(text) {
 }
 
 // Show loading overlay
-function showLoading(text = 'Načítám...', subtext = 'Prosím čekejte...') {
+function showLoading(text = i18n.t('loading.text'), subtext = i18n.t('loading.subtext')) {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay) {
         const loadingText = document.getElementById('loadingText');

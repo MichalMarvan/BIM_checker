@@ -24,15 +24,15 @@ class IDSEditorModals {
             overlay.innerHTML = `
                 <div class="modal-container">
                     <div class="modal-header">
-                        <h2 id="modalTitle">Přidat facet</h2>
+                        <h2 id="modalTitle">${t('editor.addFacet')}</h2>
                         <button class="modal-close" onclick="idsEditorModals.closeModal()">&times;</button>
                     </div>
                     <div class="modal-body" id="modalBody">
                         <!-- Dynamic content -->
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="idsEditorModals.closeModal()">Zrušit</button>
-                        <button class="btn btn-primary" onclick="idsEditorModals.saveFacet()">Uložit</button>
+                        <button class="btn btn-secondary" onclick="idsEditorModals.closeModal()">${t('editor.cancel')}</button>
+                        <button class="btn btn-primary" onclick="idsEditorModals.saveFacet()">${t('editor.save')}</button>
                     </div>
                 </div>
             `;
@@ -62,8 +62,8 @@ class IDSEditorModals {
                         <!-- Dynamic content -->
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="idsEditorModals.closeSpecificationModal()">Zrušit</button>
-                        <button class="btn btn-primary" onclick="idsEditorModals.saveSpecification()">Uložit</button>
+                        <button class="btn btn-secondary" onclick="idsEditorModals.closeSpecificationModal()">${t('editor.cancel')}</button>
+                        <button class="btn btn-primary" onclick="idsEditorModals.saveSpecification()">${t('editor.save')}</button>
                     </div>
                 </div>
             `;
@@ -171,11 +171,11 @@ class IDSEditorModals {
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>Entity Name:</label>
-                <input type="text" id="entityName" list="ifcEntityTypes" value="${data.name || ''}" placeholder="např. IFCWALL" autocomplete="off">
+                <input type="text" id="entityName" list="ifcEntityTypes" value="${data.name || ''}" placeholder="${t('editor.example')} IFCWALL" autocomplete="off">
                 <datalist id="ifcEntityTypes">
                     ${datalistOptions}
                 </datalist>
-                <small>IFC entity type (např. IFCWALL, IFCBEAM, IFCDOOR)</small>
+                <small>${t('editor.entityTypeDesc')}</small>
             </div>
 
             <div class="form-group">
@@ -192,9 +192,9 @@ class IDSEditorModals {
             </div>
 
             <div class="form-group">
-                <label>Predefined Type (volitelné):</label>
-                <input type="text" id="entityPredefinedType" value="${data.predefinedType || ''}" placeholder="např. SOLIDWALL">
-                <small>Specifikace typu entity (např. SOLIDWALL pro IFCWALL)</small>
+                <label>${t('editor.predefinedType')}</label>
+                <input type="text" id="entityPredefinedType" value="${data.predefinedType || ''}" placeholder="${t('editor.example')} SOLIDWALL">
+                <small>${t('editor.predefinedTypeDesc')}</small>
             </div>
         `;
     }
@@ -223,23 +223,23 @@ class IDSEditorModals {
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>PropertySet Name:</label>
-                <input type="text" id="propertySet" list="ifcPropertySets" value="${propertySetValue}" placeholder="např. Pset_WallCommon" autocomplete="off">
+                <input type="text" id="propertySet" list="ifcPropertySets" value="${propertySetValue}" placeholder="${t('editor.example')} Pset_WallCommon" autocomplete="off">
                 <datalist id="ifcPropertySets">
                     ${psetDatalistOptions}
                 </datalist>
-                <small>Název PropertySetu (${propertySets.length} dostupných pro ${this.currentIfcVersion})</small>
+                <small>${t('editor.propertySetName')} (${propertySets.length} ${t('editor.availableFor')} ${this.currentIfcVersion})</small>
             </div>
 
             <div class="form-group">
                 <label>Property Name (baseName):</label>
-                <input type="text" id="propertyBaseName" value="${baseNameValue}" placeholder="např. FireRating">
-                <small>Název property</small>
+                <input type="text" id="propertyBaseName" value="${baseNameValue}" placeholder="${t('editor.example')} FireRating">
+                <small>${t('editor.propertyName')}</small>
             </div>
 
             <div class="form-group">
-                <label>Data Type (volitelné):</label>
+                <label>${t('editor.dataType')}</label>
                 <select id="propertyDataType">
-                    <option value="">-- Nezadáno --</option>
+                    <option value="">${t('editor.notSpecified')}</option>
                     <option value="IFCBOOLEAN" ${data.dataType === 'IFCBOOLEAN' ? 'selected' : ''}>IFCBOOLEAN</option>
                     <option value="IFCINTEGER" ${data.dataType === 'IFCINTEGER' ? 'selected' : ''}>IFCINTEGER</option>
                     <option value="IFCREAL" ${data.dataType === 'IFCREAL' ? 'selected' : ''}>IFCREAL</option>
@@ -249,14 +249,14 @@ class IDSEditorModals {
             </div>
 
             <div class="form-group">
-                <label>Value Restriction (volitelné):</label>
+                <label>${t('editor.valueRestriction')}</label>
                 <div class="restriction-types">
                     <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'simpleValue')}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">Simple Value</button>
                     <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'pattern')}" onclick="idsEditorModals.selectRestrictionType('pattern')">Pattern (Regex)</button>
                     <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'enumeration')}" onclick="idsEditorModals.selectRestrictionType('enumeration')">Enumeration</button>
                     <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'bounds')}" onclick="idsEditorModals.selectRestrictionType('bounds')">Bounds</button>
                 </div>
-                <small>Pokud není zadáno, property může mít jakoukoliv hodnotu</small>
+                <small>${t('editor.anyValueAllowed')}</small>
             </div>
 
             <div id="restrictionFields">
@@ -292,8 +292,8 @@ class IDSEditorModals {
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>Attribute Name:</label>
-                <input type="text" id="attributeName" value="${data.name || ''}" placeholder="např. Name, GlobalId, Description">
-                <small>Název IFC atributu</small>
+                <input type="text" id="attributeName" value="${data.name || ''}" placeholder="${t('editor.example')} Name, GlobalId, Description">
+                <small>${t('editor.attributeName')}</small>
             </div>
 
             <div class="form-group">
@@ -319,14 +319,14 @@ class IDSEditorModals {
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>Classification System:</label>
-                <input type="text" id="classificationSystem" value="${data.system || ''}" placeholder="např. Uniclass, OmniClass">
-                <small>Název klasifikačního systému</small>
+                <input type="text" id="classificationSystem" value="${data.system || ''}" placeholder="${t('editor.example')} Uniclass, OmniClass">
+                <small>${t('editor.classSystem')}</small>
             </div>
 
             <div class="form-group">
                 <label>Classification Value:</label>
-                <input type="text" id="classificationValue" value="${data.value || ''}" placeholder="např. Ss_25_10_20">
-                <small>Klasifikační kód nebo hodnota</small>
+                <input type="text" id="classificationValue" value="${data.value || ''}" placeholder="${t('editor.example')} Ss_25_10_20">
+                <small>${t('editor.classValue')}</small>
             </div>
 
             <div class="form-group">
@@ -351,8 +351,8 @@ class IDSEditorModals {
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>Material Value:</label>
-                <input type="text" id="materialValue" value="${data.value || ''}" placeholder="např. Concrete, Steel">
-                <small>Název nebo typ materiálu</small>
+                <input type="text" id="materialValue" value="${data.value || ''}" placeholder="${t('editor.example')} Concrete, Steel">
+                <small>${t('editor.materialName')}</small>
             </div>
 
             <div class="form-group">
@@ -378,14 +378,14 @@ class IDSEditorModals {
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>Parent Entity:</label>
-                <input type="text" id="partOfEntity" value="${data.entity || ''}" placeholder="např. IFCBUILDING">
-                <small>Nadřazená IFC entita</small>
+                <input type="text" id="partOfEntity" value="${data.entity || ''}" placeholder="${t('editor.example')} IFCBUILDING">
+                <small>${t('editor.parentEntity')}</small>
             </div>
 
             <div class="form-group">
                 <label>Relation Type:</label>
                 <select id="partOfRelation">
-                    <option value="">-- Všechny relace --</option>
+                    <option value="">${t('editor.allRelations')}</option>
                     <option value="IFCRELAGGREGATES" ${data.relation === 'IFCRELAGGREGATES' ? 'selected' : ''}>IFCRELAGGREGATES</option>
                     <option value="IFCRELCONTAINEDINSPATIALSTRUCTURE" ${data.relation === 'IFCRELCONTAINEDINSPATIALSTRUCTURE' ? 'selected' : ''}>IFCRELCONTAINEDINSPATIALSTRUCTURE</option>
                     <option value="IFCRELVOIDSELEMENT" ${data.relation === 'IFCRELVOIDSELEMENT' ? 'selected' : ''}>IFCRELVOIDSELEMENT</option>
@@ -440,8 +440,8 @@ class IDSEditorModals {
                 return `
                     <div class="form-group">
                         <label>Regex Pattern:</label>
-                        <input type="text" id="restrictionPattern" value="${this.escapeHtml(value)}" placeholder="např. ^WALL.*">
-                        <small>Regulární výraz pro matching hodnot</small>
+                        <input type="text" id="restrictionPattern" value="${this.escapeHtml(value)}" placeholder="${t('editor.example')} ^WALL.*">
+                        <small>${t('editor.regexPattern')}</small>
                     </div>
                 `;
 
@@ -473,7 +473,7 @@ class IDSEditorModals {
 
                 enumHtml += `
                         </div>
-                        <button type="button" class="add-enum-btn" onclick="idsEditorModals.addEnumValue()">+ Přidat hodnotu</button>
+                        <button type="button" class="add-enum-btn" onclick="idsEditorModals.addEnumValue()">${t('editor.addValue')}</button>
                     </div>
                 `;
                 return enumHtml;
@@ -570,7 +570,7 @@ class IDSEditorModals {
 
             this.closeModal();
         } catch (error) {
-            alert('Chyba při ukládání: ' + error.message);
+            alert(t('editor.saveError') + ' ' + error.message);
         }
     }
 
@@ -753,29 +753,29 @@ class IDSEditorModals {
         this.currentSpecCallback = callback;
 
         const isEdit = !!specData.name;
-        document.getElementById('specModalTitle').textContent = isEdit ? '✏️ Upravit specifikaci' : '➕ Přidat specifikaci';
+        document.getElementById('specModalTitle').textContent = isEdit ? t('editor.editSpec') : t('editor.addSpec');
 
         document.getElementById('specModalBody').innerHTML = `
             <div class="form-group">
-                <label>Název specifikace:</label>
-                <input type="text" id="specName" value="${this.escapeHtml(specData.name || '')}" placeholder="např. Walls Fire Rating Check">
-                <small>Popisný název požadavku</small>
+                <label>${t('editor.specName')}</label>
+                <input type="text" id="specName" value="${this.escapeHtml(specData.name || '')}" placeholder="${t('editor.example')} Walls Fire Rating Check">
+                <small>${t('editor.specDescLabel')}</small>
             </div>
 
             <div class="form-group">
-                <label>IFC Verze:</label>
+                <label>${t('editor.ifcVersion')}</label>
                 <select id="specIfcVersion">
                     <option value="IFC2X3" ${specData.ifcVersion === 'IFC2X3' ? 'selected' : ''}>IFC2X3</option>
                     <option value="IFC4" ${!specData.ifcVersion || specData.ifcVersion === 'IFC4' ? 'selected' : ''}>IFC4</option>
                     <option value="IFC4X3" ${specData.ifcVersion === 'IFC4X3' ? 'selected' : ''}>IFC4X3</option>
                     <option value="IFC4X3_ADD2" ${specData.ifcVersion === 'IFC4X3_ADD2' ? 'selected' : ''}>IFC4X3_ADD2</option>
                 </select>
-                <small>Verze IFC schématu pro tuto specifikaci</small>
+                <small>${t('editor.ifcVersionDesc')}</small>
             </div>
 
             <div class="form-group">
-                <label>Popis (volitelné):</label>
-                <textarea id="specDescription" rows="3" placeholder="Podrobný popis požadavku...">${this.escapeHtml(specData.description || '')}</textarea>
+                <label>${t('editor.descriptionOptional')}</label>
+                <textarea id="specDescription" rows="3" placeholder="${t('editor.detailedDesc')}">${this.escapeHtml(specData.description || '')}</textarea>
             </div>
         `;
 
@@ -788,7 +788,7 @@ class IDSEditorModals {
     saveSpecification() {
         const name = document.getElementById('specName').value.trim();
         if (!name) {
-            alert('Název specifikace je povinný!');
+            alert(t('editor.specNameRequired'));
             return;
         }
 

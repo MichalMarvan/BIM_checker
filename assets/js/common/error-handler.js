@@ -83,8 +83,8 @@ class ErrorHandler {
                 <div class="toast-confirm-icon">❓</div>
                 <div class="toast-confirm-message">${this.escapeHtml(message)}</div>
                 <div class="toast-confirm-buttons">
-                    <button class="toast-btn toast-btn-cancel">Zrušit</button>
-                    <button class="toast-btn toast-btn-confirm">Potvrdit</button>
+                    <button class="toast-btn toast-btn-cancel">${t('error.cancel')}</button>
+                    <button class="toast-btn toast-btn-confirm">${t('error.confirm')}</button>
                 </div>
             </div>
         `;
@@ -142,8 +142,8 @@ class ErrorHandler {
                 <div class="toast-confirm-message">${this.escapeHtml(message)}</div>
                 <input type="text" class="toast-prompt-input" value="${this.escapeHtml(defaultValue)}" autofocus>
                 <div class="toast-confirm-buttons">
-                    <button class="toast-btn toast-btn-cancel">Zrušit</button>
-                    <button class="toast-btn toast-btn-confirm">Potvrdit</button>
+                    <button class="toast-btn toast-btn-cancel">${t('error.cancel')}</button>
+                    <button class="toast-btn toast-btn-confirm">${t('error.confirm')}</button>
                 </div>
             </div>
         `;

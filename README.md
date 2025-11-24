@@ -1,50 +1,50 @@
 # BIM Checker
 
-Profesionální nástroje pro validaci a analýzu BIM dat podle buildingSMART standardů.
+Professional tools for BIM data validation and analysis according to buildingSMART standards.
 
-## 🚀 Nástroje
+## 🚀 Tools
 
 ### 📊 IFC Multi-File Viewer
-Pokročilý prohlížeč pro analýzu a porovnání více IFC souborů současně.
+Advanced viewer for analyzing and comparing multiple IFC files simultaneously.
 
-**Funkce:**
-- Načtení více IFC souborů najednou
-- Společná tabulka všech entit z více souborů
-- Pokročilé vyhledávání (text i regex)
-- Správa PropertySetů s drag & drop
-- Export do CSV
-- Stránkování a filtry
-- Sticky columns pro lepší přehlednost
+**Features:**
+- Load multiple IFC files at once
+- Combined table of all entities from multiple files
+- Advanced search (text and regex)
+- PropertySet management with drag & drop
+- Export to CSV
+- Pagination and filters
+- Sticky columns for better clarity
 
-### 🔍 IDS Parser, Vizualizér a Editor
-Nástroj pro zobrazení, analýzu a editaci IDS (Information Delivery Specification) souborů.
+### 🔍 IDS Parser, Visualizer and Editor
+Tool for displaying, analyzing, and editing IDS (Information Delivery Specification) files.
 
-**Funkce:**
-- Parsování IDS souborů
-- Vizuální zobrazení specifikací
-- Stromová struktura
-- Raw XML zobrazení
-- Regex pattern vysvětlení
-- **✨ Plnohodnotný IDS editor**
-  - Vytvoření nového IDS od začátku
-  - Přidávání/editace/mazání specifikací
-  - Přidávání/editace/mazání facetů (Entity, Property, Attribute, Classification, Material, PartOf)
-  - Podpora všech typů omezení (simpleValue, pattern, enumeration, bounds)
-  - Stažení editovaného IDS jako XML soubor
-- Rozbalovací sekce pro přehlednost
+**Features:**
+- Parsing IDS files
+- Visual display of specifications
+- Tree structure
+- Raw XML view
+- Regex pattern explanation
+- **✨ Full-featured IDS editor**
+  - Create a new IDS from scratch
+  - Add/edit/delete specifications
+  - Add/edit/delete facets (Entity, Property, Attribute, Classification, Material, PartOf)
+  - Support for all restriction types (simpleValue, pattern, enumeration, bounds)
+  - Download edited IDS as an XML file
+- Collapsible sections for clarity
 
-### ✅ IDS-IFC Validátor
-Validace IFC modelů proti IDS specifikacím pro kontrolu kvality dat.
+### ✅ IDS-IFC Validator
+Validate IFC models against IDS specifications for data quality control.
 
-**Funkce:**
-- Validace IFC podle IDS standardu
-- Podpora Applicability & Requirements
-- Detailní výsledky validace pro každou entitu
-- Statistiky úspěšnosti
-- Filtrování výsledků
-- Export výsledků do CSV
+**Features:**
+- IFC validation according to IDS standard
+- Support for Applicability & Requirements
+- Detailed validation results for each entity
+- Success statistics
+- Result filtering
+- Export results to CSV
 
-## 🏃 Lokální spuštění
+## 🏃 Local Run
 
 ### Python HTTP Server
 ```bash
@@ -52,21 +52,21 @@ cd BIM_checker
 python3 -m http.server 8000
 ```
 
-Aplikace bude dostupná na: http://localhost:8000
+The application will be available at: http://localhost:8000
 
-### Node.js HTTP Server (alternativa)
+### Node.js HTTP Server (alternative)
 ```bash
 npx http-server -p 8000
 ```
 
-## 🌐 Nasazení na Vercel
+## 🌐 Deploy to Vercel
 
-### 1. Instalace Vercel CLI
+### 1. Install Vercel CLI
 ```bash
 npm install -g vercel
 ```
 
-### 2. Přihlášení
+### 2. Login
 ```bash
 vercel login
 ```
@@ -77,89 +77,89 @@ cd BIM_checker
 vercel
 ```
 
-Nebo jednoduchý deploy:
+Or simple deploy:
 ```bash
 vercel --prod
 ```
 
-### Automatický deploy z GitHubu
-1. Pushnout projekt na GitHub
-2. Propojit Vercel s GitHub repository
-3. Vercel automaticky deployuje při každém push
+### Automatic deploy from GitHub
+1. Push project to GitHub
+2. Link Vercel with GitHub repository
+3. Vercel automatically deploys on each push
 
-## 📁 Struktura projektu
+## 📁 Project Structure
 
 ```
 BIM_checker/
-├── index.html                           # Úvodní stránka
-├── pages/                                # HTML stránky nástrojů
+├── index.html                           # Main page
+├── pages/                                # Tool HTML pages
 │   ├── ifc-viewer-multi-file.html       # IFC Multi-File Viewer
 │   ├── ids-parser-visualizer.html       # IDS Parser & Editor
-│   └── ids-ifc-validator.html           # IDS-IFC Validátor
-├── assets/                               # Sdílené zdroje
-│   ├── css/                             # Stylové soubory
-│   │   └── ids-editor-styles.css        # Styly pro IDS editor
-│   └── js/                              # JavaScript moduly
-│       └── ids/                         # IDS editor moduly
-│           ├── ids-xml-generator.js     # Generování IDS XML
-│           ├── ids-editor-modals.js     # Modální okna pro facety
-│           └── ids-editor-core.js       # Hlavní logika editoru
-├── vercel.json                          # Vercel konfigurace
-├── .gitignore                           # Git ignore pravidla
-└── README.md                            # Dokumentace
+│   └── ids-ifc-validator.html           # IDS-IFC Validator
+├── assets/                               # Shared resources
+│   ├── css/                             # Style files
+│   │   └── ids-editor-styles.css        # Styles for IDS editor
+│   └── js/                              # JavaScript modules
+│       └── ids/                         # IDS editor modules
+│           ├── ids-xml-generator.js     # IDS XML generation
+│           ├── ids-editor-modals.js     # Modal windows for facets
+│           └── ids-editor-core.js       # Main editor logic
+├── vercel.json                          # Vercel configuration
+├── .gitignore                           # Git ignore rules
+└── README.md                            # Documentation
 ```
 
-## 🔧 Technologie
+## 🔧 Technologies
 
-- **HTML5** - Struktura aplikace
-- **CSS3** - Styling a responzivní design
-- **JavaScript (ES6+)** - Aplikační logika
+- **HTML5** - Application structure
+- **CSS3** - Styling and responsive design
+- **JavaScript (ES6+)** - Application logic
 - **IFC Standard** - Industry Foundation Classes
 - **IDS Standard** - Information Delivery Specification
-- **buildingSMART** - Standardy pro interoperabilitu
+- **buildingSMART** - Standards for interoperability
 
-## 🎯 Podporované standardy
+## 🎯 Supported Standards
 
 - **IFC 4.x** - Industry Foundation Classes
 - **IDS 1.0** - Information Delivery Specification
-- **buildingSMART** - Oficiální standardy pro BIM
+- **buildingSMART** - Official standards for BIM
 
-## 📋 Podporované facety (IDS Validace)
+## 📋 Supported Facets (IDS Validation)
 
-- **Entity** - Validace IFC entit
-- **Property** - Kontrola PropertySetů a hodnot
-- **Attribute** - Kontrola atributů (Name, GlobalId, atd.)
-- **Material** - Validace materiálů
-- **Classification** - Kontrola klasifikačních systémů
-- **PartOf** - Validace strukturálních vztahů
+- **Entity** - IFC entity validation
+- **Property** - PropertySet and value checking
+- **Attribute** - Attribute checking (Name, GlobalId, etc.)
+- **Material** - Material validation
+- **Classification** - Classification system checking
+- **PartOf** - Structural relationship validation
 
-## 🔒 Bezpečnost a soukromí
+## 🔒 Security and Privacy
 
-- Veškeré zpracování probíhá **lokálně v prohlížeči**
-- Žádná data nejsou odesílána na server
-- Žádné ukládání souborů na cloud
-- Aplikace funguje i offline (po prvním načtení)
+- All processing happens **locally in the browser**
+- No data is sent to servers
+- No file storage in the cloud
+- The application works offline (after initial load)
 
-## 🌍 Prohlížeče
+## 🌍 Browsers
 
-Aplikace funguje ve všech moderních prohlížečích:
-- Chrome/Edge (doporučeno)
+The application works in all modern browsers:
+- Chrome/Edge (recommended)
 - Firefox
 - Safari
 - Opera
 
-## 📝 Licence
+## 📝 License
 
-Tento projekt je open-source a dostupný pro volné použití.
+This project is open-source and available for free use.
 
-## 🤝 Přispění
+## 🤝 Contributing
 
-Příspěvky jsou vítány! Neváhejte otevřít issue nebo pull request.
+Contributions are welcome! Feel free to open an issue or pull request.
 
-## 📧 Kontakt
+## 📧 Contact
 
-Pro dotazy a zpětnou vazbu kontaktujte autora projektu.
+For questions and feedback, contact the project author.
 
 ---
 
-**BIM Checker** - Nástroje pro práci s BIM daty | 2024
+**BIM Checker** - Tools for working with BIM data | 2024

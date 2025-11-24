@@ -11,39 +11,43 @@
 <body>
     <div class="page-container">
         <div class="header">
-            <h1>🏗️ BIM Checker</h1>
-            <p>Profesionální nástroje pro validaci a analýzu BIM dat</p>
+            <div class="language-switcher">
+                <button class="lang-btn active" data-lang="cs">CZ</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+            </div>
+            <h1 data-i18n="app.title">🏗️ BIM Checker</h1>
+            <p data-i18n="app.subtitle">Profesionální nástroje pro validaci a analýzu BIM dat</p>
         </div>
 
         <div class="content">
             <!-- FILE STORAGE SECTION -->
             <div class="storage-section">
-                <h2 class="section-title">📦 Úložiště souborů</h2>
-                <p class="section-subtitle">Nahrajte a organizujte své IFC a IDS soubory pro snadné použití napříč aplikacemi</p>
+                <h2 class="section-title" data-i18n="storage.title">📦 Úložiště souborů</h2>
+                <p class="section-subtitle" data-i18n="storage.subtitle">Nahrajte a organizujte své IFC a IDS soubory pro snadné použití napříč aplikacemi</p>
 
                 <div class="storage-grid">
                     <!-- IFC Storage Panel -->
                     <div class="storage-panel">
                         <div class="panel-header">
-                            <h3>🏗️ IFC Soubory</h3>
+                            <h3 data-i18n="storage.ifc">🏗️ IFC Soubory</h3>
                             <div class="panel-actions">
-                                <button class="btn-icon" id="ifcNewFolderBtn" title="Nová složka">📁+</button>
-                                <button class="btn-icon" id="ifcUploadBtn" title="Nahrát soubory">⬆️</button>
-                                <button class="btn-icon" id="ifcExpandAllBtn" title="Rozbalit vše">⬇️</button>
-                                <button class="btn-icon" id="ifcCollapseAllBtn" title="Sbalit vše">⬆️</button>
+                                <button class="btn-icon" id="ifcNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">📁+</button>
+                                <button class="btn-icon" id="ifcUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">⬆️</button>
+                                <button class="btn-icon" id="ifcExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">⬇️</button>
+                                <button class="btn-icon" id="ifcCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">⬆️</button>
                             </div>
                         </div>
                         <div class="drop-zone" id="ifcDropZone">
                             <div class="drop-zone-content">
                                 <div class="drop-icon">📁</div>
-                                <p>Přetáhněte IFC soubory sem</p>
-                                <p class="drop-hint">nebo klikněte pro výběr</p>
+                                <p data-i18n="storage.dropZone.ifc">Přetáhněte IFC soubory sem</p>
+                                <p class="drop-hint" data-i18n="storage.dropHint">nebo klikněte pro výběr</p>
                             </div>
                         </div>
                         <div class="file-tree" id="ifcFileTree"></div>
                         <div class="storage-stats" id="ifcStats">
-                            <span>Souborů: <strong>0</strong></span>
-                            <span>Velikost: <strong>0 KB</strong></span>
+                            <span><span data-i18n="storage.files">Souborů</span>: <strong>0</strong></span>
+                            <span><span data-i18n="storage.size">Velikost</span>: <strong>0 KB</strong></span>
                         </div>
                         <input type="file" id="ifcFileInput" accept=".ifc" multiple style="display: none;">
                     </div>
@@ -51,25 +55,25 @@
                     <!-- IDS Storage Panel -->
                     <div class="storage-panel">
                         <div class="panel-header">
-                            <h3>📋 IDS Soubory</h3>
+                            <h3 data-i18n="storage.ids">📋 IDS Soubory</h3>
                             <div class="panel-actions">
-                                <button class="btn-icon" id="idsNewFolderBtn" title="Nová složka">📁+</button>
-                                <button class="btn-icon" id="idsUploadBtn" title="Nahrát soubory">⬆️</button>
-                                <button class="btn-icon" id="idsExpandAllBtn" title="Rozbalit vše">⬇️</button>
-                                <button class="btn-icon" id="idsCollapseAllBtn" title="Sbalit vše">⬆️</button>
+                                <button class="btn-icon" id="idsNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">📁+</button>
+                                <button class="btn-icon" id="idsUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">⬆️</button>
+                                <button class="btn-icon" id="idsExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">⬇️</button>
+                                <button class="btn-icon" id="idsCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">⬆️</button>
                             </div>
                         </div>
                         <div class="drop-zone" id="idsDropZone">
                             <div class="drop-zone-content">
                                 <div class="drop-icon">📋</div>
-                                <p>Přetáhněte IDS soubory sem</p>
-                                <p class="drop-hint">nebo klikněte pro výběr</p>
+                                <p data-i18n="storage.dropZone.ids">Přetáhněte IDS soubory sem</p>
+                                <p class="drop-hint" data-i18n="storage.dropHint">nebo klikněte pro výběr</p>
                             </div>
                         </div>
                         <div class="file-tree" id="idsFileTree"></div>
                         <div class="storage-stats" id="idsStats">
-                            <span>Souborů: <strong>0</strong></span>
-                            <span>Velikost: <strong>0 KB</strong></span>
+                            <span><span data-i18n="storage.files">Souborů</span>: <strong>0</strong></span>
+                            <span><span data-i18n="storage.size">Velikost</span>: <strong>0 KB</strong></span>
                         </div>
                         <input type="file" id="idsFileInput" accept=".ids,.xml" multiple style="display: none;">
                     </div>
@@ -79,66 +83,66 @@
             <div class="tools-grid">
                 <a href="pages/ifc-viewer-multi-file.html" class="tool-card">
                     <div class="tool-icon">📊</div>
-                    <div class="tool-title">IFC Multi-File Viewer</div>
-                    <div class="tool-description">
+                    <div class="tool-title" data-i18n="tools.viewer.title">IFC Multi-File Viewer</div>
+                    <div class="tool-description" data-i18n="tools.viewer.desc">
                         Pokročilý prohlížeč pro analýzu a porovnání více IFC souborů současně
                     </div>
                     <div class="tool-features">
                         <ul>
-                            <li>Načtení více IFC souborů</li>
-                            <li>Společná tabulka všech entit</li>
-                            <li>Pokročilé vyhledávání (text/regex)</li>
-                            <li>Správa PropertySetů</li>
-                            <li>Export do CSV</li>
-                            <li>Stránkování a filtry</li>
+                            <li data-i18n="tools.viewer.feature1">Načtení více IFC souborů</li>
+                            <li data-i18n="tools.viewer.feature2">Společná tabulka všech entit</li>
+                            <li data-i18n="tools.viewer.feature3">Pokročilé vyhledávání (text/regex)</li>
+                            <li data-i18n="tools.viewer.feature4">Správa PropertySetů</li>
+                            <li data-i18n="tools.viewer.feature5">Export do CSV</li>
+                            <li data-i18n="tools.viewer.feature6">Stránkování a filtry</li>
                         </ul>
                     </div>
                 </a>
 
                 <a href="pages/ids-parser-visualizer.html" class="tool-card">
                     <div class="tool-icon">🔍</div>
-                    <div class="tool-title">IDS Parser a Vizualizér</div>
-                    <div class="tool-description">
+                    <div class="tool-title" data-i18n="tools.parser.title">IDS Parser a Vizualizér</div>
+                    <div class="tool-description" data-i18n="tools.parser.desc">
                         Nástroj pro zobrazení a analýzu IDS (Information Delivery Specification) souborů
                     </div>
                     <div class="tool-features">
                         <ul>
-                            <li>Parsování IDS souborů</li>
-                            <li>Vizuální zobrazení specifikací</li>
-                            <li>Stromová struktura</li>
-                            <li>Raw XML zobrazení</li>
-                            <li>Regex pattern vysvětlení</li>
-                            <li>Rozbalovací sekce</li>
+                            <li data-i18n="tools.parser.feature1">Parsování IDS souborů</li>
+                            <li data-i18n="tools.parser.feature2">Vizuální zobrazení specifikací</li>
+                            <li data-i18n="tools.parser.feature3">Stromová struktura</li>
+                            <li data-i18n="tools.parser.feature4">Raw XML zobrazení</li>
+                            <li data-i18n="tools.parser.feature5">Regex pattern vysvětlení</li>
+                            <li data-i18n="tools.parser.feature6">Rozbalovací sekce</li>
                         </ul>
                     </div>
                 </a>
 
                 <a href="pages/ids-ifc-validator.html" class="tool-card">
                     <div class="tool-icon">✅</div>
-                    <div class="tool-title">IDS-IFC Validátor</div>
-                    <div class="tool-description">
+                    <div class="tool-title" data-i18n="tools.validator.title">IDS-IFC Validátor</div>
+                    <div class="tool-description" data-i18n="tools.validator.desc">
                         Validace IFC modelů proti IDS specifikacím pro kontrolu kvality dat
                     </div>
                     <div class="tool-features">
                         <ul>
-                            <li>Validace IFC podle IDS</li>
-                            <li>Applicability & Requirements</li>
-                            <li>Detailní výsledky validace</li>
-                            <li>Statistiky úspěšnosti</li>
-                            <li>Filtrování výsledků</li>
-                            <li>CSV export</li>
+                            <li data-i18n="tools.validator.feature1">Validace IFC podle IDS</li>
+                            <li data-i18n="tools.validator.feature2">Applicability & Requirements</li>
+                            <li data-i18n="tools.validator.feature3">Detailní výsledky validace</li>
+                            <li data-i18n="tools.validator.feature4">Statistiky úspěšnosti</li>
+                            <li data-i18n="tools.validator.feature5">Filtrování výsledků</li>
+                            <li data-i18n="tools.validator.feature6">CSV export</li>
                         </ul>
                     </div>
                 </a>
             </div>
 
             <div class="about-section">
-                <h2>📚 O projektu</h2>
+                <h2 data-i18n="about.title">📚 O projektu</h2>
                 <div class="about-content">
                     <div class="about-item">
                         <div class="about-icon">🎯</div>
-                        <div class="about-title">Účel</div>
-                        <div class="about-text">
+                        <div class="about-title" data-i18n="about.purpose.title">Účel</div>
+                        <div class="about-text" data-i18n="about.purpose.text">
                             BIM Checker je sada nástrojů pro práci s IFC a IDS standardy.
                             Umožňuje kontrolu kvality, analýzu a validaci BIM dat podle
                             buildingSMART standardů.
@@ -147,8 +151,8 @@
 
                     <div class="about-item">
                         <div class="about-icon">🔧</div>
-                        <div class="about-title">Technologie</div>
-                        <div class="about-text">
+                        <div class="about-title" data-i18n="about.tech.title">Technologie</div>
+                        <div class="about-text" data-i18n="about.tech.text">
                             Aplikace běží přímo v prohlížeči bez nutnosti instalace.
                             Veškeré zpracování probíhá lokálně na vašem zařízení,
                             data nejsou odesílána na server.
@@ -157,8 +161,8 @@
 
                     <div class="about-item">
                         <div class="about-icon">🌟</div>
-                        <div class="about-title">Výhody</div>
-                        <div class="about-text">
+                        <div class="about-title" data-i18n="about.benefits.title">Výhody</div>
+                        <div class="about-text" data-i18n="about.benefits.text">
                             Rychlé, bezpečné a bez závislostí. Žádná registrace,
                             žádné limity, žádné nahrávání dat na cloud.
                             Vše funguje offline po prvním načtení.
@@ -167,8 +171,8 @@
 
                     <div class="about-item">
                         <div class="about-icon">📖</div>
-                        <div class="about-title">Standardy</div>
-                        <div class="about-text">
+                        <div class="about-title" data-i18n="about.standards.title">Standardy</div>
+                        <div class="about-text" data-i18n="about.standards.text">
                             Implementováno podle buildingSMART standardů.
                             Podporuje IFC 4.x a IDS 1.0 specifikace
                             pro zajištění interoperability.
@@ -178,8 +182,8 @@
             </div>
 
             <div class="footer">
-                <p><strong>BIM Checker</strong> - Nástroje pro práci s BIM daty</p>
-                <p>Verze 1.0 | 2024</p>
+                <p><strong data-i18n="app.title">BIM Checker</strong> - <span data-i18n="footer.text">Nástroje pro práci s BIM daty</span></p>
+                <p><span data-i18n="app.version">Beta verze 0.1</span> | <span data-i18n="app.year">2025</span></p>
                 <div class="tech-stack">
                     <span class="tech-badge">HTML5</span>
                     <span class="tech-badge">CSS3</span>
@@ -196,8 +200,8 @@
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <div class="loading-text">Nahrávám soubory...</div>
-            <div class="loading-subtext" id="loadingSubtext">Prosím čekejte...</div>
+            <div class="loading-text" data-i18n="loading.files">Nahrávám soubory...</div>
+            <div class="loading-subtext" id="loadingSubtext" data-i18n="loading.subtext">Prosím čekejte...</div>
             <div class="progress-bar-container">
                 <div class="progress-bar" id="progressBar">0%</div>
             </div>
@@ -205,6 +209,8 @@
         </div>
     </div>
 
+    <script src="assets/js/common/translations.js"></script>
+    <script src="assets/js/common/i18n.js"></script>
     <script src="assets/js/common/error-handler.js"></script>
     <script src="assets/js/common/storage.js"></script>
     <script src="assets/js/index.js"></script>

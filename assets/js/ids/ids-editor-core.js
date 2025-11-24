@@ -55,7 +55,7 @@ class IDSEditorCore {
     createNewIDS() {
         console.log('createNewIDS called');
         if (this.hasUnsavedChanges) {
-            if (!confirm('Máte neuložené změny. Opravdu chcete vytvořit nový IDS?')) {
+            if (!confirm(t('editor.unsavedChanges'))) {
                 return;
             }
         }
@@ -79,7 +79,7 @@ class IDSEditorCore {
         this.enableEditMode();
 
         // Show success message
-        this.showMessage('Nový IDS byl vytvořen', 'success');
+        this.showMessage(t('editor.newIdsCreated'), 'success');
     }
 
     /**
@@ -220,14 +220,14 @@ class IDSEditorCore {
         html += '<h3 style="margin: 0;">Specifications</h3>';
         if (this.idsData.specifications.length > 0) {
             html += '<div class="collapse-controls">';
-            html += '<button class="btn btn-sm btn-secondary" onclick="idsEditorCore.collapseAll()">⬆ Sbalit vše</button>';
-            html += '<button class="btn btn-sm btn-secondary" onclick="idsEditorCore.expandAll()">⬇ Rozbalit vše</button>';
+            html += `<button class="btn btn-sm btn-secondary" onclick="idsEditorCore.collapseAll()">${t('editor.collapseAll')}</button>`;
+            html += `<button class="btn btn-sm btn-secondary" onclick="idsEditorCore.expandAll()">${t('editor.expandAll')}</button>`;
             html += '</div>';
         }
         html += '</div>';
 
         if (this.idsData.specifications.length === 0) {
-            html += '<p class="empty-message">Žádné specifikace. Klikněte na "Editační režim" a přidejte novou.</p>';
+            html += `<p class="empty-message">${t('editor.noSpecs')}</p>`;
         } else {
             this.idsData.specifications.forEach((spec, index) => {
                 html += this.renderSpecification(spec, index);
@@ -235,7 +235,7 @@ class IDSEditorCore {
         }
 
         if (this.editMode) {
-            html += '<button class="add-facet-btn" onclick="idsEditorCore.addSpecification()">+ Přidat specifikaci</button>';
+            html += `<button class="add-facet-btn" onclick="idsEditorCore.addSpecification()">${t('editor.addSpecification')}</button>`;
         }
 
         html += '</div>';
@@ -268,7 +268,7 @@ class IDSEditorCore {
         html += '</div>';
 
         if (this.editMode) {
-            html += '<button class="btn btn-secondary" onclick="idsEditorCore.editInfo()">✏️ Upravit info</button>';
+            html += `<button class="btn btn-secondary" onclick="idsEditorCore.editInfo()">${t('editor.editInfo')}</button>`;
         }
 
         html += '</div>';
@@ -310,10 +310,10 @@ class IDSEditorCore {
                 html += this.renderFacet(facet, index, 'applicability', facetIndex);
             });
         } else {
-            html += '<p class="empty-message">Žádné applicability facety</p>';
+            html += `<p class="empty-message">${t('editor.noApplicability')}</p>`;
         }
         if (this.editMode) {
-            html += `<button class="add-facet-btn" onclick="idsEditorCore.addFacet(${index}, 'applicability')">+ Přidat applicability</button>`;
+            html += `<button class="add-facet-btn" onclick="idsEditorCore.addFacet(${index}, 'applicability')">${t('editor.addApplicability')}</button>`;
         }
         html += '</div>';
         html += '</div>';
@@ -331,10 +331,10 @@ class IDSEditorCore {
                 html += this.renderFacet(facet, index, 'requirements', facetIndex);
             });
         } else {
-            html += '<p class="empty-message">Žádné requirements facety</p>';
+            html += `<p class="empty-message">${t('editor.noRequirements')}</p>`;
         }
         if (this.editMode) {
-            html += `<button class="add-facet-btn" onclick="idsEditorCore.addFacet(${index}, 'requirements')">+ Přidat requirement</button>`;
+            html += `<button class="add-facet-btn" onclick="idsEditorCore.addFacet(${index}, 'requirements')">${t('editor.addRequirement')}</button>`;
         }
         html += '</div>';
         html += '</div>';
@@ -430,7 +430,7 @@ class IDSEditorCore {
      */
     toggleEditMode() {
         if (!this.idsData) {
-            alert('Nejprve nahrajte IDS soubor nebo vytvořte nový.');
+            alert(t('editor.loadFirst'));
             return;
         }
 
@@ -452,7 +452,7 @@ class IDSEditorCore {
         this.editMode = true;
         const btn = document.getElementById('toggleEditBtn');
         if (btn) {
-            btn.textContent = '👁️ Režim zobrazení';
+            btn.textContent = t('editor.viewModeBtn');
             btn.classList.remove('btn-primary');
             btn.classList.add('btn-secondary');
         }
@@ -466,7 +466,7 @@ class IDSEditorCore {
         this.editMode = false;
         const btn = document.getElementById('toggleEditBtn');
         if (btn) {
-            btn.textContent = '✏️ Editační režim';
+            btn.textContent = t('editor.editModeBtn');
             btn.classList.remove('btn-secondary');
             btn.classList.add('btn-primary');
         }
@@ -511,7 +511,7 @@ class IDSEditorCore {
      * Delete specification
      */
     deleteSpecification(index) {
-        if (!confirm('Opravdu chcete smazat tuto specifikaci?')) return;
+        if (!confirm(t('editor.confirmDeleteSpec'))) return;
 
         this.idsData.specifications.splice(index, 1);
         this.hasUnsavedChanges = true;
@@ -577,7 +577,7 @@ class IDSEditorCore {
      * Delete facet
      */
     deleteFacet(specIndex, section, facetIndex) {
-        if (!confirm('Opravdu chcete smazat tento facet?')) return;
+        if (!confirm(t('editor.confirmDeleteFacet'))) return;
 
         this.idsData.specifications[specIndex][section].splice(facetIndex, 1);
         this.hasUnsavedChanges = true;
@@ -601,15 +601,15 @@ class IDSEditorCore {
                     <div class="form-group">
                         <label>Title: <span style="color: red;">*</span></label>
                         <input type="text" id="editInfoTitle" value="${this.escapeHtml(this.idsData.title)}" required>
-                        <small>Povinné pole</small>
+                        <small>${t('editor.requiredField')}</small>
                     </div>
                     <div class="form-group">
                         <label>Version:</label>
-                        <input type="text" id="editInfoVersion" value="${this.escapeHtml(this.idsData.version || '')}" placeholder="např. 1.0">
+                        <input type="text" id="editInfoVersion" value="${this.escapeHtml(this.idsData.version || '')}" placeholder="${t('editor.example')} 1.0">
                     </div>
                     <div class="form-group">
                         <label>Author:</label>
-                        <input type="text" id="editInfoAuthor" value="${this.escapeHtml(this.idsData.author || '')}" placeholder="Jméno autora">
+                        <input type="text" id="editInfoAuthor" value="${this.escapeHtml(this.idsData.author || '')}" placeholder="${t('editor.authorName')}">
                     </div>
                     <div class="form-group">
                         <label>Date:</label>
@@ -617,27 +617,27 @@ class IDSEditorCore {
                     </div>
                     <div class="form-group">
                         <label>Copyright:</label>
-                        <input type="text" id="editInfoCopyright" value="${this.escapeHtml(this.idsData.copyright || '')}" placeholder="Copyright informace">
+                        <input type="text" id="editInfoCopyright" value="${this.escapeHtml(this.idsData.copyright || '')}" placeholder="Copyright">
                     </div>
                     <div class="form-group">
                         <label>Description:</label>
                         <textarea id="editInfoDescription" rows="3">${this.escapeHtml(this.idsData.description || '')}</textarea>
-                        <small>Popis účelu IDS specifikace</small>
+                        <small>${t('editor.purposeDesc')}</small>
                     </div>
                     <div class="form-group">
                         <label>Purpose:</label>
                         <textarea id="editInfoPurpose" rows="2">${this.escapeHtml(this.idsData.purpose || '')}</textarea>
-                        <small>Účel použití této specifikace</small>
+                        <small>${t('editor.purposeUse')}</small>
                     </div>
                     <div class="form-group">
                         <label>Milestone:</label>
-                        <input type="text" id="editInfoMilestone" value="${this.escapeHtml(this.idsData.milestone || '')}" placeholder="např. Design, Construction, As-Built">
-                        <small>Fáze projektu</small>
+                        <input type="text" id="editInfoMilestone" value="${this.escapeHtml(this.idsData.milestone || '')}" placeholder="${t('editor.example')} Design, Construction, As-Built">
+                        <small>${t('editor.projectPhase')}</small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Zrušit</button>
-                    <button class="btn btn-primary" onclick="idsEditorCore.saveInfo()">Uložit</button>
+                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">${t('editor.cancel')}</button>
+                    <button class="btn btn-primary" onclick="idsEditorCore.saveInfo()">${t('editor.save')}</button>
                 </div>
             </div>
         `;
@@ -650,9 +650,9 @@ class IDSEditorCore {
     saveInfo() {
         const title = document.getElementById('editInfoTitle').value.trim();
 
-        // Title je povinné
+        // Title is required
         if (!title) {
-            alert('Title je povinné pole!');
+            alert(t('editor.titleRequired'));
             return;
         }
 
@@ -676,14 +676,14 @@ class IDSEditorCore {
      */
     downloadIDS() {
         if (!this.idsData) {
-            alert('Žádná data k uložení.');
+            alert(t('editor.noDataToSave'));
             return;
         }
 
         const filename = (this.idsData.title || 'specification').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.ids';
         this.xmlGenerator.downloadIDS(this.idsData, filename);
         this.hasUnsavedChanges = false;
-        this.showMessage('IDS byl stažen', 'success');
+        this.showMessage(t('editor.idsDownloaded'), 'success');
     }
 
     /**

@@ -736,3 +736,55 @@ body {
         max-width: unset;
     }
 }
+
+/* ===========================================
+   LANGUAGE SWITCHER
+   =========================================== */
+
+.language-switcher {
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.lang-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+    letter-spacing: 0.5px;
+}
+
+.lang-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.lang-btn.active {
+    background: white;
+    color: #667eea;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Mobile language switcher */
+@media (max-width: 768px) {
+    .language-switcher {
+        position: static;
+        transform: none;
+        margin: 0 auto 15px;
+        width: fit-content;
+    }
+}

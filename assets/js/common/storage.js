@@ -81,7 +81,7 @@ class StorageManager {
                 folders: {
                     root: {
                         id: 'root',
-                        name: 'Kořenová složka',
+                        name: t('storage.rootFolder'),
                         parent: null,
                         children: [],
                         files: [],
@@ -122,7 +122,7 @@ class StorageManager {
                 folders: {
                     root: {
                         id: 'root',
-                        name: 'Kořenová složka',
+                        name: t('storage.rootFolder'),
                         parent: null,
                         children: [],
                         files: [],
@@ -142,7 +142,7 @@ class StorageManager {
             return true;
         } catch (e) {
             console.error('Error saving storage:', e);
-            ErrorHandler.error('Chyba při ukládání dat!');
+            ErrorHandler.error(t('msg.storageError'));
             return false;
         }
     }

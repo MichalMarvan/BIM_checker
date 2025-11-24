@@ -76,7 +76,8 @@ class FilePanel {
         });
 
         if (validFiles.length === 0) {
-            ErrorHandler.error(`Pouze ${extensions.join(', ')} soubory jsou povoleny!`);
+            const errorKey = this.type === 'ifc' ? 'validator.error.onlyIfcAllowed' : 'validator.error.onlyIdsAllowed';
+            ErrorHandler.error(i18n.t(errorKey));
             return;
         }
 
@@ -85,7 +86,7 @@ class FilePanel {
         if (largeFiles.length > 0) {
             const fileList = largeFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`).join(', ');
             ErrorHandler.confirm(
-                `Některé soubory jsou velké a nahrávání může trvat déle: ${fileList}. Pokračovat?`,
+                `${i18n.t('msg.fileTooBig')}: ${fileList}. ${i18n.t('msg.continue')}`,
                 () => this.uploadFiles(validFiles)
             );
             return;
@@ -109,7 +110,7 @@ class FilePanel {
             const fileNum = processed + 1;
             const sizeMB = (file.size / 1024 / 1024).toFixed(1);
 
-            loadingSubtext.textContent = `Soubor ${fileNum} z ${validFiles.length}`;
+            loadingSubtext.textContent = `${i18n.t('parser.storage.fileCount')} ${fileNum} / ${validFiles.length}`;
             fileInfo.textContent = `${file.name} (${sizeMB} MB)`;
 
             const reader = new FileReader();
@@ -128,7 +129,7 @@ class FilePanel {
 
             await new Promise((resolve) => {
                 reader.onload = async (e) => {
-                    loadingSubtext.textContent = 'Ukládám do databáze...';
+                    loadingSubtext.textContent = i18n.t('loading.database');
                     await this.storage.addFile({
                         name: file.name,
                         size: file.size,
@@ -143,7 +144,7 @@ class FilePanel {
                     resolve();
                 };
                 reader.onerror = () => {
-                    ErrorHandler.error(`Chyba při čtení souboru: ${file.name}`);
+                    ErrorHandler.error(`${i18n.t('msg.readError')}: ${file.name}`);
                     processed++;
                     resolve();
                 };
@@ -155,18 +156,18 @@ class FilePanel {
         loadingOverlay.classList.remove('show');
 
         this.render();
-        ErrorHandler.success(`Úspěšně nahráno ${validFiles.length} souborů`);
+        ErrorHandler.success(`${i18n.t('msg.success')} ${validFiles.length} ${i18n.t('msg.files')}`);
     }
 
     async createNewFolder() {
-        ErrorHandler.prompt('Název nové složky:', '', async (name) => {
+        ErrorHandler.prompt(i18n.t('msg.folderName'), '', async (name) => {
             await this.storage.createFolder(name, this.selectedFolder);
             this.render();
         });
     }
 
     async deleteFolder(folderId) {
-        ErrorHandler.confirm('Smazat složku a všechny její soubory?', async () => {
+        ErrorHandler.confirm(i18n.t('msg.deleteFolder'), async () => {
             await this.storage.deleteFolder(folderId);
             this.render();
         });
@@ -174,14 +175,14 @@ class FilePanel {
 
     async renameFolder(folderId) {
         const folder = this.storage.metadata.folders[folderId];
-        ErrorHandler.prompt('Nový název složky:', folder.name, async (newName) => {
+        ErrorHandler.prompt(i18n.t('msg.newFolderName'), folder.name, async (newName) => {
             await this.storage.renameFolder(folderId, newName);
             this.render();
         });
     }
 
     async deleteFile(fileId) {
-        ErrorHandler.confirm('Smazat soubor?', async () => {
+        ErrorHandler.confirm(i18n.t('btn.delete'), async () => {
             await this.storage.deleteFile(fileId);
             this.render();
         });
@@ -217,6 +218,9 @@ class FilePanel {
         // Arrow for expand/collapse
         const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
 
+        // Use translation for root folder name
+        const folderName = folderId === 'root' ? t('storage.rootFolder') : folder.name;
+
         let html = `
             <div class="tree-folder" data-folder-id="${folderId}">
                 <div class="tree-folder-header ${this.selectedFolder === folderId ? 'selected' : ''}"
@@ -226,11 +230,11 @@ class FilePanel {
                      ondrop="filePanel_${this.type}.handleDrop(event, '${folderId}')">
                     <span class="folder-arrow" onclick="event.stopPropagation(); filePanel_${this.type}.toggleFolder('${folderId}')">${arrow}</span>
                     <span class="folder-icon">📁</span>
-                    <span class="folder-name">${folder.name}</span>
+                    <span class="folder-name">${folderName}</span>
                     ${folderId !== 'root' ? `
                     <div class="folder-actions">
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="Přejmenovat">✏️</button>
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFolder('${folderId}')" title="Smazat">🗑️</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="${i18n.t(btn.rename)}">✏️</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFolder('${folderId}')" title="${i18n.t(btn.delete)}">🗑️</button>
                     </div>` : ''}
                 </div>
                 <div class="tree-folder-children ${isExpanded ? 'expanded' : ''}">
@@ -265,7 +269,7 @@ class FilePanel {
                     <span class="file-name">${file.name}</span>
                     <span class="file-size">${sizeKB} KB</span>
                     <div class="file-actions">
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFile('${file.id}')" title="Smazat">🗑️</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFile('${file.id}')" title="${i18n.t('btn.delete')}">🗑️</button>
                     </div>
                 </div>
             `;
@@ -282,8 +286,8 @@ class FilePanel {
         const stats = this.storage.getStats();
         const sizeKB = (stats.totalSize / 1024).toFixed(1);
         this.elements.stats.innerHTML = `
-            <span>Souborů: <strong>${stats.fileCount}</strong></span>
-            <span>Velikost: <strong>${sizeKB} KB</strong></span>
+            <span>${i18n.t('storage.files')}: <strong>${stats.fileCount}</strong></span>
+            <span>${i18n.t('storage.size')}: <strong>${sizeKB} KB</strong></span>
         `;
     }
 
@@ -371,4 +375,10 @@ let filePanel_ifc, filePanel_ids;
 window.addEventListener('DOMContentLoaded', () => {
     filePanel_ifc = new FilePanel('ifc', 'bim_checker_ifc_storage');
     filePanel_ids = new FilePanel('ids', 'bim_checker_ids_storage');
+});
+
+// Re-render file trees when language changes
+window.addEventListener('languageChanged', () => {
+    if (filePanel_ifc) filePanel_ifc.render();
+    if (filePanel_ids) filePanel_ids.render();
 });

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IFC Multi-File Viewer</title>
+    <title data-i18n="viewer.title"></title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="stylesheet" href="../assets/css/common.css">
     <link rel="stylesheet" href="../assets/css/ifc-viewer.css">
@@ -11,18 +11,22 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="../index.html" class="back-home-btn">← Domů</a>
-            <h1>📊 IFC Multi-File Viewer</h1>
-            <p>Načtěte více IFC souborů a zobrazte je v jedné společné tabulce</p>
+            <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
+            <div class="language-switcher">
+                <button class="lang-btn active" data-lang="cs">CZ</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+            </div>
+            <h1 data-i18n="viewer.title">📊 IFC Multi-File Viewer</h1>
+            <p data-i18n="viewer.subtitle">Načtěte více IFC souborů a zobrazte je v jedné společné tabulce</p>
         </div>
 
         <div class="upload-section">
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📁</div>
-                <div class="upload-text">Klikněte nebo přetáhněte jeden nebo více IFC souborů</div>
+                <div class="upload-text" data-i18n="viewer.upload">Klikněte nebo přetáhněte jeden nebo více IFC souborů</div>
                 <input type="file" id="fileInput" accept=".ifc" multiple>
             </div>
-            <button class="btn btn-primary" id="loadFromStorageBtn" style="margin: 15px 0; width: 100%; font-size: 1.1em;">
+            <button class="btn btn-primary" id="loadFromStorageBtn" style="margin: 15px 0; width: 100%; font-size: 1.1em;" data-i18n="viewer.loadFromStorage">
                 📦 Načíst z úložiště
             </button>
             <div class="file-list" id="fileList"></div>
@@ -30,7 +34,7 @@
 
         <div class="loading" id="loading">
             <div class="loading-spinner"></div>
-            <div>Načítám IFC soubory...</div>
+            <div data-i18n="viewer.loading">Načítám IFC soubory...</div>
             <div class="progress-container">
                 <div class="progress-bar" id="progressBar">0%</div>
             </div>
@@ -38,51 +42,51 @@
         </div>
 
         <div class="edit-panel" id="editPanel">
-            <h3>🎯 Hromadné operace</h3>
-            <p>Vybráno: <span class="selected-count" id="selectedCount">0</span> entit <span id="totalFilteredCount" style="color: #6c757d; font-weight: normal;"></span></p>
+            <h3 data-i18n="viewer.bulkOps">🎯 Hromadné operace</h3>
+            <p><span data-i18n="viewer.selected">Vybráno</span>: <span class="selected-count" id="selectedCount">0</span> <span data-i18n="viewer.entities">entit</span> <span id="totalFilteredCount" style="color: #6c757d; font-weight: normal;"></span></p>
             <div class="edit-panel-buttons">
-                <button class="btn btn-warning" id="bulkEditBtn" disabled>✏️ Hromadná úprava PSetu</button>
-                <button class="btn btn-success" id="addPsetBtn" disabled>➕ Přidat PropertySet</button>
-                <button class="btn btn-info" id="renamePsetBtn" disabled>🔄 Přejmenovat PropertySet</button>
-                <button class="btn btn-info" id="renamePropertyBtn" disabled>🔄 Přejmenovat Property</button>
-                <button class="btn btn-primary" id="exportIfcBtn" disabled>💾 Uložit upravený IFC</button>
-                <button class="btn btn-secondary" id="selectAllVisibleBtn">☑️ Vybrat vše na stránce</button>
-                <button class="btn btn-success" id="selectAllPagesBtn">☑️☑️ Vybrat vše na VŠECH stránkách</button>
-                <button class="btn btn-secondary" id="deselectAllBtn">☐ Zrušit výběr</button>
+                <button class="btn btn-warning" id="bulkEditBtn" disabled data-i18n="viewer.bulkEdit">✏️ Hromadná úprava PSetu</button>
+                <button class="btn btn-success" id="addPsetBtn" disabled data-i18n="viewer.addPset">➕ Přidat PropertySet</button>
+                <button class="btn btn-info" id="renamePsetBtn" disabled data-i18n="viewer.renamePset">🔄 Přejmenovat PropertySet</button>
+                <button class="btn btn-info" id="renamePropertyBtn" disabled data-i18n="viewer.renameProperty">🔄 Přejmenovat Property</button>
+                <button class="btn btn-primary" id="exportIfcBtn" disabled data-i18n="viewer.exportIfc">💾 Uložit upravený IFC</button>
+                <button class="btn btn-secondary" id="selectAllVisibleBtn" data-i18n="viewer.selectVisible">☑️ Vybrat vše na stránce</button>
+                <button class="btn btn-success" id="selectAllPagesBtn" data-i18n="viewer.selectAll">☑️☑️ Vybrat vše na VŠECH stránkách</button>
+                <button class="btn btn-secondary" id="deselectAllBtn" data-i18n="viewer.deselectAll">☐ Zrušit výběr</button>
             </div>
         </div>
 
         <div class="controls" id="controls">
             <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
-                <button class="btn btn-info" id="toggleSpatialTreeBtn">🌳 Stromová struktura</button>
-                <input type="text" id="searchInput" placeholder="🔍 Hledat... (text, /regex/, nebo Sloupec /regex/)" style="flex: 1; min-width: 250px; padding: 12px 20px; border: 2px solid #e9ecef; border-radius: 8px;">
+                <button class="btn btn-info" id="toggleSpatialTreeBtn" data-i18n="viewer.spatialTree">🌳 Stromová struktura</button>
+                <input type="text" id="searchInput" data-i18n-placeholder="viewer.search" placeholder="🔍 Hledat... (text, /regex/, nebo Sloupec /regex/)" style="flex: 1; min-width: 250px; padding: 12px 20px; border: 2px solid #e9ecef; border-radius: 8px;">
                 <select id="entityFilter" style="padding: 10px 15px; border: 2px solid #e9ecef; border-radius: 8px;">
-                    <option value="">Všechny entity</option>
+                    <option value="" data-i18n="viewer.allEntities">Všechny entity</option>
                 </select>
                 <select id="fileFilter" style="padding: 10px 15px; border: 2px solid #e9ecef; border-radius: 8px;">
-                    <option value="">Všechny soubory</option>
+                    <option value="" data-i18n="viewer.allFiles">Všechny soubory</option>
                 </select>
                 <select id="pageSizeSelectTop" style="padding: 10px 15px; border: 2px solid #e9ecef; border-radius: 8px; font-weight: 600;">
-                    <option value="100">100 řádků</option>
-                    <option value="250">250 řádků</option>
-                    <option value="500" selected>500 řádků</option>
-                    <option value="1000">1000 řádků</option>
-                    <option value="2500">2500 řádků</option>
-                    <option value="-1">Vše (pomalé!)</option>
+                    <option value="100" data-i18n-rows="viewer.rows">100 řádků</option>
+                    <option value="250" data-i18n-rows="viewer.rows">250 řádků</option>
+                    <option value="500" selected data-i18n-rows="viewer.rows">500 řádků</option>
+                    <option value="1000" data-i18n-rows="viewer.rows">1000 řádků</option>
+                    <option value="2500" data-i18n-rows="viewer.rows">2500 řádků</option>
+                    <option value="-1" data-i18n="viewer.allSlow">Vše (pomalé!)</option>
                 </select>
-                <button class="btn btn-success" id="columnManagerBtn">⚙️ Správa PropertySetů</button>
-                <button class="btn btn-secondary" id="clearFiltersBtn">Vymazat filtry</button>
-                <button class="btn btn-primary" id="toggleEditModeBtn">✏️ Editační režim</button>
-                <button class="btn btn-primary" id="exportBtn">📥 Export CSV</button>
+                <button class="btn btn-success" id="columnManagerBtn" data-i18n="viewer.columnManager">⚙️ Správa PropertySetů</button>
+                <button class="btn btn-secondary" id="clearFiltersBtn" data-i18n="viewer.clearFilters">Vymazat filtry</button>
+                <button class="btn btn-primary" id="toggleEditModeBtn" data-i18n="viewer.editMode">✏️ Editační režim</button>
+                <button class="btn btn-primary" id="exportBtn" data-i18n="btn.export">📥 Export CSV</button>
             </div>
 
             <div class="column-manager" id="columnManager">
-                <h3>🔧 Přesuňte PropertySety (☰) nebo jednotlivé Properties (⋮)</h3>
+                <h3 data-i18n="viewer.columnManagerTitle">🔧 Přesuňte PropertySety (☰) nebo jednotlivé Properties (⋮)</h3>
                 <div id="psetList"></div>
                 <div style="margin-top: 15px; display: flex; gap: 10px;">
-                    <button class="btn btn-success" id="applyColumnsBtn">✓ Použít změny</button>
-                    <button class="btn btn-secondary" id="selectAllBtn">Vybrat vše</button>
-                    <button class="btn btn-secondary" id="deselectAllColumnsBtn">Odebrat vše</button>
+                    <button class="btn btn-success" id="applyColumnsBtn" data-i18n="viewer.applyChanges">✓ Použít změny</button>
+                    <button class="btn btn-secondary" id="selectAllBtn" data-i18n="viewer.selectAllColumns">Vybrat vše</button>
+                    <button class="btn btn-secondary" id="deselectAllColumnsBtn" data-i18n="viewer.deselectAllColumns">Odebrat vše</button>
                 </div>
             </div>
         </div>
@@ -99,35 +103,35 @@
 
         <div class="pagination-container" id="paginationContainer">
             <div class="pagination-info">
-                <span id="paginationInfo">Zobrazeno 0 z 0 entit</span>
+                <span id="paginationInfo"></span>
             </div>
             <div class="pagination-controls">
-                <button id="firstPageBtn" title="První stránka">⏮️</button>
-                <button id="prevPageBtn" title="Předchozí">◀️</button>
+                <button id="firstPageBtn" data-i18n-title="viewer.firstPage" title="První stránka">⏮️</button>
+                <button id="prevPageBtn" data-i18n-title="viewer.previousPage" title="Předchozí stránka">◀️</button>
 
                 <div class="page-input-group">
-                    <span>Stránka</span>
+                    <span data-i18n="viewer.page">Stránka</span>
                     <input type="number" id="pageInput" min="1" value="1">
-                    <span>z <span id="totalPages">1</span></span>
-                    <button id="goToPageBtn">Jít</button>
+                    <span data-i18n="viewer.of">z</span> <span id="totalPages">1</span>
+                    <button id="goToPageBtn" data-i18n="viewer.goTo">Přejít</button>
                 </div>
 
-                <button id="nextPageBtn" title="Další">▶️</button>
-                <button id="lastPageBtn" title="Poslední stránka">⏭️</button>
+                <button id="nextPageBtn" data-i18n-title="viewer.nextPage" title="Další stránka">▶️</button>
+                <button id="lastPageBtn" data-i18n-title="viewer.lastPage" title="Poslední stránka">⏭️</button>
 
                 <select id="pageSizeSelect">
-                    <option value="100">100 řádků</option>
-                    <option value="250">250 řádků</option>
-                    <option value="500" selected>500 řádků</option>
-                    <option value="1000">1000 řádků</option>
-                    <option value="2500">2500 řádků</option>
-                    <option value="-1">Vše (pomalé!)</option>
+                    <option value="100" data-i18n-rows="viewer.rows">100 řádků</option>
+                    <option value="250" data-i18n-rows="viewer.rows">250 řádků</option>
+                    <option value="500" selected data-i18n-rows="viewer.rows">500 řádků</option>
+                    <option value="1000" data-i18n-rows="viewer.rows">1000 řádků</option>
+                    <option value="2500" data-i18n-rows="viewer.rows">2500 řádků</option>
+                    <option value="-1" data-i18n="viewer.allSlow">Vše (pomalé!)</option>
                 </select>
             </div>
         </div>
 
         <div id="statsSection" style="display: none; padding: 20px 40px; background: #f8f9fa;">
-            <h3>📊 Celkové statistiky</h3>
+            <h3 data-i18n="viewer.totalStats"></h3>
             <div id="statsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px;"></div>
         </div>
     </div>
@@ -135,11 +139,11 @@
     <!-- Spatial Tree Panel -->
     <div class="spatial-tree-panel" id="spatialTreePanel">
         <div class="spatial-tree-header">
-            <h3>🌳 Prostorová struktura</h3>
+            <h3 data-i18n="viewer.spatialTree"></h3>
             <button class="spatial-tree-close" id="closeSpatialTreeBtn">✕</button>
         </div>
         <div class="spatial-tree-content" id="spatialTreeContent">
-            <div class="spatial-tree-info">Načtěte IFC soubor pro zobrazení struktury</div>
+            <div class="spatial-tree-info" data-i18n="viewer.loadIfcForStructure"></div>
         </div>
     </div>
 
@@ -150,37 +154,37 @@
     <div id="bulkEditModal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h2>Hromadná úprava PropertySetu</h2>
+                <h2 data-i18n="viewer.bulkEditPset"></h2>
                 <button class="modal-close" onclick="closeBulkEditModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>PropertySet:</label>
+                    <label data-i18n="parser.facet.propertySet"></label>
                     <select id="bulkPsetName">
-                        <option value="">-- Vyberte PropertySet --</option>
+                        <option value="" data-i18n="viewer.selectPset"></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Property:</label>
+                    <label data-i18n="parser.facet.property"></label>
                     <select id="bulkPropName" disabled>
-                        <option value="">-- Nejprve vyberte PropertySet --</option>
+                        <option value="" data-i18n="viewer.selectProp"></option>
                     </select>
                 </div>
                 <div id="currentValuesSection" style="display: none; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
-                    <h4 style="margin: 0 0 10px 0; color: #2d3748; font-size: 1em;">📋 Aktuální hodnoty:</h4>
+                    <h4 style="margin: 0 0 10px 0; color: #2d3748; font-size: 1em;" data-i18n="viewer.currentValues"></h4>
                     <div id="currentValuesList" style="max-height: 150px; overflow-y: auto;"></div>
                 </div>
                 <div class="form-group">
-                    <label>Nová hodnota:</label>
-                    <input type="text" id="bulkValue" placeholder="Zadejte novou hodnotu">
+                    <label data-i18n="viewer.newValue"></label>
+                    <input type="text" id="bulkValue" data-i18n-placeholder="viewer.enterNewValue">
                 </div>
                 <p style="color: #6c757d; font-size: 0.9em;">
-                    Tato hodnota bude nastavena pro všech <span id="bulkEditCount" style="font-weight: 700;">0</span> vybraných entit.
+                    <span data-i18n="viewer.bulkEditInfo"></span> <span id="bulkEditCount" style="font-weight: 700;">0</span> <span data-i18n="viewer.entities"></span>.
                 </p>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeBulkEditModal()">Zrušit</button>
-                <button class="btn btn-warning" onclick="applyBulkEdit()">Použít změny</button>
+                <button class="btn btn-secondary" onclick="closeBulkEditModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-warning" onclick="applyBulkEdit()" data-i18n="viewer.applyChanges"></button>
             </div>
         </div>
     </div>
@@ -189,23 +193,21 @@
     <div id="storagePickerModal" class="modal-overlay">
         <div class="modal-container" style="max-width: 700px;">
             <div class="modal-header">
-                <h2>📦 Načíst IFC soubory z úložiště</h2>
+                <h2 data-i18n="viewer.modalIfcTitle"></h2>
                 <button class="modal-close" onclick="closeStoragePickerModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 15px; color: #6c757d;">
-                    Vyberte jeden nebo více IFC souborů z úložiště:
-                </p>
+                <p style="margin-bottom: 15px; color: #6c757d;" data-i18n="viewer.selectMultiple"></p>
                 <div id="storageFileTree" style="max-height: 400px; overflow-y: auto; border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; background: #f8f9fa;">
-                    <!-- Zde bude stromová struktura souborů -->
+                    <!-- Tree structure will be rendered here -->
                 </div>
                 <div style="margin-top: 15px; padding: 10px; background: #eef2ff; border-radius: 6px;">
-                    <strong>Vybráno souborů:</strong> <span id="selectedFilesCount">0</span>
+                    <strong data-i18n="viewer.selectedCount"></strong> <span id="selectedFilesCount">0</span>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeStoragePickerModal()">Zrušit</button>
-                <button class="btn btn-primary" onclick="loadSelectedFilesFromStorage()">Načíst vybrané soubory</button>
+                <button class="btn btn-secondary" onclick="closeStoragePickerModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-primary" onclick="loadSelectedFilesFromStorage()" data-i18n="validator.confirmSelection"></button>
             </div>
         </div>
     </div>
@@ -213,29 +215,29 @@
     <div id="addPsetModal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h2>Přidat PropertySet</h2>
+                <h2 data-i18n="viewer.addPset"></h2>
                 <button class="modal-close" onclick="closeAddPsetModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Název PropertySetu:</label>
-                    <input type="text" id="newPsetName" placeholder="např. Pset_WallCommon">
+                    <label data-i18n="viewer.newPsetName"></label>
+                    <input type="text" id="newPsetName" data-i18n-placeholder="viewer.examplePsetName">
                 </div>
                 <div class="form-group">
-                    <label>Název Property:</label>
-                    <input type="text" id="newPropName" placeholder="např. FireRating">
+                    <label data-i18n="viewer.newPropName"></label>
+                    <input type="text" id="newPropName" data-i18n-placeholder="viewer.examplePropName">
                 </div>
                 <div class="form-group">
-                    <label>Hodnota:</label>
-                    <input type="text" id="newPropValue" placeholder="Zadejte hodnotu">
+                    <label data-i18n="parser.facet.value"></label>
+                    <input type="text" id="newPropValue" data-i18n-placeholder="viewer.enterValue">
                 </div>
                 <p style="color: #6c757d; font-size: 0.9em;">
-                    PropertySet a property budou přidány k <span id="addPsetCount" style="font-weight: 700;">0</span> vybraným entitám.
+                    <span data-i18n="viewer.addPsetInfo"></span> <span id="addPsetCount" style="font-weight: 700;">0</span> <span data-i18n="viewer.entities"></span>.
                 </p>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeAddPsetModal()">Zrušit</button>
-                <button class="btn btn-success" onclick="applyAddPset()">Přidat</button>
+                <button class="btn btn-secondary" onclick="closeAddPsetModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-success" onclick="applyAddPset()" data-i18n="viewer.add"></button>
             </div>
         </div>
     </div>
@@ -243,27 +245,27 @@
     <div id="renamePsetModal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h2>Přejmenovat PropertySet</h2>
+                <h2 data-i18n="viewer.renamePset"></h2>
                 <button class="modal-close" onclick="closeRenamePsetModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Původní název PropertySetu:</label>
+                    <label data-i18n="viewer.oldPsetName"></label>
                     <select id="oldPsetName" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;">
-                        <option value="">-- Vyberte PropertySet --</option>
+                        <option value="" data-i18n="viewer.selectPset"></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Nový název PropertySetu:</label>
-                    <input type="text" id="newPsetNameRename" placeholder="např. Pset_Custom">
+                    <label data-i18n="viewer.newPsetName"></label>
+                    <input type="text" id="newPsetNameRename" data-i18n-placeholder="viewer.exampleCustomPset">
                 </div>
                 <p style="color: #6c757d; font-size: 0.9em;">
-                    PropertySet bude přejmenován u <span id="renamePsetCount" style="font-weight: 700;">0</span> vybraných entit.
+                    <span data-i18n="viewer.renamePsetInfo"></span> <span id="renamePsetCount" style="font-weight: 700;">0</span> <span data-i18n="viewer.entities"></span>.
                 </p>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeRenamePsetModal()">Zrušit</button>
-                <button class="btn btn-info" onclick="applyPsetRename()">Přejmenovat</button>
+                <button class="btn btn-secondary" onclick="closeRenamePsetModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-info" onclick="applyPsetRename()" data-i18n="viewer.rename"></button>
             </div>
         </div>
     </div>
@@ -271,37 +273,39 @@
     <div id="renamePropertyModal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h2>Přejmenovat Property</h2>
+                <h2 data-i18n="viewer.renameProperty"></h2>
                 <button class="modal-close" onclick="closeRenamePropertyModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>PropertySet:</label>
+                    <label data-i18n="parser.facet.propertySet"></label>
                     <select id="renamePropPsetName" onchange="updatePropertyDropdown()" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;">
-                        <option value="">-- Vyberte PropertySet --</option>
+                        <option value="" data-i18n="viewer.selectPset"></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Původní název Property:</label>
+                    <label data-i18n="viewer.oldPropName"></label>
                     <select id="oldPropertyName" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;" disabled>
-                        <option value="">-- Nejprve vyberte PropertySet --</option>
+                        <option value="" data-i18n="viewer.selectProp"></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Nový název Property:</label>
-                    <input type="text" id="newPropertyName" placeholder="např. CustomProperty">
+                    <label data-i18n="viewer.newPropName"></label>
+                    <input type="text" id="newPropertyName" data-i18n-placeholder="viewer.exampleCustomProp">
                 </div>
                 <p style="color: #6c757d; font-size: 0.9em;">
-                    Property bude přejmenována u <span id="renamePropertyCount" style="font-weight: 700;">0</span> vybraných entit.
+                    <span data-i18n="viewer.renamePropInfo"></span> <span id="renamePropertyCount" style="font-weight: 700;">0</span> <span data-i18n="viewer.entities"></span>.
                 </p>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeRenamePropertyModal()">Zrušit</button>
-                <button class="btn btn-info" onclick="applyPropertyRename()">Přejmenovat</button>
+                <button class="btn btn-secondary" onclick="closeRenamePropertyModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-info" onclick="applyPropertyRename()" data-i18n="viewer.rename"></button>
             </div>
         </div>
     </div>
 
+    <script src="../assets/js/common/translations.js"></script>
+    <script src="../assets/js/common/i18n.js"></script>
     <script src="../assets/js/common/error-handler.js"></script>
     <script src="../assets/js/common/storage.js"></script>
     <script src="../assets/js/viewer.js"></script>

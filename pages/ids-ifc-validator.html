@@ -12,15 +12,19 @@
 <body>
     <div class="page-container">
         <div class="header">
-            <a href="../index.html" class="back-home-btn">← Domů</a>
-            <h1>✅ IDS-IFC Validátor</h1>
-            <p>Validujte IFC soubory podle IDS specifikací</p>
+            <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
+            <div class="language-switcher">
+                <button class="lang-btn active" data-lang="cs">CZ</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+            </div>
+            <h1 data-i18n="validator.title">✅ IDS-IFC Validátor</h1>
+            <p data-i18n="validator.subtitle">Validujte IFC soubory podle IDS specifikací</p>
         </div>
 
         <div class="upload-section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                <h2 style="margin: 0; color: #2d3748;">📋 Validační skupiny</h2>
-                <button class="btn btn-success" onclick="addValidationGroup()">➕ Přidat validační skupinu</button>
+                <h2 style="margin: 0; color: #2d3748;" data-i18n="validator.groups">📋 Validační skupiny</h2>
+                <button class="btn btn-success" onclick="addValidationGroup()" data-i18n="validator.addGroup">➕ Přidat validační skupinu</button>
             </div>
 
             <div id="validationGroups">
@@ -30,7 +34,7 @@
             <div class="error-message" id="errorMessage"></div>
 
             <div class="validate-button-container" style="margin-top: 30px;">
-                <button class="btn btn-primary" id="validateBtn" onclick="validateAll()" disabled>
+                <button class="btn btn-primary" id="validateBtn" onclick="validateAll()" disabled data-i18n="validator.validateAll">
                     🔍 Validovat vše
                 </button>
             </div>
@@ -38,19 +42,19 @@
 
         <div class="loading" id="loading">
             <div class="loading-spinner"></div>
-            <div id="loadingText">Probíhá validace...</div>
+            <div id="loadingText" data-i18n="validator.validating">Probíhá validace...</div>
             <div id="progressText" style="margin-top: 15px; font-size: 1.1em; font-weight: 600; color: #667eea;"></div>
             <div id="currentFile" style="margin-top: 10px; color: #6c757d; font-size: 0.9em;"></div>
         </div>
 
         <div class="results-section" id="resultsSection">
             <div class="results-header">
-                <h2>📊 Výsledky validace</h2>
+                <h2 data-i18n="validator.results">📊 Výsledky validace</h2>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-success" id="exportBtn">📥 Export XLSX</button>
-                    <button class="btn btn-secondary" id="expandAllBtn">📖 Rozbalit vše</button>
-                    <button class="btn btn-secondary" id="collapseAllBtn">📕 Sbalit vše</button>
-                    <button class="btn btn-secondary" id="newValidationBtn">🔄 Nová validace</button>
+                    <button class="btn btn-success" id="exportBtn" data-i18n="validator.exportExcel">📥 Export XLSX</button>
+                    <button class="btn btn-secondary" id="expandAllBtn" data-i18n="validator.expandAll">📖 Rozbalit vše</button>
+                    <button class="btn btn-secondary" id="collapseAllBtn" data-i18n="validator.collapseAll">📕 Sbalit vše</button>
+                    <button class="btn btn-secondary" id="newValidationBtn" data-i18n="validator.newValidation">🔄 Nová validace</button>
                 </div>
             </div>
 
@@ -58,16 +62,16 @@
 
             <div class="filters-section">
                 <div class="filters-grid">
-                    <input type="text" id="searchFilter" class="filter-input" placeholder="🔍 Hledat...">
+                    <input type="text" id="searchFilter" class="filter-input" data-i18n-placeholder="validator.searchPlaceholder" placeholder="🔍 Hledat...">
                     <select id="statusFilter" class="filter-input">
-                        <option value="">Všechny stavy</option>
-                        <option value="pass">✅ Splněno</option>
-                        <option value="fail">❌ Nesplněno</option>
+                        <option value="" data-i18n="validator.allStatus">Všechny stavy</option>
+                        <option value="pass" data-i18n="validator.passed">✅ Splněno</option>
+                        <option value="fail" data-i18n="validator.failed">❌ Nesplněno</option>
                     </select>
                     <select id="specFilter" class="filter-input">
-                        <option value="">Všechny specifikace</option>
+                        <option value="" data-i18n="validator.allSpecs">Všechny specifikace</option>
                     </select>
-                    <button class="btn btn-secondary" id="clearFiltersBtn">Vymazat filtry</button>
+                    <button class="btn btn-secondary" id="clearFiltersBtn" data-i18n="validator.clearFilters">Vymazat filtry</button>
                 </div>
             </div>
 
@@ -79,23 +83,21 @@
     <div id="ifcStorageModal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h2>📦 Vybrat IFC soubory z úložiště</h2>
+                <h2 data-i18n="validator.modalIfcTitle">📦 Vybrat IFC soubory z úložiště</h2>
                 <button class="modal-close" onclick="closeIfcStorageModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 15px; color: #6c757d;">
-                    Vyberte jeden nebo více IFC souborů:
-                </p>
+                <p style="margin-bottom: 15px; color: #6c757d;" data-i18n="validator.selectMultiple"></p>
                 <div id="ifcStorageTree" style="max-height: 400px; overflow-y: auto; border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; background: #f8f9fa;">
-                    <!-- Stromová struktura -->
+                    <!-- Tree structure will be rendered here -->
                 </div>
                 <div style="margin-top: 15px; padding: 10px; background: #eef2ff; border-radius: 6px;">
-                    <strong>Vybráno souborů:</strong> <span id="ifcSelectedCount">0</span>
+                    <strong data-i18n="validator.selectedCount"></strong> <span id="ifcSelectedCount">0</span>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeIfcStorageModal()">Zrušit</button>
-                <button class="btn btn-primary" onclick="confirmIfcSelection()">Potvrdit výběr</button>
+                <button class="btn btn-secondary" onclick="closeIfcStorageModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-primary" onclick="confirmIfcSelection()" data-i18n="validator.confirmSelection"></button>
             </div>
         </div>
     </div>
@@ -104,27 +106,27 @@
     <div id="idsStorageModal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h2>📋 Vybrat IDS soubor z úložiště</h2>
+                <h2 data-i18n="validator.modalIdsTitle"></h2>
                 <button class="modal-close" onclick="closeIdsStorageModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 15px; color: #6c757d;">
-                    Vyberte jeden IDS soubor:
-                </p>
+                <p style="margin-bottom: 15px; color: #6c757d;" data-i18n="validator.selectSingle"></p>
                 <div id="idsStorageTree" style="max-height: 400px; overflow-y: auto; border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; background: #f8f9fa;">
-                    <!-- Stromová struktura -->
+                    <!-- Tree structure will be rendered here -->
                 </div>
                 <div style="margin-top: 15px; padding: 10px; background: #eef2ff; border-radius: 6px;">
-                    <strong>Vybraný soubor:</strong> <span id="idsSelectedName">Žádný</span>
+                    <strong data-i18n="validator.selectedFileLabel"></strong> <span id="idsSelectedName" data-i18n="parser.noFile"></span>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeIdsStorageModal()">Zrušit</button>
-                <button class="btn btn-primary" onclick="confirmIdsSelection()">Potvrdit výběr</button>
+                <button class="btn btn-secondary" onclick="closeIdsStorageModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-primary" onclick="confirmIdsSelection()" data-i18n="validator.confirmSelection"></button>
             </div>
         </div>
     </div>
 
+    <script src="../assets/js/common/translations.js"></script>
+    <script src="../assets/js/common/i18n.js"></script>
     <script src="../assets/js/common/error-handler.js"></script>
     <script src="../assets/js/common/storage.js"></script>
     <script src="../assets/js/validator.js"></script>

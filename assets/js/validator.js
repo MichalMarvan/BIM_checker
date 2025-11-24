@@ -65,7 +65,7 @@ function handleIFCFiles(files) {
     const ifcFiles_filtered = files.filter(f => f.name.endsWith('.ifc'));
 
     if (ifcFiles_filtered.length === 0) {
-        showError('Pouze .ifc soubory jsou podporovány');
+        showError(t('validator.error.onlyIfc'));
         return;
     }
 
@@ -78,7 +78,7 @@ function handleIDSFiles(files) {
     const idsFiles_filtered = files.filter(f => f.name.match(/\.(ids|xml)$/i));
 
     if (idsFiles_filtered.length === 0) {
-        showError('Pouze .ids nebo .xml soubory jsou podporovány');
+        showError(t('validator.error.onlyIds'));
         return;
     }
 
@@ -102,7 +102,7 @@ function handleIDSFiles(files) {
                     updateValidateButton();
                 }
             } catch (error) {
-                showError('Chyba při načítání IDS souboru ' + file.name + ': ' + error.message);
+                showError(t('validator.error.idsLoadError') + ' ' + file.name + ': ' + error.message);
             }
         };
         reader.readAsText(file);
@@ -184,7 +184,7 @@ function parseIDS(xmlString, fileName) {
 
     const parserError = xmlDoc.querySelector('parsererror');
     if (parserError) {
-        throw new Error('Neplatný XML soubor');
+        throw new Error(t('validator.error.invalidXml'));
     }
 
     return {
@@ -198,7 +198,7 @@ function extractIDSInfo(xmlDoc) {
     const infoElement = xmlDoc.querySelector('info');
 
     if (infoElement) {
-        info.title = infoElement.querySelector('title')?.textContent || 'Bez názvu';
+        info.title = infoElement.querySelector('title')?.textContent || t('validator.info.noTitle');
         info.version = infoElement.querySelector('version')?.textContent || '';
     }
 
@@ -211,7 +211,7 @@ function extractSpecifications(xmlDoc) {
 
     specElements.forEach((spec, index) => {
         const specification = {
-            name: spec.getAttribute('name') || `Specifikace ${index + 1}`,
+            name: spec.getAttribute('name') || `${t('validator.info.noSpec')} ${index + 1}`,
             ifcVersion: spec.getAttribute('ifcVersion') || 'IFC4',
             applicability: extractFacets(spec.querySelector('applicability')),
             requirements: extractFacets(spec.querySelector('requirements'))
@@ -333,13 +333,13 @@ async function performValidation() {
         validationResults = [];
 
         // Parse all IFC files first
-        loadingText.textContent = 'Načítání IFC souborů...';
+        loadingText.textContent = i18n.t('validator.loading.ifc');
         const parsedIfcFiles = [];
         const totalIfc = ifcFiles.length;
 
         for (let i = 0; i < ifcFiles.length; i++) {
             const file = ifcFiles[i];
-            progressText.textContent = `Načítání IFC: ${i + 1} / ${totalIfc}`;
+            progressText.textContent = `${i18n.t('validator.loading.parsingIfc')} ${i + 1} / ${totalIfc}`;
             currentFile.textContent = `📦 ${file.name}`;
             await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -352,7 +352,7 @@ async function performValidation() {
         }
 
         // For each IDS file, validate against all IFC files
-        loadingText.textContent = 'Probíhá validace...';
+        loadingText.textContent = i18n.t('validator.loading.validating');
         const totalIds = idsFiles.length;
         let idsCount = 0;
 
@@ -382,7 +382,7 @@ async function performValidation() {
         }
 
         // Display results
-        loadingText.textContent = 'Generování výsledků...';
+        loadingText.textContent = i18n.t('validator.generatingResults');
         progressText.textContent = '';
         currentFile.textContent = '';
         displayResults();
@@ -391,7 +391,7 @@ async function performValidation() {
         document.getElementById('resultsSection').style.display = 'block';
     } catch (error) {
         document.getElementById('loading').style.display = 'none';
-        showError('Chyba při validaci: ' + error.message);
+        showError(t('validator.error.validationError') + ' ' + error.message);
         document.querySelector('.upload-section').style.display = 'block';
     }
 }
@@ -836,7 +836,7 @@ function checkPropertyFacet(entity, facet, isApplicability) {
     const propName = facet.name?.value || facet.name?.type === 'simple' && facet.name.value;
 
     if (!psetName || !propName) {
-        validation.message = 'Property specification incomplete';
+        validation.message = i18n.t('validator.specIncomplete');
         return isApplicability ? false : validation;
     }
 
@@ -844,13 +844,13 @@ function checkPropertyFacet(entity, facet, isApplicability) {
 
     const pset = entity.propertySets[psetName];
     if (!pset) {
-        validation.details = `PropertySet "${psetName}" not found`;
+        validation.details = i18n.t('validator.psetNotFound', { psetName });
         return isApplicability ? false : validation;
     }
 
     const propValue = pset[propName];
     if (propValue === undefined) {
-        validation.details = `Property "${propName}" not found in ${psetName}`;
+        validation.details = i18n.t('validator.propNotFound', { propName, psetName });
         return isApplicability ? false : validation;
     }
 
@@ -858,19 +858,19 @@ function checkPropertyFacet(entity, facet, isApplicability) {
     if (facet.value) {
         if (facet.value.type === 'simple') {
             if (String(propValue) !== String(facet.value.value)) {
-                validation.details = `Expected "${facet.value.value}", got "${propValue}"`;
+                validation.details = i18n.t('validator.expectedValue', { expected: facet.value.value, actual: propValue });
                 return isApplicability ? false : validation;
             }
         } else if (facet.value.type === 'restriction') {
             if (facet.value.options) {
                 if (!facet.value.options.includes(String(propValue))) {
-                    validation.details = `Value "${propValue}" not in allowed options: ${facet.value.options.join(', ')}`;
+                    validation.details = i18n.t('validator.valueNotInOptions', { value: propValue, options: facet.value.options.join(', ') });
                     return isApplicability ? false : validation;
                 }
             } else if (facet.value.isRegex) {
                 const regex = new RegExp(facet.value.pattern);
                 if (!regex.test(String(propValue))) {
-                    validation.details = `Value "${propValue}" doesn't match pattern: ${facet.value.pattern}`;
+                    validation.details = i18n.t('validator.valueNoMatch', { value: propValue, pattern: facet.value.pattern });
                     return isApplicability ? false : validation;
                 }
             }
@@ -878,7 +878,7 @@ function checkPropertyFacet(entity, facet, isApplicability) {
     }
 
     validation.status = 'pass';
-    validation.details = `Value: "${propValue}"`;
+    validation.details = `${i18n.t('parser.facet.value')} "${propValue}"`;
     return isApplicability ? true : validation;
 }
 
@@ -892,15 +892,15 @@ function checkAttributeFacet(entity, facet, isApplicability) {
 
     const attrName = facet.name?.value || facet.name?.type === 'simple' && facet.name.value;
     if (!attrName) {
-        validation.message = 'Attribute specification incomplete';
+        validation.message = i18n.t('validator.specIncomplete');
         return isApplicability ? false : validation;
     }
 
-    validation.message = `Attribute: ${attrName}`;
+    validation.message = `${i18n.t('parser.facetType.attribute')}: ${attrName}`;
 
     const attrValue = entity.attributes[attrName];
     if (attrValue === undefined) {
-        validation.details = `Attribute "${attrName}" not found`;
+        validation.details = i18n.t('validator.attrNotFound', { attrName });
         return isApplicability ? false : validation;
     }
 
@@ -908,20 +908,20 @@ function checkAttributeFacet(entity, facet, isApplicability) {
     if (facet.value) {
         if (facet.value.type === 'simple') {
             if (String(attrValue) !== String(facet.value.value)) {
-                validation.details = `Expected "${facet.value.value}", got "${attrValue}"`;
+                validation.details = i18n.t('validator.expectedValue', { expected: facet.value.value, actual: attrValue });
                 return isApplicability ? false : validation;
             }
         } else if (facet.value.type === 'restriction' && facet.value.isRegex) {
             const regex = new RegExp(facet.value.pattern);
             if (!regex.test(String(attrValue))) {
-                validation.details = `Value "${attrValue}" doesn't match pattern: ${facet.value.pattern}`;
+                validation.details = i18n.t('validator.valueNoMatch', { value: attrValue, pattern: facet.value.pattern });
                 return isApplicability ? false : validation;
             }
         }
     }
 
     validation.status = 'pass';
-    validation.details = `Value: "${attrValue}"`;
+    validation.details = `${i18n.t('parser.facet.value')} "${attrValue}"`;
     return isApplicability ? true : validation;
 }
 
@@ -955,26 +955,26 @@ function displayStats() {
     statsContainer.innerHTML = `
         <div class="stat-card">
             <div class="stat-number">${totalValidations}</div>
-            <div class="stat-label">IDS Souborů</div>
+            <div class="stat-label">${t('validator.stats.idsFiles')}</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">${totalEntities}</div>
-            <div class="stat-label">Celkem validací</div>
+            <div class="stat-label">${t('validator.stats.totalValidations')}</div>
         </div>
         <div class="stat-card pass">
             <div class="stat-number">${totalPass}</div>
-            <div class="stat-label">✅ Splněno</div>
+            <div class="stat-label">✅ ${t('validator.stats.passed')}</div>
         </div>
         <div class="stat-card fail">
             <div class="stat-number">${totalFail}</div>
-            <div class="stat-label">❌ Nesplněno</div>
+            <div class="stat-label">❌ ${t('validator.stats.failed')}</div>
         </div>
     `;
 }
 
 function populateSpecFilter() {
     const select = document.getElementById('specFilter');
-    select.innerHTML = '<option value="">Všechny IDS soubory</option>';
+    select.innerHTML = `<option value="">${t('validator.stats.allIds')}</option>`;
 
     for (let idsResult of validationResults) {
         const option = document.createElement('option');
@@ -1046,7 +1046,7 @@ function createIDSResultElement(idsResult) {
                 <span>❌ ${totalFail}</span>
             </div>
             <span class="spec-status-badge ${status}">
-                ${status === 'pass' ? '✅ Splněno' : '❌ Nesplněno'}
+                ${status === 'pass' ? '✅ ' + t('validator.status.passed') : '❌ ' + t('validator.status.failed')}
             </span>
         </div>
     `;
@@ -1145,7 +1145,7 @@ function createSpecificationResultElement(specResult) {
                 <span>❌ ${specResult.failCount}</span>
             </div>
             <span class="spec-status-badge ${specResult.status}">
-                ${specResult.status === 'pass' ? '✅ OK' : '❌ FAIL'}
+                ${specResult.status === 'pass' ? '✅ ' + t('validator.status.ok') : '❌ ' + t('validator.status.fail')}
             </span>
         </div>
     `;
@@ -1199,7 +1199,7 @@ function createEntityResultElement(entityResult) {
                 <div class="entity-name" style="font-size: 0.85em; color: #6c757d;">File: ${entityResult.fileName}</div>
             </div>
             <span class="entity-status ${entityResult.status}">
-                ${entityResult.status === 'pass' ? '✅ OK' : '❌ FAIL'}
+                ${entityResult.status === 'pass' ? '✅ ' + t('validator.status.ok') : '❌ ' + t('validator.status.fail')}
             </span>
         </div>
         ${validationsHTML}
@@ -1214,12 +1214,12 @@ function toggleSpecification(div) {
 
 // Expand/Collapse All
 function expandAll() {
-    // Rozbalit všechny IDS sekce
+    // Expand all IDS sections
     document.querySelectorAll('.specification-result').forEach(div => {
         div.classList.remove('collapsed');
     });
 
-    // Rozbalit všechny IFC sekce (inline toggle divs)
+    // Expand all IFC sections (inline toggle divs)
     document.querySelectorAll('.toggle-icon').forEach(icon => {
         const content = icon.parentElement.nextElementSibling;
         if (content && content.style.display === 'none') {
@@ -1230,12 +1230,12 @@ function expandAll() {
 }
 
 function collapseAll() {
-    // Sbalit všechny IDS sekce
+    // Collapse all IDS sections
     document.querySelectorAll('.specification-result').forEach(div => {
         div.classList.add('collapsed');
     });
 
-    // Sbalit všechny IFC sekce (inline toggle divs)
+    // Collapse all IFC sections (inline toggle divs)
     document.querySelectorAll('.toggle-icon').forEach(icon => {
         const content = icon.parentElement.nextElementSibling;
         if (content && content.style.display !== 'none') {
@@ -1529,7 +1529,7 @@ function addValidationGroup() {
 
 // Delete validation group
 function deleteValidationGroup(index) {
-    if (confirm('Opravdu chcete smazat tuto validační skupinu?')) {
+    if (confirm(t('validator.group.deleteConfirm'))) {
         validationGroups.splice(index, 1);
         renderValidationGroups();
         updateValidateButton();
@@ -1544,8 +1544,8 @@ function renderValidationGroups() {
         container.innerHTML = `
             <div style="text-align: center; padding: 60px; color: #a0aec0;">
                 <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
-                <h3 style="color: #6c757d;">Žádné validační skupiny</h3>
-                <p>Klikněte na "➕ Přidat validační skupinu" pro začátek</p>
+                <h3 style="color: #6c757d;">${t('validator.group.noGroups')}</h3>
+                <p>${t('validator.group.clickToAdd')}</p>
             </div>
         `;
         return;
@@ -1556,24 +1556,24 @@ function renderValidationGroups() {
         html += `
             <div class="validation-group" id="group-${index}">
                 <div class="group-header">
-                    <div class="group-title">📊 Skupina ${index + 1}</div>
-                    <button class="group-delete-btn" onclick="deleteValidationGroup(${index})">🗑️ Smazat</button>
+                    <div class="group-title">📊 ${t('validator.group.title')} ${index + 1}</div>
+                    <button class="group-delete-btn" onclick="deleteValidationGroup(${index})">🗑️ ${t('validator.group.delete')}</button>
                 </div>
                 <div class="group-content">
                     <div class="group-section">
-                        <h4>📦 IFC Soubory (${group.ifcFiles.length})</h4>
+                        <h4>📦 ${t('validator.group.ifcFiles')} (${group.ifcFiles.length})</h4>
                         <button class="storage-btn" onclick="openIfcStoragePicker(${index})">
-                            📂 Vybrat z úložiště
+                            📂 ${t('validator.group.selectStorage')}
                         </button>
                         <div class="drop-zone" data-group-index="${index}" data-type="ifc">
                             <div class="drop-zone-content">
                                 <span class="drop-zone-icon">📁</span>
-                                <span class="drop-zone-text">Přetáhněte IFC soubory sem</span>
-                                <span class="drop-zone-hint">nebo vyberte z úložiště výše</span>
+                                <span class="drop-zone-text">${t('validator.group.dropIfc')}</span>
+                                <span class="drop-zone-hint">${t('validator.group.orSelect')}</span>
                             </div>
                         </div>
                         <div class="selected-files-list" id="ifc-files-${index}">
-                            ${group.ifcFiles.length === 0 ? '<p style="color: #a0aec0; text-align: center; padding: 20px;">Žádné soubory</p>' : ''}
+                            ${group.ifcFiles.length === 0 ? `<p style="color: #a0aec0; text-align: center; padding: 20px;">${t('validator.group.noFiles')}</p>` : ''}
                             ${group.ifcFiles.map(file => `
                                 <div class="selected-file-item">
                                     <span class="file-icon">📄</span>
@@ -1583,15 +1583,15 @@ function renderValidationGroups() {
                         </div>
                     </div>
                     <div class="group-section">
-                        <h4>📋 IDS Specifikace</h4>
+                        <h4>📋 ${t('validator.group.idsSpec')}</h4>
                         <button class="storage-btn" onclick="openIdsStoragePicker(${index})">
-                            📂 Vybrat z úložiště
+                            📂 ${t('validator.group.selectStorage')}
                         </button>
                         <div class="drop-zone" data-group-index="${index}" data-type="ids">
                             <div class="drop-zone-content">
                                 <span class="drop-zone-icon">📋</span>
-                                <span class="drop-zone-text">Přetáhněte IDS soubor sem</span>
-                                <span class="drop-zone-hint">nebo vyberte z úložiště výše</span>
+                                <span class="drop-zone-text">${t('validator.group.dropIds')}</span>
+                                <span class="drop-zone-hint">${t('validator.group.orSelect')}</span>
                             </div>
                         </div>
                         <div class="selected-files-list">
@@ -1600,7 +1600,7 @@ function renderValidationGroups() {
                                     <span class="file-icon">📋</span>
                                     <span class="file-name">${group.idsFile.name}</span>
                                 </div>
-                            ` : '<p style="color: #a0aec0; text-align: center; padding: 20px;">Žádný soubor</p>'}
+                            ` : `<p style="color: #a0aec0; text-align: center; padding: 20px;">${t('validator.group.noFile')}</p>`}
                         </div>
                     </div>
                 </div>
@@ -1670,7 +1670,7 @@ async function handleIfcDrop(files, groupIndex) {
     const ifcFiles = files.filter(f => f.name.toLowerCase().endsWith('.ifc'));
 
     if (ifcFiles.length === 0) {
-        ErrorHandler.error('Pouze .ifc soubory jsou povoleny!');
+        ErrorHandler.error(t('validator.error.onlyIfcAllowed'));
         return;
     }
 
@@ -1698,12 +1698,12 @@ async function handleIdsDrop(files, groupIndex) {
     });
 
     if (idsFiles.length === 0) {
-        ErrorHandler.error('Pouze .ids nebo .xml soubory jsou povoleny!');
+        ErrorHandler.error(t('validator.error.onlyIdsAllowed'));
         return;
     }
 
     if (idsFiles.length > 1) {
-        ErrorHandler.error('Vyberte pouze jeden IDS soubor!');
+        ErrorHandler.error(t('validator.error.onlyOneIds'));
         return;
     }
 
@@ -1787,7 +1787,7 @@ async function renderIfcStorageTree() {
             const fullData = request.result?.value;
 
             if (!fullData || !fullData.files || Object.keys(fullData.files).length === 0) {
-                document.getElementById('ifcStorageTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IFC soubory v úložišti</p>';
+                document.getElementById('ifcStorageTree').innerHTML = `<p style="text-align: center; color: #a0aec0; padding: 40px;">${t('validator.storage.noIfcFiles')}</p>`;
                 resolve();
                 return;
             }
@@ -1887,10 +1887,10 @@ function renderIfcFolderRecursive(folderId, level) {
             <div style="margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
                     <span onclick="toggleIfcFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
-                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllIfcFilesInFolder('${folderId}')" style="margin-right: 10px;" title="Vybrat všechny soubory ve složce">
+                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllIfcFilesInFolder('${folderId}')" style="margin-right: 10px;" title="${t('viewer.selectAllInFolder')}">
                     <span onclick="toggleIfcFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
                         📁 ${folder.name}
-                        ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} souborů)</span>` : ''}
+                        ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} ${t('viewer.files')})</span>` : ''}
                     </span>
                 </div>
         `;
@@ -1959,7 +1959,7 @@ async function confirmIfcSelection() {
     request.onsuccess = () => {
         const fullData = request.result?.value;
         if (!fullData) {
-            ErrorHandler.error('Chyba při načítání souborů z úložiště!');
+            ErrorHandler.error(t('validator.error.storageLoad'));
             return;
         }
 
@@ -1972,7 +1972,7 @@ async function confirmIfcSelection() {
     };
 
     request.onerror = () => {
-        ErrorHandler.error('Chyba při načítání souborů z úložiště!');
+        ErrorHandler.error(t('validator.error.storageLoad'));
     };
 }
 
@@ -2015,7 +2015,7 @@ async function renderIdsStorageTree() {
             const fullData = request.result?.value;
 
             if (!fullData || !fullData.files || Object.keys(fullData.files).length === 0) {
-                document.getElementById('idsStorageTree').innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">Žádné IDS soubory v úložišti</p>';
+                document.getElementById('idsStorageTree').innerHTML = `<p style="text-align: center; color: #a0aec0; padding: 40px;">${t('validator.storage.noIdsFiles')}</p>`;
                 resolve();
                 return;
             }
@@ -2132,7 +2132,7 @@ function updateIdsSelectedName() {
         display.style.color = '#667eea';
         display.style.fontWeight = '600';
     } else {
-        display.textContent = 'Žádný';
+        display.textContent = t('validator.storage.none');
         display.style.color = '#6c757d';
         display.style.fontWeight = 'normal';
     }
@@ -2141,7 +2141,7 @@ function updateIdsSelectedName() {
 // Confirm IDS selection
 async function confirmIdsSelection() {
     if (!selectedIdsFile) {
-        ErrorHandler.error('Vyberte IDS soubor!');
+        ErrorHandler.error(t('validator.error.selectIds'));
         return;
     }
 
@@ -2153,14 +2153,14 @@ async function confirmIdsSelection() {
     request.onsuccess = () => {
         const fullData = request.result?.value;
         if (!fullData) {
-            ErrorHandler.error('Chyba při načítání souborů z úložiště!');
+            ErrorHandler.error(t('validator.error.storageLoad'));
             return;
         }
 
         // Get full file object (with content) for selected ID
         const file = fullData.files[selectedIdsFile];
         if (!file) {
-            ErrorHandler.error('Soubor nebyl nalezen!');
+            ErrorHandler.error(t('validator.error.fileNotFound'));
             return;
         }
 
@@ -2171,7 +2171,7 @@ async function confirmIdsSelection() {
     };
 
     request.onerror = () => {
-        ErrorHandler.error('Chyba při načítání souborů z úložiště!');
+        ErrorHandler.error(t('validator.error.storageLoad'));
     };
 }
 
@@ -2181,13 +2181,13 @@ async function validateAll() {
     const validGroups = validationGroups.filter(g => g.ifcFiles.length > 0 && g.idsFile);
 
     if (validGroups.length === 0) {
-        ErrorHandler.error('Žádné kompletní validační skupiny k validaci!');
+        ErrorHandler.error(t('validator.error.noGroups'));
         return;
     }
 
     // Show loading
     document.getElementById('loading').style.display = 'block';
-    document.getElementById('loadingText').textContent = 'Probíhá validace...';
+    document.getElementById('loadingText').textContent = t('validator.loading.validating');
     document.getElementById('progressText').textContent = '';
     document.getElementById('currentFile').textContent = '';
 
@@ -2199,10 +2199,10 @@ async function validateAll() {
         for (let groupIndex = 0; groupIndex < validGroups.length; groupIndex++) {
             const group = validGroups[groupIndex];
 
-            document.getElementById('progressText').textContent = `Skupina ${groupIndex + 1} z ${validGroups.length}`;
+            document.getElementById('progressText').textContent = `${t('validator.loading.group')} ${groupIndex + 1} ${t('validator.loading.of')} ${validGroups.length}`;
 
             // Parse IDS file
-            document.getElementById('currentFile').textContent = `Parsování IDS: ${group.idsFile.name}`;
+            document.getElementById('currentFile').textContent = `${t('validator.loading.parsing')} ${group.idsFile.name}`;
             await new Promise(resolve => setTimeout(resolve, 100)); // Yield
 
             const idsData = parseIDS(group.idsFile.content, group.idsFile.name);
@@ -2221,11 +2221,11 @@ async function validateAll() {
             for (let ifcIndex = 0; ifcIndex < group.ifcFiles.length; ifcIndex++) {
                 const ifcFile = group.ifcFiles[ifcIndex];
 
-                document.getElementById('currentFile').textContent = `Parsování IFC ${ifcIndex + 1}/${group.ifcFiles.length}: ${ifcFile.name}`;
+                document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfcNum')} ${ifcIndex + 1}/${group.ifcFiles.length}: ${ifcFile.name}`;
                 await new Promise(resolve => setTimeout(resolve, 100)); // Yield
 
                 // Parse IFC file with chunking
-                document.getElementById('currentFile').textContent = `Parsování IFC: ${ifcFile.name}`;
+                document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfc')} ${ifcFile.name}`;
                 const entities = await parseIFCFileAsync(ifcFile.content, ifcFile.name);
                 if (!entities || entities.length === 0) {
                     console.warn('Žádné entity v IFC souboru:', ifcFile.name);
@@ -2233,7 +2233,7 @@ async function validateAll() {
                 }
 
                 // Validate with chunking
-                document.getElementById('currentFile').textContent = `Validace: ${ifcFile.name} proti ${group.idsFile.name}`;
+                document.getElementById('currentFile').textContent = `${t('validator.loading.validationProgress')} ${ifcFile.name} ${t('validator.loading.against')} ${group.idsFile.name}`;
                 await new Promise(resolve => setTimeout(resolve, 100)); // Yield
 
                 const specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
@@ -2258,12 +2258,12 @@ async function validateAll() {
             // Scroll to results
             document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
         } else {
-            ErrorHandler.warning('Žádné výsledky validace!');
+            ErrorHandler.warning(t('validator.result.noResults'));
         }
 
     } catch (error) {
         console.error('Chyba při validaci:', error);
-        ErrorHandler.error('Chyba při validaci: ' + error.message);
+        ErrorHandler.error(t('validator.error.validationError') + ' ' + error.message);
         document.getElementById('loading').style.display = 'none';
     }
 }
@@ -2352,4 +2352,12 @@ window.selectIdsFile = selectIdsFile;
 document.addEventListener('DOMContentLoaded', () => {
     renderValidationGroups();
     updateValidateButton();
+});
+
+// Re-render content when language changes
+window.addEventListener('languageChanged', () => {
+    renderValidationGroups();
+    if (validationResults && validationResults.length > 0) {
+        displayResults();
+    }
 });
