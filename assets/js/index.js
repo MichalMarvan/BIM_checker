@@ -233,8 +233,8 @@ class FilePanel {
                     <span class="folder-name">${folderName}</span>
                     ${folderId !== 'root' ? `
                     <div class="folder-actions">
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="${i18n.t(btn.rename)}">✏️</button>
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFolder('${folderId}')" title="${i18n.t(btn.delete)}">🗑️</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="${i18n.t('btn.rename')}">✏️</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFolder('${folderId}')" title="${i18n.t('btn.delete')}">🗑️</button>
                     </div>` : ''}
                 </div>
                 <div class="tree-folder-children ${isExpanded ? 'expanded' : ''}">
