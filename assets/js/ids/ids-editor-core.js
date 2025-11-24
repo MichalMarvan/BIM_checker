@@ -218,6 +218,9 @@ class IDSEditorCore {
             return;
         }
 
+        // Save collapsed state before re-rendering
+        const collapsedState = this.saveCollapsedState();
+
         console.log('Rendering into container:', container);
 
         let html = '<div class="ids-structure">';
@@ -253,6 +256,81 @@ class IDSEditorCore {
         html += '</div>';
 
         container.innerHTML = html;
+
+        // Restore collapsed state after re-rendering
+        this.restoreCollapsedState(collapsedState);
+    }
+
+    /**
+     * Save collapsed state of all collapsible sections
+     */
+    saveCollapsedState() {
+        const state = {
+            specifications: {},
+            applicability: {},
+            requirements: {}
+        };
+
+        // Save specification collapsed states
+        document.querySelectorAll('.specification-item').forEach(spec => {
+            const index = spec.dataset.index;
+            if (index !== undefined) {
+                state.specifications[index] = spec.classList.contains('collapsed');
+            }
+        });
+
+        // Save applicability section states
+        document.querySelectorAll('.applicability-section').forEach((section, i) => {
+            state.applicability[i] = section.classList.contains('collapsed');
+        });
+
+        // Save requirements section states
+        document.querySelectorAll('.requirements-section').forEach((section, i) => {
+            state.requirements[i] = section.classList.contains('collapsed');
+        });
+
+        return state;
+    }
+
+    /**
+     * Restore collapsed state of all collapsible sections
+     */
+    restoreCollapsedState(state) {
+        if (!state) return;
+
+        // Restore specification collapsed states
+        document.querySelectorAll('.specification-item').forEach(spec => {
+            const index = spec.dataset.index;
+            if (index !== undefined && state.specifications[index] !== undefined) {
+                if (state.specifications[index]) {
+                    spec.classList.add('collapsed');
+                } else {
+                    spec.classList.remove('collapsed');
+                }
+            }
+        });
+
+        // Restore applicability section states
+        document.querySelectorAll('.applicability-section').forEach((section, i) => {
+            if (state.applicability[i] !== undefined) {
+                if (state.applicability[i]) {
+                    section.classList.add('collapsed');
+                } else {
+                    section.classList.remove('collapsed');
+                }
+            }
+        });
+
+        // Restore requirements section states
+        document.querySelectorAll('.requirements-section').forEach((section, i) => {
+            if (state.requirements[i] !== undefined) {
+                if (state.requirements[i]) {
+                    section.classList.add('collapsed');
+                } else {
+                    section.classList.remove('collapsed');
+                }
+            }
+        });
     }
 
     /**
@@ -416,14 +494,26 @@ class IDSEditorCore {
             return this.escapeHtml(restriction);
         }
 
-        if (restriction.type === 'simpleValue') {
-            return this.escapeHtml(restriction.value);
-        } else if (restriction.type === 'pattern') {
-            return `<code>Pattern: ${this.escapeHtml(restriction.value)}</code>`;
-        } else if (restriction.type === 'enumeration') {
-            return `Enum: [${restriction.values.map(v => this.escapeHtml(v)).join(', ')}]`;
-        } else if (restriction.type === 'bounds') {
+        if (!restriction) {
+            return '';
+        }
+
+        // Handle both 'simpleValue' (editor) and 'simple' (parser) types
+        if (restriction.type === 'simpleValue' || restriction.type === 'simple') {
+            return this.escapeHtml(restriction.value || '');
+        } else if (restriction.type === 'pattern' || (restriction.type === 'restriction' && restriction.pattern)) {
+            const patternValue = restriction.value || restriction.pattern || '';
+            return `<code>Pattern: ${this.escapeHtml(patternValue)}</code>`;
+        } else if (restriction.type === 'enumeration' || (restriction.type === 'restriction' && restriction.enumeration)) {
+            const values = restriction.values || restriction.enumeration || [];
+            return `Enum: [${values.map(v => this.escapeHtml(v)).join(', ')}]`;
+        } else if (restriction.type === 'bounds' || (restriction.type === 'restriction' && (restriction.minInclusive || restriction.maxInclusive))) {
             return `Bounds: ${restriction.minInclusive || '∞'} - ${restriction.maxInclusive || '∞'}`;
+        }
+
+        // Fallback - try to extract value
+        if (restriction.value !== undefined) {
+            return this.escapeHtml(String(restriction.value));
         }
 
         return JSON.stringify(restriction);

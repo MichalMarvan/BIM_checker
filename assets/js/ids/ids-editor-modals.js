@@ -164,6 +164,10 @@ class IDSEditorModals {
     showEntityForm(data = {}) {
         document.getElementById('modalTitle').textContent = '🏢 Entity Facet';
 
+        // Extract name value - data.name can be string or object {type: 'simpleValue', value: '...'}
+        const nameValue = this.extractSimpleValue(data.name);
+        const predefinedTypeValue = this.extractSimpleValue(data.predefinedType);
+
         // Generate datalist options from IFC_ENTITY_TYPES
         const datalistOptions = window.IFC_ENTITY_TYPES
             ? window.IFC_ENTITY_TYPES.map(type => `<option value="${type}">`).join('')
@@ -172,7 +176,7 @@ class IDSEditorModals {
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>Entity Name:</label>
-                <input type="text" id="entityName" list="ifcEntityTypes" value="${data.name || ''}" placeholder="${t('editor.example')} IFCWALL" autocomplete="off">
+                <input type="text" id="entityName" list="ifcEntityTypes" value="${nameValue}" placeholder="${t('editor.example')} IFCWALL" autocomplete="off">
                 <datalist id="ifcEntityTypes">
                     ${datalistOptions}
                 </datalist>
@@ -180,21 +184,8 @@ class IDSEditorModals {
             </div>
 
             <div class="form-group">
-                <label>Restriction Type:</label>
-                <div class="restriction-types">
-                    <button class="restriction-type-btn ${!data.nameRestriction || data.nameRestriction.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">Simple Value</button>
-                    <button class="restriction-type-btn ${data.nameRestriction?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">Pattern (Regex)</button>
-                    <button class="restriction-type-btn ${data.nameRestriction?.type === 'enumeration' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('enumeration')">Enumeration</button>
-                </div>
-            </div>
-
-            <div id="restrictionFields">
-                ${this.getRestrictionFields(data.nameRestriction || { type: 'simpleValue', value: data.name || '' })}
-            </div>
-
-            <div class="form-group">
                 <label>${t('editor.predefinedType')}</label>
-                <input type="text" id="entityPredefinedType" value="${data.predefinedType || ''}" placeholder="${t('editor.example')} SOLIDWALL">
+                <input type="text" id="entityPredefinedType" value="${predefinedTypeValue}" placeholder="${t('editor.example')} SOLIDWALL">
                 <small>${t('editor.predefinedTypeDesc')}</small>
             </div>
         `;
@@ -592,12 +583,9 @@ class IDSEditorModals {
         const name = document.getElementById('entityName').value.trim();
         if (!name) throw new Error('Entity name is required');
 
-        const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
-        let nameRestriction = this.getRestrictionData(restrictionType);
-
         const facet = {
             type: 'entity',
-            name: nameRestriction
+            name: { type: 'simpleValue', value: name }
         };
 
         const predefinedType = document.getElementById('entityPredefinedType').value.trim();
