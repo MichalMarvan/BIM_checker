@@ -38,11 +38,6 @@
         <div class="visualization-section" id="visualizationSection">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 2px solid #e9ecef;">
                 <h2 style="margin: 0;" data-i18n="parser.specifications">📋 IDS Specifikace</h2>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" id="createNewIdsBtn" data-i18n="parser.createNew">✨ Vytvořit nový IDS</button>
-                    <button class="btn btn-primary" id="toggleEditBtn" data-i18n="parser.editMode">✏️ Editační režim</button>
-                    <button class="btn btn-success" id="downloadIdsBtn" data-i18n="parser.download">💾 Stáhnout IDS</button>
-                </div>
             </div>
 
             <div class="tabs">
@@ -62,6 +57,11 @@
             </div>
 
             <div id="editorTab" class="tab-content">
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e9ecef;">
+                    <button class="btn btn-secondary" id="createNewIdsBtn" data-i18n="parser.createNew">✨ Vytvořit nový IDS</button>
+                    <button class="btn btn-primary" id="toggleEditBtn" data-i18n="parser.editMode">✏️ Editační režim</button>
+                    <button class="btn btn-success" id="downloadIdsBtn" data-i18n="parser.download">💾 Stáhnout IDS</button>
+                </div>
                 <div id="idsContent"></div>
             </div>
 
