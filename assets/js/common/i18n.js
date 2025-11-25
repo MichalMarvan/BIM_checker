@@ -52,6 +52,12 @@ class I18n {
    * @returns {string} Translated text
    */
   t(key) {
+    // Handle undefined, null, or non-string keys
+    if (key === undefined || key === null || typeof key !== 'string') {
+      console.warn(`Translation missing for key: ${key} (${this.currentLang})`);
+      return String(key || '');
+    }
+
     const translation = this.translations[this.currentLang]?.[key];
     if (!translation) {
       console.warn(`Translation missing for key: ${key} (${this.currentLang})`);

@@ -349,3 +349,75 @@ async function initStorageDB() {
         };
     });
 }
+
+// =======================
+// GLOBAL BIMStorage API
+// =======================
+window.BIMStorage = {
+    ifcStorage: null,
+    idsStorage: null,
+    initialized: false,
+
+    async init() {
+        if (this.initialized) return true;
+
+        this.ifcStorage = new StorageManager('ifc_files');
+        this.idsStorage = new StorageManager('ids_files');
+
+        await this.ifcStorage.init();
+        await this.idsStorage.init();
+
+        this.initialized = true;
+        return true;
+    },
+
+    async saveFile(type, file, folderId = 'root') {
+        if (!this.initialized) await this.init();
+
+        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        return await storage.addFile(file, folderId);
+    },
+
+    async getFiles(type) {
+        if (!this.initialized) await this.init();
+
+        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        if (!storage.data) await storage.load();
+
+        return Object.values(storage.data.files);
+    },
+
+    async getFileByName(type, name) {
+        const files = await this.getFiles(type);
+        return files.find(f => f.name === name) || null;
+    },
+
+    async deleteFile(type, fileId) {
+        if (!this.initialized) await this.init();
+
+        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        return await storage.deleteFile(fileId);
+    },
+
+    async clearFiles(type) {
+        if (!this.initialized) await this.init();
+
+        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        if (!storage.data) await storage.load();
+
+        // Delete all files
+        const fileIds = Object.keys(storage.data.files);
+        for (const fileId of fileIds) {
+            await storage.deleteFile(fileId);
+        }
+
+        return true;
+    },
+
+    getStats(type) {
+        if (!this.initialized) return { fileCount: 0, totalSize: 0 };
+
+        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        return storage.getStats();
+    }
+};
