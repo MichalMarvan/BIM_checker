@@ -223,7 +223,7 @@ describe('IDS Parser (XML)', () => {
 
     it('should handle enumeration restriction', () => {
         const xml = `<?xml version="1.0"?>
-<value>
+<value xmlns:xs="http://www.w3.org/2001/XMLSchema">
     <xs:restriction base="xs:string">
         <xs:enumeration value="Option1"/>
         <xs:enumeration value="Option2"/>
@@ -233,8 +233,9 @@ describe('IDS Parser (XML)', () => {
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(xml, 'text/xml');
-        
-        const enumerations = doc.querySelectorAll('xs\\:enumeration, enumeration');
+
+        // Use getElementsByTagNameNS for proper namespace handling
+        const enumerations = doc.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'enumeration');
         expect(enumerations.length).toBe(3);
     });
 

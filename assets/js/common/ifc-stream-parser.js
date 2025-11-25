@@ -129,14 +129,19 @@ class IFCStreamParser {
         let current = '';
         let depth = 0;
         let inString = false;
-        
+
+        // Handle empty arguments - return array with one empty element
+        if (argsStr.trim() === '') {
+            return [''];
+        }
+
         for (let i = 0; i < argsStr.length; i++) {
             const char = argsStr[i];
-            
+
             if (char === "'" && argsStr[i-1] !== '\\') {
                 inString = !inString;
             }
-            
+
             if (!inString) {
                 if (char === '(') depth++;
                 if (char === ')') depth--;
@@ -146,14 +151,14 @@ class IFCStreamParser {
                     continue;
                 }
             }
-            
+
             current += char;
         }
-        
+
         if (current.trim()) {
             args.push(this.parseValue(current.trim()));
         }
-        
+
         return args;
     }
 
