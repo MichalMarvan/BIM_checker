@@ -375,6 +375,13 @@ window.BIMStorage = {
         if (!this.initialized) await this.init();
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+
+        // Check for duplicate file name and delete it first (overwrite behavior)
+        const existingFile = await this.getFile(type, file.name);
+        if (existingFile) {
+            await storage.deleteFile(existingFile.id);
+        }
+
         return await storage.addFile(file, folderId);
     },
 
