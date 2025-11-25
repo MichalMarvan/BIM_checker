@@ -49,7 +49,7 @@ Validate IFC models against IDS specifications for data quality control.
 ## 🚀 Quick Start
 
 ### Option 1: Use Online (Recommended)
-Visit the live demo: [BIM Checker](https://github.com/MichalMarvan/BIM_checker)
+Visit the live demo: **[https://bim-checker.pages.dev/](https://bim-checker.pages.dev/)**
 
 ### Option 2: Run Locally
 
@@ -66,14 +66,6 @@ npx http-server -p 8000
 ```
 
 Open http://localhost:8000 in your browser.
-
-### Option 3: Deploy to Vercel
-
-```bash
-npm install -g vercel
-vercel login
-vercel --prod
-```
 
 ## 📚 Documentation
 

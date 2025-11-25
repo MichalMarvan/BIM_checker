@@ -64,7 +64,7 @@ BIM_checker/
 │   │   ├── parser.js       # ⭐ IDS parser
 │   │   └── validator.js    # ⭐ IDS-IFC validator
 │   └── css/                # Styly
-└── vercel.json             # Deployment config
+└── tests/                  # Test suite
 ```
 
 **⭐ = Klíčové soubory pro pochopení**
