@@ -8,7 +8,7 @@ const translations = {
     // === HLAVNÍ APLIKACE ===
     'app.title': 'BIM Checker',
     'app.subtitle': 'Profesionální nástroje pro validaci a analýzu BIM dat',
-    'app.version': 'Beta verze 0.1',
+    'app.version': 'verze 0.1.1',
     'app.year': '2025',
 
     // === ÚLOŽIŠTĚ ===
@@ -508,7 +508,7 @@ const translations = {
     // === MAIN APPLICATION ===
     'app.title': 'BIM Checker',
     'app.subtitle': 'Professional tools for BIM data validation and analysis',
-    'app.version': 'Beta version 0.1',
+    'app.version': 'version 0.1.1',
     'app.year': '2025',
 
     // === STORAGE ===
