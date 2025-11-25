@@ -507,6 +507,9 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                     'IFCSITE': ['IFCPROJECT'],
                     'IFCSPACE': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
 
+                    // Element assemblies - can be in STOREY, BUILDING, or directly in SITE (for infrastructure)
+                    'IFCELEMENTASSEMBLY': ['IFCBUILDINGSTOREY', 'IFCBUILDING', 'IFCSITE'],
+
                     // Building elements - should be in BUILDING or BUILDINGSTOREY
                     'IFCWALL': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
                     'IFCSLAB': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
@@ -521,7 +524,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                     'IFCFURNISHINGELEMENT': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
                     'IFCFURNITURE': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
                     'IFCBUILDINGELEMENTPROXY': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
-                    'IFCMEMBER': ['IFCBUILDINGSTOREY', 'IFCBUILDING'],
+                    'IFCMEMBER': ['IFCBUILDINGSTOREY', 'IFCBUILDING', 'IFCELEMENTASSEMBLY'],
                     'IFCPLATE': ['IFCBUILDINGSTOREY', 'IFCBUILDING']
                 };
 

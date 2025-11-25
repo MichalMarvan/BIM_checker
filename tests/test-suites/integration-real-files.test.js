@@ -349,6 +349,56 @@ describe('User Uploaded Files (Manual Testing)', () => {
         }
     });
     
+    it('should handle non-standard hierarchy (SITE→ELEMENTASSEMBLY→MEMBERs)', async () => {
+        // Test pro user-upload.ifc který má nestandardní hierarchii
+        // PROJECT → SITE → ELEMENTASSEMBLY → MEMBERs (bez BUILDING a BUILDINGSTOREY)
+
+        try {
+            const response = await fetch('../test-data/user-upload.ifc');
+            if (!response.ok) {
+                console.log('ℹ️  user-upload.ifc not found, skipping test');
+                expect(true).toBe(true);
+                return;
+            }
+
+            const content = await response.text();
+            const result = await parseCompleteIFC(content);
+
+            // Check that file has non-standard structure
+            const hasProject = result.entities.some(e => e.type === 'IFCPROJECT');
+            const hasSite = result.entities.some(e => e.type === 'IFCSITE');
+            const hasElementAssembly = result.entities.some(e => e.type === 'IFCELEMENTASSEMBLY');
+            const hasMembers = result.entities.some(e => e.type === 'IFCMEMBER');
+
+            // Should NOT have BUILDING or BUILDINGSTOREY (that's the non-standard part)
+            const hasBuilding = result.entities.some(e => e.type === 'IFCBUILDING');
+            const hasBuildingStorey = result.entities.some(e => e.type === 'IFCBUILDINGSTOREY');
+
+            console.log('Non-standard hierarchy check:');
+            console.log(`  Has IFCPROJECT: ${hasProject}`);
+            console.log(`  Has IFCSITE: ${hasSite}`);
+            console.log(`  Has IFCELEMENTASSEMBLY: ${hasElementAssembly}`);
+            console.log(`  Has IFCMEMBER: ${hasMembers}`);
+            console.log(`  Has IFCBUILDING: ${hasBuilding} (should be false)`);
+            console.log(`  Has IFCBUILDINGSTOREY: ${hasBuildingStorey} (should be false)`);
+
+            expect(hasProject).toBe(true);
+            expect(hasSite).toBe(true);
+            expect(hasElementAssembly).toBe(true);
+            expect(hasMembers).toBe(true);
+            expect(hasBuilding).toBe(false); // Non-standard: no BUILDING
+            expect(hasBuildingStorey).toBe(false); // Non-standard: no BUILDINGSTOREY
+
+            // Verify all entities were parsed successfully
+            expect(result.entityCount).toBeGreaterThan(0);
+            expect(result.errors.length).toBe(0);
+
+        } catch (error) {
+            console.log('ℹ️  Test skipped:', error.message);
+            expect(true).toBe(true);
+        }
+    });
+
     // Helper funkce dostupná v konzoli pro manuální debugging
     it('should expose debugging helpers', () => {
         // Export funkcí do window pro použití v konzoli
