@@ -29,3 +29,9 @@ podpora/
 *.backup2
 *.backup3
 *.backup4
+
+# But keep sample files for testing and examples
+!test-data/*.ifc
+!test-data/*.ids
+!examples/**/*.ifc
+!examples/**/*.ids
