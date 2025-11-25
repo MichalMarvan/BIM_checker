@@ -1,0 +1,44 @@
+{
+  "name": "bim-checker",
+  "version": "0.1.0",
+  "description": "Professional tools for BIM data validation and analysis according to buildingSMART standards",
+  "keywords": [
+    "bim",
+    "ifc",
+    "ids",
+    "buildingsmart",
+    "validation",
+    "viewer",
+    "architecture",
+    "construction",
+    "aec",
+    "openbim"
+  ],
+  "homepage": "https://github.com/MichalMarvan/BIM_checker#readme",
+  "bugs": {
+    "url": "https://github.com/MichalMarvan/BIM_checker/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichalMarvan/BIM_checker.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Michal Marvan"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "echo 'Open tests/test-runner.html in browser'",
+    "lint": "echo 'Linting not configured yet'",
+    "serve": "python3 -m http.server 8000"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not IE 11"
+  ]
+}
