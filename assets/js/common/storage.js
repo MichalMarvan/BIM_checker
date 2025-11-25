@@ -387,16 +387,28 @@ window.BIMStorage = {
         return Object.values(storage.data.files);
     },
 
-    async getFileByName(type, name) {
+    async getFile(type, name) {
         const files = await this.getFiles(type);
         return files.find(f => f.name === name) || null;
     },
 
-    async deleteFile(type, fileId) {
+    async getFileByName(type, name) {
+        return await this.getFile(type, name);
+    },
+
+    async deleteFile(type, nameOrId) {
         if (!this.initialized) await this.init();
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
-        return await storage.deleteFile(fileId);
+
+        // If it's a name, find the file ID first
+        if (typeof nameOrId === 'string' && !nameOrId.startsWith('file_')) {
+            const file = await this.getFile(type, nameOrId);
+            if (!file) return false;
+            nameOrId = file.id;
+        }
+
+        return await storage.deleteFile(nameOrId);
     },
 
     async clearFiles(type) {
