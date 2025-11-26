@@ -1,115 +1,115 @@
-# 🚀 BIM Checker - Rychlý start s testy
+# 🚀 BIM Checker - Test Quick Start
 
-## 📦 Co jsem dostal?
+## 📦 What's Included?
 
-Kompletní testovací framework s 5 test suites:
+A complete testing framework with 5 test suites:
 
 ```
 tests/
-├── test-runner.html          ← Otevři toto v prohlížeči!
-├── test-framework.js         ← Vlastní test framework (jako Jest/Mocha)
-├── test-runner-ui.js         ← UI logika
-├── README.md                 ← Detailní dokumentace
-├── test-data/                ← Ukázková data
-│   ├── sample.ifc           ← Testovací IFC soubor
-│   └── sample.ids           ← Testovací IDS soubor
-└── test-suites/              ← Samotné testy
-    ├── ifc-stream-parser.test.js  (27 testů)
-    ├── storage.test.js            (15 testů)
-    ├── i18n.test.js               (15 testů)
-    ├── ifc-parser.test.js         (25 testů)
-    └── ids-parser.test.js         (23 testů)
+├── test-runner.html          ← Open this in your browser!
+├── test-framework.js         ← Custom test framework (like Jest/Mocha)
+├── test-runner-ui.js         ← UI logic
+├── README.md                 ← Detailed documentation
+├── test-data/                ← Sample data
+│   ├── sample.ifc           ← Test IFC file
+│   └── sample.ids           ← Test IDS file
+└── test-suites/              ← The tests themselves
+    ├── ifc-stream-parser.test.js  (27 tests)
+    ├── storage.test.js            (15 tests)
+    ├── i18n.test.js               (15 tests)
+    ├── ifc-parser.test.js         (25 tests)
+    └── ids-parser.test.js         (23 tests)
 ```
 
-**Celkem: 105 testů!** ✨
+**Total: 105 tests!** ✨
 
-## ⚡ Jak to spustit (3 kroky)
+## ⚡ How to Run (3 Steps)
 
-### 1. Přesuň složku `tests/` do projektu
+### 1. Move the `tests/` folder into your project
 
 ```bash
-# Zkopíruj celou složku tests do BIM_checker-master
+# Copy the entire tests folder into BIM_checker-master
 BIM_checker-master/
 ├── assets/
 ├── pages/
-├── tests/          ← Nová složka s testy
+├── tests/          ← New folder with tests
 ├── index.html
 └── ...
 ```
 
-### 2. Spusť lokální server
+### 2. Start a local server
 
 ```bash
 cd BIM_checker-master
 python3 -m http.server 8000
 ```
 
-### 3. Otevři v prohlížeči
+### 3. Open in your browser
 
 ```
 http://localhost:8000/tests/test-runner.html
 ```
 
-Klikni **"▶️ Spustit všechny testy"** a sleduj výsledky!
+Click **"▶️ Run all tests"** and watch the results!
 
-## 🎯 Co testy pokrývají?
+## 🎯 What the Tests Cover
 
-### ✅ IFC Stream Parser (27 testů)
-- Parsování IFC entit
-- Extrakce GUID, ID, typu
-- Zpracování argumentů
-- Hodnoty: string, number, boolean, null, undefined, reference
+### ✅ IFC Stream Parser (27 tests)
+- Parsing IFC entities
+- Extracting GUID, ID, type
+- Processing arguments
+- Values: string, number, boolean, null, undefined, reference
 - Header/Footer processing
 
-### ✅ Storage - IndexedDB (15 testů)
-- Ukládání/načítání IFC souborů
-- Ukládání/načítání IDS souborů
-- Správa složek a cest
-- Mazání souborů
-- Speciální znaky v názvech
+### ✅ Storage - IndexedDB (15 tests)
+- Saving/loading IFC files
+- Saving/loading IDS files
+- Folder and path management
+- Deleting files
+- Special characters in names
 
-### ✅ Internacionalizace (15 testů)
-- CZ/EN překlady
+### ✅ Internationalization (15 tests)
+- CZ/EN translations
 - Nested keys (storage.title, app.version)
-- Přepínání jazyků
-- Fallback mechanismus
+- Language switching
+- Fallback mechanism
 - Missing keys handling
 
-### ✅ IFC Parser (25 testů)
-- Parsování IFC struktury
+### ✅ IFC Parser (25 tests)
+- Parsing IFC structure
 - Entity types (WALL, DOOR, WINDOW...)
-- PropertySets a Relations
+- PropertySets and Relations
 - Spatial structure
-- GUID formát
+- GUID format
 
-### ✅ IDS Parser (23 testů)
-- XML parsing s DOMParser
+### ✅ IDS Parser (23 tests)
+- XML parsing with DOMParser
 - Info section
-- Specifications a Facets
+- Specifications and Facets
 - Entity, Property, Attribute, Classification, Material, PartOf
 - Restrictions: simpleValue, pattern, enumeration, bounds
 
-## 📊 Očekávané výsledky
+## 📊 Expected Results
 
-Pokud vše funguje správně:
+If everything works correctly:
 ```
-✅ Celkem testů: 105
-✅ Úspěšných: 105
-❌ Neúspěšných: 0
-⏱️ Celkový čas: ~500-1000ms
+✅ Total tests: 105
+✅ Passed: 105
+❌ Failed: 0
+⏱️ Total time: ~500-1000ms
 ```
 
-## 🐛 Když něco selže
+## 🐛 When Something Fails
 
-1. **Otevři Developer Tools (F12)**
-2. **Podívej se do Console** - uvidíš chybové zprávy
-3. **Klikni na ✗ Failed test** - zobrazí se stack trace
-4. **Oprav kód** a znovu spusť testy
+1.  **Open Developer Tools (F12)**
+2.  **Look at the Console** - you will see error messages
+3.  **Click on the ✗ Failed test** - a stack trace will be displayed
+4.  **Fix the code** and run the tests again
 
-## 📝 Přidání vlastního testu
+## 📝 Adding Your Own Test
 
 ```javascript
-// V test-suites/my-test.js
+// In test-suites/my-test.js
 describe('My Module', () => {
     it('should work', () => {
         expect(1 + 1).toBe(2);
@@ -118,24 +118,24 @@ describe('My Module', () => {
 ```
 
 ```html
-<!-- V test-runner.html přidej: -->
+<!-- In test-runner.html, add: -->
 <script src="test-suites/my-test.js"></script>
 ```
 
 ## 🎨 Features
 
-✨ **Krásné UI** - Moderní gradient design
-✨ **Filtry** - Zobraz jen passed/failed testy
-✨ **Export JSON** - Stáhni výsledky
-✨ **Real-time progress** - Vidíš progress bar
-✨ **Stats** - Celková statistika
-✨ **Stack traces** - Detailní error info
-✨ **Collapsible suites** - Klikni na suite pro expand/collapse
+✨ **Beautiful UI** - Modern gradient design
+✨ **Filters** - Show only passed/failed tests
+✨ **JSON Export** - Download the results
+✨ **Real-time progress** - Watch the progress bar
+✨ **Stats** - Overall statistics
+✨ **Stack traces** - Detailed error info
+✨ **Collapsible suites** - Click on a suite to expand/collapse
 
 ## 🔧 Test Framework API
 
 ```javascript
-// Základní struktura
+// Basic structure
 describe('Suite Name', () => {
     beforeEach(() => { /* setup */ });
     afterEach(() => { /* cleanup */ });
@@ -161,37 +161,37 @@ expect(obj).toHaveProperty(k)  // Has property
 
 ## 💡 Tips
 
-1. **Spusť testy často** - Při každé změně kódu
-2. **Čti stack traces** - Pomáhají najít chyby
-3. **Přidávej nové testy** - Když přidáš feature
-4. **Testuj edge cases** - Null, undefined, prázdné hodnoty
-5. **Používej beforeEach/afterEach** - Pro cleanup
+1.  **Run tests often** - On every code change
+2.  **Read stack traces** - They help you find bugs
+3.  **Add new tests** - When you add a feature
+4.  **Test edge cases** - Null, undefined, empty values
+5.  **Use beforeEach/afterEach** - For cleanup
 
-## 🎓 Další informace
+## 🎓 Further Information
 
-Přečti si **`tests/README.md`** pro:
-- Detailní dokumentaci každé test suite
-- Best practices pro psaní testů
+Read **`tests/README.md`** for:
+- Detailed documentation of each test suite
+- Best practices for writing tests
 - Debugging tips
 - CI/CD integration
 - Contributing guidelines
 
-## ✅ Checklist pro integraci
+## ✅ Integration Checklist
 
-- [ ] Zkopírovat složku `tests/` do projektu
-- [ ] Spustit lokální server
-- [ ] Otevřít test-runner.html
-- [ ] Spustit všechny testy
-- [ ] Ověřit, že projdou (105/105)
-- [ ] Přidat do .gitignore (pokud třeba)
-- [ ] Commitnout do Git
+- [ ] Copy the `tests/` folder into the project
+- [ ] Start a local server
+- [ ] Open test-runner.html
+- [ ] Run all tests
+- [ ] Verify that they pass (105/105)
+- [ ] Add to .gitignore (if necessary)
+- [ ] Commit to Git
 
-## 🚀 Hotovo!
+## 🚀 Done!
 
-Máš nyní profesionální testovací framework pro tvůj BIM Checker projekt!
+You now have a professional testing framework for your BIM Checker project!
 
 **Happy testing! 🎉**
 
 ---
 
-Pro pomoc nebo dotazy: GitHub Issues
+For help or questions: GitHub Issues

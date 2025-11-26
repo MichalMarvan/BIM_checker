@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug user-upload.ifc Tree Structure</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .entity { margin-left: 20px; }
+        .relationship { color: blue; margin: 5px 0; }
+        .error { color: red; }
+        .tree-node { margin-left: 20px; border-left: 2px solid #ccc; padding-left: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Debug Tree Structure for user-upload.ifc</h1>
+    <div id="output"></div>
+
+    <script>
+        async function debugTree() {
+            const output = document.getElementById('output');
+
+            try {
+                // Load the IFC file
+                const response = await fetch('./user-upload.ifc');
+                const content = await response.text();
+
+                output.innerHTML += '<h2>Step 1: Parse Entities</h2>';
+
+                // Parse entities
+                const entityMap = new Map();
+                const lines = content.split('\n');
+
+                for (let line of lines) {
+                    line = line.trim();
+                    if (!line.startsWith('#')) continue;
+
+                    const match = line.match(/^#(\d+)=(\w+)\((.*)\);?$/);
+                    if (match) {
+                        const [, id, type, params] = match;
+                        entityMap.set(id, { id, type, params, line });
+                    }
+                }
+
+                output.innerHTML += `<p>Found ${entityMap.size} entities</p>`;
+
+                // Parse relationships
+                output.innerHTML += '<h2>Step 2: Parse Relationships</h2>';
+
+                const aggregatesMap = new Map();
+                const containedInSpatialMap = new Map();
+
+                for (let [id, entity] of entityMap) {
+                    if (entity.type === 'IFCRELAGGREGATES') {
+                        const match = entity.params.match(/#(\d+)\s*,\s*\(([#\d,\s]+)\)/);
+                        if (match) {
+                            const parent = match[1];
+                            const children = match[2].match(/#\d+/g)?.map(r => r.substring(1)) || [];
+                            aggregatesMap.set(id, { parent, children });
+                            output.innerHTML += `<div class="relationship">AGGREGATES #${id}: parent=#${parent}, children=[${children.join(', #')}]</div>`;
+                        }
+                    } else if (entity.type === 'IFCRELCONTAINEDINSPATIALSTRUCTURE') {
+                        const relatedElements = entity.params.match(/\(([#\d,\s]+)\)/);
+                        const relatingStructure = entity.params.match(/,\s*#(\d+)\s*\)/);
+                        if (relatedElements && relatingStructure) {
+                            const children = relatedElements[1].match(/#\d+/g)?.map(r => r.substring(1)) || [];
+                            const parent = relatingStructure[1];
+                            containedInSpatialMap.set(id, { parent, children });
+                            output.innerHTML += `<div class="relationship">CONTAINED #${id}: parent=#${parent}, children=[${children.join(', #')}]</div>`;
+                        }
+                    }
+                }
+
+                // Build tree
+                output.innerHTML += '<h2>Step 3: Build Tree</h2>';
+
+                const processedNodes = new Set();
+
+                function buildNode(entityId) {
+                    if (processedNodes.has(entityId)) {
+                        output.innerHTML += `<div class="error">Cycle detected: ${entityId}</div>`;
+                        return null;
+                    }
+                    processedNodes.add(entityId);
+
+                    const entity = entityMap.get(entityId);
+                    if (!entity) {
+                        output.innerHTML += `<div class="error">Entity not found: ${entityId}</div>`;
+                        return null;
+                    }
+
+                    const node = {
+                        id: entityId,
+                        type: entity.type,
+                        children: []
+                    };
+
+                    // Find children from aggregatesMap
+                    for (let [relId, rel] of aggregatesMap) {
+                        if (rel.parent === entityId) {
+                            rel.children.forEach(childId => {
+                                const childNode = buildNode(childId);
+                                if (childNode) {
+                                    node.children.push(childNode);
+                                }
+                            });
+                        }
+                    }
+
+                    // Find children from containedInSpatialMap
+                    for (let [relId, rel] of containedInSpatialMap) {
+                        if (rel.parent === entityId) {
+                            rel.children.forEach(childId => {
+                                const childNode = buildNode(childId);
+                                if (childNode) {
+                                    node.children.push(childNode);
+                                }
+                            });
+                        }
+                    }
+
+                    return node;
+                }
+
+                // Find PROJECT
+                let projectId = null;
+                for (let [id, entity] of entityMap) {
+                    if (entity.type === 'IFCPROJECT') {
+                        projectId = id;
+                        break;
+                    }
+                }
+
+                if (!projectId) {
+                    output.innerHTML += '<div class="error">No IFCPROJECT found!</div>';
+                    return;
+                }
+
+                output.innerHTML += `<p>Found PROJECT: #${projectId}</p>`;
+
+                const tree = buildNode(projectId);
+
+                // Display tree
+                output.innerHTML += '<h2>Step 4: Tree Structure</h2>';
+
+                function displayNode(node, depth = 0) {
+                    const indent = '  '.repeat(depth);
+                    output.innerHTML += `<div class="tree-node">${indent}${node.type} #${node.id} (${node.children.length} children)</div>`;
+                    node.children.forEach(child => displayNode(child, depth + 1));
+                }
+
+                displayNode(tree);
+
+            } catch (error) {
+                output.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+                console.error(error);
+            }
+        }
+
+        debugTree();
+    </script>
+</body>
+</html>

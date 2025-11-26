@@ -328,8 +328,9 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 } else if (entity.type === 'IFCRELCONTAINEDINSPATIALSTRUCTURE') {
                     // Parse spatial containment
                     // Format: IFCRELCONTAINEDINSPATIALSTRUCTURE(..., (#1,#2,#3), #100)
+                    // Note: entity.params doesn't include the final ")" so we match at end of string
                     const relatedElements = entity.params.match(/\(([#\d,\s]+)\)/);
-                    const relatingStructure = entity.params.match(/,\s*#(\d+)\s*\)/);
+                    const relatingStructure = entity.params.match(/,\s*#(\d+)\s*$/); // Match at end of string
                     if (relatedElements && relatingStructure) {
                         const children = relatedElements[1].match(/#\d+/g)?.map(r => r.substring(1)) || [];
                         const parent = relatingStructure[1];

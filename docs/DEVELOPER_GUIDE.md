@@ -1,77 +1,77 @@
-# BIM Checker - Quick Start Guide pro vývojáře
+# BIM Checker - Developer Quick Start Guide
 
-## 🚀 Rychlý start během 5 minut
+## 🚀 5-Minute Quick Start
 
-### 1. Klonování a spuštění
+### 1. Clone and Run
 
 ```bash
-# Klonování
+# Clone the repository
 git clone https://github.com/YOUR_USERNAME/BIM_checker.git
 cd BIM_checker
 
-# Jednoduché spuštění (Python)
+# Simple execution (Python)
 python3 -m http.server 8000
 
-# Nebo Node.js
+# Or with Node.js
 npx http-server -p 8000
 ```
 
-Otevřete: http://localhost:8000
+Open: http://localhost:8000
 
-### 2. Základní použití
+### 2. Basic Usage
 
-#### Nahrání IFC souboru
+#### Uploading an IFC file
 ```javascript
-// V IFC Multi-File Viewer
-// 1. Přetáhněte .ifc soubor do upload boxu
-// 2. Nebo klikněte a vyberte soubor
-// 3. Parser automaticky zpracuje soubor
+// In the IFC Multi-File Viewer
+// 1. Drag and drop an .ifc file into the upload box
+// 2. Or click to select a file
+// 3. The parser will process the file automatically
 ```
 
-#### Práce s IDS validací
+#### Working with IDS Validation
 ```javascript
-// V IDS-IFC Validator
-// 1. Nahrajte IFC soubor
-// 2. Nahrajte IDS specifikaci (.ids nebo .xml)
-// 3. Klikněte "Validate"
-// 4. Prohlédněte si výsledky
+// In the IDS-IFC Validator
+// 1. Upload an IFC file
+// 2. Upload an IDS specification (.ids or .xml)
+// 3. Click "Validate"
+// 4. Review the results
 ```
 
-## 📂 Struktura projektu
+## 📂 Project Structure
 
 ```
 BIM_checker/
-├── index.html              # Hlavní stránka s přehledem nástrojů
-├── pages/                  # Jednotlivé nástroje
+├── index.html              # Main page with tool overview
+├── pages/                  # Individual tools
 │   ├── ifc-viewer-multi-file.html
 │   ├── ids-parser-visualizer.html
 │   └── ids-ifc-validator.html
 ├── assets/
 │   ├── js/
-│   │   ├── common/         # Sdílené moduly
+│   │   ├── common/         # Shared modules
 │   │   │   ├── ifc-stream-parser.js    # ⭐ IFC parser
 │   │   │   ├── storage.js              # IndexedDB storage
-│   │   │   ├── virtual-tree.js         # Efektivní tree view
-│   │   │   ├── i18n.js                 # Internacionalizace
-│   │   │   └── utils.js                # Utility funkce
-│   │   ├── ids/            # IDS specifické moduly
+│   │   │   ├── virtual-tree.js         # Efficient tree view
+│   │   │   ├── i18n.js                 # Internationalization
+│   │   │   └── utils.js                # Utility functions
+│   │   ├── ids/            # IDS-specific modules
 │   │   │   ├── ids-editor-core.js      # ⭐ IDS editor
-│   │   │   ├── ids-xml-generator.js    # XML generátor
+│   │   │   ├── ids-xml-generator.js    # XML generator
 │   │   │   └── ifc-data.js             # IFC schema data
 │   │   ├── workers/
 │   │   │   └── ifc-parser.worker.js    # Web Worker
-│   │   ├── viewer.js       # ⭐ IFC viewer logika
+│   │   ├── viewer.js       # ⭐ IFC viewer logic
 │   │   ├── parser.js       # ⭐ IDS parser
 │   │   └── validator.js    # ⭐ IDS-IFC validator
-│   └── css/                # Styly
+│   └── css/                # Styles
 └── tests/                  # Test suite
 ```
 
-**⭐ = Klíčové soubory pro pochopení**
+**⭐ = Key files to understand**
 
-## 🔍 Jak funguje IFC Parser
+## 🔍 How the IFC Parser Works
 
-### Stream parsing velkých souborů
+### Stream Parsing Large Files
 
 ```javascript
 // assets/js/common/ifc-stream-parser.js
@@ -91,7 +91,8 @@ class IFCStreamParser {
             const { done, value } = await reader.read();
             if (done) break;
             
-            // Dekódování a zpracování
+            // Decode and process
+            const decoder = new TextDecoder('utf-8');
             const chunk = decoder.decode(value);
             this.buffer += chunk;
             this.processBuffer();
@@ -99,7 +100,7 @@ class IFCStreamParser {
     }
 
     processLine(line) {
-        // Parsování entity
+        // Parse an entity
         // #123=IFCWALL('guid',#5,'Wall-001',$,$,#10,#15,$,.STANDARD.);
         const match = line.match(/#(\d+)\s*=\s*(\w+)\((.*)\);/);
         
@@ -114,15 +115,15 @@ class IFCStreamParser {
 }
 ```
 
-### Proč streaming?
-- ✅ Soubory mohou být 100MB+
-- ✅ Neblokuje UI
-- ✅ Nižší memory footprint
+### Why Streaming?
+- ✅ Files can be 100MB+
+- ✅ Does not block the UI
+- ✅ Lower memory footprint
 - ✅ Progress reporting
 
-## 🎯 Jak funguje IDS Validace
+## 🎯 How IDS Validation Works
 
-### 1. Parsování IDS XML
+### 1. Parsing IDS XML
 
 ```javascript
 // assets/js/parser.js
@@ -141,7 +142,7 @@ function parseIDS(xmlContent) {
 }
 ```
 
-### 2. Validace entity
+### 2. Validating an Entity
 
 ```javascript
 // assets/js/validator.js
@@ -167,42 +168,42 @@ function validateEntity(entity, specification) {
 }
 ```
 
-### Typy facetů
+### Facet Types
 
-1. **Entity** - typ IFC entity
-2. **Property** - hodnoty v PropertySets
-3. **Attribute** - atributy entity (Name, GlobalId, etc.)
-4. **Material** - materiály
-5. **Classification** - klasifikační systémy
-6. **PartOf** - strukturální vztahy
+1.  **Entity** - IFC entity type
+2.  **Property** - Values in PropertySets
+3.  **Attribute** - Entity attributes (Name, GlobalId, etc.)
+4.  **Material** - Materials
+5.  **Classification** - Classification systems
+6.  **PartOf** - Structural relationships
 
-## 🛠️ Přidání nové funkce
+## 🛠️ Adding a New Feature
 
-### Příklad: Přidání nového filtru
+### Example: Adding a New Filter
 
 ```javascript
-// 1. Přidejte UI element
+// 1. Add the UI element
 // pages/ifc-viewer-multi-file.html
-<input type="text" id="myNewFilter" placeholder="Nový filtr">
+<input type="text" id="myNewFilter" placeholder="New Filter">
 
-// 2. Přidejte event listener
+// 2. Add an event listener
 // assets/js/viewer.js
 document.getElementById('myNewFilter').addEventListener('input', (e) => {
     const filterValue = e.target.value;
     applyMyNewFilter(filterValue);
 });
 
-// 3. Implementujte filtrační logiku
+// 3. Implement the filtering logic
 function applyMyNewFilter(value) {
     const filteredEntities = allEntities.filter(entity => {
-        // Vaše filtrační logika
+        // Your filtering logic here
         return entity.someProperty.includes(value);
     });
     
     updateTable(filteredEntities);
 }
 
-// 4. Přidejte testy
+// 4. Add tests
 // tests/unit/filters.test.js
 describe('My New Filter', () => {
     it('should filter entities correctly', () => {
@@ -213,16 +214,16 @@ describe('My New Filter', () => {
 });
 ```
 
-## 📊 Debugging tips
+## 📊 Debugging Tips
 
 ### 1. Browser DevTools
 
 ```javascript
-// V Console:
-// Prohlédněte si globální proměnné
-console.log(allEntities);      // Všechny parsované entity
-console.log(validationResults); // Výsledky validace
-console.log(idsFiles);          // Nahrané IDS soubory
+// In the Console:
+// Inspect global variables
+console.log(allEntities);      // All parsed entities
+console.log(validationResults); // Validation results
+console.log(idsFiles);          // Uploaded IDS files
 
 // Performance monitoring
 console.log(window.performanceData);
@@ -231,48 +232,48 @@ console.log(window.performanceData);
 ### 2. Performance Profiling
 
 ```javascript
-// V assets/js/common/performance-monitor.js
+// In assets/js/common/performance-monitor.js
 const monitor = new PerformanceMonitor();
 
 monitor.start('parsing');
-// ... váš kód
+// ... your code
 monitor.end('parsing');
 
 console.log(monitor.getStats());
 // { parsing: { time: 1234, memory: 45678 } }
 ```
 
-### 3. IndexedDB inspection
+### 3. IndexedDB Inspection
 
 ```javascript
-// V Console:
-// Prohlédněte si uložená data
+// In the Console:
+// Inspect stored data
 indexedDB.databases().then(dbs => console.log(dbs));
 
-// Smazání storage pro testování
+// Clear storage for testing
 localStorage.clear();
 indexedDB.deleteDatabase('BIMCheckerDB');
 ```
 
-## 🧪 Testování
+## 🧪 Testing
 
-### Testovací IFC soubory
+### Test IFC Files
 
-1. **Jednoduché** (< 1MB):
-   - https://github.com/buildingSMART/Sample-Test-Files
-   - Rychlé testování funkcí
+1.  **Simple** (< 1MB):
+    *   https://github.com/buildingSMART/Sample-Test-Files
+    *   For quick feature testing
 
-2. **Velké** (> 50MB):
-   - Testování performance
-   - Stream parsing
-   - Memory management
+2.  **Large** (> 50MB):
+    *   For performance testing
+    *   Stream parsing
+    *   Memory management
 
-3. **Speciální případy**:
-   - Soubory s unicode znaky (čeština)
-   - Soubory s chybami
-   - Neúplné soubory
+3.  **Special Cases**:
+    *   Files with Unicode characters (e.g., Czech)
+    *   Files with errors
+    *   Incomplete files
 
-### Testovací IDS specifikace
+### Test IDS Specifications
 
 ```xml
 <!-- test.ids -->
@@ -306,11 +307,11 @@ indexedDB.deleteDatabase('BIMCheckerDB');
 </ids>
 ```
 
-## 🐛 Časté problémy
+## 🐛 Common Problems
 
 ### "File too large" error
 ```javascript
-// Řešení: Zvyšte chunk size nebo použijte Web Worker
+// Solution: Increase chunk size or use a Web Worker
 const parser = new IFCStreamParser({
     chunkSize: 2 * 1024 * 1024  // 2MB
 });
@@ -318,7 +319,7 @@ const parser = new IFCStreamParser({
 
 ### "Out of memory"
 ```javascript
-// Řešení: Implementujte pagination
+// Solution: Implement pagination
 const ITEMS_PER_PAGE = 1000;
 const displayedEntities = allEntities.slice(
     page * ITEMS_PER_PAGE,
@@ -326,16 +327,16 @@ const displayedEntities = allEntities.slice(
 );
 ```
 
-### Unicode problémy s češtinou
+### Unicode issues with special characters
 ```javascript
-// Řešení: Správné encoding
+// Solution: Use correct encoding
 const decoder = new TextDecoder('utf-8');
 const text = decoder.decode(buffer);
 ```
 
-## 📚 Další zdroje
+## 📚 Further Resources
 
-### Dokumentace
+### Documentation
 - [IFC Specification](https://ifc43-docs.standards.buildingsmart.org/)
 - [IDS GitHub](https://github.com/buildingSMART/IDS)
 - [buildingSMART Standards](https://www.buildingsmart.org/standards/)
@@ -350,31 +351,31 @@ const text = decoder.decode(buffer);
 - [IfcOpenShell](https://ifcopenshell.org/) - Python IFC toolkit
 - [xeokit](https://xeokit.io/) - WebGL BIM viewer
 
-## 💡 Best practices
+## 💡 Best Practices
 
-1. **Vždy testujte s velkými soubory** (> 50MB)
-2. **Používejte Web Workers** pro heavy operations
-3. **Implementujte proper error handling**
-4. **Přidávejte progress indicators** pro dlouhé operace
-5. **Dokumentujte veřejné API** pomocí JSDoc
-6. **Píšte testy** pro kritické funkce
-7. **Optimalizujte memory usage** (uvolňujte reference)
-8. **Používejte async/await** pro async operace
+1.  **Always test with large files** (> 50MB)
+2.  **Use Web Workers** for heavy operations
+3.  **Implement proper error handling**
+4.  **Add progress indicators** for long operations
+5.  **Document public APIs** using JSDoc
+6.  **Write tests** for critical functions
+7.  **Optimize memory usage** (release references)
+8.  **Use async/await** for async operations
 
-## 🎓 Tutoriály
+## 🎓 Tutorials
 
-### 1. Přidání nového typu facetu do IDS validátoru
+### 1. Adding a New Facet Type to the IDS Validator
 
-[Podrobný návod krok za krokem...]
+[Detailed step-by-step guide...]
 
-### 2. Vytvoření custom exportu
+### 2. Creating a Custom Export
 
-[Jak exportovat data do vlastního formátu...]
+[How to export data to a custom format...]
 
-### 3. Integrace s externím API
+### 3. Integrating with an External API
 
-[Jak napojit na buildingSMART validation service...]
+[How to connect to the buildingSMART validation service...]
 
 ---
 
-**Potřebujete pomoct?** Otevřete Issue na GitHubu nebo se zeptejte na fóru!
+**Need help?** Open an Issue on GitHub or ask in the forums!
