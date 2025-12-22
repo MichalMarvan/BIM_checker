@@ -1030,12 +1030,12 @@
             selectedIdsFile = null;
             expandedIdsStorageFolders = new Set(['root']);
             await renderIdsStorageTree();
-            document.getElementById('idsStorageModal').style.display = 'flex';
+            document.getElementById('idsStorageModal').classList.add('active');
         }
 
         // Close storage picker modal
         function closeIdsStoragePicker() {
-            document.getElementById('idsStorageModal').style.display = 'none';
+            document.getElementById('idsStorageModal').classList.remove('active');
         }
 
         // Toggle folder expand/collapse
@@ -1053,13 +1053,13 @@
             try {
                 const transaction = idsStorageDB.transaction(['storage'], 'readonly');
                 const store = transaction.objectStore('storage');
-                const request = store.get('bim_checker_ids_storage');
+                const request = store.get('ids_files');
 
                 request.onsuccess = () => {
                     idsStorageData = request.result?.value;
 
                     if (!idsStorageData || !idsStorageData.files || Object.keys(idsStorageData.files).length === 0) {
-                        document.getElementById('idsStorageFileTree').innerHTML = `<p style="text-align: center; color: #a0aec0; padding: 40px;">${t('parser.storage.noFiles')}</p>`;
+                        document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-empty-message">${t('parser.storage.noFiles')}</p>`;
                         return;
                     }
 
@@ -1070,11 +1070,11 @@
 
                 request.onerror = () => {
                     console.error('Error loading storage:', request.error);
-                    document.getElementById('idsStorageFileTree').innerHTML = `<p style="color: red;">${t('parser.storage.error')}</p>`;
+                    document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-error-message">${t('parser.storage.error')}</p>`;
                 };
             } catch (e) {
                 console.error('Error loading storage:', e);
-                document.getElementById('idsStorageFileTree').innerHTML = `<p style="color: red;">${t('parser.storage.error')}</p>`;
+                document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-error-message">${t('parser.storage.error')}</p>`;
             }
         }
 
@@ -1095,11 +1095,11 @@
 
                 html += `
                     <div style="margin-bottom: 8px;">
-                        <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
-                            <span onclick="toggleIdsStorageFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
-                            <span onclick="toggleIdsStorageFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
+                        <div class="tree-folder-header" style="margin-left: ${level * 20}px;">
+                            <span onclick="toggleIdsStorageFolder('${folderId}')" class="tree-folder-arrow">${arrow}</span>
+                            <span onclick="toggleIdsStorageFolder('${folderId}')" class="tree-folder-name">
                                 📁 ${folder.name}
-                                ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} ${t('parser.storage.fileCount')})</span>` : ''}
+                                ${allFolderFiles.length > 0 ? `<span class="tree-folder-count">(${allFolderFiles.length} ${t('parser.storage.fileCount')})</span>` : ''}
                             </span>
                         </div>
                 `;
@@ -1130,12 +1130,12 @@
                         const isSelected = selectedIdsFile === file.id;
                         const sizeKB = (file.size / 1024).toFixed(1);
                         html += `
-                            <div class="storage-file-item ${isSelected ? 'selected' : ''}"
+                            <div class="tree-file-item ${isSelected ? 'selected' : ''}"
                                  onclick="selectIdsFile('${file.id}')"
-                                 style="padding: 8px; margin: 4px 0; cursor: pointer; border-radius: 6px; background: white; border: 2px solid ${isSelected ? '#667eea' : '#e9ecef'}; display: flex; align-items: center; margin-left: ${(level + 1) * 20}px; transition: all 0.2s;">
+                                 style="margin-left: ${(level + 1) * 20}px;">
                                 <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectIdsFile('${file.id}');" style="margin-right: 10px;">
-                                <span style="flex: 1;">📄 ${file.name}</span>
-                                <span style="color: #a0aec0; font-size: 0.9em;">${sizeKB} KB</span>
+                                <span class="tree-file-name">📄 ${file.name}</span>
+                                <span class="tree-file-size">${sizeKB} KB</span>
                             </div>
                         `;
                     });
@@ -1176,30 +1176,47 @@
             const display = document.getElementById('selectedIdsFileName');
             if (selectedIdsFile && idsStorageData.files[selectedIdsFile]) {
                 display.textContent = idsStorageData.files[selectedIdsFile].name;
-                display.style.color = '#667eea';
-                display.style.fontWeight = '600';
+                display.classList.add('file-selected');
             } else {
                 display.textContent = t('parser.storage.none');
-                display.style.color = '#6c757d';
-                display.style.fontWeight = 'normal';
+                display.classList.remove('file-selected');
             }
         }
 
         // Load selected IDS file from storage
-        function loadSelectedIdsFromStorage() {
+        async function loadSelectedIdsFromStorage() {
             if (!selectedIdsFile) {
                 alert(t('validator.error.selectIds'));
                 return;
             }
 
-            const file = idsStorageData.files[selectedIdsFile];
-            if (!file) {
+            const fileMetadata = idsStorageData.files[selectedIdsFile];
+            if (!fileMetadata) {
                 alert(t('validator.error.fileNotFound'));
                 return;
             }
 
-            closeIdsStoragePicker();
-            parseIDS(file.content);
+            try {
+                // Load file content separately (NEW: separate storage optimization!)
+                const contentTransaction = idsStorageDB.transaction(['storage'], 'readonly');
+                const contentStore = contentTransaction.objectStore('storage');
+                const contentRequest = contentStore.get(`ids_files_file_${selectedIdsFile}`);
+
+                const fileContent = await new Promise((resolve, reject) => {
+                    contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
+                    contentRequest.onerror = () => reject(contentRequest.error);
+                });
+
+                if (fileContent) {
+                    closeIdsStoragePicker();
+                    parseIDS(fileContent);
+                } else {
+                    alert(t('validator.error.fileNotFound'));
+                }
+            } catch (e) {
+                console.error('Error loading file content:', e);
+                alert(t('validator.error.fileNotFound'));
+            }
         }
 
         // Click on overlay to close

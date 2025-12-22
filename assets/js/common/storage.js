@@ -52,6 +52,17 @@ class IndexedDBStorage {
             request.onerror = () => reject(request.error);
         });
     }
+
+    async delete(key) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['storage'], 'readwrite');
+            const store = transaction.objectStore('storage');
+            const request = store.delete(key);
+
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
 }
 
 // =======================
@@ -137,8 +148,8 @@ class StorageManager {
     async save() {
         try {
             await this.idb.set(this.storageKey, this.data);
-            // Refresh metadata cache after save
-            await this.loadMetadata();
+            // Metadata is already updated in-memory by operations (addFile, deleteFile, etc.)
+            // No need to reload from IndexedDB - significantly faster!
             return true;
         } catch (e) {
             console.error('Error saving storage:', e);
@@ -159,56 +170,72 @@ class StorageManager {
             parent: parentId,
             children: [],
             files: [],
-            expanded: false
+            expanded: true  // Auto-expand new folders
         };
         this.data.folders[parentId].children.push(id);
 
-        // Update metadata too
+        // Update metadata synchronously (instant UI update!)
         this.metadata.folders[id] = { ...this.data.folders[id] };
+        this.metadata.folders[parentId].children.push(id);
 
-        await this.save();
-        return id;
+        // Save to IndexedDB asynchronously without blocking
+        this.save().catch(err => console.error('Failed to save folder:', err));
+
+        return id;  // Return immediately for instant UI update
     }
 
     async renameFolder(folderId, newName) {
         if (!this.data) await this.load();
 
         if (this.data.folders[folderId]) {
+            // Update both data and metadata synchronously
             this.data.folders[folderId].name = newName;
             if (this.metadata.folders[folderId]) {
                 this.metadata.folders[folderId].name = newName;
             }
-            await this.save();
+
+            // Save asynchronously without blocking
+            this.save().catch(err => console.error('Failed to save rename:', err));
             return true;
         }
         return false;
     }
 
-    async deleteFolder(folderId) {
+    async deleteFolder(folderId, skipSave = false) {
         if (folderId === 'root') return false;
         if (!this.data) await this.load();
 
         const folder = this.data.folders[folderId];
         if (!folder) return false;
 
-        // Delete all files in folder
+        // Delete all files in folder (synchronously update both data and metadata)
         folder.files.forEach(fileId => {
             delete this.data.files[fileId];
             delete this.metadata.files[fileId];
         });
 
-        // Recursively delete child folders
-        folder.children.forEach(childId => this.deleteFolder(childId));
+        // Recursively delete child folders (with skipSave to avoid multiple saves)
+        folder.children.forEach(childId => this.deleteFolder(childId, true));
 
-        // Remove from parent
+        // Remove from parent (synchronously update both data and metadata)
         const parent = this.data.folders[folder.parent];
         if (parent) {
             parent.children = parent.children.filter(id => id !== folderId);
+            // Update metadata parent too
+            if (this.metadata.folders[folder.parent]) {
+                this.metadata.folders[folder.parent].children =
+                    this.metadata.folders[folder.parent].children.filter(id => id !== folderId);
+            }
         }
 
         delete this.data.folders[folderId];
         delete this.metadata.folders[folderId];
-        await this.save();
+
+        // Only save once at the top level (not during recursion)
+        if (!skipSave) {
+            this.save().catch(err => console.error('Failed to save delete:', err));
+        }
+
         return true;
     }
 
@@ -217,28 +244,30 @@ class StorageManager {
         if (!this.data) await this.load();
 
         const id = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        this.data.files[id] = {
+
+        // Store metadata only (NO content in data structure!)
+        const fileMetadata = {
             id,
             name: file.name,
             size: file.size,
-            content: file.content,
             folder: folderId,
             uploadDate: new Date().toISOString()
         };
 
-        // Add to metadata (without content)
-        this.metadata.files[id] = {
-            id,
-            name: file.name,
-            size: file.size,
-            folder: folderId,
-            uploadDate: this.data.files[id].uploadDate
-        };
+        this.data.files[id] = fileMetadata;
+        this.metadata.files[id] = { ...fileMetadata };
 
         this.data.folders[folderId].files.push(id);
         this.metadata.folders[folderId].files.push(id);
 
-        await this.save();
+        // Save file content separately in IndexedDB (huge performance win!)
+        const contentKey = `${this.storageKey}_file_${id}`;
+        this.idb.set(contentKey, file.content).catch(err =>
+            console.error('Failed to save file content:', err)
+        );
+
+        // Save structure asynchronously without blocking (super fast now - no file content!)
+        this.save().catch(err => console.error('Failed to save file metadata:', err));
         return id;
     }
 
@@ -248,6 +277,7 @@ class StorageManager {
         const file = this.data.files[fileId];
         if (!file) return false;
 
+        // Synchronously update both data and metadata
         const folder = this.data.folders[file.folder];
         if (folder) {
             folder.files = folder.files.filter(id => id !== fileId);
@@ -258,7 +288,15 @@ class StorageManager {
 
         delete this.data.files[fileId];
         delete this.metadata.files[fileId];
-        await this.save();
+
+        // Delete file content from IndexedDB
+        const contentKey = `${this.storageKey}_file_${fileId}`;
+        this.idb.delete(contentKey).catch(err =>
+            console.error('Failed to delete file content:', err)
+        );
+
+        // Save structure asynchronously without blocking
+        this.save().catch(err => console.error('Failed to save file deletion:', err));
         return true;
     }
 
@@ -285,7 +323,8 @@ class StorageManager {
             this.metadata.files[fileId].folder = targetFolderId;
         }
 
-        await this.save();
+        // Save asynchronously without blocking (instant drag-and-drop feedback)
+        this.save().catch(err => console.error('Failed to save file move:', err));
         return true;
     }
 
@@ -323,6 +362,28 @@ class StorageManager {
         } catch (e) {
             console.error('Failed to load expanded states:', e);
         }
+    }
+
+    async getFileContent(fileId) {
+        // Load file content from separate IndexedDB entry
+        const contentKey = `${this.storageKey}_file_${fileId}`;
+        const content = await this.idb.get(contentKey);
+        return content || null;
+    }
+
+    async getFileWithContent(fileId) {
+        // Get metadata from data structure
+        const metadata = this.data?.files[fileId] || this.metadata?.files[fileId];
+        if (!metadata) return null;
+
+        // Load content separately
+        const content = await this.getFileContent(fileId);
+
+        // Return combined object (like old format, but loaded on-demand)
+        return {
+            ...metadata,
+            content
+        };
     }
 
     getStats() {
@@ -401,6 +462,29 @@ window.BIMStorage = {
 
     async getFileByName(type, name) {
         return await this.getFile(type, name);
+    },
+
+    async getFileContent(type, fileId) {
+        if (!this.initialized) await this.init();
+
+        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        return await storage.getFileContent(fileId);
+    },
+
+    async getFileWithContent(type, nameOrId) {
+        if (!this.initialized) await this.init();
+
+        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+
+        // If it's a name, find the file ID first
+        let fileId = nameOrId;
+        if (typeof nameOrId === 'string' && !nameOrId.startsWith('file_')) {
+            const file = await this.getFile(type, nameOrId);
+            if (!file) return null;
+            fileId = file.id;
+        }
+
+        return await storage.getFileWithContent(fileId);
     },
 
     async deleteFile(type, nameOrId) {

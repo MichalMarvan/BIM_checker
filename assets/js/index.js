@@ -65,6 +65,28 @@ class FilePanel {
         this.elements.expandAllBtn.addEventListener('click', () => this.expandAll());
         this.elements.collapseAllBtn.addEventListener('click', () => this.collapseAll());
 
+        // Setup deselection on outside click - using setTimeout to avoid conflicts
+        setTimeout(() => {
+            document.addEventListener('click', (e) => {
+                // Don't deselect if clicking inside this panel's file tree
+                if (this.elements.fileTree.contains(e.target)) {
+                    return;
+                }
+
+                // Don't deselect if clicking on buttons in card header
+                if (e.target.closest('.card-actions') || e.target.closest('.card-header')) {
+                    return;
+                }
+
+                // Deselect if we have something selected
+                if (this.selectedFolder !== 'root' || this.selectedFile !== null) {
+                    this.selectedFolder = 'root';
+                    this.selectedFile = null;
+                    this.render();
+                }
+            }, { capture: false });
+        }, 100);
+
         this.render();
     }
 
@@ -103,6 +125,10 @@ class FilePanel {
         const loadingSubtext = document.getElementById('loadingSubtext');
         const fileInfo = document.getElementById('fileInfo');
 
+        // Support both old and new progress bar structure
+        const progressBarFill = progressBar.querySelector('.progress-bar-fill') || progressBar;
+        const progressBarText = progressBar.querySelector('.progress-bar-text') || progressBar;
+
         loadingOverlay.classList.add('show');
 
         let processed = 0;
@@ -122,8 +148,8 @@ class FilePanel {
                     const overallPercent = Math.round(
                         ((processed + (percentRead / 100)) / validFiles.length) * 100
                     );
-                    progressBar.style.width = overallPercent + '%';
-                    progressBar.textContent = overallPercent + '%';
+                    progressBarFill.style.width = overallPercent + '%';
+                    progressBarText.textContent = overallPercent + '%';
                 }
             };
 
@@ -138,8 +164,13 @@ class FilePanel {
                     processed++;
 
                     const overallPercent = Math.round((processed / validFiles.length) * 100);
-                    progressBar.style.width = overallPercent + '%';
-                    progressBar.textContent = overallPercent + '%';
+                    progressBarFill.style.width = overallPercent + '%';
+                    progressBarText.textContent = overallPercent + '%';
+
+                    // Update UI every 3 files for smoother feedback
+                    if (processed % 3 === 0 || processed === validFiles.length) {
+                        this.render();
+                    }
 
                     resolve();
                 };
@@ -155,20 +186,30 @@ class FilePanel {
         // Hide loading overlay
         loadingOverlay.classList.remove('show');
 
+        // Final render to ensure all files are visible
         this.render();
         ErrorHandler.success(`${i18n.t('msg.success')} ${validFiles.length} ${i18n.t('msg.files')}`);
     }
 
     async createNewFolder() {
         ErrorHandler.prompt(i18n.t('msg.folderName'), '', async (name) => {
-            await this.storage.createFolder(name, this.selectedFolder);
+            const folderId = await this.storage.createFolder(name, this.selectedFolder);
+            // Render immediately after metadata update (before IndexedDB save completes)
             this.render();
+            // Auto-select and expand the new folder
+            this.selectedFolder = folderId;
         });
     }
 
     async deleteFolder(folderId) {
         ErrorHandler.confirm(i18n.t('msg.deleteFolder'), async () => {
+            // Select parent before delete
+            const folder = this.storage.metadata.folders[folderId];
+            if (folder) {
+                this.selectedFolder = folder.parent;
+            }
             await this.storage.deleteFolder(folderId);
+            // Render immediately after metadata update
             this.render();
         });
     }
@@ -177,6 +218,7 @@ class FilePanel {
         const folder = this.storage.metadata.folders[folderId];
         ErrorHandler.prompt(i18n.t('msg.newFolderName'), folder.name, async (newName) => {
             await this.storage.renameFolder(folderId, newName);
+            // Render immediately after metadata update
             this.render();
         });
     }
@@ -184,6 +226,7 @@ class FilePanel {
     async deleteFile(fileId) {
         ErrorHandler.confirm(i18n.t('btn.delete'), async () => {
             await this.storage.deleteFile(fileId);
+            // Render immediately after metadata update
             this.render();
         });
     }
@@ -215,27 +258,66 @@ class FilePanel {
         const isExpanded = folder.expanded;
         const hasChildren = folder.children.length > 0 || folder.files.length > 0;
 
+        // For root folder, render only children without header
+        if (folderId === 'root') {
+            let html = '';
+
+            // Render child folders FIRST (sorted by name)
+            const childFolders = folder.children
+                .map(id => this.storage.metadata.folders[id])
+                .filter(f => f)
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            childFolders.forEach(childFolder => {
+                html += this.renderFolder(childFolder.id, level + 1);
+            });
+
+            // Render files AFTER folders (sorted by name)
+            const files = folder.files
+                .map(id => this.storage.metadata.files[id])
+                .filter(f => f)
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            files.forEach(file => {
+                const sizeKB = (file.size / 1024).toFixed(1);
+                html += `
+                    <div class="tree-file ${this.selectedFile === file.id ? 'selected' : ''}"
+                         data-file-id="${file.id}"
+                         draggable="true"
+                         ondragstart="filePanel_${this.type}.handleDragStart(event, '${file.id}')"
+                         ondragend="filePanel_${this.type}.handleDragEnd(event)"
+                         onclick="filePanel_${this.type}.selectFile('${file.id}', event)">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-size">${sizeKB} KB</span>
+                        <div class="file-actions">
+                            <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFile('${file.id}')" title="${i18n.t('btn.delete')}">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            return html;
+        }
+
+        // For non-root folders, render normally with header
         // Arrow for expand/collapse
         const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
-
-        // Use translation for root folder name
-        const folderName = folderId === 'root' ? t('storage.rootFolder') : folder.name;
 
         let html = `
             <div class="tree-folder" data-folder-id="${folderId}">
                 <div class="tree-folder-header ${this.selectedFolder === folderId ? 'selected' : ''}"
-                     onclick="filePanel_${this.type}.selectFolder('${folderId}')"
+                     onclick="filePanel_${this.type}.selectFolder('${folderId}', event)"
                      ondragover="filePanel_${this.type}.handleDragOver(event, '${folderId}')"
                      ondragleave="filePanel_${this.type}.handleDragLeave(event)"
                      ondrop="filePanel_${this.type}.handleDrop(event, '${folderId}')">
                     <span class="folder-arrow" onclick="event.stopPropagation(); filePanel_${this.type}.toggleFolder('${folderId}')">${arrow}</span>
                     <span class="folder-icon">📁</span>
-                    <span class="folder-name">${folderName}</span>
-                    ${folderId !== 'root' ? `
+                    <span class="folder-name">${folder.name}</span>
                     <div class="folder-actions">
-                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="${i18n.t('btn.rename')}">✏️</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.renameFolder('${folderId}')" title="${i18n.t('btn.rename')}">✏️</button>
                         <button class="action-btn" onclick="event.stopPropagation(); filePanel_${this.type}.deleteFolder('${folderId}')" title="${i18n.t('btn.delete')}">🗑️</button>
-                    </div>` : ''}
+                    </div>
                 </div>
                 <div class="tree-folder-children ${isExpanded ? 'expanded' : ''}">
         `;
@@ -264,7 +346,7 @@ class FilePanel {
                      draggable="true"
                      ondragstart="filePanel_${this.type}.handleDragStart(event, '${file.id}')"
                      ondragend="filePanel_${this.type}.handleDragEnd(event)"
-                     onclick="filePanel_${this.type}.selectFile('${file.id}')">
+                     onclick="filePanel_${this.type}.selectFile('${file.id}', event)">
                     <span class="file-icon">📄</span>
                     <span class="file-name">${file.name}</span>
                     <span class="file-size">${sizeKB} KB</span>
@@ -285,16 +367,27 @@ class FilePanel {
         // Update stats
         const stats = this.storage.getStats();
         const sizeKB = (stats.totalSize / 1024).toFixed(1);
-        this.elements.stats.innerHTML = `
-            <span>${i18n.t('storage.files')}: <strong>${stats.fileCount}</strong></span>
-            <span>${i18n.t('storage.size')}: <strong>${sizeKB} KB</strong></span>
-        `;
+
+        // Find stat values and update them
+        const statValues = this.elements.stats.querySelectorAll('.stat-value');
+        if (statValues.length >= 2) {
+            statValues[0].textContent = stats.fileCount;
+            statValues[1].textContent = `${sizeKB} KB`;
+        }
     }
 
-    async selectFolder(folderId) {
+    selectFolder(folderId, event) {
+        if (event) event.stopPropagation();
+
         const folder = this.storage.metadata.folders[folderId];
         if (folder) {
-            this.selectedFolder = folderId;
+            // If clicking on already selected folder, deselect it
+            if (this.selectedFolder === folderId) {
+                this.selectedFolder = 'root';
+            } else {
+                this.selectedFolder = folderId;
+            }
+            this.selectedFile = null; // Deselect file when folder is selected
             this.render();
         }
     }
@@ -307,8 +400,17 @@ class FilePanel {
         }
     }
 
-    selectFile(fileId) {
-        this.selectedFile = fileId;
+    selectFile(fileId, event) {
+        if (event) event.stopPropagation();
+
+        // If clicking on already selected file, deselect it
+        if (this.selectedFile === fileId) {
+            this.selectedFile = null;
+            this.selectedFolder = 'root';
+        } else {
+            this.selectedFile = fileId;
+            this.selectedFolder = null; // Deselect folder when file is selected
+        }
         this.render();
     }
 

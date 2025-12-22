@@ -3,99 +3,16 @@
    Styles specific to IDS-IFC Validator
    =========================================== */
 
+/* Header removed - using navbar only */
+
 /* Upload Section */
 .upload-section {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     padding: 40px;
-    border-bottom: 2px solid #e9ecef;
+    border-bottom: 2px solid var(--border-primary);
 }
 
-.upload-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 30px;
-    margin-bottom: 20px;
-}
-
-.upload-box {
-    border: 3px dashed #667eea;
-    border-radius: 10px;
-    padding: 40px;
-    text-align: center;
-    background: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.upload-box:hover {
-    border-color: #764ba2;
-    background: #f8f9ff;
-}
-
-.upload-box.has-files {
-    border-color: #28a745;
-    border-style: solid;
-}
-
-.upload-icon {
-    font-size: 3em;
-    color: #667eea;
-    margin-bottom: 15px;
-}
-
-.upload-box.has-files .upload-icon {
-    color: #28a745;
-}
-
-.upload-box h3 {
-    font-size: 1.2em;
-    color: #495057;
-    margin-bottom: 10px;
-}
-
-.upload-box p {
-    color: #6c757d;
-    font-size: 0.9em;
-}
-
-.file-input {
-    display: none;
-}
-
-.file-list {
-    margin-top: 15px;
-    text-align: left;
-}
-
-.file-item {
-    background: #f8f9fa;
-    padding: 8px 12px;
-    border-radius: 6px;
-    margin-top: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9em;
-}
-
-.file-item-name {
-    color: #495057;
-    font-weight: 600;
-}
-
-.file-remove {
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 4px 8px;
-    cursor: pointer;
-    font-size: 0.85em;
-}
-
-.file-remove:hover {
-    background: #c82333;
-}
+/* Modern drop zone styles inherited from index.css */
 
 .validate-button-container {
     text-align: center;
@@ -104,40 +21,42 @@
 
 /* Validation Groups */
 .validation-group {
-    background: white;
-    border: 3px solid #667eea;
-    border-radius: 12px;
-    padding: 25px;
-    margin-bottom: 25px;
+    background: var(--bg-primary);
+    border: 2px solid var(--primary-color);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
     position: relative;
-    transition: all 0.3s ease;
+    transition: all var(--transition-slow);
+    box-shadow: var(--shadow-md);
 }
 
 .validation-group:hover {
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
 }
 
 .group-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 2px solid #e9ecef;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 2px solid var(--border-primary);
 }
 
 .group-title {
     font-size: 1.3em;
     font-weight: 600;
-    color: #2d3748;
+    color: var(--text-primary);
 }
 
 .group-delete-btn {
-    background: #dc3545;
+    background: var(--error);
     color: white;
     border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
     cursor: pointer;
     font-weight: 600;
     transition: all 0.2s;
@@ -155,15 +74,15 @@
 }
 
 .group-section {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     border-radius: 8px;
     padding: 20px;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
 }
 
 .group-section h4 {
     margin: 0 0 15px 0;
-    color: #4a5568;
+    color: var(--text-primary);
     font-size: 1.1em;
 }
 
@@ -190,22 +109,22 @@
 .drop-zone {
     margin-top: 15px;
     padding: 30px;
-    border: 3px dashed #cbd5e0;
+    border: 3px dashed var(--border-secondary);
     border-radius: 12px;
-    background: white;
+    background: var(--bg-primary);
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
 }
 
 .drop-zone:hover {
-    border-color: #667eea;
-    background: #f7fafc;
+    border-color: var(--primary-color);
+    background: var(--bg-secondary);
 }
 
 .drop-zone.drag-over {
-    border-color: #667eea;
-    background: #eef2ff;
+    border-color: var(--primary-color);
+    background: var(--bg-secondary);
     box-shadow: 0 0 12px rgba(102, 126, 234, 0.3);
     transform: scale(1.02);
 }
@@ -223,13 +142,13 @@
 
 .drop-zone-text {
     font-size: 1.1em;
-    color: #4a5568;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
 .drop-zone-hint {
     font-size: 0.9em;
-    color: #a0aec0;
+    color: var(--text-secondary);
 }
 
 .selected-files-list {
@@ -239,11 +158,11 @@
 }
 
 .selected-file-item {
-    background: white;
+    background: var(--bg-primary);
     padding: 10px;
     margin: 5px 0;
     border-radius: 6px;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -256,7 +175,7 @@
 .selected-file-item .file-name {
     flex: 1;
     font-weight: 500;
-    color: #2d3748;
+    color: var(--text-primary);
 }
 
 /* Loading */
@@ -293,7 +212,7 @@
     align-items: center;
     margin-bottom: 30px;
     padding-bottom: 20px;
-    border-bottom: 2px solid #e9ecef;
+    border-bottom: 2px solid var(--border-primary);
 }
 
 .results-stats {
@@ -304,8 +223,8 @@
 }
 
 .stat-card {
-    background: white;
-    border: 2px solid #e9ecef;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-primary);
     border-radius: 8px;
     padding: 20px;
     text-align: center;
@@ -342,7 +261,7 @@
 }
 
 .stat-label {
-    color: #6c757d;
+    color: var(--text-secondary);
     font-size: 0.9em;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -350,11 +269,11 @@
 
 /* Filters */
 .filters-section {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 30px;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
 }
 
 .filters-grid {
@@ -366,20 +285,22 @@
 
 .filter-input {
     padding: 10px 15px;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
     border-radius: 8px;
     font-size: 1em;
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .filter-input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--primary-color);
 }
 
 /* Specification Results */
 .specification-result {
-    background: white;
-    border: 2px solid #e9ecef;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-primary);
     border-radius: 8px;
     margin-bottom: 20px;
     overflow: hidden;
@@ -404,12 +325,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     transition: all 0.3s ease;
 }
 
 .spec-header:hover {
-    background: #e9ecef;
+    background: var(--bg-tertiary);
 }
 
 .spec-title {
@@ -422,7 +343,7 @@
 .expand-icon {
     transition: transform 0.3s;
     font-size: 1.2em;
-    color: #6c757d;
+    color: var(--text-secondary);
 }
 
 .specification-result.collapsed .expand-icon {
@@ -432,7 +353,7 @@
 .spec-name {
     font-size: 1.2em;
     font-weight: 600;
-    color: #2d3748;
+    color: var(--text-primary);
 }
 
 .spec-status-badge {
@@ -457,21 +378,21 @@
     display: flex;
     gap: 20px;
     font-size: 0.9em;
-    color: #6c757d;
+    color: var(--text-secondary);
 }
 
 .spec-details {
     padding: 20px;
-    border-top: 2px solid #e9ecef;
+    border-top: 2px solid var(--border-primary);
 }
 
 /* Entity Results */
 .entity-result {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     border-radius: 6px;
     padding: 15px;
     margin-bottom: 15px;
-    border-left: 4px solid #e9ecef;
+    border-left: 4px solid var(--border-primary);
 }
 
 .entity-result.pass {
@@ -495,19 +416,19 @@
 
 .entity-type {
     font-weight: 600;
-    color: #667eea;
+    color: var(--primary-color);
     font-size: 0.95em;
 }
 
 .entity-name {
-    color: #495057;
+    color: var(--text-secondary);
     font-size: 0.9em;
     margin-top: 3px;
 }
 
 .entity-guid {
     font-family: 'Courier New', monospace;
-    color: #6c757d;
+    color: var(--text-tertiary);
     font-size: 0.85em;
     margin-top: 3px;
 }
@@ -532,7 +453,7 @@
 .validation-details {
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid #dee2e6;
+    border-top: 1px solid var(--border-primary);
 }
 
 .validation-item {
@@ -568,7 +489,7 @@
 }
 
 .validation-value {
-    color: #6c757d;
+    color: var(--text-secondary);
     font-size: 0.9em;
 }
 
@@ -607,10 +528,10 @@
 }
 
 .modal-container {
-    background: white;
+    background: var(--bg-primary);
     border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    max-width: 600px;
+    box-shadow: var(--shadow-2xl);
+    max-width: 700px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
@@ -632,14 +553,14 @@
 }
 
 .modal-close {
-    background: none;
+    background: rgba(255, 255, 255, 0.2);
     border: none;
     color: white;
-    font-size: 2em;
+    font-size: 1.5em;
     cursor: pointer;
     padding: 0;
-    width: 40px;
-    height: 40px;
+    width: 35px;
+    height: 35px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -648,17 +569,41 @@
 }
 
 .modal-close:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .modal-body {
     padding: 30px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .modal-footer {
     padding: 20px 30px;
-    border-top: 2px solid #e9ecef;
+    border-top: 2px solid var(--border-primary);
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+/* Storage file tree */
+.storage-file-tree {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 2px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: 15px;
+    background: var(--bg-secondary);
+}
+
+.selected-files-info {
+    margin-top: 15px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+}
+
+.selected-files-info strong {
+    color: var(--text-primary);
 }

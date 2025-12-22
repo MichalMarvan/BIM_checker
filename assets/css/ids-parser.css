@@ -3,89 +3,39 @@
    Styles specific to IDS Parser & Visualizer
    =========================================== */
 
+/* Header removed - using navbar only */
+
 /* Upload Section */
 .upload-section {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     padding: 40px;
-    border-bottom: 2px solid #e9ecef;
+    border-bottom: 2px solid var(--border-primary);
 }
 
-.file-upload {
-    border: 3px dashed #667eea;
-    border-radius: 10px;
-    padding: 40px;
-    text-align: center;
-    background: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.file-upload:hover {
-    border-color: #764ba2;
-    background: #f8f9ff;
-}
-
-.file-upload.dragover {
-    border-color: #764ba2;
-    background: #f8f9ff;
-}
-
-.file-upload-icon {
-    font-size: 4em;
-    color: #667eea;
-    margin-bottom: 20px;
-}
-
-.file-upload h3 {
-    font-size: 1.2em;
-    color: #495057;
-    margin-bottom: 10px;
-}
-
-.file-upload p {
-    color: #6c757d;
-    font-size: 1em;
-}
+/* Modern drop zone styles inherited from index.css */
 
 .file-input {
     display: none;
 }
 
-.sample-button {
-    background: #667eea;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-top: 1rem;
-    font-size: 1em;
-    transition: all 0.3s ease;
-    font-weight: 600;
-}
-
-.sample-button:hover {
-    background: #5568d3;
-}
-
 /* Visualization Section */
 .visualization-section {
     padding: 40px;
-    background: white;
+    background: var(--bg-primary);
     display: none;
 }
 
 .ids-info {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 30px;
-    border: 2px solid #e9ecef;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-2xl);
+    border: 2px solid var(--border-primary);
 }
 
 .ids-info h3 {
     margin-top: 0;
-    color: #4a5568;
+    color: var(--text-primary);
 }
 
 .ids-info-grid {
@@ -96,21 +46,21 @@
 }
 
 .info-item {
-    background: white;
+    background: var(--bg-primary);
     padding: 15px;
-    border-radius: 8px;
-    border: 2px solid #e9ecef;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-primary);
 }
 
 .info-label {
     font-size: 0.875rem;
-    color: #718096;
+    color: var(--text-secondary);
     margin-bottom: 0.25rem;
 }
 
 .info-value {
     font-weight: 600;
-    color: #2d3748;
+    color: var(--text-primary);
 }
 
 /* Specifications */
@@ -119,16 +69,18 @@
 }
 
 .specification-card {
-    background: white;
-    border: 2px solid #667eea;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-    transition: all 0.3s ease;
+    background: var(--bg-primary);
+    border: 2px solid var(--primary-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    transition: all var(--transition-slow);
+    box-shadow: var(--shadow-md);
 }
 
 .specification-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-xl);
+    transform: translateY(-2px);
 }
 
 .specification-card.collapsed {
@@ -154,19 +106,19 @@
 }
 
 .spec-header:hover {
-    color: #667eea;
+    color: var(--primary-color);
 }
 
 .spec-header h4 {
     margin: 0;
-    color: #667eea;
+    color: var(--primary-color);
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
 .spec-badge {
-    background: #667eea;
+    background: var(--primary-color);
     color: white;
     font-size: 0.85em;
     padding: 4px 12px;
@@ -181,15 +133,15 @@
 
 /* Facets */
 .facet-section {
-    background: #f8f9fa;
-    border-radius: 8px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
     padding: 15px;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
 }
 
 .facet-header {
     font-weight: 600;
-    color: #4a5568;
+    color: var(--text-primary);
     margin-bottom: 0.75rem;
     display: flex;
     align-items: center;
@@ -208,19 +160,19 @@
 }
 
 .applicability-icon {
-    background: #48bb78;
+    background: var(--success);
 }
 
 .requirements-icon {
-    background: #ed8936;
+    background: var(--warning);
 }
 
 .facet-item {
-    background: white;
-    border-radius: 6px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
     padding: 12px;
     margin-bottom: 10px;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
 }
 
 .facet-item:last-child {
@@ -229,37 +181,37 @@
 
 .facet-type {
     font-size: 0.875rem;
-    color: #667eea;
+    color: var(--primary-color);
     font-weight: 600;
     margin-bottom: 0.25rem;
 }
 
 .facet-details {
     font-size: 0.875rem;
-    color: #4a5568;
+    color: var(--text-primary);
 }
 
 .facet-value {
     font-family: 'Courier New', monospace;
-    background: #e9ecef;
+    background: var(--bg-secondary);
     padding: 4px 8px;
     border-radius: 4px;
     display: inline-block;
     margin-top: 4px;
-    color: #495057;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
 /* Regex Pattern */
 .regex-pattern {
     font-family: 'Courier New', monospace;
-    background: #fef5e7;
-    border: 1px solid #f39c12;
+    background: var(--warning-light);
+    border: 1px solid var(--warning);
     padding: 0.5rem;
     border-radius: 4px;
     display: block;
     margin-top: 0.5rem;
-    color: #d35400;
+    color: var(--warning-dark);
     overflow-x: auto;
     white-space: pre-wrap;
     word-break: break-all;
@@ -267,7 +219,7 @@
 
 .regex-label {
     font-size: 0.75rem;
-    color: #f39c12;
+    color: var(--warning);
     font-weight: 600;
     margin-bottom: 0.25rem;
     display: flex;
@@ -283,7 +235,7 @@
 }
 
 .regex-help-icon {
-    background: #3498db;
+    background: var(--info);
     color: white;
     width: 18px;
     height: 18px;
@@ -337,7 +289,7 @@
 }
 
 .regex-tooltip td:first-child {
-    color: #3498db;
+    color: var(--info-dark);
     font-weight: bold;
 }
 
@@ -347,18 +299,18 @@
 }
 
 .restriction-list li {
-    color: #4a5568;
+    color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
 
 /* Tree View */
 .tree-view {
     font-family: 'Courier New', monospace;
-    background: #f8f9fa;
-    border-radius: 8px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
     padding: 20px;
     overflow-x: auto;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
 }
 
 .tree-node {
@@ -368,7 +320,7 @@
 }
 
 .tree-node:hover > .tree-label {
-    color: #667eea;
+    color: var(--primary-color);
 }
 
 .tree-node.collapsed > .tree-children {
@@ -381,26 +333,26 @@
 
 .tree-root {
     font-weight: bold;
-    color: #667eea;
+    color: var(--primary-color);
 }
 
 .tree-label {
-    color: #2d3748;
+    color: var(--text-primary);
 }
 
 .tree-value {
-    color: #48bb78;
+    color: var(--success);
 }
 
 .tree-bracket {
-    color: #a0aec0;
+    color: var(--text-tertiary);
 }
 
 .tree-expand {
     display: inline-block;
     width: 12px;
     text-align: center;
-    color: #718096;
+    color: var(--text-secondary);
     font-weight: normal;
 }
 
@@ -417,6 +369,28 @@
 
 .specification-card:not(.collapsed) .expand-icon {
     transform: rotate(90deg);
+}
+
+/* Storage file tree - inherited from ifc-viewer.css but added here for completeness */
+.storage-file-tree {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 2px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: 15px;
+    background: var(--bg-secondary);
+}
+
+.selected-files-info {
+    margin-top: 15px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+}
+
+.selected-files-info strong {
+    color: var(--text-primary);
 }
 
 /* Responsive */

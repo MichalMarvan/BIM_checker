@@ -9,203 +9,480 @@
     <link rel="stylesheet" href="assets/css/index.css">
 </head>
 <body>
-    <div class="page-container">
-        <div class="header">
-            <div class="language-switcher">
-                <button class="lang-btn active" data-lang="cs">CZ</button>
-                <button class="lang-btn" data-lang="en">EN</button>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name" data-i18n="app.title">BIM Checker</span>
+                    <span class="brand-version" data-i18n="app.version">Beta 0.1</span>
+                </div>
             </div>
-            <h1 data-i18n="app.title">🏗️ BIM Checker</h1>
-            <p data-i18n="app.subtitle">Profesionální nástroje pro validaci a analýzu BIM dat</p>
+            <nav class="navbar-menu">
+                <a href="#uloziste" class="nav-link" data-i18n="nav.storage">Úložiště</a>
+                <a href="#nastroje" class="nav-link" data-i18n="nav.tools">Nástroje</a>
+                <a href="#o-projektu" class="nav-link" data-i18n="nav.about">O projektu</a>
+            </nav>
+            <div class="navbar-actions">
+                <div class="language-switcher">
+                    <button class="lang-btn active" data-lang="cs">CZ</button>
+                    <button class="lang-btn" data-lang="en">EN</button>
+                </div>
+                <button class="theme-toggle" id="themeToggle" title="Přepnout motiv">
+                    <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="theme-icon theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
         </div>
+    </nav>
 
-        <div class="content">
-            <!-- FILE STORAGE SECTION -->
-            <div class="storage-section">
-                <h2 class="section-title" data-i18n="storage.title">📦 Úložiště souborů</h2>
-                <p class="section-subtitle" data-i18n="storage.subtitle">Nahrajte a organizujte své IFC a IDS soubory pro snadné použití napříč aplikacemi</p>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title" data-i18n="app.title">
+                    <span class="gradient-text">BIM Checker</span>
+                </h1>
+                <p class="hero-subtitle" data-i18n="app.subtitle">
+                    Profesionální nástroje pro validaci a analýzu BIM dat
+                </p>
+            </div>
+        </div>
+        <div class="hero-decoration">
+            <div class="decoration-circle circle-1"></div>
+            <div class="decoration-circle circle-2"></div>
+            <div class="decoration-circle circle-3"></div>
+        </div>
+    </section>
 
-                <div class="storage-grid">
-                    <!-- IFC Storage Panel -->
-                    <div class="storage-panel">
-                        <div class="panel-header">
-                            <h3 data-i18n="storage.ifc">🏗️ IFC Soubory</h3>
-                            <div class="panel-actions">
-                                <button class="btn-icon" id="ifcNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">📁+</button>
-                                <button class="btn-icon" id="ifcUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">⬆️</button>
-                                <button class="btn-icon" id="ifcExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">⬇️</button>
-                                <button class="btn-icon" id="ifcCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">⬆️</button>
-                            </div>
-                        </div>
-                        <div class="drop-zone" id="ifcDropZone">
-                            <div class="drop-zone-content">
-                                <div class="drop-icon">📁</div>
-                                <p data-i18n="storage.dropZone.ifc">Přetáhněte IFC soubory sem</p>
-                                <p class="drop-hint" data-i18n="storage.dropHint">nebo klikněte pro výběr</p>
-                            </div>
-                        </div>
-                        <div class="file-tree" id="ifcFileTree"></div>
-                        <div class="storage-stats" id="ifcStats">
-                            <span><span data-i18n="storage.files">Souborů</span>: <strong>0</strong></span>
-                            <span><span data-i18n="storage.size">Velikost</span>: <strong>0 KB</strong></span>
-                        </div>
-                        <input type="file" id="ifcFileInput" accept=".ifc" multiple style="display: none;">
-                    </div>
-
-                    <!-- IDS Storage Panel -->
-                    <div class="storage-panel">
-                        <div class="panel-header">
-                            <h3 data-i18n="storage.ids">📋 IDS Soubory</h3>
-                            <div class="panel-actions">
-                                <button class="btn-icon" id="idsNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">📁+</button>
-                                <button class="btn-icon" id="idsUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">⬆️</button>
-                                <button class="btn-icon" id="idsExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">⬇️</button>
-                                <button class="btn-icon" id="idsCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">⬆️</button>
-                            </div>
-                        </div>
-                        <div class="drop-zone" id="idsDropZone">
-                            <div class="drop-zone-content">
-                                <div class="drop-icon">📋</div>
-                                <p data-i18n="storage.dropZone.ids">Přetáhněte IDS soubory sem</p>
-                                <p class="drop-hint" data-i18n="storage.dropHint">nebo klikněte pro výběr</p>
-                            </div>
-                        </div>
-                        <div class="file-tree" id="idsFileTree"></div>
-                        <div class="storage-stats" id="idsStats">
-                            <span><span data-i18n="storage.files">Souborů</span>: <strong>0</strong></span>
-                            <span><span data-i18n="storage.size">Velikost</span>: <strong>0 KB</strong></span>
-                        </div>
-                        <input type="file" id="idsFileInput" accept=".ids,.xml" multiple style="display: none;">
-                    </div>
+    <div class="main-container">
+        <!-- File Storage Section -->
+        <section id="uloziste" class="storage-section">
+            <div class="section-header">
+                <div class="section-header-content">
+                    <h2 class="section-title" data-i18n="storage.title">
+                        <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                        </svg>
+                        Úložiště souborů
+                    </h2>
+                    <p class="section-description" data-i18n="storage.subtitle">
+                        Nahrajte a organizujte své IFC a IDS soubory pro snadné použití napříč aplikacemi
+                    </p>
                 </div>
             </div>
 
-            <div class="tools-grid">
-                <a href="pages/ifc-viewer-multi-file.html" class="tool-card">
-                    <div class="tool-icon">📊</div>
-                    <div class="tool-title" data-i18n="tools.viewer.title">IFC Multi-File Viewer</div>
-                    <div class="tool-description" data-i18n="tools.viewer.desc">
+            <div class="storage-grid">
+                <!-- IFC Storage Panel -->
+                <div class="storage-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <div class="card-icon ifc-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                    <polyline points="9 22 9 12 15 12 15 22"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="card-title" data-i18n="storage.ifc">IFC Soubory</h3>
+                                <p class="card-subtitle">Industry Foundation Classes</p>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-icon-modern" id="ifcNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-7l-2-2H5a2 2 0 00-2 2z"/>
+                                    <line x1="12" y1="11" x2="12" y2="17"/>
+                                    <line x1="9" y1="14" x2="15" y2="14"/>
+                                </svg>
+                            </button>
+                            <button class="btn-icon-modern" id="ifcUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                            </button>
+                            <button class="btn-icon-modern" id="ifcExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
+                            <button class="btn-icon-modern" id="ifcCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="18 15 12 9 6 15"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="drop-zone-modern" id="ifcDropZone">
+                        <div class="drop-zone-content">
+                            <div class="drop-zone-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                            </div>
+                            <p class="drop-zone-title" data-i18n="storage.dropZone.ifc">Přetáhněte IFC soubory sem</p>
+                            <p class="drop-zone-subtitle" data-i18n="storage.dropHint">nebo klikněte pro výběr</p>
+                            <div class="drop-zone-formats">.ifc</div>
+                        </div>
+                    </div>
+
+                    <div class="file-tree-modern" id="ifcFileTree"></div>
+
+                    <div class="storage-stats-modern" id="ifcStats">
+                        <div class="stat-item">
+                            <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                <polyline points="13 2 13 9 20 9"/>
+                            </svg>
+                            <div class="stat-content">
+                                <span class="stat-label" data-i18n="storage.files">Souborů</span>
+                                <span class="stat-value">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            </svg>
+                            <div class="stat-content">
+                                <span class="stat-label" data-i18n="storage.size">Velikost</span>
+                                <span class="stat-value">0 KB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="file" id="ifcFileInput" accept=".ifc" multiple style="display: none;">
+                </div>
+
+                <!-- IDS Storage Panel -->
+                <div class="storage-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <div class="card-icon ids-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                    <polyline points="10 9 9 9 8 9"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="card-title" data-i18n="storage.ids">IDS Soubory</h3>
+                                <p class="card-subtitle">Information Delivery Specification</p>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-icon-modern" id="idsNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-7l-2-2H5a2 2 0 00-2 2z"/>
+                                    <line x1="12" y1="11" x2="12" y2="17"/>
+                                    <line x1="9" y1="14" x2="15" y2="14"/>
+                                </svg>
+                            </button>
+                            <button class="btn-icon-modern" id="idsUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                            </button>
+                            <button class="btn-icon-modern" id="idsExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
+                            <button class="btn-icon-modern" id="idsCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="18 15 12 9 6 15"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="drop-zone-modern" id="idsDropZone">
+                        <div class="drop-zone-content">
+                            <div class="drop-zone-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                            </div>
+                            <p class="drop-zone-title" data-i18n="storage.dropZone.ids">Přetáhněte IDS soubory sem</p>
+                            <p class="drop-zone-subtitle" data-i18n="storage.dropHint">nebo klikněte pro výběr</p>
+                            <div class="drop-zone-formats">.ids, .xml</div>
+                        </div>
+                    </div>
+
+                    <div class="file-tree-modern" id="idsFileTree"></div>
+
+                    <div class="storage-stats-modern" id="idsStats">
+                        <div class="stat-item">
+                            <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                <polyline points="13 2 13 9 20 9"/>
+                            </svg>
+                            <div class="stat-content">
+                                <span class="stat-label" data-i18n="storage.files">Souborů</span>
+                                <span class="stat-value">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            </svg>
+                            <div class="stat-content">
+                                <span class="stat-label" data-i18n="storage.size">Velikost</span>
+                                <span class="stat-value">0 KB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="file" id="idsFileInput" accept=".ids,.xml" multiple style="display: none;">
+                </div>
+            </div>
+        </section>
+
+        <!-- Tools Section -->
+        <section id="nastroje" class="tools-section">
+            <div class="section-header">
+                <div class="section-header-content">
+                    <h2 class="section-title">
+                        <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                        </svg>
+                        Nástroje
+                    </h2>
+                    <p class="section-description">
+                        Profesionální nástroje pro práci s BIM daty
+                    </p>
+                </div>
+            </div>
+
+            <div class="tools-grid-modern">
+                <!-- IFC Viewer Card -->
+                <a href="pages/ifc-viewer-multi-file.html" class="tool-card-modern">
+                    <div class="tool-card-header">
+                        <div class="tool-card-icon viewer-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="tool-card-title" data-i18n="tools.viewer.title">IFC Multi-File Viewer</h3>
+                    <p class="tool-card-description" data-i18n="tools.viewer.desc">
                         Pokročilý prohlížeč pro analýzu a porovnání více IFC souborů současně
+                    </p>
+                    <div class="tool-card-features">
+                        <div class="feature-tag" data-i18n="tools.viewer.feature1">Načtení více IFC souborů</div>
+                        <div class="feature-tag" data-i18n="tools.viewer.feature2">Společná tabulka všech entit</div>
+                        <div class="feature-tag" data-i18n="tools.viewer.feature3">Pokročilé vyhledávání</div>
+                        <div class="feature-tag" data-i18n="tools.viewer.feature4">Správa PropertySetů</div>
+                        <div class="feature-tag" data-i18n="tools.viewer.feature5">Export do CSV</div>
+                        <div class="feature-tag" data-i18n="tools.viewer.feature6">Stránkování a filtry</div>
                     </div>
-                    <div class="tool-features">
-                        <ul>
-                            <li data-i18n="tools.viewer.feature1">Načtení více IFC souborů</li>
-                            <li data-i18n="tools.viewer.feature2">Společná tabulka všech entit</li>
-                            <li data-i18n="tools.viewer.feature3">Pokročilé vyhledávání (text/regex)</li>
-                            <li data-i18n="tools.viewer.feature4">Správa PropertySetů</li>
-                            <li data-i18n="tools.viewer.feature5">Export do CSV</li>
-                            <li data-i18n="tools.viewer.feature6">Stránkování a filtry</li>
-                        </ul>
+                    <div class="tool-card-footer">
+                        <span class="tool-card-link">Otevřít nástroj →</span>
                     </div>
                 </a>
 
-                <a href="pages/ids-parser-visualizer.html" class="tool-card">
-                    <div class="tool-icon">🔍</div>
-                    <div class="tool-title" data-i18n="tools.parser.title">IDS Parser a Vizualizér</div>
-                    <div class="tool-description" data-i18n="tools.parser.desc">
+                <!-- IDS Parser Card -->
+                <a href="pages/ids-parser-visualizer.html" class="tool-card-modern">
+                    <div class="tool-card-header">
+                        <div class="tool-card-icon parser-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="16 18 22 12 16 6"/>
+                                <polyline points="8 6 2 12 8 18"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="tool-card-title" data-i18n="tools.parser.title">IDS Parser a Vizualizér</h3>
+                    <p class="tool-card-description" data-i18n="tools.parser.desc">
                         Nástroj pro zobrazení a analýzu IDS (Information Delivery Specification) souborů
+                    </p>
+                    <div class="tool-card-features">
+                        <div class="feature-tag" data-i18n="tools.parser.feature1">Parsování IDS souborů</div>
+                        <div class="feature-tag" data-i18n="tools.parser.feature2">Vizuální zobrazení specifikací</div>
+                        <div class="feature-tag" data-i18n="tools.parser.feature3">Stromová struktura</div>
+                        <div class="feature-tag" data-i18n="tools.parser.feature4">Raw XML zobrazení</div>
+                        <div class="feature-tag" data-i18n="tools.parser.feature5">Regex pattern vysvětlení</div>
+                        <div class="feature-tag" data-i18n="tools.parser.feature6">Rozbalovací sekce</div>
                     </div>
-                    <div class="tool-features">
-                        <ul>
-                            <li data-i18n="tools.parser.feature1">Parsování IDS souborů</li>
-                            <li data-i18n="tools.parser.feature2">Vizuální zobrazení specifikací</li>
-                            <li data-i18n="tools.parser.feature3">Stromová struktura</li>
-                            <li data-i18n="tools.parser.feature4">Raw XML zobrazení</li>
-                            <li data-i18n="tools.parser.feature5">Regex pattern vysvětlení</li>
-                            <li data-i18n="tools.parser.feature6">Rozbalovací sekce</li>
-                        </ul>
+                    <div class="tool-card-footer">
+                        <span class="tool-card-link">Otevřít nástroj →</span>
                     </div>
                 </a>
 
-                <a href="pages/ids-ifc-validator.html" class="tool-card">
-                    <div class="tool-icon">✅</div>
-                    <div class="tool-title" data-i18n="tools.validator.title">IDS-IFC Validátor</div>
-                    <div class="tool-description" data-i18n="tools.validator.desc">
+                <!-- IDS-IFC Validator Card -->
+                <a href="pages/ids-ifc-validator.html" class="tool-card-modern">
+                    <div class="tool-card-header">
+                        <div class="tool-card-icon validator-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="tool-card-title" data-i18n="tools.validator.title">IDS-IFC Validátor</h3>
+                    <p class="tool-card-description" data-i18n="tools.validator.desc">
                         Validace IFC modelů proti IDS specifikacím pro kontrolu kvality dat
+                    </p>
+                    <div class="tool-card-features">
+                        <div class="feature-tag" data-i18n="tools.validator.feature1">Validace IFC podle IDS</div>
+                        <div class="feature-tag" data-i18n="tools.validator.feature2">Applicability & Requirements</div>
+                        <div class="feature-tag" data-i18n="tools.validator.feature3">Detailní výsledky validace</div>
+                        <div class="feature-tag" data-i18n="tools.validator.feature4">Statistiky úspěšnosti</div>
+                        <div class="feature-tag" data-i18n="tools.validator.feature5">Filtrování výsledků</div>
+                        <div class="feature-tag" data-i18n="tools.validator.feature6">CSV export</div>
                     </div>
-                    <div class="tool-features">
-                        <ul>
-                            <li data-i18n="tools.validator.feature1">Validace IFC podle IDS</li>
-                            <li data-i18n="tools.validator.feature2">Applicability & Requirements</li>
-                            <li data-i18n="tools.validator.feature3">Detailní výsledky validace</li>
-                            <li data-i18n="tools.validator.feature4">Statistiky úspěšnosti</li>
-                            <li data-i18n="tools.validator.feature5">Filtrování výsledků</li>
-                            <li data-i18n="tools.validator.feature6">CSV export</li>
-                        </ul>
+                    <div class="tool-card-footer">
+                        <span class="tool-card-link">Otevřít nástroj →</span>
                     </div>
                 </a>
             </div>
+        </section>
 
-            <div class="about-section">
-                <h2 data-i18n="about.title">📚 O projektu</h2>
-                <div class="about-content">
-                    <div class="about-item">
-                        <div class="about-icon">🎯</div>
-                        <div class="about-title" data-i18n="about.purpose.title">Účel</div>
-                        <div class="about-text" data-i18n="about.purpose.text">
-                            BIM Checker je sada nástrojů pro práci s IFC a IDS standardy.
-                            Umožňuje kontrolu kvality, analýzu a validaci BIM dat podle
-                            buildingSMART standardů.
-                        </div>
-                    </div>
-
-                    <div class="about-item">
-                        <div class="about-icon">🔧</div>
-                        <div class="about-title" data-i18n="about.tech.title">Technologie</div>
-                        <div class="about-text" data-i18n="about.tech.text">
-                            Aplikace běží přímo v prohlížeči bez nutnosti instalace.
-                            Veškeré zpracování probíhá lokálně na vašem zařízení,
-                            data nejsou odesílána na server.
-                        </div>
-                    </div>
-
-                    <div class="about-item">
-                        <div class="about-icon">🌟</div>
-                        <div class="about-title" data-i18n="about.benefits.title">Výhody</div>
-                        <div class="about-text" data-i18n="about.benefits.text">
-                            Rychlé, bezpečné a bez závislostí. Žádná registrace,
-                            žádné limity, žádné nahrávání dat na cloud.
-                            Vše funguje offline po prvním načtení.
-                        </div>
-                    </div>
-
-                    <div class="about-item">
-                        <div class="about-icon">📖</div>
-                        <div class="about-title" data-i18n="about.standards.title">Standardy</div>
-                        <div class="about-text" data-i18n="about.standards.text">
-                            Implementováno podle buildingSMART standardů.
-                            Podporuje IFC 4.x a IDS 1.0 specifikace
-                            pro zajištění interoperability.
-                        </div>
-                    </div>
-                </div>
+        <!-- About Section -->
+        <section id="o-projektu" class="about-section-modern">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    O projektu
+                </h2>
             </div>
 
-            <div class="footer">
-                <p><strong data-i18n="app.title">BIM Checker</strong> - <span data-i18n="footer.text">Nástroje pro práci s BIM daty</span></p>
-                <p><span data-i18n="app.version">Beta verze 0.1</span> | <span data-i18n="app.year">2025</span></p>
-                <div class="tech-stack">
-                    <span class="tech-badge">HTML5</span>
-                    <span class="tech-badge">CSS3</span>
-                    <span class="tech-badge">JavaScript</span>
-                    <span class="tech-badge">IFC</span>
-                    <span class="tech-badge">IDS</span>
-                    <span class="tech-badge">buildingSMART</span>
+            <div class="about-grid">
+                <div class="about-card">
+                    <div class="about-card-icon purpose-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+                        </svg>
+                    </div>
+                    <h3 class="about-card-title" data-i18n="about.purpose.title">Účel</h3>
+                    <p class="about-card-text" data-i18n="about.purpose.text">
+                        BIM Checker je sada nástrojů pro práci s IFC a IDS standardy.
+                        Umožňuje kontrolu kvality, analýzu a validaci BIM dat podle
+                        buildingSMART standardů.
+                    </p>
+                </div>
+
+                <div class="about-card">
+                    <div class="about-card-icon tech-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 18 22 12 16 6"/>
+                            <polyline points="8 6 2 12 8 18"/>
+                        </svg>
+                    </div>
+                    <h3 class="about-card-title" data-i18n="about.tech.title">Technologie</h3>
+                    <p class="about-card-text" data-i18n="about.tech.text">
+                        Aplikace běží přímo v prohlížeči bez nutnosti instalace.
+                        Veškeré zpracování probíhá lokálně na vašem zařízení,
+                        data nejsou odesílána na server.
+                    </p>
+                </div>
+
+                <div class="about-card">
+                    <div class="about-card-icon benefits-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                    </div>
+                    <h3 class="about-card-title" data-i18n="about.benefits.title">Výhody</h3>
+                    <p class="about-card-text" data-i18n="about.benefits.text">
+                        Rychlé, bezpečné a bez závislostí. Žádná registrace,
+                        žádné limity, žádné nahrávání dat na cloud.
+                        Vše funguje offline po prvním načtení.
+                    </p>
+                </div>
+
+                <div class="about-card">
+                    <div class="about-card-icon standards-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                        </svg>
+                    </div>
+                    <h3 class="about-card-title" data-i18n="about.standards.title">Standardy</h3>
+                    <p class="about-card-text" data-i18n="about.standards.text">
+                        Implementováno podle buildingSMART standardů.
+                        Podporuje IFC 4.x a IDS 1.0 specifikace
+                        pro zajištění interoperability.
+                    </p>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <div class="loading-text" data-i18n="loading.files">Nahrávám soubory...</div>
-            <div class="loading-subtext" id="loadingSubtext" data-i18n="loading.subtext">Prosím čekejte...</div>
-            <div class="progress-bar-container">
-                <div class="progress-bar" id="progressBar">0%</div>
+    <!-- Footer -->
+    <footer class="footer-modern">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="footer-brand-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="footer-brand-name" data-i18n="app.title">BIM Checker</div>
+                        <div class="footer-brand-tagline" data-i18n="footer.text">Nástroje pro práci s BIM daty</div>
+                    </div>
+                </div>
+                <div class="footer-meta">
+                    <span data-i18n="app.version">Beta verze 0.1</span>
+                    <span class="footer-divider">•</span>
+                    <span data-i18n="app.year">2025</span>
+                </div>
             </div>
-            <div class="file-info" id="fileInfo"></div>
+            <div class="footer-tech">
+                <span class="tech-badge-modern">HTML5</span>
+                <span class="tech-badge-modern">CSS3</span>
+                <span class="tech-badge-modern">JavaScript</span>
+                <span class="tech-badge-modern">IFC</span>
+                <span class="tech-badge-modern">IDS</span>
+                <span class="tech-badge-modern">buildingSMART</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay-modern" id="loadingOverlay">
+        <div class="loading-card">
+            <div class="loading-spinner-modern"></div>
+            <h3 class="loading-title" data-i18n="loading.files">Nahrávám soubory...</h3>
+            <p class="loading-subtitle" id="loadingSubtext" data-i18n="loading.subtext">Prosím čekejte...</p>
+            <div class="progress-bar-modern-container">
+                <div class="progress-bar-modern" id="progressBar">
+                    <div class="progress-bar-fill"></div>
+                    <span class="progress-bar-text">0%</span>
+                </div>
+            </div>
+            <div class="file-info-modern" id="fileInfo"></div>
         </div>
     </div>
 
@@ -214,5 +491,38 @@
     <script src="assets/js/common/error-handler.js"></script>
     <script src="assets/js/common/storage.js"></script>
     <script src="assets/js/index.js"></script>
+    
+    <!-- Dark Mode Toggle Script -->
+    <script>
+        // Dark mode functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const lightIcon = themeToggle.querySelector('.theme-icon-light');
+        const darkIcon = themeToggle.querySelector('.theme-icon-dark');
+        const html = document.documentElement;
+        
+        // Check for saved theme preference or default to light mode
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        html.setAttribute('data-theme', currentTheme);
+        updateThemeIcon(currentTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        });
+        
+        function updateThemeIcon(theme) {
+            if (theme === 'light') {
+                lightIcon.style.display = 'none';
+                darkIcon.style.display = 'block';
+            } else {
+                lightIcon.style.display = 'block';
+                darkIcon.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>

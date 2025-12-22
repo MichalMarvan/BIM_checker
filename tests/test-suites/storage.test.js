@@ -93,7 +93,7 @@ describe('Storage Module', () => {
 
     it('should get file by name', async () => {
         await BIMStorage.init();
-        
+
         const testFile = {
             name: 'specific.ifc',
             content: 'specific content',
@@ -102,8 +102,8 @@ describe('Storage Module', () => {
         };
 
         await BIMStorage.saveFile('ifc', testFile);
-        const file = await BIMStorage.getFile('ifc', 'specific.ifc');
-        
+        const file = await BIMStorage.getFileWithContent('ifc', 'specific.ifc');
+
         expect(file).toBeDefined();
         expect(file.name).toBe('specific.ifc');
         expect(file.content).toBe('specific content');
@@ -182,23 +182,65 @@ describe('Storage Module', () => {
 
         await BIMStorage.saveFile('ifc', file1);
         await BIMStorage.saveFile('ifc', file2);
-        
-        const file = await BIMStorage.getFile('ifc', 'duplicate.ifc');
+
+        const file = await BIMStorage.getFileWithContent('ifc', 'duplicate.ifc');
         expect(file.content).toBe('version 2');
     });
 
     it('should maintain separate storage for IFC and IDS', async () => {
         await BIMStorage.init();
-        
+
         await BIMStorage.saveFile('ifc', { name: 'test.ifc', content: 'ifc content', size: 11, type: 'ifc' });
         await BIMStorage.saveFile('ids', { name: 'test.ids', content: 'ids content', size: 11, type: 'ids' });
-        
+
         const ifcFiles = await BIMStorage.getFiles('ifc');
         const idsFiles = await BIMStorage.getFiles('ids');
-        
+
         expect(ifcFiles.some(f => f.name === 'test.ifc')).toBe(true);
         expect(idsFiles.some(f => f.name === 'test.ids')).toBe(true);
         expect(ifcFiles.some(f => f.name === 'test.ids')).toBe(false);
         expect(idsFiles.some(f => f.name === 'test.ifc')).toBe(false);
+    });
+
+    it('should update metadata immediately after save without reload', async () => {
+        await BIMStorage.init();
+
+        const testFile1 = {
+            name: 'metadata-test-1.ifc',
+            content: 'test content 1',
+            size: 14,
+            type: 'ifc'
+        };
+
+        const testFile2 = {
+            name: 'metadata-test-2.ifc',
+            content: 'test content 2',
+            size: 14,
+            type: 'ifc'
+        };
+
+        // Save first file
+        await BIMStorage.saveFile('ifc', testFile1);
+
+        // Get files immediately after save (should see new file without reload)
+        let files = await BIMStorage.getFiles('ifc');
+        expect(files.some(f => f.name === 'metadata-test-1.ifc')).toBe(true);
+
+        // Save second file
+        await BIMStorage.saveFile('ifc', testFile2);
+
+        // Get files again (should see both files)
+        files = await BIMStorage.getFiles('ifc');
+        expect(files.some(f => f.name === 'metadata-test-1.ifc')).toBe(true);
+        expect(files.some(f => f.name === 'metadata-test-2.ifc')).toBe(true);
+
+        // Verify both files have correct metadata
+        const file1 = files.find(f => f.name === 'metadata-test-1.ifc');
+        const file2 = files.find(f => f.name === 'metadata-test-2.ifc');
+
+        expect(file1).toBeDefined();
+        expect(file2).toBeDefined();
+        expect(file1.size).toBe(14);
+        expect(file2.size).toBe(14);
     });
 });

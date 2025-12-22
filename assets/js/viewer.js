@@ -220,7 +220,7 @@ async function handleFiles(files) {
         return;
     }
 
-    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').classList.add('show');
     updateProgress(0, `${i18n.t('loading.files')} (0/${ifcFiles.length})`);
 
     try {
@@ -230,13 +230,13 @@ async function handleFiles(files) {
             await parseIFCAsync(content, file.name, i + 1, ifcFiles.length);
         }
 
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').classList.remove('show');
         combineData();
         updateUI();
     } catch (error) {
         console.error('Error handling files:', error);
         ErrorHandler.error(`${i18n.t('parser.error.parsingError')}: ${error.message}`);
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').classList.remove('show');
     }
 }
 
@@ -1385,7 +1385,8 @@ function stopAutoScroll() {
 
 document.getElementById('columnManagerBtn').addEventListener('click', () => {
     const manager = document.getElementById('columnManager');
-    manager.style.display = manager.style.display === 'none' ? 'block' : 'none';
+    const currentDisplay = window.getComputedStyle(manager).display;
+    manager.style.display = currentDisplay === 'none' ? 'block' : 'none';
 });
 
 document.getElementById('applyColumnsBtn').addEventListener('click', () => {
@@ -1636,9 +1637,11 @@ function applyFiltersAndRender() {
     // Apply spatial tree filter first (if active)
     if (window.selectedSpatialIds && window.selectedSpatialIds.size > 0) {
         filteredData = filteredData.filter(item => {
-            return item.ifcId && window.selectedSpatialIds.has(item.ifcId);
+            // Filter by both IFC ID and file name to prevent cross-file matches
+            return item.ifcId && window.selectedSpatialIds.has(item.ifcId) &&
+                   item.fileName === window.selectedSpatialFileName;
         });
-        console.log(`Spatial filter active: ${filteredData.length} entities match`);
+        console.log(`Spatial filter active: ${filteredData.length} entities match from ${window.selectedSpatialFileName}`);
     }
 
     // Only apply text search if it's not a spatial filter indicator
@@ -1978,6 +1981,7 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
     if (!searchTerm.startsWith('🌳')) {
         if (window.selectedSpatialIds) {
             window.selectedSpatialIds = null;
+            window.selectedSpatialFileName = null;
             console.log('Spatial filter cleared by user input');
 
             // Remove visual indicator
@@ -2009,6 +2013,7 @@ document.getElementById('clearFiltersBtn').addEventListener('click', () => {
     fileFilterValue = '';
     sortColumn = null;
     window.selectedSpatialIds = null;  // Clear spatial tree filter
+    window.selectedSpatialFileName = null;  // Clear spatial file filter
 
     const searchInput = document.getElementById('searchInput');
     searchInput.value = '';
@@ -3487,9 +3492,10 @@ let storageDB = null;
 let selectedStorageFiles = new Set();
 let expandedStorageFolders = new Set(['root']); // Default: root is expanded
 let storageMetadata = null; // Lightweight cache: folders + file metadata (NO content)
+let storageInitPromise = null; // Promise to track initialization
 
 // Initialize storage on page load and pre-load metadata
-(async function() {
+storageInitPromise = (async function() {
     try {
         // Use initStorageDB() from storage.js (returns native IndexedDB)
         storageDB = await initStorageDB();
@@ -3498,8 +3504,10 @@ let storageMetadata = null; // Lightweight cache: folders + file metadata (NO co
         await loadStorageMetadata();
 
         console.log('✓ Storage initialized and metadata cached');
+        return true;
     } catch (e) {
         console.error('Failed to initialize storage:', e);
+        return false;
     }
 })();
 
@@ -3555,16 +3563,39 @@ async function loadStorageMetadata() {
 }
 
 // Open storage picker modal (instant - no loading!)
-document.getElementById('loadFromStorageBtn').addEventListener('click', () => {
-    if (!storageDB) {
-        alert(t('viewer.storageNotInit'));
-        return;
-    }
+document.getElementById('loadFromStorageBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('loadFromStorageBtn');
+    const originalText = btn.textContent;
 
-    selectedStorageFiles.clear();
-    expandedStorageFolders = new Set(['root']);
-    renderStorageTree(); // Synchronous - uses cached metadata
-    document.getElementById('storagePickerModal').classList.add('active');
+    // Show loading state
+    btn.disabled = true;
+    btn.textContent = '⏳ ' + t('viewer.loading');
+
+    try {
+        // Wait for storage initialization to complete
+        if (storageInitPromise) {
+            await storageInitPromise;
+        }
+
+        if (!storageDB) {
+            alert(t('viewer.storageNotInit'));
+            return;
+        }
+
+        // Ensure metadata is loaded before rendering
+        if (!storageMetadata) {
+            await loadStorageMetadata();
+        }
+
+        selectedStorageFiles.clear();
+        expandedStorageFolders = new Set(['root']);
+        renderStorageTree(); // Synchronous - uses cached metadata
+        document.getElementById('storagePickerModal').classList.add('active');
+    } finally {
+        // Restore button state
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
 });
 
 function closeStoragePickerModal() {
@@ -3625,7 +3656,7 @@ function renderStorageTree() {
     // Synchronous - uses pre-loaded metadata (instant!)
     try {
         if (!storageMetadata || !storageMetadata.files || Object.keys(storageMetadata.files).length === 0) {
-            document.getElementById('storageFileTree').innerHTML = `<p style="text-align: center; color: #a0aec0; padding: 40px;">${t('viewer.noIfcInStorage')}</p>`;
+            document.getElementById('storageFileTree').innerHTML = `<p class="storage-empty-message">${t('viewer.noIfcInStorage')}</p>`;
             return;
         }
 
@@ -3634,7 +3665,7 @@ function renderStorageTree() {
         updateSelectedFilesCount();
     } catch (e) {
         console.error('Error rendering storage tree:', e);
-        document.getElementById('storageFileTree').innerHTML = `<p style="color: red;">${t('viewer.storageDisplayError')}</p>`;
+        document.getElementById('storageFileTree').innerHTML = `<p class="storage-error-message">${t('viewer.storageDisplayError')}</p>`;
     }
 }
 
@@ -3654,13 +3685,13 @@ function renderStorageFolderRecursive(folderId, level) {
         const allFolderSelected = allFolderFiles.length > 0 && allFolderFiles.every(fileId => selectedStorageFiles.has(fileId));
 
         html += `
-            <div style="margin-bottom: 8px;">
-                <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
-                    <span onclick="toggleStorageFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
-                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllFilesInFolder('${folderId}')" style="margin-right: 10px;" title="${t('viewer.selectAllInFolder')}">
-                    <span onclick="toggleStorageFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
+            <div class="storage-folder-wrapper">
+                <div class="storage-folder-header" style="margin-left: ${level * 20}px;">
+                    <span onclick="toggleStorageFolder('${folderId}')" class="storage-folder-arrow">${arrow}</span>
+                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllFilesInFolder('${folderId}')" class="storage-folder-checkbox" title="${t('viewer.selectAllInFolder')}">
+                    <span onclick="toggleStorageFolder('${folderId}')" class="storage-folder-name">
                         📁 ${folder.name}
-                        ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} ${t('viewer.files')})</span>` : ''}
+                        ${allFolderFiles.length > 0 ? `<span class="storage-folder-count">(${allFolderFiles.length} ${t('viewer.files')})</span>` : ''}
                     </span>
                 </div>
         `;
@@ -3693,10 +3724,10 @@ function renderStorageFolderRecursive(folderId, level) {
                 html += `
                     <div class="storage-file-item ${isSelected ? 'selected' : ''}"
                          onclick="toggleStorageFileSelection('${file.id}')"
-                         style="padding: 8px; margin: 4px 0; cursor: pointer; border-radius: 6px; background: white; border: 2px solid ${isSelected ? '#667eea' : '#e9ecef'}; display: flex; align-items: center; margin-left: ${(level + 1) * 20}px; transition: all 0.2s;">
-                        <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); toggleStorageFileSelection('${file.id}');" style="margin-right: 10px;">
-                        <span style="flex: 1;">📄 ${file.name}</span>
-                        <span style="color: #a0aec0; font-size: 0.9em;">${sizeKB} KB</span>
+                         style="margin-left: ${(level + 1) * 20}px;">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); toggleStorageFileSelection('${file.id}');" class="storage-file-checkbox">
+                        <span class="storage-file-name">📄 ${file.name}</span>
+                        <span class="storage-file-size">${sizeKB} KB</span>
                     </div>
                 `;
             });
@@ -3730,47 +3761,60 @@ async function loadSelectedFilesFromStorage() {
     }
 
     try {
-        // Load full data from IndexedDB (including file contents)
-        const transaction = storageDB.transaction(['storage'], 'readonly');
-        const store = transaction.objectStore('storage');
-        const request = store.get('bim_checker_ifc_storage');
+        // Load metadata structure (lightweight, no file contents!)
+        const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
+        const metadataStore = metadataTransaction.objectStore('storage');
+        const metadataRequest = metadataStore.get('ifc_files');
 
-        request.onsuccess = async () => {
-            const data = request.result?.value;
-            if (!data) {
+        metadataRequest.onsuccess = async () => {
+            const storageData = metadataRequest.result?.value;
+            if (!storageData) {
                 alert(t('viewer.storageLoadError'));
                 return;
             }
 
-            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').classList.add('show');
             updateProgress(0, `${t('viewer.loadingFromStorage')} (0/${selectedStorageFiles.size})`);
             closeStoragePickerModal();
 
             const fileArray = Array.from(selectedStorageFiles);
             for (let i = 0; i < fileArray.length; i++) {
                 const fileId = fileArray[i];
-                const file = data.files[fileId];
-                if (file) {
-                    await parseIFCAsync(file.content, file.name, i + 1, fileArray.length);
+                const fileMetadata = storageData.files[fileId];
+
+                if (fileMetadata) {
+                    // Load file content separately (NEW: separate storage optimization!)
+                    const contentTransaction = storageDB.transaction(['storage'], 'readonly');
+                    const contentStore = contentTransaction.objectStore('storage');
+                    const contentRequest = contentStore.get(`ifc_files_file_${fileId}`);
+
+                    const fileContent = await new Promise((resolve, reject) => {
+                        contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
+                        contentRequest.onerror = () => reject(contentRequest.error);
+                    });
+
+                    if (fileContent) {
+                        await parseIFCAsync(fileContent, fileMetadata.name, i + 1, fileArray.length);
+                    }
                 }
             }
 
-            document.getElementById('loading').style.display = 'none';
+            document.getElementById('loading').classList.remove('show');
             combineData();
             updateUI();
 
             selectedStorageFiles.clear();
         };
 
-        request.onerror = () => {
-            console.error('Error loading files from storage:', request.error);
+        metadataRequest.onerror = () => {
+            console.error('Error loading files from storage:', metadataRequest.error);
             alert(t('viewer.storageLoadError'));
-            document.getElementById('loading').style.display = 'none';
+            document.getElementById('loading').classList.remove('show');
         };
     } catch (e) {
         console.error('Error loading files from storage:', e);
         alert(t('viewer.storageLoadError'));
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').classList.remove('show');
     }
 }
 
@@ -3942,8 +3986,9 @@ function handleTreeNodeClick(nodeId, nodeType, event) {
     const allIds = getAllChildIds(clickedNode);
     console.log(`Filtering by node ${nodeId} and ${allIds.length - 1} descendants`);
 
-    // Store the selected spatial node IDs for filtering
+    // Store the selected spatial node IDs and file name for filtering
     window.selectedSpatialIds = new Set(allIds);
+    window.selectedSpatialFileName = currentFile.fileName;
 
     // Format display name for the filter indicator
     const typeName = clickedNode.type.replace('IFC', '');

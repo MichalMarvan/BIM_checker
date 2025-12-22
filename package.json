@@ -1,6 +1,6 @@
 {
   "name": "bim-checker",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Professional tools for BIM data validation and analysis according to buildingSMART standards",
   "keywords": [
     "bim",

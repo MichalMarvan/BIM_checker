@@ -1131,7 +1131,6 @@ function createSpecificationResultElement(specResult) {
 
     const headerDiv = document.createElement('div');
     headerDiv.className = 'spec-header';
-    headerDiv.style.background = '#f8f9fa';
     headerDiv.onclick = () => toggleSpecification(div);
 
     headerDiv.innerHTML = `
@@ -1781,13 +1780,13 @@ async function renderIfcStorageTree() {
     return new Promise((resolve, reject) => {
         const transaction = storageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
-        const request = store.get('bim_checker_ifc_storage');
+        const request = store.get('ifc_files');
 
         request.onsuccess = () => {
             const fullData = request.result?.value;
 
             if (!fullData || !fullData.files || Object.keys(fullData.files).length === 0) {
-                document.getElementById('ifcStorageTree').innerHTML = `<p style="text-align: center; color: #a0aec0; padding: 40px;">${t('validator.storage.noIfcFiles')}</p>`;
+                document.getElementById('ifcStorageTree').innerHTML = `<p class="storage-empty-message">${t('validator.storage.noIfcFiles')}</p>`;
                 resolve();
                 return;
             }
@@ -1885,12 +1884,12 @@ function renderIfcFolderRecursive(folderId, level) {
 
         html += `
             <div style="margin-bottom: 8px;">
-                <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
-                    <span onclick="toggleIfcFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
+                <div class="tree-folder-header" style="margin-left: ${level * 20}px;">
+                    <span onclick="toggleIfcFolder('${folderId}')" class="tree-folder-arrow">${arrow}</span>
                     <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllIfcFilesInFolder('${folderId}')" style="margin-right: 10px;" title="${t('viewer.selectAllInFolder')}">
-                    <span onclick="toggleIfcFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
+                    <span onclick="toggleIfcFolder('${folderId}')" class="tree-folder-name">
                         📁 ${folder.name}
-                        ${allFolderFiles.length > 0 ? `<span style="color: #a0aec0; font-size: 0.9em; margin-left: 8px;">(${allFolderFiles.length} ${t('viewer.files')})</span>` : ''}
+                        ${allFolderFiles.length > 0 ? `<span class="tree-folder-count">(${allFolderFiles.length} ${t('viewer.files')})</span>` : ''}
                     </span>
                 </div>
         `;
@@ -1912,10 +1911,10 @@ function renderIfcFolderRecursive(folderId, level) {
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
                     <div onclick="toggleIfcFileSelection('${fileId}')"
-                         style="padding: 8px; margin: 4px 0; cursor: pointer; border-radius: 6px; background: white; border: 2px solid ${isSelected ? '#667eea' : '#e9ecef'}; display: flex; align-items: center; margin-left: ${(level + 1) * 20}px;">
+                         class="tree-file-item ${isSelected ? 'selected' : ''}" style="margin-left: ${(level + 1) * 20}px;">
                         <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleIfcFileSelection('${fileId}');" style="margin-right: 10px;">
-                        <span style="flex: 1;">📄 ${file.name}</span>
-                        <span style="color: #a0aec0; font-size: 0.9em;">${sizeKB} KB</span>
+                        <span class="tree-file-name">📄 ${file.name}</span>
+                        <span class="tree-file-size">${sizeKB} KB</span>
                     </div>
                 `;
             });
@@ -1951,29 +1950,56 @@ function toggleIfcFileSelection(fileId) {
 
 // Confirm IFC selection
 async function confirmIfcSelection() {
-    // Load full file data from IndexedDB (including content)
-    const transaction = storageDB.transaction(['storage'], 'readonly');
-    const store = transaction.objectStore('storage');
-    const request = store.get('bim_checker_ifc_storage');
+    try {
+        // Load metadata structure
+        const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
+        const metadataStore = metadataTransaction.objectStore('storage');
+        const metadataRequest = metadataStore.get('ifc_files');
 
-    request.onsuccess = () => {
-        const fullData = request.result?.value;
-        if (!fullData) {
+        metadataRequest.onsuccess = async () => {
+            const storageData = metadataRequest.result?.value;
+            if (!storageData) {
+                ErrorHandler.error(t('validator.error.storageLoad'));
+                return;
+            }
+
+            // Load content separately for each selected file
+            const files = [];
+            for (const fileId of selectedIfcFiles) {
+                const fileMetadata = storageData.files[fileId];
+                if (fileMetadata) {
+                    // Load file content separately
+                    const contentTransaction = storageDB.transaction(['storage'], 'readonly');
+                    const contentStore = contentTransaction.objectStore('storage');
+                    const contentRequest = contentStore.get(`ifc_files_file_${fileId}`);
+
+                    const fileContent = await new Promise((resolve, reject) => {
+                        contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
+                        contentRequest.onerror = () => reject(contentRequest.error);
+                    });
+
+                    if (fileContent) {
+                        files.push({
+                            ...fileMetadata,
+                            content: fileContent
+                        });
+                    }
+                }
+            }
+
+            validationGroups[currentGroupIndex].ifcFiles = files;
+            closeIfcStorageModal();
+            renderValidationGroups();
+            updateValidateButton();
+        };
+
+        metadataRequest.onerror = () => {
             ErrorHandler.error(t('validator.error.storageLoad'));
-            return;
-        }
-
-        // Get full file objects (with content) for selected IDs
-        const files = Array.from(selectedIfcFiles).map(id => fullData.files[id]).filter(f => f);
-        validationGroups[currentGroupIndex].ifcFiles = files;
-        closeIfcStorageModal();
-        renderValidationGroups();
-        updateValidateButton();
-    };
-
-    request.onerror = () => {
+        };
+    } catch (e) {
+        console.error('Error loading IFC files:', e);
         ErrorHandler.error(t('validator.error.storageLoad'));
-    };
+    }
 }
 
 // Open IDS storage picker
@@ -2009,13 +2035,13 @@ async function renderIdsStorageTree() {
     return new Promise((resolve, reject) => {
         const transaction = storageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
-        const request = store.get('bim_checker_ids_storage');
+        const request = store.get('ids_files');
 
         request.onsuccess = () => {
             const fullData = request.result?.value;
 
             if (!fullData || !fullData.files || Object.keys(fullData.files).length === 0) {
-                document.getElementById('idsStorageTree').innerHTML = `<p style="text-align: center; color: #a0aec0; padding: 40px;">${t('validator.storage.noIdsFiles')}</p>`;
+                document.getElementById('idsStorageTree').innerHTML = `<p class="storage-empty-message">${t('validator.storage.noIdsFiles')}</p>`;
                 resolve();
                 return;
             }
@@ -2066,9 +2092,9 @@ function renderIdsFolderRecursive(folderId, level) {
     if (folderId !== 'root') {
         html += `
             <div style="margin-bottom: 8px;">
-                <div style="display: flex; align-items: center; padding: 8px; background: #f0f0f0; border-radius: 6px; cursor: pointer; margin-left: ${level * 20}px;">
-                    <span onclick="toggleIdsFolder('${folderId}')" style="margin-right: 8px; color: #667eea; font-weight: bold; width: 16px; display: inline-block;">${arrow}</span>
-                    <span onclick="toggleIdsFolder('${folderId}')" style="flex: 1; font-weight: 600; color: #2d3748;">
+                <div class="tree-folder-header" style="margin-left: ${level * 20}px;">
+                    <span onclick="toggleIdsFolder('${folderId}')" class="tree-folder-arrow">${arrow}</span>
+                    <span onclick="toggleIdsFolder('${folderId}')" class="tree-folder-name">
                         📁 ${folder.name}
                     </span>
                 </div>
@@ -2091,10 +2117,10 @@ function renderIdsFolderRecursive(folderId, level) {
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
                     <div onclick="selectIdsFile('${fileId}')"
-                         style="padding: 8px; margin: 4px 0; cursor: pointer; border-radius: 6px; background: white; border: 2px solid ${isSelected ? '#667eea' : '#e9ecef'}; display: flex; align-items: center; margin-left: ${(level + 1) * 20}px;">
+                         class="tree-file-item ${isSelected ? 'selected' : ''}" style="margin-left: ${(level + 1) * 20}px;">
                         <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); selectIdsFile('${fileId}');" style="margin-right: 10px;">
-                        <span style="flex: 1;">📋 ${file.name}</span>
-                        <span style="color: #a0aec0; font-size: 0.9em;">${sizeKB} KB</span>
+                        <span class="tree-file-name">📋 ${file.name}</span>
+                        <span class="tree-file-size">${sizeKB} KB</span>
                     </div>
                 `;
             });
@@ -2129,12 +2155,10 @@ function updateIdsSelectedName() {
     const display = document.getElementById('idsSelectedName');
     if (selectedIdsFile && idsStorageData.files[selectedIdsFile]) {
         display.textContent = idsStorageData.files[selectedIdsFile].name;
-        display.style.color = '#667eea';
-        display.style.fontWeight = '600';
+        display.classList.add('file-selected');
     } else {
         display.textContent = t('validator.storage.none');
-        display.style.color = '#6c757d';
-        display.style.fontWeight = 'normal';
+        display.classList.remove('file-selected');
     }
 }
 
@@ -2145,34 +2169,57 @@ async function confirmIdsSelection() {
         return;
     }
 
-    // Load full file data from IndexedDB (including content)
-    const transaction = storageDB.transaction(['storage'], 'readonly');
-    const store = transaction.objectStore('storage');
-    const request = store.get('bim_checker_ids_storage');
+    try {
+        // Load metadata structure
+        const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
+        const metadataStore = metadataTransaction.objectStore('storage');
+        const metadataRequest = metadataStore.get('ids_files');
 
-    request.onsuccess = () => {
-        const fullData = request.result?.value;
-        if (!fullData) {
+        metadataRequest.onsuccess = async () => {
+            const storageData = metadataRequest.result?.value;
+            if (!storageData) {
+                ErrorHandler.error(t('validator.error.storageLoad'));
+                return;
+            }
+
+            // Get file metadata
+            const fileMetadata = storageData.files[selectedIdsFile];
+            if (!fileMetadata) {
+                ErrorHandler.error(t('validator.error.fileNotFound'));
+                return;
+            }
+
+            // Load file content separately
+            const contentTransaction = storageDB.transaction(['storage'], 'readonly');
+            const contentStore = contentTransaction.objectStore('storage');
+            const contentRequest = contentStore.get(`ids_files_file_${selectedIdsFile}`);
+
+            const fileContent = await new Promise((resolve, reject) => {
+                contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
+                contentRequest.onerror = () => reject(contentRequest.error);
+            });
+
+            if (!fileContent) {
+                ErrorHandler.error(t('validator.error.fileNotFound'));
+                return;
+            }
+
+            validationGroups[currentGroupIndex].idsFile = {
+                ...fileMetadata,
+                content: fileContent
+            };
+            closeIdsStorageModal();
+            renderValidationGroups();
+            updateValidateButton();
+        };
+
+        metadataRequest.onerror = () => {
             ErrorHandler.error(t('validator.error.storageLoad'));
-            return;
-        }
-
-        // Get full file object (with content) for selected ID
-        const file = fullData.files[selectedIdsFile];
-        if (!file) {
-            ErrorHandler.error(t('validator.error.fileNotFound'));
-            return;
-        }
-
-        validationGroups[currentGroupIndex].idsFile = file;
-        closeIdsStorageModal();
-        renderValidationGroups();
-        updateValidateButton();
-    };
-
-    request.onerror = () => {
+        };
+    } catch (e) {
+        console.error('Error loading IDS file:', e);
         ErrorHandler.error(t('validator.error.storageLoad'));
-    };
+    }
 }
 
 // Validate all groups
