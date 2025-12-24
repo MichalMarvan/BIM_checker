@@ -16,7 +16,7 @@ async function testRead() {
             const db = request.result;
             const transaction = db.transaction(['storage'], 'readonly');
             const store = transaction.objectStore('storage');
-            const getRequest = store.get('bim_checker_ids_storage');
+            const getRequest = store.get('ids_files');
             
             getRequest.onsuccess = () => {
                 const data = getRequest.result;

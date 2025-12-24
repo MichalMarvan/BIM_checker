@@ -3517,7 +3517,7 @@ async function loadStorageMetadata() {
         // Read from IndexedDB directly
         const transaction = storageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
-        const request = store.get('bim_checker_ifc_storage');
+        const request = store.get('ifc_files');
 
         return new Promise((resolve, reject) => {
             request.onsuccess = () => {

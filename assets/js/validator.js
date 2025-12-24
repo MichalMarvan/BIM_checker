@@ -2341,7 +2341,7 @@ window.selectIdsFile = selectIdsFile;
         // Pre-load IFC metadata (without file contents)
         const ifcTransaction = storageDB.transaction(['storage'], 'readonly');
         const ifcStore = ifcTransaction.objectStore('storage');
-        const ifcRequest = ifcStore.get('bim_checker_ifc_storage');
+        const ifcRequest = ifcStore.get('ifc_files');
 
         ifcRequest.onsuccess = () => {
             const fullData = ifcRequest.result?.value;
@@ -2367,7 +2367,7 @@ window.selectIdsFile = selectIdsFile;
         // Pre-load IDS metadata (without file contents)
         const idsTransaction = storageDB.transaction(['storage'], 'readonly');
         const idsStore = idsTransaction.objectStore('storage');
-        const idsRequest = idsStore.get('bim_checker_ids_storage');
+        const idsRequest = idsStore.get('ids_files');
 
         idsRequest.onsuccess = () => {
             const fullData = idsRequest.result?.value;

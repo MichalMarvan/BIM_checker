@@ -475,8 +475,8 @@ class FilePanel {
 let filePanel_ifc, filePanel_ids;
 
 window.addEventListener('DOMContentLoaded', () => {
-    filePanel_ifc = new FilePanel('ifc', 'bim_checker_ifc_storage');
-    filePanel_ids = new FilePanel('ids', 'bim_checker_ids_storage');
+    filePanel_ifc = new FilePanel('ifc', 'ifc_files');
+    filePanel_ids = new FilePanel('ids', 'ids_files');
 });
 
 // Re-render file trees when language changes
