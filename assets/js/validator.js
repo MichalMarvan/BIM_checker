@@ -320,7 +320,7 @@ function extractRestriction(restriction) {
 // Note: validateBtn uses onclick="validateAll()" in HTML, so no addEventListener needed here
 
 async function performValidation() {
-    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').classList.add('show');
     document.querySelector('.upload-section').style.display = 'none';
 
     const progressText = document.getElementById('progressText');
@@ -387,10 +387,10 @@ async function performValidation() {
         currentFile.textContent = '';
         displayResults();
 
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').classList.remove('show');
         document.getElementById('resultsSection').style.display = 'block';
     } catch (error) {
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').classList.remove('show');
         showError(t('validator.error.validationError') + ' ' + error.message);
         document.querySelector('.upload-section').style.display = 'block';
     }
@@ -2233,7 +2233,7 @@ async function validateAll() {
     }
 
     // Show loading
-    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').classList.add('show');
     document.getElementById('loadingText').textContent = t('validator.loading.validating');
     document.getElementById('progressText').textContent = '';
     document.getElementById('currentFile').textContent = '';
@@ -2295,7 +2295,7 @@ async function validateAll() {
         }
 
         // Hide loading
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').classList.remove('show');
 
         // Show results
         if (validationResults.length > 0) {
@@ -2311,7 +2311,7 @@ async function validateAll() {
     } catch (error) {
         console.error('Chyba při validaci:', error);
         ErrorHandler.error(t('validator.error.validationError') + ' ' + error.message);
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').classList.remove('show');
     }
 }
 
