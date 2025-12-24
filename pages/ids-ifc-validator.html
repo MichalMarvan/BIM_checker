@@ -11,6 +11,16 @@
     <link rel="stylesheet" href="../assets/css/ids-validator.css">
 </head>
 <body>
+    <!-- Loading Overlay - mimo page-container pro správné centrování -->
+    <div class="loading-overlay-modern" id="loading">
+        <div class="loading-card">
+            <div class="loading-spinner-modern"></div>
+            <h3 class="loading-title" id="loadingText" data-i18n="validator.validating">Probíhá validace...</h3>
+            <p class="loading-subtitle" id="progressText" style="font-weight: 600; color: var(--primary-color);"></p>
+            <p class="loading-subtitle" id="currentFile" style="color: var(--text-tertiary); font-size: 0.9em;"></p>
+        </div>
+    </div>
+
     <nav class="navbar navbar-subpage">
         <div class="navbar-container">
             <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
@@ -59,14 +69,6 @@
                 </div>
             </div>
 
-            <div class="loading-overlay-modern" id="loading">
-                <div class="loading-card">
-                    <div class="loading-spinner-modern"></div>
-                    <h3 class="loading-title" id="loadingText" data-i18n="validator.validating">Probíhá validace...</h3>
-                    <p class="loading-subtitle" id="progressText" style="font-weight: 600; color: var(--primary-color);"></p>
-                    <p class="loading-subtitle" id="currentFile" style="color: var(--text-tertiary); font-size: 0.9em;"></p>
-                </div>
-            </div>
 
             <div class="results-section" id="resultsSection">
                 <div class="results-header">
