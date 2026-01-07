@@ -407,9 +407,11 @@ describe('IFC Property Parsing - Property Name Decoding', () => {
     });
 
     it('should decode property name with \\S\\ encoding', () => {
-        const params = "'V\\S\\}\\S\\ika',$,IFCLABEL('test'),$";
+        // Note: š (U+0161) doesn't exist in ISO-8859-1, so we test with é (char 233)
+        // \S\i = char(105+128) = char(233) = é
+        const params = "'D\\S\\ilka',$,IFCLABEL('test'),$";
         const result = parseProperty(params);
-        expect(result.name).toBe('Výška');
+        expect(result.name).toBe('Délka');
     });
 });
 
