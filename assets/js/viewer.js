@@ -308,6 +308,10 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 if (entity.type === 'IFCPROPERTYSET') {
                     const props = parsePropertySet(entity.params, entityMap);
                     propertySetMap.set(id, props);
+                    // Debug: Log custom PropertySets
+                    if (props.name && !props.name.startsWith('Pset_') && !props.name.startsWith('Qto_')) {
+                        console.log(`[DEBUG] Custom PropertySet #${id}: "${props.name}" with ${Object.keys(props.properties).length} properties`);
+                    }
                 } else if (entity.type === 'IFCRELDEFINESBYPROPERTIES') {
                     const rel = parseRelDefines(entity.params);
                     relDefinesMap.set(id, rel);
@@ -658,6 +662,10 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                                 if (propertySetMap.has(psetId)) {
                                     const pset = propertySetMap.get(psetId);
                                     propertySets[pset.name] = pset.properties;
+                                    // Debug: Log custom PropertySet assignments
+                                    if (pset.name && !pset.name.startsWith('Pset_') && !pset.name.startsWith('Qto_')) {
+                                        console.log(`[DEBUG] Entity #${id} (${entity.type}) assigned PropertySet "${pset.name}"`);
+                                    }
                                 }
                             }
                         }
@@ -948,19 +956,83 @@ function parseProperty(params) {
     const rawName = parts[0].replace(/'/g, '');
     const name = decodeIFCString(rawName); // Decode property name
     let value = parts[2] || '';
-    const valueMatch = value.match(/IFC[A-Z]+\s*\(\s*'([^']*)'\s*\)/i);
-    if (valueMatch) {
-        value = decodeIFCString(valueMatch[1]);
+
+    // Handle $ (undefined/null) value
+    if (value === '$' || value.trim() === '') {
+        return { name, value: '' };
     }
+
+    // String types: IFCLABEL, IFCTEXT, IFCIDENTIFIER, IFCDESCRIPTIVEMEASURE
+    const stringMatch = value.match(/IFC(?:LABEL|TEXT|IDENTIFIER|DESCRIPTIVEMEASURE)\s*\(\s*'([^']*)'\s*\)/i);
+    if (stringMatch) {
+        value = decodeIFCString(stringMatch[1]);
+        return { name, value };
+    }
+
+    // Boolean type: IFCBOOLEAN(.T.) or IFCBOOLEAN(.F.)
+    const booleanMatch = value.match(/IFCBOOLEAN\s*\(\s*\.(T|F)\.\s*\)/i);
+    if (booleanMatch) {
+        value = booleanMatch[1].toUpperCase() === 'T' ? 'TRUE' : 'FALSE';
+        return { name, value };
+    }
+
+    // Logical type: IFCLOGICAL(.T.), (.F.), (.U.)
+    const logicalMatch = value.match(/IFCLOGICAL\s*\(\s*\.(T|F|U)\.\s*\)/i);
+    if (logicalMatch) {
+        const v = logicalMatch[1].toUpperCase();
+        value = v === 'T' ? 'TRUE' : v === 'F' ? 'FALSE' : 'UNKNOWN';
+        return { name, value };
+    }
+
+    // Numeric types: IFCREAL, IFCINTEGER, IFCVOLUMEMEASURE, IFCAREAMEASURE, IFCLENGTHMEASURE, etc.
+    const numericMatch = value.match(/IFC(?:[A-Z]+)?(?:MEASURE)?\s*\(\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)\s*\)/i);
+    if (numericMatch) {
+        value = numericMatch[1];
+        return { name, value };
+    }
+
+    // Plane angle measure: IFCPLANEANGLEMEASURE
+    const angleMatch = value.match(/IFCPLANEANGLEMEASURE\s*\(\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)\s*\)/i);
+    if (angleMatch) {
+        value = angleMatch[1];
+        return { name, value };
+    }
+
     return { name, value };
 }
 
 function decodeIFCString(str) {
     if (!str) return str;
-    // Decode \X\XX format (ISO 8859-1)
+
+    // Decode \S\X format (ISO 8859-1 supplement)
+    // \S\X means: ASCII value of X + 128 (for characters 128-255)
+    // e.g., \S\a = 'a'(97) + 128 = 225 = 'á' in ISO 8859-2
+    str = str.replace(/\\S\\(.)/g, (m, char) => String.fromCharCode(char.charCodeAt(0) + 128));
+
+    // Decode \X\XX format (ISO 8859-1 single byte)
     str = str.replace(/\\X\\([0-9A-F]{2})/gi, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
-    // Decode \X2\XXXX\X0\ format (UCS-2/UTF-16) - variable length hex
-    str = str.replace(/\\X2\\([0-9A-F]+)\\X0\\/gi, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
+
+    // Decode \X2\XXXX...XXXX\X0\ format (UTF-16 - multiple 4-char hex blocks)
+    // e.g., \X2\004E0065007600790070006C006E011B006E006F\X0\ = "Nevyplněno"
+    str = str.replace(/\\X2\\([0-9A-F]+)\\X0\\/gi, (m, hex) => {
+        let result = '';
+        for (let i = 0; i < hex.length; i += 4) {
+            const codePoint = parseInt(hex.substr(i, 4), 16);
+            result += String.fromCharCode(codePoint);
+        }
+        return result;
+    });
+
+    // Decode \X4\XXXXXXXX\X0\ format (UTF-32 - 8-char hex blocks for extended Unicode)
+    str = str.replace(/\\X4\\([0-9A-F]+)\\X0\\/gi, (m, hex) => {
+        let result = '';
+        for (let i = 0; i < hex.length; i += 8) {
+            const codePoint = parseInt(hex.substr(i, 8), 16);
+            result += String.fromCodePoint(codePoint);
+        }
+        return result;
+    });
+
     return str;
 }
 
@@ -993,8 +1065,18 @@ function splitParams(params) {
     let depth = 0;
     let inString = false;
 
-    for (let char of params) {
-        if (char === "'" && (current.length === 0 || current[current.length - 1] !== '\\')) {
+    for (let i = 0; i < params.length; i++) {
+        const char = params[i];
+        // IFC uses '' (double single quote) for escaped quotes, not \'
+        // So we only toggle string mode on single quotes that are not part of ''
+        if (char === "'") {
+            if (inString && params[i + 1] === "'") {
+                // This is an escaped quote (''), add both and skip next
+                current += char;
+                current += params[i + 1];
+                i++;
+                continue;
+            }
             inString = !inString;
         }
         if (!inString) {
