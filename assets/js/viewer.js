@@ -4270,9 +4270,40 @@ function initSpatialTreeListeners() {
 
 // Inicializace po načtení DOM
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSpatialTreeListeners);
+    document.addEventListener('DOMContentLoaded', () => {
+        initSpatialTreeListeners();
+        initScrollSpeedLimiter();
+    });
 } else {
     initSpatialTreeListeners();
+    initScrollSpeedLimiter();
+}
+
+// Omezení rychlosti horizontálního scrollování v tabulce
+function initScrollSpeedLimiter() {
+    const tableContainer = document.getElementById('tableContainer');
+    if (!tableContainer) return;
+
+    const MAX_SCROLL_SPEED = 100; // Maximální počet pixelů na jedno scrollnutí
+
+    tableContainer.addEventListener('wheel', (e) => {
+        // Detekce horizontálního scrollování (shift+wheel nebo trackpad)
+        const isHorizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey;
+
+        if (isHorizontal) {
+            e.preventDefault();
+
+            // Použij deltaX pro trackpad, deltaY pro shift+wheel
+            let delta = e.shiftKey ? e.deltaY : e.deltaX;
+
+            // Omez rychlost scrollování
+            if (Math.abs(delta) > MAX_SCROLL_SPEED) {
+                delta = Math.sign(delta) * MAX_SCROLL_SPEED;
+            }
+
+            tableContainer.scrollLeft += delta;
+        }
+    }, { passive: false });
 }
 
 // Re-render UI when language changes
