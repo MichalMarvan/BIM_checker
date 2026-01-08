@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check HTML validity
+        run: |
+          for file in *.html pages/*.html; do
+            if [ -f "$file" ]; then
+              echo "Checking $file..."
+              # Basic syntax check - ensure files are valid UTF-8
+              iconv -f UTF-8 -t UTF-8 "$file" > /dev/null
+            fi
+          done
+
+      - name: Check for console.log statements
+        run: |
+          # Warn about console.log but don't fail
+          echo "Checking for console.log statements..."
+          grep -r "console\.log" assets/js/ --include="*.js" || echo "No console.log found"
