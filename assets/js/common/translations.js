@@ -399,6 +399,13 @@ const translations = {
     'viewer.fileLabel': 'Soubor',
     'viewer.entities2': 'entit',
 
+    // === CSV EXPORT ===
+    'viewer.csv.file': 'Soubor',
+    'viewer.csv.guid': 'GUID',
+    'viewer.csv.entity': 'Entita',
+    'viewer.csv.name': 'Name',
+    'viewer.csv.layer': 'Layer',
+
     // === IDS VALIDATOR ===
     'validator.title': 'IDS-IFC Validátor',
     'validator.subtitle': 'Validujte IFC soubory proti IDS specifikacím',
@@ -903,6 +910,13 @@ const translations = {
     'viewer.collapseAll': 'Collapse All',
     'viewer.fileLabel': 'File',
     'viewer.entities2': 'entities',
+
+    // === CSV EXPORT ===
+    'viewer.csv.file': 'File',
+    'viewer.csv.guid': 'GUID',
+    'viewer.csv.entity': 'Entity',
+    'viewer.csv.name': 'Name',
+    'viewer.csv.layer': 'Layer',
 
     // === IDS VALIDATOR ===
     'validator.title': 'IDS-IFC Validator',

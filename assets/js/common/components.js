@@ -138,7 +138,7 @@ const HTMLComponents = {
         const {
             id = 'loading',
             titleKey = 'loading.files',
-            titleDefault = 'Nahr&aacute;v&aacute;m soubory...',
+            titleDefault = 'Uploading files...',
             showProgress = true
         } = options;
 
@@ -155,7 +155,7 @@ const HTMLComponents = {
         <div class="loading-card">
             <div class="loading-spinner-modern"></div>
             <h3 class="loading-title" data-i18n="${titleKey}">${titleDefault}</h3>
-            <p class="loading-subtitle" id="loadingSubtext" data-i18n="loading.subtext">Pros&iacute;m &ccaron;ekejte...</p>
+            <p class="loading-subtitle" id="loadingSubtext" data-i18n="loading.subtext">Please wait...</p>
             ${progressBar}
             <div class="file-info-modern" id="fileInfo"></div>
         </div>
@@ -228,7 +228,7 @@ const HTMLComponents = {
             const options = {
                 id: el.dataset.id || 'loading',
                 titleKey: el.dataset.titleKey || 'loading.files',
-                titleDefault: el.dataset.titleDefault || 'Nahravám soubory...',
+                titleDefault: el.dataset.titleDefault || 'Uploading files...',
                 showProgress: el.dataset.showProgress !== 'false'
             };
             el.outerHTML = this.loadingOverlay(options);

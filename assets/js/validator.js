@@ -2568,7 +2568,7 @@ async function validateAll() {
 
             const idsData = parseIDS(group.idsFile.content, group.idsFile.name);
             if (!idsData) {
-                console.error('Chyba při parsování IDS:', group.idsFile.name);
+                console.error('Error parsing IDS:', group.idsFile.name);
                 continue;
             }
 
@@ -2589,7 +2589,7 @@ async function validateAll() {
                 document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfc')} ${ifcFile.name}`;
                 const entities = await parseIFCFileAsync(ifcFile.content, ifcFile.name);
                 if (!entities || entities.length === 0) {
-                    console.warn('Žádné entity v IFC souboru:', ifcFile.name);
+                    console.warn('No entities in IFC file:', ifcFile.name);
                     continue;
                 }
 
@@ -2623,7 +2623,7 @@ async function validateAll() {
         }
 
     } catch (error) {
-        console.error('Chyba při validaci:', error);
+        console.error('Validation error:', error);
         ErrorHandler.error(t('validator.error.validationError') + ' ' + error.message);
         document.getElementById('loading').classList.remove('show');
     }

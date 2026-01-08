@@ -1490,7 +1490,7 @@ function buildTable() {
     fileHeader.style.cursor = 'pointer';
     fileHeader.classList.add('sticky-col');
     fileHeader.style.left = editMode ? '40px' : '0px';
-    fileHeader.addEventListener('click', () => sortByColumn('Soubor'));
+    fileHeader.addEventListener('click', () => sortByColumn('__file__'));
     headerPset.appendChild(fileHeader);
 
     let currentLeft = (editMode ? 40 : 0) + fileColWidth;
@@ -1529,13 +1529,19 @@ function buildTable() {
         }
     }
 
-    // Fixed columns (GUID, Entita, Name, Layer) - NOT sticky, will scroll away
-    ['GUID', 'Entita', 'Name', 'Layer'].forEach(label => {
+    // Fixed columns (GUID, Entity, Name, Layer) - NOT sticky, will scroll away
+    const fixedColumns = [
+        { id: 'GUID', label: 'GUID' },
+        { id: '__entity__', label: i18n.t('viewer.csv.entity') },
+        { id: 'Name', label: 'Name' },
+        { id: 'Layer', label: 'Layer' }
+    ];
+    fixedColumns.forEach(col => {
         const th = document.createElement('th');
-        th.textContent = label;
+        th.textContent = col.label;
         th.rowSpan = 2;
         th.style.cursor = 'pointer';
-        th.addEventListener('click', () => sortByColumn(label));
+        th.addEventListener('click', () => sortByColumn(col.id));
         headerPset.appendChild(th);
     });
 
@@ -1701,9 +1707,9 @@ function applyFiltersAndRender() {
                         // Search in specific column/property
                         // Check if it's a basic field
                         if (columnName === 'GUID' && regex.test(item.guid)) return true;
-                        if (columnName === 'Entita' && regex.test(item.entity)) return true;
+                        if ((columnName === 'Entita' || columnName === 'Entity') && regex.test(item.entity)) return true;
                         if (columnName === 'Name' && regex.test(item.name)) return true;
-                        if (columnName === 'Soubor' && regex.test(item.fileName)) return true;
+                        if ((columnName === 'Soubor' || columnName === 'File') && regex.test(item.fileName)) return true;
                         
                         // Check in property sets - support both "PropertyName" and "PsetName.PropertyName"
                         for (let [psetName, pset] of Object.entries(item.propertySets)) {
@@ -1726,9 +1732,9 @@ function applyFiltersAndRender() {
                 filteredData = filteredData.filter(item => {
                     // Search in specific column/property
                     if (columnName === 'GUID' && item.guid.toLowerCase().includes(searchLower)) return true;
-                    if (columnName === 'Entita' && item.entity.toLowerCase().includes(searchLower)) return true;
+                    if ((columnName === 'Entita' || columnName === 'Entity') && item.entity.toLowerCase().includes(searchLower)) return true;
                     if (columnName === 'Name' && item.name.toLowerCase().includes(searchLower)) return true;
-                    if (columnName === 'Soubor' && item.fileName.toLowerCase().includes(searchLower)) return true;
+                    if ((columnName === 'Soubor' || columnName === 'File') && item.fileName.toLowerCase().includes(searchLower)) return true;
                     
                     // Check in property sets
                     for (let [psetName, pset] of Object.entries(item.propertySets)) {
@@ -1814,13 +1820,13 @@ function applyFiltersAndRender() {
         filteredData.sort((a, b) => {
             let valA, valB;
             
-            if (sortColumn === 'Soubor') {
+            if (sortColumn === '__file__') {
                 valA = a.fileName;
                 valB = b.fileName;
             } else if (sortColumn === 'GUID') {
                 valA = a.guid;
                 valB = b.guid;
-            } else if (sortColumn === 'Entita') {
+            } else if (sortColumn === '__entity__') {
                 valA = a.entity;
                 valB = b.entity;
             } else if (sortColumn === 'Name') {
@@ -2104,7 +2110,7 @@ function showStatistics() {
 
 document.getElementById('exportBtn').addEventListener('click', () => {
     const columns = window.currentColumns || [];
-    let csv = 'Soubor,GUID,Entita,Name,Layer';
+    let csv = `${i18n.t('viewer.csv.file')},${i18n.t('viewer.csv.guid')},${i18n.t('viewer.csv.entity')},${i18n.t('viewer.csv.name')},${i18n.t('viewer.csv.layer')}`;
     for (let col of columns) {
         csv += ',"' + col.psetName + ' ' + col.propName + '"';
     }
