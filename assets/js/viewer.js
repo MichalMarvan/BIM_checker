@@ -272,18 +272,66 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         const CHUNK_SIZE = 2000; // Process 2000 lines at a time
         const totalLines = lines.length;
 
-        // Phase 1: Collect entities (chunked)
+        // Phase 1: Collect entities (chunked) with multi-line support
         updateProgress(0, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')}`);
+
+        let entityBuffer = '';
+        let inDataSection = false;
+
         for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
             const chunk = lines.slice(i, i + CHUNK_SIZE);
 
             for (let line of chunk) {
                 line = line.trim();
-                if (!line.startsWith('#')) continue;
-                const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
-                if (!match) continue;
-                const [, id, entityType, params] = match;
-                entityMap.set(id, { id, type: entityType, params });
+
+                // Track DATA section
+                if (line === 'DATA;') {
+                    inDataSection = true;
+                    continue;
+                }
+                if (line === 'ENDSEC;') {
+                    // Process any remaining entity in buffer
+                    if (entityBuffer) {
+                        const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
+                        if (match) {
+                            const [, id, entityType, params] = match;
+                            entityMap.set(id, { id, type: entityType, params });
+                        }
+                        entityBuffer = '';
+                    }
+                    inDataSection = false;
+                    continue;
+                }
+
+                if (!inDataSection) continue;
+                if (!line) continue;
+
+                // Handle multi-line entities
+                if (entityBuffer) {
+                    // Continue multi-line entity
+                    entityBuffer += ' ' + line;
+                    if (line.endsWith(';')) {
+                        // Entity complete
+                        const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
+                        if (match) {
+                            const [, id, entityType, params] = match;
+                            entityMap.set(id, { id, type: entityType, params });
+                        }
+                        entityBuffer = '';
+                    }
+                } else if (line.startsWith('#')) {
+                    if (line.endsWith(';')) {
+                        // Single-line entity (most common case)
+                        const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
+                        if (match) {
+                            const [, id, entityType, params] = match;
+                            entityMap.set(id, { id, type: entityType, params });
+                        }
+                    } else {
+                        // Multi-line entity starts here
+                        entityBuffer = line;
+                    }
+                }
             }
 
             const progress = ((i + CHUNK_SIZE) / totalLines) * 25;
@@ -709,14 +757,62 @@ async function parseIFC(content, fileName) {
         const propertySetMap = new Map();
         const relDefinesMap = new Map();
 
-        // Collect entities
+        // Collect entities with multi-line support
+        // IFC entities can span multiple lines and end with semicolon
+        let entityBuffer = '';
+        let inDataSection = false;
+
         for (let line of lines) {
             line = line.trim();
-            if (!line.startsWith('#')) continue;
-            const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
-            if (!match) continue;
-            const [, id, entityType, params] = match;
-            entityMap.set(id, { id, type: entityType, params });
+
+            // Track DATA section
+            if (line === 'DATA;') {
+                inDataSection = true;
+                continue;
+            }
+            if (line === 'ENDSEC;') {
+                // Process any remaining entity in buffer
+                if (entityBuffer) {
+                    const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
+                    if (match) {
+                        const [, id, entityType, params] = match;
+                        entityMap.set(id, { id, type: entityType, params });
+                    }
+                    entityBuffer = '';
+                }
+                inDataSection = false;
+                continue;
+            }
+
+            if (!inDataSection) continue;
+            if (!line) continue;
+
+            // Handle multi-line entities
+            if (entityBuffer) {
+                // Continue multi-line entity
+                entityBuffer += ' ' + line;
+                if (line.endsWith(';')) {
+                    // Entity complete
+                    const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
+                    if (match) {
+                        const [, id, entityType, params] = match;
+                        entityMap.set(id, { id, type: entityType, params });
+                    }
+                    entityBuffer = '';
+                }
+            } else if (line.startsWith('#')) {
+                if (line.endsWith(';')) {
+                    // Single-line entity (most common case)
+                    const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
+                    if (match) {
+                        const [, id, entityType, params] = match;
+                        entityMap.set(id, { id, type: entityType, params });
+                    }
+                } else {
+                    // Multi-line entity starts here
+                    entityBuffer = line;
+                }
+            }
         }
 
         // Parse property sets and spatial relationships
@@ -1205,19 +1301,33 @@ function combineData() {
 }
 
 function updateUI() {
-    // Update entity filter
+    // Update entity filter (using safe DOM methods to prevent XSS)
     const entityFilter = document.getElementById('entityFilter');
     const entities = [...new Set(allData.map(item => item.entity))].sort();
-    entityFilter.innerHTML = `<option value="">${i18n.t('viewer.allEntities')}</option>`;
-    for (let entity of entities) {
-        entityFilter.innerHTML += `<option value="${entity}">${entity}</option>`;
+    entityFilter.textContent = ''; // Clear safely
+    const defaultEntityOption = document.createElement('option');
+    defaultEntityOption.value = '';
+    defaultEntityOption.textContent = i18n.t('viewer.allEntities');
+    entityFilter.appendChild(defaultEntityOption);
+    for (const entity of entities) {
+        const option = document.createElement('option');
+        option.value = entity;
+        option.textContent = entity;
+        entityFilter.appendChild(option);
     }
 
-    // Update file filter
+    // Update file filter (using safe DOM methods to prevent XSS)
     const fileFilter = document.getElementById('fileFilter');
-    fileFilter.innerHTML = `<option value="">${i18n.t('viewer.allFiles')}</option>`;
+    fileFilter.textContent = ''; // Clear safely
+    const defaultFileOption = document.createElement('option');
+    defaultFileOption.value = '';
+    defaultFileOption.textContent = i18n.t('viewer.allFiles');
+    fileFilter.appendChild(defaultFileOption);
     loadedFiles.forEach(file => {
-        fileFilter.innerHTML += `<option value="${file.fileName}">${file.fileName}</option>`;
+        const option = document.createElement('option');
+        option.value = file.fileName;
+        option.textContent = file.fileName;
+        fileFilter.appendChild(option);
     });
 
     document.getElementById('controls').style.display = 'block';
@@ -1892,7 +2002,12 @@ function renderTable() {
         // File badge - always sticky
         const fileInfo = loadedFiles.find(f => f.fileName === item.fileName);
         const fileCell = document.createElement('td');
-        fileCell.innerHTML = `<span class="file-badge" style="background: ${fileInfo.color};" title="${item.fileName}">${item.fileName}</span>`;
+        const fileBadge = document.createElement('span');
+        fileBadge.className = 'file-badge';
+        fileBadge.style.background = fileInfo.color;
+        fileBadge.title = item.fileName;
+        fileBadge.textContent = item.fileName;
+        fileCell.appendChild(fileBadge);
         fileCell.classList.add('sticky-col');
         fileCell.style.left = editMode ? '40px' : '0px';
         row.appendChild(fileCell);
@@ -1944,7 +2059,10 @@ function renderTable() {
         row.appendChild(guidCell);
 
         const entityCell = document.createElement('td');
-        entityCell.innerHTML = `<span class="entity-badge">${item.entity}</span>`;
+        const entityBadge = document.createElement('span');
+        entityBadge.className = 'entity-badge';
+        entityBadge.textContent = item.entity;
+        entityCell.appendChild(entityBadge);
         row.appendChild(entityCell);
 
         const nameCell = document.createElement('td');

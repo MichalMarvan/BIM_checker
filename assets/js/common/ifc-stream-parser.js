@@ -9,8 +9,9 @@ class IFCStreamParser {
         this.onEntity = options.onEntity || (() => {});
         this.onProgress = options.onProgress || (() => {});
         this.onComplete = options.onComplete || (() => {});
-        
+
         this.buffer = '';
+        this.entityBuffer = ''; // Buffer for multi-line entities
         this.totalBytes = 0;
         this.processedBytes = 0;
         this.entityCount = 0;
@@ -77,9 +78,9 @@ class IFCStreamParser {
 
     processLine(line) {
         line = line.trim();
-        
+
         if (!line) return;
-        
+
         // Skip header lines until DATA section
         if (!this.headerProcessed) {
             if (line === 'DATA;') {
@@ -87,19 +88,49 @@ class IFCStreamParser {
             }
             return;
         }
-        
+
         // Stop at ENDSEC
         if (line === 'ENDSEC;') {
+            // Process any remaining entity in buffer
+            if (this.entityBuffer) {
+                this.processEntityBuffer();
+            }
             return;
         }
-        
-        // Parse entity
-        if (line.startsWith('#')) {
-            const entity = this.parseEntity(line);
+
+        // Handle multi-line entity support
+        // IFC entities can span multiple lines and end with semicolon
+        if (this.entityBuffer) {
+            // We're in the middle of a multi-line entity
+            this.entityBuffer += ' ' + line;
+            if (line.endsWith(';')) {
+                // Entity complete
+                this.processEntityBuffer();
+            }
+        } else if (line.startsWith('#')) {
+            // Start of a new entity
+            if (line.endsWith(';')) {
+                // Single-line entity (most common case)
+                const entity = this.parseEntity(line);
+                if (entity) {
+                    this.entityCount++;
+                    this.onEntity(entity);
+                }
+            } else {
+                // Multi-line entity starts here
+                this.entityBuffer = line;
+            }
+        }
+    }
+
+    processEntityBuffer() {
+        if (this.entityBuffer) {
+            const entity = this.parseEntity(this.entityBuffer);
             if (entity) {
                 this.entityCount++;
                 this.onEntity(entity);
             }
+            this.entityBuffer = '';
         }
     }
 
