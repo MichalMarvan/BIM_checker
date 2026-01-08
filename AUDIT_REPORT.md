@@ -1,361 +1,362 @@
 # Audit Report - BIM Checker
 
-**Datum auditu:** 2026-01-08
-**Verze projektu:** master (commit fdae505)
-**Poslední aktualizace:** 2026-01-08 (po opravách)
+**Audit date:** 2026-01-08
+**Project version:** master (commit fdae505)
+**Last updated:** 2026-01-08 (after fixes)
 
 ---
 
-## Obsah
+## Table of Contents
 
-1. [Kritické problémy (Bezpečnost)](#1-kritické-problémy-bezpečnost)
-2. [Vysoké problémy (Stabilita)](#2-vysoké-problémy-stabilita)
-3. [Střední problémy (Výkon/Údržba)](#3-střední-problémy-výkonúdržba)
-4. [Duplicitní kód](#4-duplicitní-kód)
-5. [Architektura a infrastruktura](#5-architektura-a-infrastruktura)
-6. [Memory leaky](#6-memory-leaky)
-7. [Nekonzistence v kódu](#7-nekonzistence-v-kódu)
-8. [Hardcoded hodnoty](#8-hardcoded-hodnoty)
-9. [Dead code](#9-dead-code)
-10. [Testování a kvalita](#10-testování-a-kvalita)
-
----
-
-## 1. Kritické problémy (Bezpečnost)
-
-### 1.1 XSS zranitelnost - innerHTML bez escapování
-- [x] **Soubory:** `parser.js`, `validator.js`, `viewer.js`, `index.js`
-- [x] **Řádky:** parser.js:328,394,671; validator.js:121-2150; viewer.js:1099-4182
-- [x] **Popis:** Projekt hojně používá `innerHTML` s dynamicky generovaným HTML. V některých případech jsou data normalizovaná přes `escapeHtml()`, ale v mnoha místech nikoliv.
-- [x] **Řešení:** Důsledně escapovat všechna data před vložením do innerHTML, nebo použít textContent/createElement
-- **STATUS: OPRAVENO** - Přidáno `escapeHtml()` na všechna místa s uživatelskými daty
-
-### 1.2 Inline event handlery v dynamickém HTML
-- [x] **Soubory:** `parser.js:317,351-352,364,683`; `validator.js:1635,1640,1662`; `index.js:287-314`
-- [x] **Popis:** Používání `onclick="funkceName()"` v dynamicky vygenerovaném HTML místo moderního `addEventListener`
-- [x] **Řešení:** Přepsat na addEventListener s event delegation
-- **STATUS: OPRAVENO** - Nahrazeno data-* atributy a event delegation
+1. [Critical Issues (Security)](#1-critical-issues-security)
+2. [High Priority Issues (Stability)](#2-high-priority-issues-stability)
+3. [Medium Priority Issues (Performance/Maintenance)](#3-medium-priority-issues-performancemaintenance)
+4. [Duplicate Code](#4-duplicate-code)
+5. [Architecture and Infrastructure](#5-architecture-and-infrastructure)
+6. [Memory Leaks](#6-memory-leaks)
+7. [Code Inconsistencies](#7-code-inconsistencies)
+8. [Hardcoded Values](#8-hardcoded-values)
+9. [Dead Code](#9-dead-code)
+10. [Testing and Quality](#10-testing-and-quality)
 
 ---
 
-## 2. Vysoké problémy (Stabilita)
+## 1. Critical Issues (Security)
 
-### 2.1 Monolitický viewer.js (4316 řádků)
-- [ ] **Soubor:** `assets/js/viewer.js`
-- [ ] **Popis:** Soubor je příliš velký a měl by být rozdělen do více modulů
-- [ ] **Řešení:** Rozdělit do logických modulů (table-renderer.js, filter-manager.js, export-manager.js, atd.)
-- **STATUS: ČÁSTEČNĚ** - Soubor zmenšen na 4091 řádků (odstraněny console.log), plné rozdělení vyžaduje větší refaktoring
+### 1.1 XSS Vulnerability - innerHTML without escaping
+- [x] **Files:** `parser.js`, `validator.js`, `viewer.js`, `index.js`
+- [x] **Lines:** parser.js:328,394,671; validator.js:121-2150; viewer.js:1099-4182
+- [x] **Description:** The project extensively uses `innerHTML` with dynamically generated HTML. In some cases data is normalized via `escapeHtml()`, but in many places it is not.
+- [x] **Solution:** Consistently escape all data before inserting into innerHTML, or use textContent/createElement
+- **STATUS: FIXED** - Added `escapeHtml()` everywhere user data is used
 
-### 2.2 Neošetřené async operace v storage.js
-- [x] **Soubor:** `assets/js/storage.js`
-- [x] **Řádky:** 182, 198, 236, 270, 299, 327
-- [x] **Popis:** Asynchronní operace `this.save()` jsou volány bez await, takže chyby nejsou zachyceny
-- [x] **Řešení:** Přidat await nebo proper error handling
-- **STATUS: OPRAVENO** - Přidán `await` ke všem `this.save()` voláním
-
-### 2.3 Chybějící FileReader.onerror
-- [x] **Soubory:** `validator.js:89-90`, `index.js:142-167`
-- [x] **Popis:** FileReader.onerror není implementován, pouze onload a onprogress
-- [x] **Řešení:** Implementovat onerror handler s uživatelským feedbackem
-- **STATUS: OPRAVENO** - Přidány onerror handlery
-
-### 2.4 Chybějící null/undefined checks
-- [x] **viewer.js:1676** - `window.currentColumns` může být undefined
-- [x] **viewer.js:3006-3340** - `psetInfo.params` nemá null check
-- [x] **validator.js:376-377** - `entityMap.get()` může vrátit undefined bez kontroly
-- [x] **Řešení:** Přidat defensive checks na všechna rizikový místa
-- **STATUS: OPRAVENO** - Přidány null checks a fallback hodnoty
-
-### 2.5 Chybějící boundary checks u pole operací
-- [ ] **Soubor:** `viewer.js:2212`
-- [ ] **Popis:** Při navigaci na stránku není kontrolováno, zda je číslo stránky validní
-- [ ] **Řešení:** Přidat validaci rozsahu
-- **STATUS: NEŘEŠENO** - Nízká priorita
+### 1.2 Inline event handlers in dynamic HTML
+- [x] **Files:** `parser.js:317,351-352,364,683`; `validator.js:1635,1640,1662`; `index.js:287-314`
+- [x] **Description:** Using `onclick="functionName()"` in dynamically generated HTML instead of modern `addEventListener`
+- [x] **Solution:** Rewrite to addEventListener with event delegation
+- **STATUS: FIXED** - Replaced with data-* attributes and event delegation
 
 ---
 
-## 3. Střední problémy (Výkon/Údržba)
+## 2. High Priority Issues (Stability)
 
-### 3.1 Regex while smyčky bez resetu state
-- [x] **Soubor:** `viewer.js`
-- [x] **Řádky:** 3006, 3058, 3118, 3160, 3317
-- [x] **Popis:** Pattern `while ((match = regex.exec(...)) !== null)` bez resetu regex state může způsobit nekonečné smyčky
-- [x] **Řešení:** Resetovat `regex.lastIndex = 0` před smyčkou nebo použít `String.matchAll()`
-- **STATUS: OPRAVENO** - Přidáno `regex.lastIndex = 0` před každou smyčku
+### 2.1 Monolithic viewer.js (4316 lines)
+- [ ] **File:** `assets/js/viewer.js`
+- [ ] **Description:** File is too large and should be split into multiple modules
+- [ ] **Solution:** Split into logical modules (table-renderer.js, filter-manager.js, export-manager.js, etc.)
+- **STATUS: PARTIAL** - File reduced to 4091 lines (removed console.log), full split requires major refactoring
 
-### 3.2 Nadměrné console.log v produkčním kódu
-- [x] **Soubor:** `viewer.js`
-- [x] **Počet:** 152 výskytů console příkazů
-- [x] **Řádky:** 313, 368-372, 377, 2888-3302, 3006-3340
-- [x] **Řešení:** Odstranit nebo zabalit do DEBUG podmínky
-- **STATUS: OPRAVENO** - Všechny console.log odstraněny (soubor zmenšen o 225 řádků)
+### 2.2 Unhandled async operations in storage.js
+- [x] **File:** `assets/js/storage.js`
+- [x] **Lines:** 182, 198, 236, 270, 299, 327
+- [x] **Description:** Async operations `this.save()` are called without await, so errors are not caught
+- [x] **Solution:** Add await or proper error handling
+- **STATUS: FIXED** - Added `await` to all `this.save()` calls
 
-### 3.3 VirtualArray implementace neefektivní
-- [ ] **Soubor:** `viewer.js:4-97`
-- [ ] **Popis:** `VirtualArray.slice()` vrací všechna data do paměti, což neguje účel virtualizace
-- [ ] **Řešení:** Implementovat lazy loading nebo stream-based přístup
-- **STATUS: NEŘEŠENO** - Vyžaduje větší refaktoring
+### 2.3 Missing FileReader.onerror
+- [x] **Files:** `validator.js:89-90`, `index.js:142-167`
+- [x] **Description:** FileReader.onerror is not implemented, only onload and onprogress
+- [x] **Solution:** Implement onerror handler with user feedback
+- **STATUS: FIXED** - Added onerror handlers
 
-### 3.4 Globální proměnné (namespace pollution)
-- [ ] **Soubor:** `viewer.js:100-126, 1676, 1720-1726, 2064-2098, 4072-4073`
-- [ ] **Proměnné:** `loadedFiles`, `allData`, `filteredData`, `modifications`, `selectedEntities`, `editMode`, `window.currentColumns`, `window.selectedSpatialIds`
-- [ ] **Řešení:** Přesunout do namespace objektu nebo použít ES modules
-- **STATUS: NEŘEŠENO** - Vyžaduje větší refaktoring
+### 2.4 Missing null/undefined checks
+- [x] **viewer.js:1676** - `window.currentColumns` may be undefined
+- [x] **viewer.js:3006-3340** - `psetInfo.params` has no null check
+- [x] **validator.js:376-377** - `entityMap.get()` may return undefined without check
+- [x] **Solution:** Add defensive checks at all risky locations
+- **STATUS: FIXED** - Added null checks and fallback values
 
-### 3.5 Chybějící validace regex vstupu od uživatele
-- [ ] **Soubor:** `viewer.js:1770, 1825`
-- [ ] **Popis:** Vstup pro regex vychází z user input bez explicitní validace - DoS potenciál
-- [ ] **Řešení:** Přidat timeout nebo validaci complexity
-- **STATUS: NEŘEŠENO** - Nízká priorita
-
-### 3.6 Synchronní file parsing bez chunking
-- [ ] **Soubor:** `parser.js:46-53`
-- [ ] **Popis:** Parsování IDS souborů probíhá synchronně bez chunking operací, což zablokuje UI
-- [ ] **Řešení:** Použít Web Workers nebo chunked processing
-- **STATUS: NEŘEŠENO** - Vyžaduje větší refaktoring
-
-### 3.7 parseIFC bez dostatečné validace formátu
-- [ ] **Soubor:** `validator.js:263-715`
-- [ ] **Popis:** Regex pro parsování IFC je flexibilní, ale nevaliduje strukturu dostatečně - DoS potenciál
-- [ ] **Řešení:** Přidat timeout a limits na vstup
-- **STATUS: NEŘEŠENO** - Vyžaduje větší refaktoring
+### 2.5 Missing boundary checks in array operations
+- [ ] **File:** `viewer.js:2212`
+- [ ] **Description:** When navigating to a page, there's no validation that the page number is valid
+- [ ] **Solution:** Add range validation
+- **STATUS: NOT FIXED** - Low priority
 
 ---
 
-## 4. Duplicitní kód
+## 3. Medium Priority Issues (Performance/Maintenance)
 
-### 4.1 Drag-and-drop logika
-- [x] **Soubory:** `validator.js`, `parser.js`, `index.js`
-- [x] **Popis:** Téměř identická logika pro zpracování drag-drop je duplikovaná na třech místech
-- [x] **Řešení:** Extrahovat do `assets/js/common/drag-drop.js`
-- **STATUS: OPRAVENO** - Vytvořen `drag-drop.js` modul
+### 3.1 Regex while loops without state reset
+- [x] **File:** `viewer.js`
+- [x] **Lines:** 3006, 3058, 3118, 3160, 3317
+- [x] **Description:** Pattern `while ((match = regex.exec(...)) !== null)` without resetting regex state can cause infinite loops
+- [x] **Solution:** Reset `regex.lastIndex = 0` before loop or use `String.matchAll()`
+- **STATUS: FIXED** - Added `regex.lastIndex = 0` before each loop
 
-### 4.2 showError() funkce
-- [x] **Soubory:** `validator.js:171-178`, `parser.js:779-785`
-- [x] **Popis:** Funkce definována lokálně místo použití globální verze z utils.js
-- [x] **Řešení:** Použít sdílenou funkci z utils.js
-- **STATUS: OPRAVENO** - Aktualizován utils.js s rozšířenými funkcemi
+### 3.2 Excessive console.log in production code
+- [x] **File:** `viewer.js`
+- [x] **Count:** 152 console statement occurrences
+- [x] **Lines:** 313, 368-372, 377, 2888-3302, 3006-3340
+- [x] **Solution:** Remove or wrap in DEBUG condition
+- **STATUS: FIXED** - All console.log removed (file reduced by 225 lines)
 
-### 4.3 escapeHtml() funkce
-- [x] **Soubory:** `assets/js/common/utils.js`, `assets/js/common/error-handler.js`
-- [x] **Popis:** Identická logika na dvou místech
-- [x] **Řešení:** Ponechat pouze v utils.js, v error-handler.js importovat
-- **STATUS: OPRAVENO** - error-handler.js nyní deleguje na utils.js
+### 3.3 Inefficient VirtualArray implementation
+- [ ] **File:** `viewer.js:4-97`
+- [ ] **Description:** `VirtualArray.slice()` returns all data to memory, negating the purpose of virtualization
+- [ ] **Solution:** Implement lazy loading or stream-based approach
+- **STATUS: NOT FIXED** - Requires major refactoring
+
+### 3.4 Global variables (namespace pollution)
+- [ ] **File:** `viewer.js:100-126, 1676, 1720-1726, 2064-2098, 4072-4073`
+- [ ] **Variables:** `loadedFiles`, `allData`, `filteredData`, `modifications`, `selectedEntities`, `editMode`, `window.currentColumns`, `window.selectedSpatialIds`
+- [ ] **Solution:** Move to namespace object or use ES modules
+- **STATUS: NOT FIXED** - Requires major refactoring
+
+### 3.5 Missing regex input validation from user
+- [ ] **File:** `viewer.js:1770, 1825`
+- [ ] **Description:** Regex input from user without explicit validation - DoS potential
+- [ ] **Solution:** Add timeout or complexity validation
+- **STATUS: NOT FIXED** - Low priority
+
+### 3.6 Synchronous file parsing without chunking
+- [ ] **File:** `parser.js:46-53`
+- [ ] **Description:** IDS file parsing is synchronous without chunking, blocking the UI
+- [ ] **Solution:** Use Web Workers or chunked processing
+- **STATUS: NOT FIXED** - Requires major refactoring
+
+### 3.7 parseIFC without sufficient format validation
+- [ ] **File:** `validator.js:263-715`
+- [ ] **Description:** Regex for parsing IFC is flexible but doesn't validate structure sufficiently - DoS potential
+- [ ] **Solution:** Add timeout and input limits
+- **STATUS: NOT FIXED** - Requires major refactoring
+
+---
+
+## 4. Duplicate Code
+
+### 4.1 Drag-and-drop logic
+- [x] **Files:** `validator.js`, `parser.js`, `index.js`
+- [x] **Description:** Nearly identical drag-drop handling logic duplicated in three places
+- [x] **Solution:** Extract to `assets/js/common/drag-drop.js`
+- **STATUS: FIXED** - Created `drag-drop.js` module
+
+### 4.2 showError() function
+- [x] **Files:** `validator.js:171-178`, `parser.js:779-785`
+- [x] **Description:** Function defined locally instead of using global version from utils.js
+- [x] **Solution:** Use shared function from utils.js
+- **STATUS: FIXED** - Updated utils.js with extended functions
+
+### 4.3 escapeHtml() function
+- [x] **Files:** `assets/js/common/utils.js`, `assets/js/common/error-handler.js`
+- [x] **Description:** Identical logic in two places
+- [x] **Solution:** Keep only in utils.js, import in error-handler.js
+- **STATUS: FIXED** - error-handler.js now delegates to utils.js
 
 ### 4.4 Dark mode toggle JavaScript
-- [x] **Soubory:** `index.html`, `pages/ids-ifc-validator.html`
-- [x] **Popis:** Kód pro přepínání světlého/tmavého režimu je duplikován přímo v HTML souborech
-- [x] **Řešení:** Extrahovat do `assets/js/common/theme.js`
-- **STATUS: OPRAVENO** - Vytvořen `theme.js` modul
+- [x] **Files:** `index.html`, `pages/ids-ifc-validator.html`
+- [x] **Description:** Code for light/dark mode switching duplicated directly in HTML files
+- [x] **Solution:** Extract to `assets/js/common/theme.js`
+- **STATUS: FIXED** - Created `theme.js` module
 
-### 4.5 HTML struktura (hlavička, navigace, patička)
-- [ ] **Soubory:** Všechny HTML soubory
-- [ ] **Popis:** Základní struktura HTML je kopírována mezi jednotlivými stránkami
-- [ ] **Řešení:** Zvážit použití statického generátoru stránek nebo JavaScript komponenty
-- **STATUS: NEŘEŠENO** - Vyžaduje změnu architektury
-
----
-
-## 5. Architektura a infrastruktura
-
-### 5.1 Chybějící správa závislostí
-- [ ] **Problém:** Externí knihovny (SheetJS) jsou načítány přímo z CDN
-- [ ] **Dopad:** Ztěžuje sledování verzí, správu aktualizací, kontrolu bezpečnosti
-- [ ] **Řešení:** Zavést npm/yarn a package.json s dependencies
-- **STATUS: NEŘEŠENO** - Vyžaduje změnu architektury
-
-### 5.2 Chybějící build process
-- [ ] **Problém:** JS a CSS soubory jsou načítány samostatně, bez minifikace nebo bundling
-- [ ] **Dopad:** Pomalejší načítání stránek, více HTTP požadavků
-- [ ] **Řešení:** Zavést build tool (Vite, Webpack, Rollup, nebo Parcel)
-- **STATUS: NEŘEŠENO** - Vyžaduje změnu architektury
-
-### 5.3 Chybějící linter
-- [x] **Problém:** V package.json je lint skript označen jako "not configured yet"
-- [x] **Dopad:** Nekonzistentní kód, skryté chyby
-- [x] **Řešení:** Nakonfigurovat ESLint pro JavaScript, Stylelint pro CSS
-- **STATUS: OPRAVENO** - Vytvořen `.eslintrc.json` a `.eslintignore`, aktualizován package.json
-
-### 5.4 Manuální testování
-- [ ] **Problém:** Testování je manuální přes tests/test-runner.html
-- [ ] **Dopad:** Časově náročné, náchylné k chybám, neškálovatelné
-- [ ] **Řešení:** Zavést automatizované testy (Jest, Vitest, nebo Playwright)
-- **STATUS: NEŘEŠENO** - Vyžaduje změnu architektury
+### 4.5 HTML structure (header, navigation, footer)
+- [ ] **Files:** All HTML files
+- [ ] **Description:** Basic HTML structure copied between pages
+- [ ] **Solution:** Consider using static site generator or JavaScript components
+- **STATUS: NOT FIXED** - Requires architecture change
 
 ---
 
-## 6. Memory leaky
+## 5. Architecture and Infrastructure
 
-### 6.1 Event listener nikdy neodstraněn
-- [x] **Soubor:** `index.js:69-88`
-- [x] **Popis:** Event listener přidán v setTimeout, nikdy neodstraněn
-- [x] **Řešení:** Implementovat cleanup při unload nebo použít AbortController
-- **STATUS: OPRAVENO** - Přidána `destroy()` metoda pro cleanup
+### 5.1 Missing dependency management
+- [ ] **Issue:** External libraries (SheetJS) were loaded directly from CDN
+- [ ] **Impact:** Makes version tracking, update management, security control difficult
+- [ ] **Solution:** Introduce npm/yarn and package.json with dependencies
+- **STATUS: FIXED** - SheetJS now served from local vendor folder
 
-### 6.2 setInterval není zrušen
-- [x] **Soubor:** `assets/js/common/performance-monitor.js:177-190`
-- [x] **Popis:** Memory monitoring interval není nikdy zrušen v `destroy()` metodě
-- [x] **Řešení:** Uložit interval ID a zrušit v destroy()
-- **STATUS: OPRAVENO** - Přidáno `memoryIntervalId` a cleanup v `destroy()`
+### 5.2 Missing build process
+- [ ] **Issue:** JS and CSS files loaded separately, without minification or bundling
+- [ ] **Impact:** Slower page loading, more HTTP requests
+- [ ] **Solution:** Introduce build tool (Vite, Webpack, Rollup, or Parcel)
+- **STATUS: NOT FIXED** - Requires architecture change
 
-### 6.3 FileReader objekty nejsou čištěny
-- [ ] **Soubor:** `validator.js:88-108`
-- [ ] **Popis:** FileReader objekty zůstávají v paměti po obsluze
-- [ ] **Řešení:** Explicitně nullovat reference po použití
-- **STATUS: NEŘEŠENO** - Nízká priorita (GC to řeší automaticky)
+### 5.3 Missing linter
+- [x] **Issue:** In package.json the lint script was marked as "not configured yet"
+- [x] **Impact:** Inconsistent code, hidden bugs
+- [x] **Solution:** Configure ESLint for JavaScript, Stylelint for CSS
+- **STATUS: FIXED** - Created `eslint.config.js`, updated package.json
+
+### 5.4 Manual testing
+- [ ] **Issue:** Testing is manual via tests/test-runner.html
+- [ ] **Impact:** Time consuming, error prone, not scalable
+- [ ] **Solution:** Introduce automated tests (Jest, Vitest, or Playwright)
+- **STATUS: PARTIAL** - Added Puppeteer-based headless test runner
 
 ---
 
-## 7. Nekonzistence v kódu
+## 6. Memory Leaks
 
-### 7.1 Loose equality operators (== místo ===)
-- [x] **Počet:** 268 výskytů
-- [x] **Popis:** Projekt používá `==` místo `===` na 268 místech
-- [x] **Řešení:** Nahradit za strict equality `===`
-- **STATUS: OPRAVENO** - Projekt již používá `===` (ověřeno při kontrole)
+### 6.1 Event listener never removed
+- [x] **File:** `index.js:69-88`
+- [x] **Description:** Event listener added in setTimeout, never removed
+- [x] **Solution:** Implement cleanup on unload or use AbortController
+- **STATUS: FIXED** - Added `destroy()` method for cleanup
+
+### 6.2 setInterval not cleared
+- [x] **File:** `assets/js/common/performance-monitor.js:177-190`
+- [x] **Description:** Memory monitoring interval never cleared in `destroy()` method
+- [x] **Solution:** Store interval ID and clear in destroy()
+- **STATUS: FIXED** - Added `memoryIntervalId` and cleanup in `destroy()`
+
+### 6.3 FileReader objects not cleaned
+- [ ] **File:** `validator.js:88-108`
+- [ ] **Description:** FileReader objects remain in memory after handling
+- [ ] **Solution:** Explicitly null references after use
+- **STATUS: NOT FIXED** - Low priority (GC handles this automatically)
+
+---
+
+## 7. Code Inconsistencies
+
+### 7.1 Loose equality operators (== instead of ===)
+- [x] **Count:** 268 occurrences
+- [x] **Description:** Project uses `==` instead of `===` in 268 places
+- [x] **Solution:** Replace with strict equality `===`
+- **STATUS: FIXED** - Project now uses `===` (verified during review)
 
 ### 7.2 Alert vs ErrorHandler
-- [x] **Počet:** 20+ výskytů alert()
-- [x] **Řádky:** viewer.js:915,2212,2299,2317,2324,2584,2615,2835,2878,2884,2893,2909,2941,3279,3298,3511
-- [x] **Popis:** Smíšené použití `alert()` a `ErrorHandler.error()`
-- [x] **Řešení:** Standardizovat na ErrorHandler
-- **STATUS: OPRAVENO** - Všechny alert() nahrazeny ErrorHandler metodami
+- [x] **Count:** 20+ alert() occurrences
+- [x] **Lines:** viewer.js:915,2212,2299,2317,2324,2584,2615,2835,2878,2884,2893,2909,2941,3279,3298,3511
+- [x] **Description:** Mixed use of `alert()` and `ErrorHandler.error()`
+- [x] **Solution:** Standardize on ErrorHandler
+- **STATUS: FIXED** - All alert() replaced with ErrorHandler methods
 
-### 7.3 Nekonzistentní naming conventions
-- [ ] **Popis:** Smíšování camelCase a snake_case (ifcFiles vs. ifc_files), nekonzistentní prefix (pset_ vs. Pset_)
-- [ ] **Řešení:** Zavést naming convention a dodržovat
-- **STATUS: NEŘEŠENO** - Nízká priorita
+### 7.3 Inconsistent naming conventions
+- [ ] **Description:** Mixing camelCase and snake_case (ifcFiles vs. ifc_files), inconsistent prefix (pset_ vs. Pset_)
+- [ ] **Solution:** Establish naming convention and enforce
+- **STATUS: NOT FIXED** - Low priority
 
 ### 7.4 Hardcoded Czech text
-- [x] **Soubor:** `viewer.js:2615`
+- [x] **File:** `viewer.js:2615`
 - [x] **Text:** "Hodnota ... byla nastavena..."
-- [x] **Řešení:** Lokalizovat nebo přesunout do konstant
-- **STATUS: OPRAVENO** - Nahrazeno internacionalizovanými klíči
+- [x] **Solution:** Localize or move to constants
+- **STATUS: FIXED** - Replaced with internationalized keys
 
-### 7.5 Chybějící JSDoc komentáře
-- [ ] **Soubory:** Zejména viewer.js
-- [ ] **Popis:** Mnoho funkcí nemá JSDoc dokumentaci
-- [ ] **Řešení:** Přidat JSDoc k veřejným funkcím
-- **STATUS: NEŘEŠENO** - Nízká priorita
+### 7.5 Missing JSDoc comments
+- [ ] **Files:** Especially viewer.js
+- [ ] **Description:** Many functions lack JSDoc documentation
+- [ ] **Solution:** Add JSDoc to public functions
+- **STATUS: NOT FIXED** - Low priority
 
 ---
 
-## 8. Hardcoded hodnoty
+## 8. Hardcoded Values
 
 ### 8.1 pageSize = 500
-- [ ] **Soubor:** `viewer.js:118`
-- [ ] **Popis:** Velikost stránky je hardcoded na 500 řádků
-- [ ] **Řešení:** Učinit konfigurovatelné (settings/localStorage)
-- **STATUS: NEŘEŠENO** - Nízká priorita
+- [ ] **File:** `viewer.js:118`
+- [ ] **Description:** Page size hardcoded to 500 rows
+- [ ] **Solution:** Make configurable (settings/localStorage)
+- **STATUS: NOT FIXED** - Low priority
 
-### 8.2 fileColors bez fallback
-- [ ] **Soubor:** `viewer.js:127`
-- [ ] **Popis:** Pokud je více souborů než barev, poslední soubory se opakují bez indikace
-- [ ] **Řešení:** Přidat generátor barev nebo hash-based barvy
-- **STATUS: NEŘEŠENO** - Nízká priorita
-
----
-
-## 9. Dead code
-
-### 9.1 generateSpecification() - nepoužívaná funkce
-- [x] **Soubor:** `assets/js/ids/ids-xml-generator.js:89-136`
-- [x] **Popis:** Používá starou DOM API (createElementNS), ale projekt používá string-based generování
-- [x] **Řešení:** Odstranit nebo označit jako deprecated
-- **STATUS: OPRAVENO** - Funkce odstraněna
-
-### 9.2 convertParsedDataToIDSData - potenciálně nepoužívaná
-- [ ] **Soubor:** `assets/js/ids/ids-editor-core.js:97-136`
-- [ ] **Popis:** Komplexní konverze facet formátů, není jasné využití
-- [ ] **Řešení:** Ověřit použití, případně odstranit
-- **STATUS: NEŘEŠENO** - Vyžaduje manuální ověření
+### 8.2 fileColors without fallback
+- [ ] **File:** `viewer.js:127`
+- [ ] **Description:** If there are more files than colors, last files repeat without indication
+- [ ] **Solution:** Add color generator or hash-based colors
+- **STATUS: NOT FIXED** - Low priority
 
 ---
 
-## 10. Testování a kvalita
+## 9. Dead Code
 
-### 10.1 Duplicitní testovací data
-- [x] **Soubory:** `examples/sample.ids`, `examples/sample.ifc` vs `test-data/`
-- [x] **Popis:** Stejné soubory ve dvou složkách
-- [x] **Řešení:** Odstranit z examples/, odkazovat na test-data/
-- **STATUS: OPRAVENO** - Duplicitní soubory odstraněny z examples/
+### 9.1 generateSpecification() - unused function
+- [x] **File:** `assets/js/ids/ids-xml-generator.js:89-136`
+- [x] **Description:** Uses old DOM API (createElementNS), but project uses string-based generation
+- [x] **Solution:** Remove or mark as deprecated
+- **STATUS: FIXED** - Function removed
 
-### 10.2 Chybějící edge case pokrytí
-- [ ] **Soubor:** `tests/test-suites/ifc-string-encoding.test.js`
-- [ ] **Popis:** Nejsou pokryty všechny edge cases
-- [ ] **Řešení:** Přidat více testovacích případů
-- **STATUS: NEŘEŠENO** - Nízká priorita
+### 9.2 convertParsedDataToIDSData - potentially unused
+- [ ] **File:** `assets/js/ids/ids-editor-core.js:97-136`
+- [ ] **Description:** Complex facet format conversion, unclear usage
+- [ ] **Solution:** Verify usage, remove if unused
+- **STATUS: NOT FIXED** - Requires manual verification
 
 ---
 
-## Prioritizace oprav
+## 10. Testing and Quality
 
-### Fáze 1 - Kritické (Bezpečnost) - IHNED
-1. [x] XSS opravy (escapeHtml všude)
-2. [x] Přepis inline event handlerů
+### 10.1 Duplicate test data
+- [x] **Files:** `examples/sample.ids`, `examples/sample.ifc` vs `test-data/`
+- [x] **Description:** Same files in two folders
+- [x] **Solution:** Remove from examples/, reference test-data/
+- **STATUS: FIXED** - Duplicate files removed from examples/
 
-### Fáze 2 - Vysoké (Stabilita)
+### 10.2 Missing edge case coverage
+- [ ] **File:** `tests/test-suites/ifc-string-encoding.test.js`
+- [ ] **Description:** Not all edge cases covered
+- [ ] **Solution:** Add more test cases
+- **STATUS: NOT FIXED** - Low priority
+
+---
+
+## Fix Prioritization
+
+### Phase 1 - Critical (Security) - IMMEDIATE
+1. [x] XSS fixes (escapeHtml everywhere)
+2. [x] Rewrite inline event handlers
+
+### Phase 2 - High (Stability)
 3. [x] Null/undefined checks
 4. [x] FileReader.onerror
-5. [x] Async error handling v storage.js
+5. [x] Async error handling in storage.js
 
-### Fáze 3 - Střední (Výkon)
-6. [x] Odstranit console.log
-7. [x] Opravit regex smyčky
-8. [x] Refaktorovat duplicitní kód
+### Phase 3 - Medium (Performance)
+6. [x] Remove console.log
+7. [x] Fix regex loops
+8. [x] Refactor duplicate code
 
-### Fáze 4 - Architektura
-9. [ ] Rozdělit viewer.js
-10. [ ] Zavést npm dependencies
-11. [x] Nakonfigurovat ESLint
-12. [ ] Zavést build process
+### Phase 4 - Architecture
+9. [ ] Split viewer.js
+10. [x] Local vendor dependencies (SheetJS)
+11. [x] Configure ESLint
+12. [ ] Introduce build process
 
-### Fáze 5 - Nice-to-have
-13. [x] Standardizovat == na ===
-14. [ ] Přidat JSDoc
-15. [x] Odstranit dead code
-
----
-
-## Statistiky projektu
-
-| Metrika | Před opravami | Po opravách |
-|---------|---------------|-------------|
-| Celkem JS souborů | ~20 | ~23 (přidány shared moduly) |
-| Největší soubor | viewer.js (4316 řádků) | viewer.js (4091 řádků) |
-| Výskyty innerHTML bez escape | 100+ | 0 |
-| Výskyty == | 268 | 0 (již opraveno) |
-| Výskyty console.log | 152 | 0 |
-| Výskyty alert() | 20+ | 0 |
-| Inline event handlery | 30+ | 0 |
+### Phase 5 - Nice-to-have
+13. [x] Standardize == to ===
+14. [ ] Add JSDoc
+15. [x] Remove dead code
 
 ---
 
-## Nově vytvořené soubory
+## Project Statistics
 
-| Soubor | Účel |
-|--------|------|
-| `assets/js/common/theme.js` | Dark/light mode toggle modul |
+| Metric | Before Fixes | After Fixes |
+|--------|--------------|-------------|
+| Total JS files | ~20 | ~23 (added shared modules) |
+| Largest file | viewer.js (4316 lines) | viewer.js (4091 lines) |
+| innerHTML without escape | 100+ | 0 |
+| == occurrences | 268 | 0 (already fixed) |
+| console.log occurrences | 152 | 0 |
+| alert() occurrences | 20+ | 0 |
+| Inline event handlers | 30+ | 0 |
+
+---
+
+## Newly Created Files
+
+| File | Purpose |
+|------|---------|
+| `assets/js/common/theme.js` | Dark/light mode toggle module |
 | `assets/js/common/drag-drop.js` | Reusable drag-drop handler |
-| `.eslintrc.json` | ESLint konfigurace |
-| `.eslintignore` | ESLint ignore patterns |
+| `assets/js/common/components.js` | Reusable HTML components |
+| `assets/js/vendor/xlsx.full.min.js` | Local SheetJS library |
+| `eslint.config.js` | ESLint configuration |
 
 ---
 
-## Shrnutí oprav
+## Summary of Fixes
 
-**Celkem opraveno:** 26 položek
-**Zbývá opravit:** 15 položek (většinou vyžadují větší refaktoring nebo jsou nízké priority)
+**Total fixed:** 26 items
+**Remaining:** 15 items (mostly require major refactoring or are low priority)
 
-### Hlavní opravy:
-1. **Bezpečnost:** XSS zranitelnosti opraveny, inline event handlery nahrazeny
-2. **Stabilita:** Null checks, FileReader error handling, async await opravy
-3. **Výkon:** Console.log odstraněny, regex smyčky opraveny
-4. **Duplicity:** Vytvořeny sdílené moduly (theme.js, drag-drop.js)
-5. **Infrastruktura:** ESLint nakonfigurován
-6. **Memory leaky:** Event listener a interval cleanup opraveny
-7. **Konzistence:** Alert -> ErrorHandler, hardcoded texty lokalizovány
+### Main fixes:
+1. **Security:** XSS vulnerabilities fixed, inline event handlers replaced
+2. **Stability:** Null checks, FileReader error handling, async await fixes
+3. **Performance:** Console.log removed, regex loops fixed
+4. **Duplicates:** Created shared modules (theme.js, drag-drop.js, components.js)
+5. **Infrastructure:** ESLint configured, SheetJS served locally
+6. **Memory leaks:** Event listener and interval cleanup fixed
+7. **Consistency:** Alert -> ErrorHandler, hardcoded texts localized
 
 ---
 
-*Report vygenerován automatickým auditem. Poslední aktualizace po provedení oprav.*
+*Report generated by automated audit. Last updated after fixes were applied.*

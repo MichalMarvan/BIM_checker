@@ -1,42 +1,42 @@
-# Budoucí vylepšení BIM Checker
+# Future Improvements - BIM Checker
 
-## Storage optimalizace
+## Storage Optimizations
 
-### ✅ Implementováno
+### ✅ Implemented
 1. **Separate file storage** (2025-12)
-   - Metadata struktury a obsah souborů ukládány odděleně
-   - Výrazné zrychlení operací se složkami při velkých souborech
-   - save() složek: 20ms místo 3-6s
+   - Metadata structure and file contents stored separately
+   - Significant speedup of folder operations with large files
+   - Folder save(): 20ms instead of 3-6s
 
-### 🔮 Pro budoucnost
+### 🔮 Future Enhancements
 
 #### 2. **Incremental updates**
-**Popis:** Ukládat pouze změněné části dat místo celého objektu
+**Description:** Store only changed parts of data instead of the entire object
 
-**Výhody:**
-- Ještě rychlejší save() operace
-- Menší zátěž na IndexedDB
-- Lepší škálovatelnost
+**Benefits:**
+- Even faster save() operations
+- Lower IndexedDB load
+- Better scalability
 
-**Implementace:**
-- Trackovat změny v metadata objektu
-- Při save() ukládat jen diff
-- Periodicky full save pro konzistenci
+**Implementation:**
+- Track changes in metadata object
+- On save(), store only the diff
+- Periodic full save for consistency
 
-**Odhadovaná složitost:** Střední
-**Přínos:** Střední (už máme separate storage, takže menší dopad)
+**Estimated complexity:** Medium
+**Impact:** Medium (already have separate storage, so lower impact)
 
 ---
 
-#### 3. **Lazy loading souborů s cachováním**
-**Popis:** Načítat obsah souborů jen když je skutečně potřeba + cache v paměti
+#### 3. **Lazy loading with caching**
+**Description:** Load file contents only when actually needed + in-memory cache
 
-**Výhody:**
-- Minimální memory footprint
-- Rychlejší start aplikace
-- Lepší práce s velkými databázemi (stovky souborů)
+**Benefits:**
+- Minimal memory footprint
+- Faster application startup
+- Better handling of large databases (hundreds of files)
 
-**Implementace:**
+**Implementation:**
 ```javascript
 class FileContentCache {
     constructor(maxSize = 100 * 1024 * 1024) { // 100MB cache
@@ -56,7 +56,7 @@ class FileContentCache {
     }
 
     addToCache(fileId, content) {
-        // LRU eviction když cache přeteče
+        // LRU eviction when cache overflows
         if (this.currentSize + content.length > this.maxSize) {
             this.evictOldest();
         }
@@ -66,65 +66,65 @@ class FileContentCache {
 }
 ```
 
-**Odhadovaná složitost:** Střední
-**Přínos:** Vysoký pro velké databáze
+**Estimated complexity:** Medium
+**Impact:** High for large databases
 
 ---
 
 #### 4. **Compression (gzip/brotli)**
-**Popis:** Komprimovat IFC/IDS soubory před uložením do IndexedDB
+**Description:** Compress IFC/IDS files before storing in IndexedDB
 
-**Výhody:**
-- 60-80% úspora místa v databázi
-- Rychlejší IndexedDB operace (menší data)
-- Více souborů se vejde do kvóty
+**Benefits:**
+- 60-80% storage space savings
+- Faster IndexedDB operations (smaller data)
+- More files fit within quota
 
-**Implementace:**
+**Implementation:**
 ```javascript
-// Při ukládání:
+// On save:
 const compressed = await compress(fileContent);
 await idb.set(`file_${id}`, compressed);
 
-// Při načítání:
+// On load:
 const compressed = await idb.get(`file_${id}`);
 const content = await decompress(compressed);
 ```
 
-**Knihovny:**
+**Libraries:**
 - pako (gzip) - 45KB
-- fflate - 8KB, rychlejší
+- fflate - 8KB, faster
 
-**Odhadovaná složitost:** Nízká
-**Přínos:** Vysoký
-
----
-
-#### 5. **Virtual scrolling pro file tree**
-**Popis:** Renderovat jen viditelné položky stromu (pro 1000+ souborů)
-
-**Výhody:**
-- Konstantní rychlost renderování bez ohledu na počet souborů
-- Lepší UX pro velké projekty
-
-**Implementace:**
-- react-window nebo vlastní implementace
-- Spočítat viditelnou oblast
-- Renderovat jen položky v této oblasti + buffer
-
-**Odhadovaná složitost:** Střední-Vysoká
-**Přínos:** Střední (problém jen při velkých databázích)
+**Estimated complexity:** Low
+**Impact:** High
 
 ---
 
-#### 6. **Web Workers pro parsing**
-**Popis:** Parsovat IFC/IDS soubory v background threadu
+#### 5. **Virtual scrolling for file tree**
+**Description:** Render only visible tree items (for 1000+ files)
 
-**Výhody:**
-- UI zůstává responzivní během parsingu
-- Využití multi-core CPU
-- Lepší UX při velkých souborech
+**Benefits:**
+- Constant rendering speed regardless of file count
+- Better UX for large projects
 
-**Implementace:**
+**Implementation:**
+- Use react-window or custom implementation
+- Calculate visible area
+- Render only items in this area + buffer
+
+**Estimated complexity:** Medium-High
+**Impact:** Medium (issue only with large databases)
+
+---
+
+#### 6. **Web Workers for parsing**
+**Description:** Parse IFC/IDS files in background thread
+
+**Benefits:**
+- UI stays responsive during parsing
+- Multi-core CPU utilization
+- Better UX with large files
+
+**Implementation:**
 ```javascript
 // main thread:
 const worker = new Worker('ifc-parser-worker.js');
@@ -141,20 +141,20 @@ self.onmessage = (e) => {
 };
 ```
 
-**Odhadovaná složitost:** Střední
-**Přínos:** Vysoký pro velké soubory (100MB+)
+**Estimated complexity:** Medium
+**Impact:** High for large files (100MB+)
 
 ---
 
 #### 7. **IndexedDB batch operations**
-**Popis:** Seskupit více operací do jedné transakce
+**Description:** Group multiple operations into a single transaction
 
-**Výhody:**
-- Rychlejší bulk operace
-- Menší overhead
-- Atomicita operací
+**Benefits:**
+- Faster bulk operations
+- Lower overhead
+- Operation atomicity
 
-**Implementace:**
+**Implementation:**
 ```javascript
 async saveBatch(operations) {
     const tx = this.db.transaction(['storage'], 'readwrite');
@@ -171,30 +171,29 @@ async saveBatch(operations) {
 }
 ```
 
-**Odhadovaná složitost:** Nízká
-**Přínos:** Střední
+**Estimated complexity:** Low
+**Impact:** Medium
 
 ---
 
-## Prioritizace
+## Prioritization
 
-### High Priority (implementovat brzy)
-1. ✅ **Separate file storage** - HOTOVO
-2. **Compression** - Snadné, velký přínos
-3. **Lazy loading s cache** - Pro lepší škálovatelnost
+### High Priority (implement soon)
+1. ✅ **Separate file storage** - DONE
+2. **Compression** - Easy, high impact
+3. **Lazy loading with cache** - For better scalability
 
-### Medium Priority (podle potřeby)
-4. **Web Workers** - Když budou problémy s velkými soubory
-5. **Virtual scrolling** - Když bude problém s velkými databázemi
+### Medium Priority (as needed)
+4. **Web Workers** - When issues arise with large files
+5. **Virtual scrolling** - When issues arise with large databases
 
 ### Low Priority (nice to have)
-6. **Incremental updates** - Malý přínos po separate storage
-7. **Batch operations** - Optimalizace edge cases
+6. **Incremental updates** - Low impact after separate storage
+7. **Batch operations** - Edge case optimization
 
 ---
 
-## Poznámky
-- Separate storage implementováno 2025-12-22
-- Testováno s IFC soubory do 150MB
-- Výrazné zrychlení operací se složkami
-
+## Notes
+- Separate storage implemented 2025-12-22
+- Tested with IFC files up to 150MB
+- Significant speedup of folder operations
