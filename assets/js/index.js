@@ -16,6 +16,7 @@ class FilePanel {
         this.selectedFiles = new Set(); // Multi-select support
         this.lastSelectedFile = null; // For shift+click range selection
         this.draggedFileId = null;
+        this.draggedFiles = []; // For multi-file drag
 
         this.elements = {
             dropZone: document.getElementById(`${type}DropZone`),
@@ -532,25 +533,38 @@ class FilePanel {
             }
         }
 
-        this.selectedFolder = 'root'; // Keep folder at root when selecting files
+        // Don't change selectedFolder - preserve it for file uploads
         this.render();
     }
 
     // Get all files in display order (for shift+click range selection)
+    // Matches visual order: child folders first (sorted), then files (sorted)
     getAllFilesInOrder() {
         const files = [];
         const collectFiles = (folderId) => {
             const folder = this.storage.metadata.folders[folderId];
             if (!folder) return;
 
-            // Add files from this folder
-            folder.files.forEach(fileId => {
-                const file = this.storage.metadata.files[fileId];
-                if (file) files.push(file);
+            // Child folders FIRST (sorted by name) - matches render order
+            const childFolders = folder.children
+                .map(id => this.storage.metadata.folders[id])
+                .filter(f => f)
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            childFolders.forEach(childFolder => {
+                // Only include files from expanded folders (visible in UI)
+                if (childFolder.expanded || folderId === 'root') {
+                    collectFiles(childFolder.id);
+                }
             });
 
-            // Recurse into child folders
-            folder.children.forEach(childId => collectFiles(childId));
+            // Files AFTER folders (sorted by name) - matches render order
+            const folderFiles = folder.files
+                .map(id => this.storage.metadata.files[id])
+                .filter(f => f)
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            folderFiles.forEach(file => files.push(file));
         };
         collectFiles('root');
         return files;
@@ -558,14 +572,31 @@ class FilePanel {
 
     // Drag & Drop handlers
     handleDragStart(event, fileId) {
-        this.draggedFileId = fileId;
+        // If dragging a selected file, drag all selected files
+        if (this.selectedFiles.has(fileId) && this.selectedFiles.size > 1) {
+            this.draggedFiles = Array.from(this.selectedFiles);
+        } else {
+            this.draggedFiles = [fileId];
+        }
+        this.draggedFileId = fileId; // Keep for backwards compatibility
         event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', fileId);
+        event.dataTransfer.setData('text/plain', this.draggedFiles.join(','));
         event.target.style.opacity = '0.4';
+
+        // Visual feedback for multi-drag
+        if (this.draggedFiles.length > 1) {
+            const badge = document.createElement('div');
+            badge.className = 'drag-badge';
+            badge.textContent = this.draggedFiles.length;
+            event.target.appendChild(badge);
+        }
     }
 
     handleDragEnd(event) {
         event.target.style.opacity = '1';
+        // Remove drag badge if present
+        const badge = event.target.querySelector('.drag-badge');
+        if (badge) badge.remove();
     }
 
     handleDragOver(event, folderId) {
@@ -587,17 +618,22 @@ class FilePanel {
         event.stopPropagation();
         event.currentTarget.classList.remove('drag-over');
 
-        if (!this.draggedFileId) return;
+        if (!this.draggedFiles || this.draggedFiles.length === 0) return;
 
-        const file = this.storage.metadata.files[this.draggedFileId];
-        if (!file) return;
+        // Move all dragged files to target folder
+        for (const fileId of this.draggedFiles) {
+            const file = this.storage.metadata.files[fileId];
+            if (!file) continue;
 
-        // Don't move if already in target folder
-        if (file.folderId === targetFolderId) return;
+            // Don't move if already in target folder
+            if (file.folder === targetFolderId) continue;
 
-        // Move file to target folder
-        await this.storage.moveFile(this.draggedFileId, targetFolderId);
+            await this.storage.moveFile(fileId, targetFolderId);
+        }
+
+        this.draggedFiles = [];
         this.draggedFileId = null;
+        this.selectedFiles.clear();
         this.render();
     }
 
