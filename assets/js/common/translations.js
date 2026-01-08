@@ -399,6 +399,12 @@ const translations = {
     'viewer.fileLabel': 'Soubor',
     'viewer.entities2': 'entit',
 
+    // === IFC PARSING PHASES ===
+    'viewer.phase1': 'Sběr entit',
+    'viewer.phase2': 'Parsování property setů',
+    'viewer.phase3': 'Budování prostorové struktury',
+    'viewer.phase4': 'Zpracování entit',
+
     // === CSV EXPORT ===
     'viewer.csv.file': 'Soubor',
     'viewer.csv.guid': 'GUID',
@@ -910,6 +916,12 @@ const translations = {
     'viewer.collapseAll': 'Collapse All',
     'viewer.fileLabel': 'File',
     'viewer.entities2': 'entities',
+
+    // === IFC PARSING PHASES ===
+    'viewer.phase1': 'Collecting entities',
+    'viewer.phase2': 'Parsing property sets',
+    'viewer.phase3': 'Building spatial structure',
+    'viewer.phase4': 'Processing entities',
 
     // === CSV EXPORT ===
     'viewer.csv.file': 'File',
