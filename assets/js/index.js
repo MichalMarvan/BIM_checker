@@ -17,6 +17,7 @@ class FilePanel {
         this.lastSelectedFile = null; // For shift+click range selection
         this.draggedFileId = null;
         this.draggedFiles = []; // For multi-file drag
+        this.isDragging = false; // Flag to prevent click during drag
 
         this.elements = {
             dropZone: document.getElementById(`${type}DropZone`),
@@ -137,6 +138,8 @@ class FilePanel {
     }
 
     async uploadFiles(validFiles) {
+        // Save target folder at the start (before any render calls that might change it)
+        const targetFolder = this.selectedFolder || 'root';
 
         // Show loading overlay
         const loadingOverlay = document.getElementById('loadingOverlay');
@@ -179,7 +182,7 @@ class FilePanel {
                         name: file.name,
                         size: file.size,
                         content: e.target.result
-                    }, this.selectedFolder);
+                    }, targetFolder); // Use saved targetFolder
                     processed++;
 
                     const overallPercent = Math.round((processed / validFiles.length) * 100);
@@ -497,6 +500,12 @@ class FilePanel {
     selectFile(fileId, event) {
         if (event) event.stopPropagation();
 
+        // Ignore click if we just finished dragging
+        if (this.isDragging) {
+            this.isDragging = false;
+            return;
+        }
+
         const allFiles = this.getAllFilesInOrder();
 
         if (event && event.shiftKey && this.lastSelectedFile) {
@@ -553,7 +562,7 @@ class FilePanel {
 
             childFolders.forEach(childFolder => {
                 // Only include files from expanded folders (visible in UI)
-                if (childFolder.expanded || folderId === 'root') {
+                if (childFolder.expanded) {
                     collectFiles(childFolder.id);
                 }
             });
@@ -572,13 +581,17 @@ class FilePanel {
 
     // Drag & Drop handlers
     handleDragStart(event, fileId) {
+        this.isDragging = true;
+
         // If dragging a selected file, drag all selected files
-        if (this.selectedFiles.has(fileId) && this.selectedFiles.size > 1) {
+        if (this.selectedFiles.has(fileId) && this.selectedFiles.size > 0) {
             this.draggedFiles = Array.from(this.selectedFiles);
         } else {
+            // Dragging an unselected file - just drag this one
             this.draggedFiles = [fileId];
         }
-        this.draggedFileId = fileId; // Keep for backwards compatibility
+
+        this.draggedFileId = fileId;
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/plain', this.draggedFiles.join(','));
         event.target.style.opacity = '0.4';
@@ -597,6 +610,8 @@ class FilePanel {
         // Remove drag badge if present
         const badge = event.target.querySelector('.drag-badge');
         if (badge) badge.remove();
+        // Keep isDragging true briefly to prevent click event
+        setTimeout(() => { this.isDragging = false; }, 100);
     }
 
     handleDragOver(event, folderId) {

@@ -246,6 +246,12 @@ class StorageManager {
     async addFile(file, folderId = 'root') {
         if (!this.data) await this.load();
 
+        // Verify target folder exists
+        if (!this.data.folders[folderId]) {
+            console.error(`Target folder ${folderId} not found, using root`);
+            folderId = 'root';
+        }
+
         const id = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
         // Store metadata only (NO content in data structure!)
@@ -257,15 +263,15 @@ class StorageManager {
             uploadDate: new Date().toISOString()
         };
 
+        // Update data structure
         this.data.files[id] = fileMetadata;
-        this.data.folders[folderId].files.push(id);
-
-        // Update metadata only if it's a different object than data
-        // (they share the same reference when loaded from IndexedDB)
-        if (this.metadata.files !== this.data.files) {
-            this.metadata.files[id] = { ...fileMetadata };
+        if (!this.data.folders[folderId].files.includes(id)) {
+            this.data.folders[folderId].files.push(id);
         }
-        if (this.metadata.folders !== this.data.folders) {
+
+        // Update metadata structure (separate objects from different IDB loads)
+        this.metadata.files[id] = { ...fileMetadata };
+        if (this.metadata.folders[folderId] && !this.metadata.folders[folderId].files.includes(id)) {
             this.metadata.folders[folderId].files.push(id);
         }
 
