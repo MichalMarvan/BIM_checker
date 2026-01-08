@@ -26,7 +26,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 ### Pull Requests
 
-1. **Fork the repository** and create your branch from `main`
+1. **Fork the repository** and create your branch from `master`
 2. **Make your changes** following our coding standards
 3. **Test your changes** thoroughly
 4. **Update documentation** if needed
@@ -42,7 +42,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 git clone https://github.com/YOUR_USERNAME/BIM_checker.git
 cd BIM_checker
 
-# Install dependencies (when package.json is added)
+# Install dependencies
 npm install
 
 # Start development server
@@ -91,12 +91,14 @@ function parseIFCEntity(line){
 ```
 assets/
 ├── js/
-│   ├── common/          # Shared utilities
-│   ├── ids/             # IDS-specific logic
+│   ├── common/          # Shared utilities (i18n, storage, theme, etc.)
+│   ├── ids/             # IDS-specific logic (editor, XML generator)
+│   ├── ifc/             # IFC-specific logic (stream parser)
+│   ├── vendor/          # Third-party libraries (xlsx)
 │   ├── workers/         # Web Workers
-│   ├── parser.js        # IDS parser
-│   ├── validator.js     # IFC-IDS validator
-│   └── viewer.js        # IFC viewer
+│   ├── parser.js        # IDS parser page logic
+│   ├── validator.js     # IFC-IDS validator page logic
+│   └── viewer.js        # IFC viewer page logic
 ├── css/
 │   ├── common.css       # Shared styles
 │   └── [tool].css       # Tool-specific styles
@@ -132,10 +134,10 @@ Types:
 Before submitting a PR:
 
 ```bash
-# Run tests (when implemented)
+# Run tests
 npm test
 
-# Check code style
+# Check code style (ESLint)
 npm run lint
 
 # Test with various browsers

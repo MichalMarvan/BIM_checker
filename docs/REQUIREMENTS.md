@@ -19,18 +19,13 @@ The application works offline, sends no data to any server, and uses no backend.
 # 2. Open-Source Requirements
 
 ## 2.1 Mandatory Items
-- Add a **LICENSE** file (MIT or Apache 2.0 recommended)
-- Complete the **README** with:
-  - Feature descriptions
-  - Instructions for running the project
-  - Limitations
-  - Screenshots
-  - Roadmap
-- Add **CONTRIBUTING.md**
-- Add **CODE_OF_CONDUCT.md**
-- Implement **versioning** using Git tags (e.g., `v0.1.0`, `v0.2.0`)
-- Prepare a **CHANGELOG.md**
-- Add an `examples/` directory with IFC/IDS samples
+- ✅ **LICENSE** file (MIT)
+- ✅ **README.md** with features, instructions, limitations
+- ✅ **CONTRIBUTING.md**
+- ⬜ **CODE_OF_CONDUCT.md** (optional)
+- ⬜ Git tags versioning (e.g., `v0.1.0`, `v0.2.0`)
+- ⬜ **CHANGELOG.md**
+- ✅ Sample IDS files available via "Load Sample" button in parser
 
 ---
 
@@ -49,7 +44,7 @@ The application works offline, sends no data to any server, and uses no backend.
 - Highlight official Psets (buildingSMART)
 - Integrity check after IFC export
 - Diff mode – show changes before saving
-- Move SheetJS from CDN to a local asset
+- ✅ SheetJS moved to local asset (`assets/js/vendor/xlsx.full.min.js`)
 
 ---
 
@@ -94,47 +89,41 @@ The application works offline, sends no data to any server, and uses no backend.
 ```
 /assets
   /js
-    /common
-    /ifc
-    /ids
-    /workers
+    /common      # Shared utilities (i18n, storage, theme, etc.)
+    /ifc         # IFC stream parser
+    /ids         # IDS editor and XML generator
+    /vendor      # Third-party libraries (xlsx)
+    /workers     # Web Workers
   /css
 /docs
-/examples
-  /ifc
-  /ids
-/pages
-/tests
+/pages           # Tool pages (viewer, parser, validator)
+/tests           # Puppeteer test suite
 LICENSE
 README.md
-CHANGELOG.md
 ```
 
 ---
 
-# 5. Roadmap
+# 5. Planned Features
 
-## Version 0.2
-- Add LICENSE
-- Complete README
-- Create `examples/` repository
-- Use offline SheetJS
+## Completed ✅
+- LICENSE (MIT)
+- Complete README with features and instructions
+- Offline SheetJS (local vendor copy)
+- Basic automated tests (Puppeteer)
+- ESLint configuration
 
-## Version 0.3
-- IDS validation using XSD
+## In Progress / Planned
+- **XSD validation** - Validate IDS files against official buildingSMART schema
+- **IDS templates** - Pre-built specifications for common use cases
+- **IDS wizard** - Step-by-step guide for creating specifications
+- **BCF export** - Export validation results to BIM Collaboration Format
+- **bSDD integration** - Connect to buildingSMART Data Dictionary
 - Warning on destructive IFC edits
 - Official Pset highlighting
+- Diff mode in IFC editor
 
-## Version 0.4
-- Diff-mode in the IFC editor
-- Wizard for IDS
-- Test suite + basic automated tests
-
-## Version 1.0
-- Full IDS 1.0 compatibility
-- Integration with IDS-Audit
-- Highly stable IFC editor
-- Professional-level OSS documentation
+See [FUTURE_IMPROVEMENTS.md](../FUTURE_IMPROVEMENTS.md) for storage optimizations and other ideas.
 
 ---
 

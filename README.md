@@ -72,18 +72,18 @@ Open http://localhost:8000 in your browser.
 - **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Architecture and development tips
 - **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute
 - **[Requirements](docs/REQUIREMENTS.md)** - Technical requirements and roadmap
-- **[Test Guide](tests/README.md)** - Running and writing tests
+- **[Future Improvements](FUTURE_IMPROVEMENTS.md)** - Planned features and ideas
 
 ## 🧪 Testing
 
-Open the test runner in your browser:
-
 ```bash
+# Run headless tests
+npm test
+
+# Or open in browser
 python3 -m http.server 8000
 # Navigate to http://localhost:8000/tests/test-runner.html
 ```
-
-See [tests/README.md](tests/README.md) for more details.
 
 ## 📁 Project Structure
 
@@ -103,9 +103,6 @@ BIM_checker/
 │       └── workers/               # Web Workers
 ├── tests/                          # Test suite
 ├── docs/                           # Documentation
-├── examples/                       # Sample files
-│   ├── ifc/                       # Sample IFC files
-│   └── ids/                       # Sample IDS files
 ├── LICENSE                         # MIT License
 ├── CONTRIBUTING.md                 # Contribution guide
 └── package.json                    # Project metadata
@@ -141,24 +138,15 @@ BIM_checker/
 
 > **Note:** Modern browsers with ES6+ support required
 
-## 🗺️ Roadmap
+## 🗺️ Planned Features
 
-### Version 0.2
-- [ ] XSD validation for IDS
-- [ ] IDS templates library
-- [ ] Enhanced error messages
+- [ ] **XSD validation** - Validate IDS files against official buildingSMART schema
+- [ ] **IDS templates** - Pre-built specifications for common use cases
+- [ ] **IDS wizard** - Step-by-step guide for creating specifications
+- [ ] **BCF export** - Export validation results to BIM Collaboration Format
+- [ ] **bSDD integration** - Connect to buildingSMART Data Dictionary for standardized properties
 
-### Version 0.3
-- [ ] IDS wizard (step-by-step guide)
-- [ ] Batch validation
-- [ ] Performance optimizations
-
-### Version 1.0
-- [ ] Full IDS 1.0 compliance
-- [ ] BCF format support
-- [ ] bSDD integration
-
-See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) for detailed roadmap.
+See [FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md) for more ideas.
 
 ## 🤝 Contributing
 

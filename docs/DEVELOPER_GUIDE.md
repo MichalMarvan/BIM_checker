@@ -6,7 +6,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/BIM_checker.git
+git clone https://github.com/MichalMarvan/BIM_checker.git
 cd BIM_checker
 
 # Simple execution (Python)
@@ -49,22 +49,31 @@ BIM_checker/
 ├── assets/
 │   ├── js/
 │   │   ├── common/         # Shared modules
-│   │   │   ├── ifc-stream-parser.js    # ⭐ IFC parser
 │   │   │   ├── storage.js              # IndexedDB storage
-│   │   │   ├── virtual-tree.js         # Efficient tree view
 │   │   │   ├── i18n.js                 # Internationalization
-│   │   │   └── utils.js                # Utility functions
+│   │   │   ├── translations.js         # Translation strings (CS/EN)
+│   │   │   ├── theme.js                # Dark/light mode toggle
+│   │   │   ├── components.js           # Reusable HTML components
+│   │   │   ├── drag-drop.js            # File drag & drop handler
+│   │   │   ├── error-handler.js        # Global error handling
+│   │   │   └── performance-monitor.js  # Performance tracking
+│   │   ├── ifc/            # IFC-specific modules
+│   │   │   └── ifc-stream-parser.js    # ⭐ Streaming IFC parser
 │   │   ├── ids/            # IDS-specific modules
 │   │   │   ├── ids-editor-core.js      # ⭐ IDS editor
+│   │   │   ├── ids-editor-modals.js    # Editor modals
 │   │   │   ├── ids-xml-generator.js    # XML generator
 │   │   │   └── ifc-data.js             # IFC schema data
+│   │   ├── vendor/         # Third-party libraries
+│   │   │   └── xlsx.full.min.js        # SheetJS for Excel export
 │   │   ├── workers/
 │   │   │   └── ifc-parser.worker.js    # Web Worker
-│   │   ├── viewer.js       # ⭐ IFC viewer logic
-│   │   ├── parser.js       # ⭐ IDS parser
-│   │   └── validator.js    # ⭐ IDS-IFC validator
-│   └── css/                # Styles
-└── tests/                  # Test suite
+│   │   ├── viewer.js       # ⭐ IFC viewer page logic
+│   │   ├── parser.js       # ⭐ IDS parser page logic
+│   │   ├── index.js        # Main page logic
+│   │   └── validator.js    # ⭐ IDS-IFC validator page logic
+│   └── css/                # Stylesheets
+└── tests/                  # Test suite (Puppeteer)
 ```
 
 **⭐ = Key files to understand**
