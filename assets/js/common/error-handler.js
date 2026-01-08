@@ -211,11 +211,13 @@ class ErrorHandler {
     }
 
     /**
-     * Escape HTML to prevent XSS - uses escapeHtml from utils.js
+     * Escape HTML to prevent XSS
      */
     static escapeHtml(text) {
-        // Use global escapeHtml function from utils.js
-        return escapeHtml(text);
+        if (typeof text !== 'string') return text;
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 
