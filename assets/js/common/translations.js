@@ -398,6 +398,9 @@ const translations = {
     'viewer.collapseAll': 'Zabalit vše',
     'viewer.fileLabel': 'Soubor',
     'viewer.entities2': 'entit',
+    'viewer.file': 'Soubor',
+    'viewer.fileProcessed': 'Soubor zpracován',
+    'viewer.lockColumn': 'Uzamknout sloupec',
 
     // === IFC PARSING PHASES ===
     'viewer.phase1': 'Sběr entit',
@@ -916,6 +919,9 @@ const translations = {
     'viewer.collapseAll': 'Collapse All',
     'viewer.fileLabel': 'File',
     'viewer.entities2': 'entities',
+    'viewer.file': 'File',
+    'viewer.fileProcessed': 'File processed',
+    'viewer.lockColumn': 'Lock column',
 
     // === IFC PARSING PHASES ===
     'viewer.phase1': 'Collecting entities',
