@@ -1973,9 +1973,11 @@ function closeIfcStorageModal() {
 }
 
 // Setup IFC tree event listeners (delegated)
+let ifcTreeListenerAttached = false;
 function setupIfcTreeEventListeners() {
     const tree = document.getElementById('ifcStorageTree');
-    if (!tree) return;
+    if (!tree || ifcTreeListenerAttached) return;
+    ifcTreeListenerAttached = true;
 
     // Use event delegation - single listener on parent
     tree.addEventListener('click', (e) => {
@@ -2286,9 +2288,11 @@ function closeIdsStorageModal() {
 }
 
 // Setup IDS tree event listeners (delegated)
+let idsTreeListenerAttached = false;
 function setupIdsTreeEventListeners() {
     const tree = document.getElementById('idsStorageTree');
-    if (!tree) return;
+    if (!tree || idsTreeListenerAttached) return;
+    idsTreeListenerAttached = true;
 
     // Use event delegation - single listener on parent
     tree.addEventListener('click', (e) => {
