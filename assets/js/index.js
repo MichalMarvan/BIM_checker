@@ -13,7 +13,8 @@ class FilePanel {
         this.type = type; // 'ifc' or 'ids'
         this.storage = new StorageManager(storageKey);
         this.selectedFolder = 'root';
-        this.selectedFile = null;
+        this.selectedFiles = new Set(); // Multi-select support
+        this.lastSelectedFile = null; // For shift+click range selection
         this.draggedFileId = null;
 
         this.elements = {
@@ -78,10 +79,16 @@ class FilePanel {
                 return;
             }
 
+            // Don't deselect if clicking on drop zone or upload button (preserve folder selection for upload)
+            if (this.elements.dropZone.contains(e.target) || this.elements.uploadBtn.contains(e.target)) {
+                return;
+            }
+
             // Deselect if we have something selected
-            if (this.selectedFolder !== 'root' || this.selectedFile !== null) {
+            if (this.selectedFolder !== 'root' || this.selectedFiles.size > 0) {
                 this.selectedFolder = 'root';
-                this.selectedFile = null;
+                this.selectedFiles.clear();
+                this.lastSelectedFile = null;
                 this.render();
             }
         };
@@ -235,9 +242,21 @@ class FilePanel {
     }
 
     async deleteFile(fileId) {
-        ErrorHandler.confirm(i18n.t('btn.delete'), async () => {
-            await this.storage.deleteFile(fileId);
-            // Render immediately after metadata update
+        // If multiple files are selected, delete all of them
+        const filesToDelete = this.selectedFiles.size > 1 && this.selectedFiles.has(fileId)
+            ? Array.from(this.selectedFiles)
+            : [fileId];
+
+        const message = filesToDelete.length > 1
+            ? `${i18n.t('btn.delete')} ${filesToDelete.length} ${i18n.t('msg.files')}?`
+            : i18n.t('btn.delete');
+
+        ErrorHandler.confirm(message, async () => {
+            for (const id of filesToDelete) {
+                await this.storage.deleteFile(id);
+            }
+            this.selectedFiles.clear();
+            this.lastSelectedFile = null;
             this.render();
         });
     }
@@ -294,7 +313,7 @@ class FilePanel {
                 const escapedFileId = this.escapeHtml(file.id);
                 const escapedFileName = this.escapeHtml(file.name);
                 html += `
-                    <div class="tree-file ${this.selectedFile === file.id ? 'selected' : ''}"
+                    <div class="tree-file ${this.selectedFiles.has(file.id) ? 'selected' : ''}"
                          data-file-id="${escapedFileId}"
                          draggable="true">
                         <span class="file-icon">📄</span>
@@ -352,7 +371,7 @@ class FilePanel {
             const escapedFileId = this.escapeHtml(file.id);
             const escapedFileName = this.escapeHtml(file.name);
             html += `
-                <div class="tree-file ${this.selectedFile === file.id ? 'selected' : ''}"
+                <div class="tree-file ${this.selectedFiles.has(file.id) ? 'selected' : ''}"
                      data-file-id="${escapedFileId}"
                      draggable="true">
                     <span class="file-icon">📄</span>
@@ -460,7 +479,8 @@ class FilePanel {
             } else {
                 this.selectedFolder = folderId;
             }
-            this.selectedFile = null; // Deselect file when folder is selected
+            this.selectedFiles.clear(); // Deselect files when folder is selected
+            this.lastSelectedFile = null;
             this.render();
         }
     }
@@ -476,15 +496,64 @@ class FilePanel {
     selectFile(fileId, event) {
         if (event) event.stopPropagation();
 
-        // If clicking on already selected file, deselect it
-        if (this.selectedFile === fileId) {
-            this.selectedFile = null;
-            this.selectedFolder = 'root';
+        const allFiles = this.getAllFilesInOrder();
+
+        if (event && event.shiftKey && this.lastSelectedFile) {
+            // Shift+click: range selection
+            const lastIndex = allFiles.findIndex(f => f.id === this.lastSelectedFile);
+            const currentIndex = allFiles.findIndex(f => f.id === fileId);
+
+            if (lastIndex !== -1 && currentIndex !== -1) {
+                const start = Math.min(lastIndex, currentIndex);
+                const end = Math.max(lastIndex, currentIndex);
+
+                for (let i = start; i <= end; i++) {
+                    this.selectedFiles.add(allFiles[i].id);
+                }
+            }
+        } else if (event && (event.ctrlKey || event.metaKey)) {
+            // Ctrl+click (or Cmd on Mac): toggle individual selection
+            if (this.selectedFiles.has(fileId)) {
+                this.selectedFiles.delete(fileId);
+            } else {
+                this.selectedFiles.add(fileId);
+            }
+            this.lastSelectedFile = fileId;
         } else {
-            this.selectedFile = fileId;
-            this.selectedFolder = null; // Deselect folder when file is selected
+            // Normal click: single selection
+            if (this.selectedFiles.size === 1 && this.selectedFiles.has(fileId)) {
+                // Clicking on the only selected file - deselect it
+                this.selectedFiles.clear();
+                this.lastSelectedFile = null;
+            } else {
+                this.selectedFiles.clear();
+                this.selectedFiles.add(fileId);
+                this.lastSelectedFile = fileId;
+            }
         }
+
+        this.selectedFolder = 'root'; // Keep folder at root when selecting files
         this.render();
+    }
+
+    // Get all files in display order (for shift+click range selection)
+    getAllFilesInOrder() {
+        const files = [];
+        const collectFiles = (folderId) => {
+            const folder = this.storage.metadata.folders[folderId];
+            if (!folder) return;
+
+            // Add files from this folder
+            folder.files.forEach(fileId => {
+                const file = this.storage.metadata.files[fileId];
+                if (file) files.push(file);
+            });
+
+            // Recurse into child folders
+            folder.children.forEach(childId => collectFiles(childId));
+        };
+        collectFiles('root');
+        return files;
     }
 
     // Drag & Drop handlers
