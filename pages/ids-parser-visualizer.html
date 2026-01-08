@@ -9,6 +9,13 @@
     <link rel="stylesheet" href="../assets/css/index.css">
     <link rel="stylesheet" href="../assets/css/ids-parser.css">
     <link rel="stylesheet" href="../assets/css/ids-editor-styles.css">
+    <!-- Prevent theme flash - set theme before render -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
 </head>
 <body>
     <nav class="navbar navbar-subpage">
