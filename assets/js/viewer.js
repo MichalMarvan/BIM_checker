@@ -97,6 +97,39 @@ class VirtualArray {
 }
 
 // =======================
+// IFC PARSING HELPERS
+// =======================
+
+/**
+ * Check if a buffer represents a complete IFC entity.
+ * Handles edge case where semicolon might be inside a string.
+ * @param {string} buffer - The entity buffer to check
+ * @returns {boolean} - True if entity is complete
+ */
+function isIfcEntityComplete(buffer) {
+    if (!buffer.trimEnd().endsWith(';')) {
+        return false;
+    }
+
+    // Count apostrophes to determine if we're inside a string
+    // IFC uses single quotes for strings, and escaped quotes are ''
+    let inString = false;
+    for (let i = 0; i < buffer.length; i++) {
+        if (buffer[i] === "'") {
+            // Check for escaped quote (two consecutive apostrophes)
+            if (buffer[i + 1] === "'") {
+                i++; // Skip the escaped quote
+                continue;
+            }
+            inString = !inString;
+        }
+    }
+
+    // Entity is complete only if we're not inside a string
+    return !inString;
+}
+
+// =======================
 // GLOBAL VARIABLES
 // =======================
 let loadedFiles = []; // Array of {fileName, data, color, entityCount} - originalContent is in IndexedDB
@@ -310,7 +343,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 if (entityBuffer) {
                     // Continue multi-line entity
                     entityBuffer += ' ' + line;
-                    if (line.endsWith(';')) {
+                    if (isIfcEntityComplete(entityBuffer)) {
                         // Entity complete
                         const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
                         if (match) {
@@ -320,7 +353,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                         entityBuffer = '';
                     }
                 } else if (line.startsWith('#')) {
-                    if (line.endsWith(';')) {
+                    if (isIfcEntityComplete(line)) {
                         // Single-line entity (most common case)
                         const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
                         if (match) {
@@ -791,7 +824,7 @@ async function parseIFC(content, fileName) {
             if (entityBuffer) {
                 // Continue multi-line entity
                 entityBuffer += ' ' + line;
-                if (line.endsWith(';')) {
+                if (isIfcEntityComplete(entityBuffer)) {
                     // Entity complete
                     const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
                     if (match) {
@@ -801,7 +834,7 @@ async function parseIFC(content, fileName) {
                     entityBuffer = '';
                 }
             } else if (line.startsWith('#')) {
-                if (line.endsWith(';')) {
+                if (isIfcEntityComplete(line)) {
                     // Single-line entity (most common case)
                     const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
                     if (match) {

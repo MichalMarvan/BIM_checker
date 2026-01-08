@@ -76,6 +76,35 @@ class IFCStreamParser {
         }
     }
 
+    /**
+     * Check if a buffer represents a complete IFC entity.
+     * Handles edge case where semicolon might be inside a string.
+     * @param {string} buffer - The entity buffer to check
+     * @returns {boolean} - True if entity is complete
+     */
+    isEntityComplete(buffer) {
+        if (!buffer.trimEnd().endsWith(';')) {
+            return false;
+        }
+
+        // Count apostrophes to determine if we're inside a string
+        // IFC uses single quotes for strings, and escaped quotes are ''
+        let inString = false;
+        for (let i = 0; i < buffer.length; i++) {
+            if (buffer[i] === "'") {
+                // Check for escaped quote (two consecutive apostrophes)
+                if (buffer[i + 1] === "'") {
+                    i++; // Skip the escaped quote
+                    continue;
+                }
+                inString = !inString;
+            }
+        }
+
+        // Entity is complete only if we're not inside a string
+        return !inString;
+    }
+
     processLine(line) {
         line = line.trim();
 
@@ -103,13 +132,13 @@ class IFCStreamParser {
         if (this.entityBuffer) {
             // We're in the middle of a multi-line entity
             this.entityBuffer += ' ' + line;
-            if (line.endsWith(';')) {
+            if (this.isEntityComplete(this.entityBuffer)) {
                 // Entity complete
                 this.processEntityBuffer();
             }
         } else if (line.startsWith('#')) {
             // Start of a new entity
-            if (line.endsWith(';')) {
+            if (this.isEntityComplete(line)) {
                 // Single-line entity (most common case)
                 const entity = this.parseEntity(line);
                 if (entity) {
