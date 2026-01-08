@@ -871,7 +871,7 @@ function renderTable() {
 
             if (state.editMode) {
                 cell.classList.add('editable');
-                cell.addEventListener('click', () => makeEditable(cell, item.guid, col.psetName, col.propName));
+                cell.addEventListener('click', () => window.makeEditable(cell, item.guid, col.psetName, col.propName));
             }
 
             if (state.modifications[item.guid]?.[col.psetName]?.[col.propName] !== undefined) {
@@ -911,7 +911,7 @@ function renderTable() {
 
             if (state.editMode) {
                 cell.classList.add('editable');
-                cell.addEventListener('click', () => makeEditable(cell, item.guid, col.psetName, col.propName));
+                cell.addEventListener('click', () => window.makeEditable(cell, item.guid, col.psetName, col.propName));
             }
 
             if (state.modifications[item.guid]?.[col.psetName]?.[col.propName] !== undefined) {

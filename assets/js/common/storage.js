@@ -174,9 +174,12 @@ class StorageManager {
         };
         this.data.folders[parentId].children.push(id);
 
-        // Update metadata synchronously (instant UI update!)
-        this.metadata.folders[id] = { ...this.data.folders[id] };
-        this.metadata.folders[parentId].children.push(id);
+        // Update metadata only if it's a different object than data.folders
+        // (they share the same reference when loaded from IndexedDB)
+        if (this.metadata.folders !== this.data.folders) {
+            this.metadata.folders[id] = { ...this.data.folders[id] };
+            this.metadata.folders[parentId].children.push(id);
+        }
 
         // Save to IndexedDB asynchronously without blocking
         await this.save().catch(err => console.error('Failed to save folder:', err));

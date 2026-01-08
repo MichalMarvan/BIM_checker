@@ -213,7 +213,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         const totalLines = lines.length;
 
         // Phase 1: Collect entities with multi-line support
-        updateProgress(0, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')}`);
+        window.window.updateProgress(0, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')}`);
 
         let entityBuffer = '';
         let inDataSection = false;
@@ -246,7 +246,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
 
                 if (entityBuffer) {
                     entityBuffer += ' ' + line;
-                    if (isIfcEntityComplete(entityBuffer)) {
+                    if (window.isIfcEntityComplete(entityBuffer)) {
                         const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
                         if (match) {
                             const [, id, entityType, params] = match;
@@ -255,7 +255,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                         entityBuffer = '';
                     }
                 } else if (line.startsWith('#')) {
-                    if (isIfcEntityComplete(line)) {
+                    if (window.isIfcEntityComplete(line)) {
                         const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
                         if (match) {
                             const [, id, entityType, params] = match;
@@ -268,13 +268,13 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
             }
 
             const progress = ((i + CHUNK_SIZE) / totalLines) * 25;
-            updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')} (${i + CHUNK_SIZE}/${totalLines} ${i18n.t('viewer.rows')})`);
+            window.updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')} (${i + CHUNK_SIZE}/${totalLines} ${i18n.t('viewer.rows')})`);
 
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         // Phase 2: Parse property sets and relationships
-        updateProgress(25, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase2')}`);
+        window.updateProgress(25, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase2')}`);
         const entities = Array.from(entityMap.entries());
         const containedInSpatialMap = new Map();
         const aggregatesMap = new Map();
@@ -320,18 +320,18 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
             }
 
             const progress = 25 + ((i + CHUNK_SIZE) / entities.length) * 25;
-            updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase2')} (${i + CHUNK_SIZE}/${entities.length} ${i18n.t('viewer.entities')})`);
+            window.updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase2')} (${i + CHUNK_SIZE}/${entities.length} ${i18n.t('viewer.entities')})`);
 
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         // Phase 3: Build spatial structure tree
-        updateProgress(50, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase3')}`);
+        window.updateProgress(50, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase3')}`);
 
         const spatialTree = buildSpatialTree(entityMap, aggregatesMap, containedInSpatialMap);
 
         // Phase 4: Build final data
-        updateProgress(60, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase4')}`);
+        window.updateProgress(60, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase4')}`);
         let processedEntities = 0;
 
         for (let i = 0; i < entities.length; i += CHUNK_SIZE) {
@@ -396,14 +396,14 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
             }
 
             const progress = 60 + ((i + CHUNK_SIZE) / entities.length) * 40;
-            updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase4')} (${processedEntities}/${entities.length} ${i18n.t('viewer.entities')})`);
+            window.updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase4')} (${processedEntities}/${entities.length} ${i18n.t('viewer.entities')})`);
 
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         const color = state.fileColors[state.loadedFiles.length % state.fileColors.length];
 
-        await storeIFCContent(fileName, content);
+        await window.storeIFCContent(fileName, content);
 
         state.loadedFiles.push({
             fileName,
@@ -413,8 +413,8 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
             spatialTree: spatialTree
         });
 
-        updateFileList();
-        updateProgress(100, `${i18n.t('viewer.fileProcessed')}: ${fileName}`);
+        window.updateFileList();
+        window.updateProgress(100, `${i18n.t('viewer.fileProcessed')}: ${fileName}`);
 
     } catch (error) {
         ErrorHandler.error(`${i18n.t('viewer.fileError')} ${fileName}: ${error.message}`);
