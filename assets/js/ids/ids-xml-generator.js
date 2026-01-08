@@ -84,43 +84,6 @@ class IDSXMLGenerator {
     }
 
     /**
-     * Generate a specification element (OLD - kept for compatibility)
-     */
-    generateSpecification(doc, specData) {
-        const spec = doc.createElementNS(this.nsIds, "specification");
-
-        spec.setAttribute("name", specData.name || "Unnamed Specification");
-        if (specData.ifcVersion) spec.setAttribute("ifcVersion", specData.ifcVersion);
-        if (specData.minOccurs !== undefined) spec.setAttribute("minOccurs", specData.minOccurs);
-        if (specData.maxOccurs !== undefined) spec.setAttribute("maxOccurs", specData.maxOccurs);
-        if (specData.identifier) spec.setAttribute("identifier", specData.identifier);
-        if (specData.description) spec.setAttribute("description", specData.description);
-        if (specData.instructions) spec.setAttribute("instructions", specData.instructions);
-
-        // Applicability
-        if (specData.applicability && specData.applicability.length > 0) {
-            const applicability = doc.createElementNS(this.nsIds, "applicability");
-            for (const facet of specData.applicability) {
-                const facetElement = this.generateFacet(doc, facet);
-                if (facetElement) applicability.appendChild(facetElement);
-            }
-            spec.appendChild(applicability);
-        }
-
-        // Requirements
-        if (specData.requirements && specData.requirements.length > 0) {
-            const requirements = doc.createElementNS(this.nsIds, "requirements");
-            for (const facet of specData.requirements) {
-                const facetElement = this.generateFacet(doc, facet);
-                if (facetElement) requirements.appendChild(facetElement);
-            }
-            spec.appendChild(requirements);
-        }
-
-        return spec;
-    }
-
-    /**
      * Generate a facet as string
      */
     generateFacetString(facetData, indent = '') {

@@ -280,51 +280,51 @@
             const info = currentIDSData.info;
             let hasInfo = false;
             let infoContent = '<div class="ids-info-grid">';
-            
+
             if (info.title) {
-                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.name')}</div><div class="info-value">${info.title}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${escapeHtml(t('parser.info.name'))}</div><div class="info-value">${escapeHtml(info.title)}</div></div>`;
                 hasInfo = true;
             }
             if (info.version) {
-                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.version')}</div><div class="info-value">${info.version}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${escapeHtml(t('parser.info.version'))}</div><div class="info-value">${escapeHtml(info.version)}</div></div>`;
                 hasInfo = true;
             }
             if (info.author) {
-                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.author')}</div><div class="info-value">${info.author}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${escapeHtml(t('parser.info.author'))}</div><div class="info-value">${escapeHtml(info.author)}</div></div>`;
                 hasInfo = true;
             }
             if (info.date) {
-                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.date')}</div><div class="info-value">${info.date}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${escapeHtml(t('parser.info.date'))}</div><div class="info-value">${escapeHtml(info.date)}</div></div>`;
                 hasInfo = true;
             }
             if (info.purpose) {
-                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.purpose')}</div><div class="info-value">${info.purpose}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${escapeHtml(t('parser.info.purpose'))}</div><div class="info-value">${escapeHtml(info.purpose)}</div></div>`;
                 hasInfo = true;
             }
             if (info.milestone) {
-                infoContent += `<div class="info-item"><div class="info-label">${t('parser.info.milestone')}</div><div class="info-value">${info.milestone}</div></div>`;
+                infoContent += `<div class="info-item"><div class="info-label">${escapeHtml(t('parser.info.milestone'))}</div><div class="info-value">${escapeHtml(info.milestone)}</div></div>`;
                 hasInfo = true;
             }
 
             infoContent += '</div>';
 
             if (info.description) {
-                infoContent += `<div class="info-item" style="margin-top: 1rem;"><div class="info-label">${t('parser.info.description')}</div><div class="info-value">${info.description}</div></div>`;
+                infoContent += `<div class="info-item" style="margin-top: 1rem;"><div class="info-label">${escapeHtml(t('parser.info.description'))}</div><div class="info-value">${escapeHtml(info.description)}</div></div>`;
                 hasInfo = true;
             }
 
             const infoHTML = `
-                <div style="cursor: pointer;" onclick="toggleInfoSection()">
+                <div style="cursor: pointer;" data-action="toggle-info-section">
                     <h3 style="user-select: none; display: flex; align-items: center; gap: 0.5rem;">
                         <span class="expand-icon" id="info-expand" style="font-size: 0.875rem;">▼</span>
-                        📋 ${t('parser.info.idsFileInfo')}
+                        📋 ${escapeHtml(t('parser.info.idsFileInfo'))}
                     </h3>
                 </div>
                 <div id="info-content">
-                    ${hasInfo ? infoContent : `<p style="color: #718096;">${t('parser.info.noInfo')}</p>`}
+                    ${hasInfo ? infoContent : `<p style="color: #718096;">${escapeHtml(t('parser.info.noInfo'))}</p>`}
                 </div>
             `;
-            
+
             document.getElementById('idsInfo').innerHTML = infoHTML;
         }
         
@@ -343,17 +343,17 @@
         function displaySpecifications() {
             const container = document.getElementById('specificationsContainer');
             const specs = currentIDSData.specifications;
-            
+
             let html = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="margin: 0;">📐 ${t('parser.specs.title')} (${specs.length})</h3>
+                    <h3 style="margin: 0;">📐 ${escapeHtml(t('parser.specs.title'))} (${specs.length})</h3>
                     <div>
-                        <button class="sample-button" style="padding: 0.5rem 1rem; font-size: 0.875rem;" onclick="expandAllSpecs()">${t('parser.specs.expandAll')}</button>
-                        <button class="sample-button" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #e2e8f0; color: #4a5568;" onclick="collapseAllSpecs()">${t('parser.specs.collapseAll')}</button>
+                        <button class="sample-button" style="padding: 0.5rem 1rem; font-size: 0.875rem;" data-action="expand-all-specs">${escapeHtml(t('parser.specs.expandAll'))}</button>
+                        <button class="sample-button" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #e2e8f0; color: #4a5568;" data-action="collapse-all-specs">${escapeHtml(t('parser.specs.collapseAll'))}</button>
                     </div>
                 </div>
             `;
-            
+
             specs.forEach((spec, index) => {
                 // Determine specification cardinality from minOccurs/maxOccurs
                 const specCardinality = getSpecificationCardinality(spec);
@@ -361,28 +361,28 @@
 
                 html += `
                     <div class="specification-card collapsed" id="spec-${index}">
-                        <div class="spec-header" onclick="toggleSpecification(${index})">
+                        <div class="spec-header" data-action="toggle-specification" data-spec-index="${index}">
                             <h4>
                                 <span class="expand-icon">▶</span>
-                                ${spec.name}
+                                ${escapeHtml(spec.name)}
                             </h4>
                             <div class="spec-badges" style="display: flex; align-items: center; gap: 8px;">
                                 ${cardinalityBadge}
-                                <span class="spec-badge">IFC ${spec.ifcVersion}</span>
+                                <span class="spec-badge">IFC ${escapeHtml(spec.ifcVersion)}</span>
                             </div>
                         </div>
                         <div class="spec-content">
                             <div class="facet-section">
                                 <div class="facet-header">
                                     <span class="facet-icon applicability-icon">✓</span>
-                                    ${t('parser.specs.applicability')}
+                                    ${escapeHtml(t('parser.specs.applicability'))}
                                 </div>
                                 ${formatFacets(spec.applicability, false)}
                             </div>
                             <div class="facet-section">
                                 <div class="facet-header">
                                     <span class="facet-icon requirements-icon">!</span>
-                                    ${t('parser.specs.requirements')}
+                                    ${escapeHtml(t('parser.specs.requirements'))}
                                 </div>
                                 ${formatFacets(spec.requirements, true)}
                             </div>
@@ -390,7 +390,7 @@
                     </div>
                 `;
             });
-            
+
             container.innerHTML = html;
         }
         
@@ -413,7 +413,7 @@
         
         function formatFacets(facets, isRequirements = false) {
             if (!facets || facets.length === 0) {
-                return `<div class="facet-item">${t('parser.specs.noFacets')}</div>`;
+                return `<div class="facet-item">${escapeHtml(t('parser.specs.noFacets'))}</div>`;
             }
 
             return facets.map(facet => {
@@ -427,32 +427,32 @@
 
                 // Zobrazení názvu
                 if (facet.name) {
-                    html += `${t('parser.facet.name')} <span class="facet-value">${formatValue(facet.name)}</span><br>`;
+                    html += `${escapeHtml(t('parser.facet.name'))} <span class="facet-value">${formatValue(facet.name)}</span><br>`;
                 }
 
                 // Zobrazení property setu
                 if (facet.propertySet) {
-                    html += `${t('parser.facet.propertySet')} <span class="facet-value">${formatValue(facet.propertySet)}</span><br>`;
+                    html += `${escapeHtml(t('parser.facet.propertySet'))} <span class="facet-value">${formatValue(facet.propertySet)}</span><br>`;
                 }
 
                 // Zobrazení hodnoty
                 if (facet.value) {
-                    html += `${t('parser.facet.value')} <span class="facet-value">${formatValue(facet.value)}</span>`;
+                    html += `${escapeHtml(t('parser.facet.value'))} <span class="facet-value">${formatValue(facet.value)}</span>`;
                 }
 
                 // Zobrazení relace
                 if (facet.relation) {
-                    html += `${t('parser.facet.relation')} <span class="facet-value">${formatValue(facet.relation)}</span>`;
+                    html += `${escapeHtml(t('parser.facet.relation'))} <span class="facet-value">${formatValue(facet.relation)}</span>`;
                 }
 
                 // Zobrazení systému
                 if (facet.system) {
-                    html += `${t('parser.facet.system')} <span class="facet-value">${formatValue(facet.system)}</span>`;
+                    html += `${escapeHtml(t('parser.facet.system'))} <span class="facet-value">${formatValue(facet.system)}</span>`;
                 }
 
                 // Zobrazení predefined type
                 if (facet.predefinedType) {
-                    html += `<br>${t('parser.facet.predefinedType')} <span class="facet-value">${formatValue(facet.predefinedType)}</span>`;
+                    html += `<br>${escapeHtml(t('parser.facet.predefinedType'))} <span class="facet-value">${formatValue(facet.predefinedType)}</span>`;
                 }
 
                 html += '</div></div>';
@@ -462,64 +462,64 @@
         
         function formatValue(value) {
             if (value.type === 'simple') {
-                return value.value;
+                return escapeHtml(value.value);
             } else if (value.type === 'restriction') {
                 let result = '';
                 if (value.isRegex && value.pattern) {
                     // Regex pattern display
                     result = `<div class="regex-label">
                         <span class="regex-icon">🔍</span>
-                        ${t('parser.regex.label')}
+                        ${escapeHtml(t('parser.regex.label'))}
                         <span class="regex-help">
                             <span class="regex-help-icon">?</span>
                             <div class="regex-tooltip">
-                                <strong>${t('parser.regex.chars')}</strong>
+                                <strong>${escapeHtml(t('parser.regex.chars'))}</strong>
                                 <table>
-                                    <tr><td>^</td><td>${t('regex.start')}</td></tr>
-                                    <tr><td>$</td><td>${t('regex.end')}</td></tr>
-                                    <tr><td>.</td><td>${t('regex.anyChar')}</td></tr>
-                                    <tr><td>*</td><td>${t('regex.zeroOrMore')}</td></tr>
-                                    <tr><td>+</td><td>${t('regex.oneOrMore')}</td></tr>
-                                    <tr><td>?</td><td>${t('regex.optional')}</td></tr>
-                                    <tr><td>[A-Z]</td><td>${t('regex.uppercase')}</td></tr>
-                                    <tr><td>[a-z]</td><td>${t('regex.lowercase')}</td></tr>
-                                    <tr><td>\\d</td><td>${t('regex.digit')}</td></tr>
-                                    <tr><td>\\w</td><td>${t('regex.wordChar')}</td></tr>
-                                    <tr><td>{n}</td><td>${t('regex.exactN')}</td></tr>
-                                    <tr><td>{n,m}</td><td>${t('regex.nToM')}</td></tr>
+                                    <tr><td>^</td><td>${escapeHtml(t('regex.start'))}</td></tr>
+                                    <tr><td>$</td><td>${escapeHtml(t('regex.end'))}</td></tr>
+                                    <tr><td>.</td><td>${escapeHtml(t('regex.anyChar'))}</td></tr>
+                                    <tr><td>*</td><td>${escapeHtml(t('regex.zeroOrMore'))}</td></tr>
+                                    <tr><td>+</td><td>${escapeHtml(t('regex.oneOrMore'))}</td></tr>
+                                    <tr><td>?</td><td>${escapeHtml(t('regex.optional'))}</td></tr>
+                                    <tr><td>[A-Z]</td><td>${escapeHtml(t('regex.uppercase'))}</td></tr>
+                                    <tr><td>[a-z]</td><td>${escapeHtml(t('regex.lowercase'))}</td></tr>
+                                    <tr><td>\\d</td><td>${escapeHtml(t('regex.digit'))}</td></tr>
+                                    <tr><td>\\w</td><td>${escapeHtml(t('regex.wordChar'))}</td></tr>
+                                    <tr><td>{n}</td><td>${escapeHtml(t('regex.exactN'))}</td></tr>
+                                    <tr><td>{n,m}</td><td>${escapeHtml(t('regex.nToM'))}</td></tr>
                                 </table>
                             </div>
                         </span>
                     </div>`;
                     result += `<div class="regex-pattern">${escapeHtml(value.pattern)}</div>`;
-                    
+
                     // Try to explain common regex patterns
                     const explanation = explainRegex(value.pattern);
                     if (explanation) {
                         result += `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: #718096;">
-                            <strong>${t('parser.regex.explanation')}</strong> ${explanation}
+                            <strong>${escapeHtml(t('parser.regex.explanation'))}</strong> ${escapeHtml(explanation)}
                         </div>`;
                     }
                 } else if (value.options) {
-                    result = `${t('parser.restriction.options')} <ul class="restriction-list">`;
+                    result = `${escapeHtml(t('parser.restriction.options'))} <ul class="restriction-list">`;
                     value.options.forEach(opt => {
-                        result += `<li>${opt}</li>`;
+                        result += `<li>${escapeHtml(opt)}</li>`;
                     });
                     result += '</ul>';
                 } else if (value.minInclusive || value.maxInclusive) {
-                    result = `${t('parser.restriction.range')} ${value.minInclusive || '-∞'} ${t('regex.range.to')} ${value.maxInclusive || '+∞'}`;
+                    result = `${escapeHtml(t('parser.restriction.range'))} ${escapeHtml(value.minInclusive || '-∞')} ${escapeHtml(t('regex.range.to'))} ${escapeHtml(value.maxInclusive || '+∞')}`;
                 } else if (value.minExclusive || value.maxExclusive) {
-                    result = `${t('parser.restriction.range')} >${value.minExclusive || '-∞'} ${t('regex.range.to')} <${value.maxExclusive || '+∞'}`;
+                    result = `${escapeHtml(t('parser.restriction.range'))} >${escapeHtml(value.minExclusive || '-∞')} ${escapeHtml(t('regex.range.to'))} <${escapeHtml(value.maxExclusive || '+∞')}`;
                 } else if (value.minLength || value.maxLength || value.length) {
                     if (value.length) {
-                        result = `${t('parser.restriction.exactLength')} ${value.length} ${t('parser.restriction.chars')}`;
+                        result = `${escapeHtml(t('parser.restriction.exactLength'))} ${escapeHtml(value.length)} ${escapeHtml(t('parser.restriction.chars'))}`;
                     } else {
-                        result = `${t('parser.restriction.length')} ${value.minLength || '0'} ${t('regex.range.to')} ${value.maxLength || '∞'} ${t('parser.restriction.chars')}`;
+                        result = `${escapeHtml(t('parser.restriction.length'))} ${escapeHtml(value.minLength || '0')} ${escapeHtml(t('regex.range.to'))} ${escapeHtml(value.maxLength || '∞')} ${escapeHtml(t('parser.restriction.chars'))}`;
                     }
                 }
                 return result;
             }
-            return value.value || '';
+            return escapeHtml(value.value || '');
         }
         
         function escapeHtml(text) {
@@ -605,14 +605,14 @@
         
         function getFacetTypeName(type) {
             const typeNames = {
-                'entity': `🏗️ ${t('parser.facetType.entity')}`,
-                'partOf': `🔗 ${t('parser.facetType.partOf')}`,
-                'classification': `📑 ${t('parser.facetType.classification')}`,
-                'attribute': `📌 ${t('parser.facetType.attribute')}`,
-                'property': `🏷️ ${t('parser.facetType.property')}`,
-                'material': `🧱 ${t('parser.facetType.material')}`
+                'entity': `🏗️ ${escapeHtml(t('parser.facetType.entity'))}`,
+                'partOf': `🔗 ${escapeHtml(t('parser.facetType.partOf'))}`,
+                'classification': `📑 ${escapeHtml(t('parser.facetType.classification'))}`,
+                'attribute': `📌 ${escapeHtml(t('parser.facetType.attribute'))}`,
+                'property': `🏷️ ${escapeHtml(t('parser.facetType.property'))}`,
+                'material': `🧱 ${escapeHtml(t('parser.facetType.material'))}`
             };
-            return typeNames[type] || type;
+            return typeNames[type] || escapeHtml(type);
         }
 
         /**
@@ -643,7 +643,7 @@
             };
             const style = styles[cardinality] || styles['required'];
             const label = labels[cardinality] || labels['required'];
-            return `<span class="cardinality-badge" style="${style} padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-right: 10px;">${label}</span>`;
+            return `<span class="cardinality-badge" style="${style} padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-right: 10px;">${escapeHtml(label)}</span>`;
         }
 
         /**
@@ -662,7 +662,7 @@
             };
             const style = styles[cardinality] || styles['required'];
             const label = labels[cardinality] || labels['required'];
-            return `<span class="facet-cardinality-badge" style="${style} padding: 2px 6px; border-radius: 8px; font-size: 0.75em; font-weight: 600; margin-left: 8px;">${label}</span>`;
+            return `<span class="facet-cardinality-badge" style="${style} padding: 2px 6px; border-radius: 8px; font-size: 0.75em; font-weight: 600; margin-left: 8px;">${escapeHtml(label)}</span>`;
         }
 
         function displayTree() {
@@ -673,38 +673,38 @@
         
         function generateTreeView(node, level) {
             if (node.nodeType !== 1) return ''; // Pouze element nodes
-            
+
             let html = '';
             const hasChildren = node.children.length > 0;
             const nodeValue = node.childNodes.length === 1 && node.childNodes[0].nodeType === 3 ? node.textContent.trim() : '';
             const nodeId = 'node-' + Math.random().toString(36).substr(2, 9);
-            
-            html += `<div class="tree-node ${level === 0 ? 'tree-root' : ''} ${hasChildren && level > 0 ? 'collapsed' : ''}" id="${nodeId}">`;
-            html += `<div onclick="toggleTreeNode('${nodeId}')" style="margin-left: ${level * 20}px">`;
-            
+
+            html += `<div class="tree-node ${level === 0 ? 'tree-root' : ''} ${hasChildren && level > 0 ? 'collapsed' : ''}" id="${escapeHtml(nodeId)}">`;
+            html += `<div data-action="toggle-tree-node" data-node-id="${escapeHtml(nodeId)}" style="margin-left: ${level * 20}px">`;
+
             if (hasChildren) {
                 html += `<span class="tree-expand">${level > 0 ? '▶' : '▼'}</span> `;
             } else {
                 html += `<span class="tree-expand">-</span> `;
             }
-            
-            html += `<span class="tree-label">${node.nodeName}</span>`;
-            
+
+            html += `<span class="tree-label">${escapeHtml(node.nodeName)}</span>`;
+
             // Zobrazení atributů
             if (node.attributes.length > 0) {
                 const attrs = Array.from(node.attributes)
-                    .map(attr => `${attr.name}="${attr.value}"`)
+                    .map(attr => `${escapeHtml(attr.name)}="${escapeHtml(attr.value)}"`)
                     .join(' ');
                 html += ` <span class="tree-bracket">[${attrs}]</span>`;
             }
-            
+
             // Zobrazení hodnoty
             if (nodeValue && !hasChildren) {
-                html += `: <span class="tree-value">${nodeValue}</span>`;
+                html += `: <span class="tree-value">${escapeHtml(nodeValue)}</span>`;
             }
-            
+
             html += '</div>';
-            
+
             // Rekurzivně pro děti
             if (hasChildren) {
                 html += '<div class="tree-children">';
@@ -713,9 +713,9 @@
                 });
                 html += '</div>';
             }
-            
+
             html += '</div>';
-            
+
             return html;
         }
         
@@ -1059,7 +1059,7 @@
                     idsStorageData = request.result?.value;
 
                     if (!idsStorageData || !idsStorageData.files || Object.keys(idsStorageData.files).length === 0) {
-                        document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-empty-message">${t('parser.storage.noFiles')}</p>`;
+                        document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-empty-message">${escapeHtml(t('parser.storage.noFiles'))}</p>`;
                         return;
                     }
 
@@ -1070,11 +1070,11 @@
 
                 request.onerror = () => {
                     console.error('Error loading storage:', request.error);
-                    document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-error-message">${t('parser.storage.error')}</p>`;
+                    document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-error-message">${escapeHtml(t('parser.storage.error'))}</p>`;
                 };
             } catch (e) {
                 console.error('Error loading storage:', e);
-                document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-error-message">${t('parser.storage.error')}</p>`;
+                document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-error-message">${escapeHtml(t('parser.storage.error'))}</p>`;
             }
         }
 
@@ -1096,10 +1096,10 @@
                 html += `
                     <div style="margin-bottom: 8px;">
                         <div class="tree-folder-header" style="margin-left: ${level * 20}px;">
-                            <span onclick="toggleIdsStorageFolder('${folderId}')" class="tree-folder-arrow">${arrow}</span>
-                            <span onclick="toggleIdsStorageFolder('${folderId}')" class="tree-folder-name">
-                                📁 ${folder.name}
-                                ${allFolderFiles.length > 0 ? `<span class="tree-folder-count">(${allFolderFiles.length} ${t('parser.storage.fileCount')})</span>` : ''}
+                            <span data-action="toggle-ids-storage-folder" data-folder-id="${escapeHtml(folderId)}" class="tree-folder-arrow">${arrow}</span>
+                            <span data-action="toggle-ids-storage-folder" data-folder-id="${escapeHtml(folderId)}" class="tree-folder-name">
+                                📁 ${escapeHtml(folder.name)}
+                                ${allFolderFiles.length > 0 ? `<span class="tree-folder-count">(${allFolderFiles.length} ${escapeHtml(t('parser.storage.fileCount'))})</span>` : ''}
                             </span>
                         </div>
                 `;
@@ -1131,11 +1131,11 @@
                         const sizeKB = (file.size / 1024).toFixed(1);
                         html += `
                             <div class="tree-file-item ${isSelected ? 'selected' : ''}"
-                                 onclick="selectIdsFile('${file.id}')"
+                                 data-action="select-ids-file" data-file-id="${escapeHtml(file.id)}"
                                  style="margin-left: ${(level + 1) * 20}px;">
-                                <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectIdsFile('${file.id}');" style="margin-right: 10px;">
-                                <span class="tree-file-name">📄 ${file.name}</span>
-                                <span class="tree-file-size">${sizeKB} KB</span>
+                                <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} data-action="select-ids-file-radio" data-file-id="${escapeHtml(file.id)}" style="margin-right: 10px;">
+                                <span class="tree-file-name">📄 ${escapeHtml(file.name)}</span>
+                                <span class="tree-file-size">${escapeHtml(sizeKB)} KB</span>
                             </div>
                         `;
                     });
@@ -1231,5 +1231,71 @@
             if (currentIDSData) {
                 displayInfo();
                 displaySpecifications();
+            }
+        });
+
+        // Event delegation for dynamically generated content
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            const actionElement = target.closest('[data-action]');
+
+            if (!actionElement) return;
+
+            const action = actionElement.dataset.action;
+
+            switch (action) {
+                case 'toggle-info-section':
+                    toggleInfoSection();
+                    break;
+
+                case 'expand-all-specs':
+                    expandAllSpecs();
+                    break;
+
+                case 'collapse-all-specs':
+                    collapseAllSpecs();
+                    break;
+
+                case 'toggle-specification': {
+                    const index = parseInt(actionElement.dataset.specIndex, 10);
+                    if (!isNaN(index)) {
+                        toggleSpecification(index);
+                    }
+                    break;
+                }
+
+                case 'toggle-tree-node': {
+                    const nodeId = actionElement.dataset.nodeId;
+                    if (nodeId) {
+                        toggleTreeNode(nodeId);
+                    }
+                    break;
+                }
+
+                case 'toggle-ids-storage-folder': {
+                    const folderId = actionElement.dataset.folderId;
+                    if (folderId) {
+                        toggleIdsStorageFolder(folderId);
+                    }
+                    break;
+                }
+
+                case 'select-ids-file': {
+                    const fileId = actionElement.dataset.fileId;
+                    if (fileId) {
+                        selectIdsFile(fileId);
+                    }
+                    break;
+                }
+
+                case 'select-ids-file-radio': {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const fileId = actionElement.dataset.fileId;
+                    if (fileId) {
+                        selectIdsFile(fileId);
+                    }
+                    break;
+                }
             }
         });

@@ -179,7 +179,7 @@ class StorageManager {
         this.metadata.folders[parentId].children.push(id);
 
         // Save to IndexedDB asynchronously without blocking
-        this.save().catch(err => console.error('Failed to save folder:', err));
+        await this.save().catch(err => console.error('Failed to save folder:', err));
 
         return id;  // Return immediately for instant UI update
     }
@@ -195,7 +195,7 @@ class StorageManager {
             }
 
             // Save asynchronously without blocking
-            this.save().catch(err => console.error('Failed to save rename:', err));
+            await this.save().catch(err => console.error('Failed to save rename:', err));
             return true;
         }
         return false;
@@ -233,7 +233,7 @@ class StorageManager {
 
         // Only save once at the top level (not during recursion)
         if (!skipSave) {
-            this.save().catch(err => console.error('Failed to save delete:', err));
+            await this.save().catch(err => console.error('Failed to save delete:', err));
         }
 
         return true;
@@ -267,7 +267,7 @@ class StorageManager {
         );
 
         // Save structure asynchronously without blocking (super fast now - no file content!)
-        this.save().catch(err => console.error('Failed to save file metadata:', err));
+        await this.save().catch(err => console.error('Failed to save file metadata:', err));
         return id;
     }
 
@@ -296,7 +296,7 @@ class StorageManager {
         );
 
         // Save structure asynchronously without blocking
-        this.save().catch(err => console.error('Failed to save file deletion:', err));
+        await this.save().catch(err => console.error('Failed to save file deletion:', err));
         return true;
     }
 
@@ -324,7 +324,7 @@ class StorageManager {
         }
 
         // Save asynchronously without blocking (instant drag-and-drop feedback)
-        this.save().catch(err => console.error('Failed to save file move:', err));
+        await this.save().catch(err => console.error('Failed to save file move:', err));
         return true;
     }
 

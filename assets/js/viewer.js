@@ -234,7 +234,6 @@ async function handleFiles(files) {
         combineData();
         updateUI();
     } catch (error) {
-        console.error('Error handling files:', error);
         ErrorHandler.error(`${i18n.t('parser.error.parsingError')}: ${error.message}`);
         document.getElementById('loading').classList.remove('show');
     }
@@ -308,10 +307,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 if (entity.type === 'IFCPROPERTYSET') {
                     const props = parsePropertySet(entity.params, entityMap);
                     propertySetMap.set(id, props);
-                    // Debug: Log custom PropertySets
-                    if (props.name && !props.name.startsWith('Pset_') && !props.name.startsWith('Qto_')) {
-                        console.log(`[DEBUG] Custom PropertySet #${id}: "${props.name}" with ${Object.keys(props.properties).length} properties`);
-                    }
                 } else if (entity.type === 'IFCRELDEFINESBYPROPERTIES') {
                     const rel = parseRelDefines(entity.params);
                     relDefinesMap.set(id, rel);
@@ -339,9 +334,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                         const children = relatedElements[1].match(/#\d+/g)?.map(r => r.substring(1)) || [];
                         const parent = relatingStructure[1];
                         containedInSpatialMap.set(id, { parent, children });
-                        if (containedInSpatialMap.size <= 3) {
-                            console.log(`IFCRELCONTAINEDINSPATIALSTRUCTURE #${id}: parent=${parent}, children=[${children.join(',')}]`);
-                        }
                     }
                 } else if (entity.type === 'IFCRELAGGREGATES') {
                     // Parse aggregation
@@ -364,18 +356,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
 
         // Phase 3: Build spatial structure tree
         updateProgress(50, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase3')}`);
-
-        console.log('=== SPATIAL TREE DEBUG ===');
-        console.log('aggregatesMap size:', aggregatesMap.size);
-        console.log('containedInSpatialMap size:', containedInSpatialMap.size);
-        console.log('Sample aggregatesMap entries:', Array.from(aggregatesMap.entries()).slice(0, 3));
-        console.log('Sample containedInSpatialMap entries:', Array.from(containedInSpatialMap.entries()).slice(0, 3));
-
-        // Check what entity 338925 is
-        for (let [relId, rel] of containedInSpatialMap) {
-            const parentEntity = entityMap.get(rel.parent);
-            console.log(`Containment parent: #${rel.parent} = ${parentEntity?.type} (${extractName(parentEntity?.params) || '-'}), children: ${rel.children.length}`);
-        }
 
         // Build parent-child relationships
         const childToParentMap = new Map();
@@ -455,28 +435,20 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         for (let [id, entity] of entityMap) {
             if (entity.type === 'IFCPROJECT') {
                 projectId = id;
-                console.log('Found IFCPROJECT:', id);
                 const rootNode = buildNode(id);
                 if (rootNode) {
                     spatialTree.push(rootNode);
-                    console.log('Root node created, children:', rootNode.children.length);
                 }
                 break;
             }
         }
 
-        if (!projectId) {
-            console.warn('No IFCPROJECT found in file!');
-        }
-
         // Add orphaned nodes that have children in containedInSpatialMap but aren't in the tree
-        console.log('Checking for orphaned spatial containers...');
         const orphanedContainers = [];
 
         for (let [relId, rel] of containedInSpatialMap) {
             if (!processedNodes.has(rel.parent)) {
                 const parentEntity = entityMap.get(rel.parent);
-                console.log(`Found orphaned container: #${rel.parent} = ${parentEntity?.type} with ${rel.children.length} children`);
 
                 orphanedContainers.push({
                     id: rel.parent,
@@ -488,7 +460,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
 
         // Attach orphaned containers to the tree
         if (orphanedContainers.length > 0) {
-            console.log(`Attempting to attach ${orphanedContainers.length} orphaned containers to tree...`);
 
             // Helper to find a node in the tree by ID
             function findNodeInTree(tree, targetId) {
@@ -585,7 +556,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
 
                 buildingNode.children.push(storeyNode);
                 buildingStoreyCache.set(buildingNode.id, storeyNode);
-                console.log(`  Created virtual BUILDINGSTOREY under ${buildingNode.type} #${buildingNode.id}`);
 
                 return storeyNode;
             }
@@ -631,9 +601,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 if (parentNode) {
                     parentNode.children.push(orphanNode);
                     processedNodes.add(orphan.id);
-                    console.log(`  ✓ Attached ${orphan.entity.type} #${orphan.id} to ${parentNode.type} #${parentNode.id} (${orphanNode.children.length} children)`);
-                } else {
-                    console.warn(`  ✗ Could not find appropriate parent for ${orphan.entity.type} #${orphan.id}`);
                 }
             }
         }
@@ -662,10 +629,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                                 if (propertySetMap.has(psetId)) {
                                     const pset = propertySetMap.get(psetId);
                                     propertySets[pset.name] = pset.properties;
-                                    // Debug: Log custom PropertySet assignments
-                                    if (pset.name && !pset.name.startsWith('Pset_') && !pset.name.startsWith('Qto_')) {
-                                        console.log(`[DEBUG] Entity #${id} (${entity.type}) assigned PropertySet "${pset.name}"`);
-                                    }
                                 }
                             }
                         }
@@ -733,7 +696,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         updateProgress(100, `${i18n.t('viewer.fileProcessed')}: ${fileName}`);
 
     } catch (error) {
-        console.error('Parse error:', error);
         ErrorHandler.error(`${i18n.t('viewer.fileError')} ${fileName}: ${error.message}`);
         throw error;
     }
@@ -788,10 +750,6 @@ async function parseIFC(content, fileName) {
         }
 
         // Build spatial structure tree
-        console.log('=== SPATIAL TREE DEBUG (parseIFC) ===');
-        console.log('aggregatesMap size:', aggregatesMap.size);
-        console.log('containedInSpatialMap size:', containedInSpatialMap.size);
-
         const spatialTree = [];
         const processedNodes = new Set();
 
@@ -846,18 +804,12 @@ async function parseIFC(content, fileName) {
         for (let [id, entity] of entityMap) {
             if (entity.type === 'IFCPROJECT') {
                 projectId = id;
-                console.log('Found IFCPROJECT:', id);
                 const rootNode = buildNode(id);
                 if (rootNode) {
                     spatialTree.push(rootNode);
-                    console.log('Root node created, children:', rootNode.children.length);
                 }
                 break;
             }
-        }
-
-        if (!projectId) {
-            console.warn('No IFCPROJECT found in file!');
         }
 
         // Build data
@@ -911,8 +863,7 @@ async function parseIFC(content, fileName) {
         updateFileList();
 
     } catch (error) {
-        console.error('Parse error:', error);
-        alert(t('viewer.fileError') + ' ' + fileName + ': ' + error.message);
+        ErrorHandler.error(`${t('viewer.fileError')} ${fileName}: ${error.message}`);
     }
 }
 
@@ -1723,7 +1674,6 @@ function applyFiltersAndRender() {
             return item.ifcId && window.selectedSpatialIds.has(item.ifcId) &&
                    item.fileName === window.selectedSpatialFileName;
         });
-        console.log(`Spatial filter active: ${filteredData.length} entities match from ${window.selectedSpatialFileName}`);
     }
 
     // Only apply text search if it's not a spatial filter indicator
@@ -1767,7 +1717,6 @@ function applyFiltersAndRender() {
                         return false;
                     });
                 } catch (e) {
-                    console.error('Invalid regex:', e.message);
                     ErrorHandler.error(`${i18n.t('viewer.invalidRegex')}: ${e.message}`);
                 }
             } else {
@@ -1822,7 +1771,6 @@ function applyFiltersAndRender() {
                         return false;
                     });
                 } catch (e) {
-                    console.error('Invalid regex:', e.message);
                     ErrorHandler.error(`${i18n.t('viewer.invalidRegex')}: ${e.message}`);
                 }
             } else {
@@ -1948,8 +1896,9 @@ function renderTable() {
         // Separate locked and unlocked columns
         const lockedCols = [];
         const unlockedCols = [];
-        
-        for (let col of window.currentColumns) {
+
+        const columns = window.currentColumns || [];
+        for (let col of columns) {
             const isLocked = lockedColumns.some(lc => lc.psetName === col.psetName && lc.propName === col.propName);
             if (isLocked) {
                 lockedCols.push(col);
@@ -2064,7 +2013,6 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
         if (window.selectedSpatialIds) {
             window.selectedSpatialIds = null;
             window.selectedSpatialFileName = null;
-            console.log('Spatial filter cleared by user input');
 
             // Remove visual indicator
             e.target.classList.remove('spatial-filter-active');
@@ -2155,15 +2103,16 @@ function showStatistics() {
 }
 
 document.getElementById('exportBtn').addEventListener('click', () => {
+    const columns = window.currentColumns || [];
     let csv = 'Soubor,GUID,Entita,Name,Layer';
-    for (let col of window.currentColumns) {
+    for (let col of columns) {
         csv += ',"' + col.psetName + ' ' + col.propName + '"';
     }
     csv += '\n';
 
     for (let item of filteredData) {
         const row = ['"' + item.fileName + '"', item.guid, item.entity, '"' + item.name + '"', '"' + (item.layer || '-') + '"'];
-        for (let col of window.currentColumns) {
+        for (let col of columns) {
             const val = item.propertySets[col.psetName]?.[col.propName] || '';
             row.push('"' + val + '"');
         }
@@ -2209,7 +2158,7 @@ document.getElementById('goToPageBtn').addEventListener('click', () => {
         currentPage = page;
         renderTable();
     } else {
-        alert(`${t('viewer.pageRange')} ${totalPages}`);
+        ErrorHandler.warning(`${t('viewer.pageRange')} ${totalPages}`);
         pageInput.value = currentPage;
     }
 });
@@ -2266,7 +2215,6 @@ function updateSelectedCount() {
     const count = selectedEntities.size;
     const totalFiltered = filteredData.length;
 
-    console.log('Selected entities count:', count);
     document.getElementById('selectedCount').textContent = count;
 
     // Show total filtered count
@@ -2290,13 +2238,11 @@ function updateSelectedCount() {
     if (renameBtn) renameBtn.disabled = count === 0;
     if (renamePropBtn) renamePropBtn.disabled = count === 0;
     if (exportBtn) exportBtn.disabled = Object.keys(modifications).length === 0;
-
-    console.log('Bulk Edit Button disabled:', bulkBtn ? bulkBtn.disabled : 'not found');
 }
 
 document.getElementById('selectAllVisibleBtn').addEventListener('click', () => {
     if (!editMode) {
-        alert(t('viewer.enableEditFirst'));
+        ErrorHandler.warning(t('viewer.enableEditFirst'));
         return;
     }
     const startIndex = pageSize === -1 ? 0 : (currentPage - 1) * pageSize;
@@ -2308,20 +2254,15 @@ document.getElementById('selectAllVisibleBtn').addEventListener('click', () => {
 });
 
 document.getElementById('selectAllPagesBtn').addEventListener('click', () => {
-    console.log('=== SELECT ALL PAGES CLICKED ===');
-    console.log('Edit mode:', editMode);
-    console.log('Filtered data length:', filteredData.length);
-    console.log('Selected entities before:', selectedEntities.size);
-
     if (!editMode) {
-        alert(t('viewer.enableEditFirst'));
+        ErrorHandler.warning(t('viewer.enableEditFirst'));
         return;
     }
 
     const totalCount = filteredData.length;
 
     if (totalCount === 0) {
-        alert(t('viewer.noEntities'));
+        ErrorHandler.warning(t('viewer.noEntities'));
         return;
     }
 
@@ -2335,19 +2276,11 @@ document.getElementById('selectAllPagesBtn').addEventListener('click', () => {
     }
 
     // Select all filtered entities
-    console.log(`Selecting all ${totalCount} entities across all pages`);
-    let addedCount = 0;
     filteredData.forEach(item => {
         if (item && item.guid) {
             selectedEntities.add(item.guid);
-            addedCount++;
-        } else {
-            console.warn('Invalid item:', item);
         }
     });
-
-    console.log('Selected entities after:', selectedEntities.size);
-    console.log('Added:', addedCount);
 
     updateSelectedCount();
     renderTable();
@@ -2445,10 +2378,6 @@ function saveCell(input, cell, guid, psetName, propName) {
 
 // Bulk Edit Modal
 document.getElementById('bulkEditBtn').addEventListener('click', () => {
-    console.log('Bulk Edit Button clicked!');
-    console.log('Selected entities:', Array.from(selectedEntities));
-    console.log('PropertySet order:', psetOrder);
-
     const modal = document.getElementById('bulkEditModal');
     const psetSelect = document.getElementById('bulkPsetName');
     const propSelect = document.getElementById('bulkPropName');
@@ -2461,11 +2390,8 @@ document.getElementById('bulkEditBtn').addEventListener('click', () => {
         }
     }
 
-    console.log('PropertySets in dropdown:', psetOrder.length);
-
     document.getElementById('bulkEditCount').textContent = selectedEntities.size;
     modal.classList.add('active');
-    console.log('Modal should be visible now');
 });
 
 document.getElementById('bulkPsetName').addEventListener('change', (e) => {
@@ -2581,7 +2507,7 @@ function applyBulkEdit() {
     const value = document.getElementById('bulkValue').value.trim();
 
     if (!psetName || !propName) {
-        alert(t('viewer.selectPsetAndProperty'));
+        ErrorHandler.warning(t('viewer.selectPsetAndProperty'));
         return;
     }
 
@@ -2612,7 +2538,7 @@ function applyBulkEdit() {
     renderTable();
     updateSelectedCount();
 
-    alert(`Hodnota "${value}" byla nastavena pro ${selectedEntities.size} entit v ${psetName}.${propName}`);
+    ErrorHandler.success(`${t('viewer.valueSet')} "${value}" ${t('viewer.forEntities')} ${selectedEntities.size} ${t('viewer.inPsetProp')} ${psetName}.${propName}`);
 }
 
 // Add PSet Modal
@@ -2832,7 +2758,7 @@ function applyAddPset() {
     const value = document.getElementById('newPropValue').value.trim();
 
     if (!psetName || !propName) {
-        alert(t('viewer.fillPsetAndProperty'));
+        ErrorHandler.warning(t('viewer.fillPsetAndProperty'));
         return;
     }
 
@@ -2875,22 +2801,18 @@ function applyAddPset() {
     buildTable(); // Rebuild table to include new columns
     updateSelectedCount();
 
-    alert(`PropertySet "${psetName}" (${propName}) ${t('viewer.psetAdded')} ${selectedEntities.size} ${t('viewer.entities')}`);
+    ErrorHandler.success(`PropertySet "${psetName}" (${propName}) ${t('viewer.psetAdded')} ${selectedEntities.size} ${t('viewer.entities')}`);
 }
 
 // Export modified IFC
 document.getElementById('exportIfcBtn').addEventListener('click', () => {
     if (Object.keys(modifications).length === 0) {
-        alert(t('viewer.noChangesToSave'));
+        ErrorHandler.warning(t('viewer.noChangesToSave'));
         return;
     }
 
-    console.log('Starting IFC export with modifications...');
-    console.log('Modified entities:', Object.keys(modifications).length);
-    console.log('Modifications:', modifications);
-
     if (loadedFiles.length === 0) {
-        alert(t('viewer.noIfcLoaded'));
+        ErrorHandler.error(t('viewer.noIfcLoaded'));
         return;
     }
 
@@ -2906,13 +2828,11 @@ document.getElementById('exportIfcBtn').addEventListener('click', () => {
         );
         const index = parseInt(choice) - 1;
         if (isNaN(index) || index < 0 || index >= loadedFiles.length) {
-            alert(t('viewer.invalidSelection'));
+            ErrorHandler.error(t('viewer.invalidSelection'));
             return;
         }
         fileToExport = loadedFiles[index];
     }
-
-    console.log('Exporting file:', fileToExport.fileName);
 
     // Load original content from IndexedDB and start export
     exportModifiedIFC(fileToExport);
@@ -2931,25 +2851,18 @@ async function exportModifiedIFC(fileInfo) {
         const modifiedIfc = applyModificationsToIFC(ifcContent, modifications, fileInfo.fileName);
 
         if (!modifiedIfc) {
-            console.error('Export cancelled due to data integrity check failure');
             return;
         }
 
         downloadModifiedIFC(modifiedIfc, fileInfo.fileName);
     } catch (error) {
-        console.error('Export error:', error);
-        alert(t('viewer.exportError') + ' ' + error.message);
+        ErrorHandler.error(`${t('viewer.exportError')} ${error.message}`);
     }
 }
 
 function applyModificationsToIFC(ifcContent, modifications, fileName) {
-    console.log('=== APPLYING MODIFICATIONS TO IFC ===');
-    console.log('Original IFC content length:', ifcContent.length, 'characters');
-
     const lines = ifcContent.split('\n');
-    console.log('Total lines in IFC:', lines.length);
     let modifiedLines = [...lines];
-    console.log('Copied lines for modification:', modifiedLines.length);
 
     // Build a map of entity IDs to line numbers
     const entityMap = new Map();
@@ -2967,10 +2880,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
         // More flexible regex that handles multiline and various formats
         const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?\s*$/i);
         if (!match) {
-            // Debug: log lines that don't match
-            if (lineIndex < 100 && line.includes('IFCPROPERTY')) {
-                console.log(`Line ${lineIndex} doesn't match regex:`, line.substring(0, 80));
-            }
             return;
         }
 
@@ -2991,26 +2900,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
         }
     });
 
-    console.log('Max entity ID found:', maxEntityId);
-
-    console.log('Found entities:', entityMap.size);
-    console.log('Found property sets:', propertySetMap.size);
-    console.log('Found property single values:', propertySingleValueMap.size);
-
-    // Debug: List all PropertySet names found
-    console.log('PropertySets found in IFC:');
-    for (const [psetId, psetInfo] of propertySetMap) {
-        const quotedStrings = [];
-        const regex = /'([^']*(?:\\'[^']*)*)'/g;
-        let match;
-        while ((match = regex.exec(psetInfo.params)) !== null) {
-            quotedStrings.push(match[1]);
-        }
-        // PropertySet name is at index 1
-        let foundPsetName = quotedStrings.length > 1 ? quotedStrings[1] : 'UNKNOWN';
-        console.log(`  #${psetId}: "${foundPsetName}" - Type: ${psetInfo.type} - Line: ${psetInfo.line.substring(0, 100)}...`);
-    }
-
     // Find GUID to entity ID mapping
     const guidToEntityId = new Map();
     entityMap.forEach((entity, id) => {
@@ -3021,8 +2910,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
             }
         }
     });
-
-    console.log('GUID to Entity ID mappings:', guidToEntityId.size);
 
     // Apply modifications
     let modificationCount = 0;
@@ -3036,24 +2923,20 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
         const entityId = guidToEntityId.get(guid);
         if (!entityId) {
-            console.log(`Entity GUID ${guid} not found in IFC`);
             continue;
         }
 
-        console.log(`Processing entity GUID: ${guid} (ID: #${entityId})`);
-
         // Handle PropertySet renames first
         if (psetModifications.renamedPsets) {
-            console.log('  Processing PropertySet renames...');
-
             for (const [oldPsetName, newPsetName] of Object.entries(psetModifications.renamedPsets)) {
-                console.log(`    Renaming PropertySet: "${oldPsetName}" -> "${newPsetName}"`);
-
                 // Find all PropertySets with this name for this entity
                 for (const [psetId, psetInfo] of propertySetMap) {
+                    if (!psetInfo.params) continue;
+
                     // Extract all quoted strings from the params
                     const quotedStrings = [];
                     const regex = /'([^']*(?:\\'[^']*)*)'/g;
+                    regex.lastIndex = 0;
                     let match;
                     while ((match = regex.exec(psetInfo.params)) !== null) {
                         quotedStrings.push(match[1]);
@@ -3081,8 +2964,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
                     if (!belongsToEntity) continue;
 
-                    console.log(`      ✓ Found PropertySet #${psetId} for entity #${entityId}`);
-
                     // Replace the PropertySet name in the line
                     const oldLine = modifiedLines[psetInfo.lineIndex];
 
@@ -3094,9 +2975,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
                     if (newLine !== oldLine) {
                         modifiedLines[psetInfo.lineIndex] = newLine;
                         modificationCount++;
-                        console.log(`      ✓ Renamed PropertySet in line ${psetInfo.lineIndex}`);
-                    } else {
-                        console.log(`      ⚠ Failed to rename PropertySet in line ${psetInfo.lineIndex}`);
                     }
                 }
             }
@@ -3104,16 +2982,15 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
         // Handle Property renames
         if (psetModifications.renamedProperties) {
-            console.log('  Processing Property renames...');
-
             for (const [psetName, propertyRenames] of Object.entries(psetModifications.renamedProperties)) {
-                console.log(`    In PropertySet: "${psetName}"`);
-
                 // Find the PropertySet for this entity
                 for (const [psetId, psetInfo] of propertySetMap) {
+                    if (!psetInfo.params) continue;
+
                     // Extract all quoted strings from the params
                     const quotedStrings = [];
                     const regex = /'([^']*(?:\\'[^']*)*)'/g;
+                    regex.lastIndex = 0;
                     let match;
                     while ((match = regex.exec(psetInfo.params)) !== null) {
                         quotedStrings.push(match[1]);
@@ -3134,8 +3011,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
                     if (!belongsToEntity) continue;
 
-                    console.log(`      ✓ Found PropertySet #${psetId} for entity #${entityId}`);
-
                     // Get property references from PropertySet
                     // Format: IFCPROPERTYSET(...,(#123,#124,#125))
                     const propertyRefs = psetInfo.params.match(/#\d+/g);
@@ -3143,19 +3018,18 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
                     // Process each property rename
                     for (const [oldPropName, newPropName] of Object.entries(propertyRenames)) {
-                        console.log(`        Renaming Property: "${oldPropName}" -> "${newPropName}"`);
-
                         // Find the IFCPROPERTYSINGLEVALUE with this name
                         for (const propRef of propertyRefs) {
                             const propId = propRef.substring(1);
                             const propInfo = propertySingleValueMap.get(propId);
 
-                            if (!propInfo) continue;
+                            if (!propInfo || !propInfo.params) continue;
 
                             // Extract property name (first quoted string)
                             // Format: IFCPROPERTYSINGLEVALUE('Name','Description',value,unit)
                             const propQuotedStrings = [];
                             const propRegex = /'([^']*(?:\\'[^']*)*)'/g;
+                            propRegex.lastIndex = 0;
                             let propMatch;
                             while ((propMatch = propRegex.exec(propInfo.params)) !== null) {
                                 propQuotedStrings.push(propMatch[1]);
@@ -3163,8 +3037,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
                             const foundPropName = propQuotedStrings.length > 0 ? propQuotedStrings[0] : null;
                             if (foundPropName !== oldPropName) continue;
-
-                            console.log(`          ✓ Found Property #${propId}`);
 
                             // Replace the property name in the line
                             const oldLine = modifiedLines[propInfo.lineIndex];
@@ -3176,9 +3048,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
                             if (newLine !== oldLine) {
                                 modifiedLines[propInfo.lineIndex] = newLine;
                                 modificationCount++;
-                                console.log(`          ✓ Renamed Property in line ${propInfo.lineIndex}`);
-                            } else {
-                                console.log(`          ⚠ Failed to rename Property in line ${propInfo.lineIndex}`);
                             }
                         }
                     }
@@ -3190,15 +3059,11 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
             // Skip the renamedPsets and renamedProperties objects
             if (psetName === 'renamedPsets' || psetName === 'renamedProperties') continue;
 
-            console.log(`  PropertySet: ${psetName}`);
-
             // Try to update existing properties
             const existingUpdates = {};
             const newProperties = {};
 
             for (const [propName, newValue] of Object.entries(propModifications)) {
-                console.log(`    Property: ${propName} = ${newValue}`);
-
                 // Find the property in IFC and update it
                 const updated = updatePropertyInIFC(
                     modifiedLines,
@@ -3213,17 +3078,13 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
                 if (updated) {
                     modificationCount++;
                     existingUpdates[propName] = newValue;
-                    console.log(`      ✓ Updated existing property`);
                 } else {
                     newProperties[propName] = newValue;
-                    console.log(`      ⚠ Property not found - will create new`);
                 }
             }
 
             // If there are new properties, create PropertySet with all properties
             if (Object.keys(newProperties).length > 0) {
-                console.log(`    Creating new PropertySet "${psetName}" with ${Object.keys(newProperties).length} properties`);
-
                 // Create property single values
                 const propertyIds = [];
                 for (const [propName, value] of Object.entries(newProperties)) {
@@ -3231,7 +3092,6 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
                     const propLine = createPropertySingleValue(maxEntityId, propName, value);
                     newEntities.push(propLine);
                     propertyIds.push(maxEntityId);
-                    console.log(`      Created property #${maxEntityId}: ${propName}`);
                 }
 
                 // Create PropertySet
@@ -3240,23 +3100,17 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
                 const psetGuid = generateGUID();
                 const psetLine = createPropertySet(psetId, psetGuid, psetName, propertyIds);
                 newEntities.push(psetLine);
-                console.log(`      Created PropertySet #${psetId}: ${psetName}`);
 
                 // Create or update IFCRELDEFINESBYPROPERTIES
                 maxEntityId++;
                 const relGuid = generateGUID();
                 const relLine = createRelDefinesByProperties(maxEntityId, relGuid, [entityId], psetId);
                 newEntities.push(relLine);
-                console.log(`      Created relationship #${maxEntityId}: entity #${entityId} -> PSet #${psetId}`);
 
                 createdCount += Object.keys(newProperties).length;
             }
         }
     }
-
-    console.log(`Total modifications applied: ${modificationCount}`);
-    console.log(`Total new properties created: ${createdCount}`);
-    console.log(`New entities to insert: ${newEntities.length}`);
 
     // Insert new entities before ENDSEC (end of DATA section)
     if (newEntities.length > 0) {
@@ -3270,49 +3124,40 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
         }
 
         if (endsecIndex !== -1) {
-            console.log(`Found ENDSEC at line ${endsecIndex}, inserting ${newEntities.length} new entities`);
             // Insert new entities before ENDSEC
             modifiedLines.splice(endsecIndex, 0, ...newEntities);
-            console.log(`New entities inserted. Total lines now: ${modifiedLines.length}`);
         } else {
-            console.error('ERROR: ENDSEC not found in IFC file!');
-            alert(t('viewer.endSecNotFound'));
+            ErrorHandler.error(t('viewer.endSecNotFound'));
             return null;
         }
     }
 
-    // Verify line count before joining
-    console.log('Lines before join:', modifiedLines.length);
     const result = modifiedLines.join('\n');
-    console.log('Result length after join:', result.length, 'characters');
 
     // Verify by counting newlines
     const resultLineCount = (result.match(/\n/g) || []).length + 1;
-    console.log('Result line count:', resultLineCount);
 
     // Adjust validation to account for new entities
     const expectedMinLines = lines.length * 0.9;
     if (resultLineCount < expectedMinLines && newEntities.length === 0) {
-        console.error('WARNING: Significant line loss detected!');
-        console.error(`Original lines: ${lines.length}, Result lines: ${resultLineCount}`);
-        alert(`${t('viewer.dataLossWarning')}\n${t('viewer.originalLines')} ${lines.length}\n${t('viewer.resultLines')} ${resultLineCount}\n\n${t('viewer.exportCancelled')}`);
+        ErrorHandler.error(`${t('viewer.dataLossWarning')}\n${t('viewer.originalLines')} ${lines.length}\n${t('viewer.resultLines')} ${resultLineCount}\n\n${t('viewer.exportCancelled')}`);
         return null;
     }
 
-    console.log(`✓ Export successful: ${modificationCount} modifications, ${createdCount} new properties`);
     return result;
 }
 
 function updatePropertyInIFC(lines, entityMap, propertySetMap, propertySingleValueMap, psetName, propName, newValue) {
-    console.log(`    Searching for ALL PSets: "${psetName}", Property: "${propName}"`);
-
     let updatedCount = 0;
 
     // Find ALL PropertySets with this name (there can be multiple!)
     for (const [psetId, psetInfo] of propertySetMap) {
+        if (!psetInfo.params) continue;
+
         // Extract all quoted strings from the params
         const quotedStrings = [];
         const regex = /'([^']*(?:\\'[^']*)*)'/g;
+        regex.lastIndex = 0;
         let match;
         while ((match = regex.exec(psetInfo.params)) !== null) {
             quotedStrings.push(match[1]);
@@ -3337,71 +3182,49 @@ function updatePropertyInIFC(lines, entityMap, propertySetMap, propertySingleVal
 
         if (foundPsetName !== psetName) continue;
 
-        console.log(`      ✓ Found matching PropertySet #${psetId}!`);
-
         // Found the PropertySet, now find properties in it
         // Extract all references to property IDs (the list in parentheses at the end)
         const propIdsMatch = psetInfo.params.match(/\(([#\d,\s]+)\)[^)]*$/);
         if (!propIdsMatch) {
-            console.log(`      ✗ No property IDs found in this PSet`);
             continue;
         }
 
         const propIds = propIdsMatch[1].match(/#\d+/g);
         if (!propIds) {
-            console.log(`      ✗ Could not parse property IDs`);
             continue;
         }
-
-        console.log(`      Found ${propIds.length} properties in this PSet`);
 
         // Check each property
         for (const propIdRef of propIds) {
             const propId = propIdRef.substring(1);
             const propInfo = propertySingleValueMap.get(propId);
             if (!propInfo) {
-                console.log(`        Property #${propId} not found in map`);
                 continue;
             }
 
             // Extract property name (first quoted string)
             const propNameMatch = propInfo.params.match(/'([^']*)'/);
             if (!propNameMatch) {
-                console.log(`        Property #${propId} has no name`);
                 continue;
             }
 
             const currentPropName = propNameMatch[1];
-            console.log(`        Checking property #${propId}: "${currentPropName}"`);
 
             if (currentPropName !== propName) continue;
 
-            console.log(`        ✓ Found matching property! Updating value...`);
-
             // Found the property! Update its value
             const oldLine = propInfo.line;
-            console.log(`        Old line: ${oldLine}`);
 
             const newLine = updatePropertyValue(oldLine, newValue);
-            console.log(`        New line: ${newLine}`);
 
             if (newLine !== oldLine) {
                 lines[propInfo.lineIndex] = newLine;
-                console.log(`        ✓ Line updated at index ${propInfo.lineIndex}`);
                 updatedCount++;
-            } else {
-                console.log(`        ✗ No change in line`);
             }
         }
     }
 
-    if (updatedCount > 0) {
-        console.log(`    ✓ Updated ${updatedCount} property instance(s)`);
-        return true;
-    } else {
-        console.log(`    ✗ PropertySet or Property not found`);
-        return false;
-    }
+    return updatedCount > 0;
 }
 
 function updatePropertyValue(line, newValue) {
@@ -3419,7 +3242,6 @@ function updatePropertyValue(line, newValue) {
         const [fullMatch, ifcType, oldValue] = match;
         const encodedValue = encodeIFCString(newValue);
         const newMatch = `${ifcType}('${encodedValue}')`;
-        console.log(`          Replacing "${fullMatch}" with "${newMatch}"`);
         return line.replace(fullMatch, newMatch);
     }
 
@@ -3433,7 +3255,6 @@ function updatePropertyValue(line, newValue) {
         const numValue = parseFloat(newValue);
         const finalValue = isNaN(numValue) ? newValue : numValue;
         const newMatch = `${ifcType}(${finalValue})`;
-        console.log(`          Replacing "${fullMatch}" with "${newMatch}"`);
         return line.replace(fullMatch, newMatch);
     }
 
@@ -3446,7 +3267,6 @@ function updatePropertyValue(line, newValue) {
         const boolValue = newValue.toUpperCase() === 'TRUE' || newValue === '1' || newValue.toUpperCase() === 'T' ? 'T' :
                          newValue.toUpperCase() === 'FALSE' || newValue === '0' || newValue.toUpperCase() === 'F' ? 'F' : 'UNKNOWN';
         const newMatch = `${ifcType}(.${boolValue}.)`;
-        console.log(`          Replacing "${fullMatch}" with "${newMatch}"`);
         return line.replace(fullMatch, newMatch);
     }
 
@@ -3474,13 +3294,11 @@ function updatePropertyValue(line, newValue) {
                 }
 
                 parts[2] = parts[2].replace(simpleMatch[0], newValueFormatted);
-                console.log(`          Fallback replacement successful`);
                 return parts.join(',');
             }
         }
     }
 
-    console.log(`          ✗ Could not find value pattern to replace`);
     return line;
 }
 
@@ -3508,7 +3326,7 @@ function downloadModifiedIFC(ifcContent, originalFileName) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert(`✓ ${t('viewer.fileSavedAs')}\n${a.download}`);
+    ErrorHandler.success(`${t('viewer.fileSavedAs')} ${a.download}`);
 }
 
 // ============================================
@@ -3585,10 +3403,8 @@ storageInitPromise = (async function() {
         // Pre-load metadata (without file contents) for instant modal opening
         await loadStorageMetadata();
 
-        console.log('✓ Storage initialized and metadata cached');
         return true;
     } catch (e) {
-        console.error('Failed to initialize storage:', e);
         return false;
     }
 })();
@@ -3633,13 +3449,11 @@ async function loadStorageMetadata() {
             };
 
             request.onerror = () => {
-                console.error('Failed to load storage metadata:', request.error);
                 storageMetadata = null;
                 reject(request.error);
             };
         });
     } catch (e) {
-        console.error('Failed to load storage metadata:', e);
         storageMetadata = null;
     }
 }
@@ -3660,7 +3474,7 @@ document.getElementById('loadFromStorageBtn').addEventListener('click', async ()
         }
 
         if (!storageDB) {
-            alert(t('viewer.storageNotInit'));
+            ErrorHandler.error(t('viewer.storageNotInit'));
             return;
         }
 
@@ -3746,7 +3560,6 @@ function renderStorageTree() {
         document.getElementById('storageFileTree').innerHTML = html;
         updateSelectedFilesCount();
     } catch (e) {
-        console.error('Error rendering storage tree:', e);
         document.getElementById('storageFileTree').innerHTML = `<p class="storage-error-message">${t('viewer.storageDisplayError')}</p>`;
     }
 }
@@ -3838,7 +3651,7 @@ function updateSelectedFilesCount() {
 
 async function loadSelectedFilesFromStorage() {
     if (selectedStorageFiles.size === 0) {
-        alert(t('viewer.selectAtLeastOne'));
+        ErrorHandler.warning(t('viewer.selectAtLeastOne'));
         return;
     }
 
@@ -3851,7 +3664,7 @@ async function loadSelectedFilesFromStorage() {
         metadataRequest.onsuccess = async () => {
             const storageData = metadataRequest.result?.value;
             if (!storageData) {
-                alert(t('viewer.storageLoadError'));
+                ErrorHandler.error(t('viewer.storageLoadError'));
                 return;
             }
 
@@ -3889,19 +3702,17 @@ async function loadSelectedFilesFromStorage() {
         };
 
         metadataRequest.onerror = () => {
-            console.error('Error loading files from storage:', metadataRequest.error);
-            alert(t('viewer.storageLoadError'));
+            ErrorHandler.error(t('viewer.storageLoadError'));
             document.getElementById('loading').classList.remove('show');
         };
     } catch (e) {
-        console.error('Error loading files from storage:', e);
-        alert(t('viewer.storageLoadError'));
+        ErrorHandler.error(t('viewer.storageLoadError'));
         document.getElementById('loading').classList.remove('show');
     }
 }
 
 // Initialize IFC cache on page load
-initIFCCache().catch(err => console.error('Failed to initialize IFC cache:', err));
+initIFCCache().catch(() => {});
 
 // =======================
 // SPATIAL TREE VISUALIZATION
@@ -3912,14 +3723,9 @@ let spatialTreeOpen = false;
 
 // Toggle spatial tree panel
 function toggleSpatialTree() {
-    console.log('toggleSpatialTree called, current state:', spatialTreeOpen);
     spatialTreeOpen = !spatialTreeOpen;
     const panel = document.getElementById('spatialTreePanel');
     const overlay = document.getElementById('spatialTreeOverlay');
-
-    console.log('Panel element:', panel);
-    console.log('Overlay element:', overlay);
-    console.log('New state:', spatialTreeOpen);
 
     if (spatialTreeOpen) {
         panel.classList.add('open');
@@ -4017,8 +3823,6 @@ function renderTreeNode(node, depth = 0) {
 
 // Handle tree node click (filter table)
 function handleTreeNodeClick(nodeId, nodeType, event) {
-    console.log('Tree node clicked:', nodeId, nodeType);
-
     // Remove active class from all nodes
     document.querySelectorAll('.tree-node-header').forEach(header => {
         header.classList.remove('active');
@@ -4061,12 +3865,10 @@ function handleTreeNodeClick(nodeId, nodeType, event) {
 
     const clickedNode = findNodeById(currentFile.spatialTree, nodeId);
     if (!clickedNode) {
-        console.warn('Node not found in tree:', nodeId);
         return;
     }
 
     const allIds = getAllChildIds(clickedNode);
-    console.log(`Filtering by node ${nodeId} and ${allIds.length - 1} descendants`);
 
     // Store the selected spatial node IDs and file name for filtering
     window.selectedSpatialIds = new Set(allIds);
@@ -4093,8 +3895,6 @@ function handleTreeNodeClick(nodeId, nodeType, event) {
 
     // Apply filters
     applyFiltersAndRender();
-
-    console.log(`✓ Table filtered to show ${allIds.length} entities from ${displayName}`);
 }
 
 // Toggle tree node expand/collapse
@@ -4122,8 +3922,6 @@ function toggleTreeNode(nodeId) {
 function renderSpatialTree() {
     const content = document.getElementById('spatialTreeContent');
 
-    console.log('renderSpatialTree called, loadedFiles:', loadedFiles.length);
-
     if (loadedFiles.length === 0) {
         content.innerHTML = `<div class="spatial-tree-info">${t('viewer.loadIfcForStructure')}</div>`;
         return;
@@ -4131,8 +3929,6 @@ function renderSpatialTree() {
 
     // Check if current file has spatial tree
     const currentFile = loadedFiles[currentTreeFileIndex];
-    console.log('Current file:', currentFile?.fileName);
-    console.log('Spatial tree:', currentFile?.spatialTree);
 
     if (!currentFile || !currentFile.spatialTree || currentFile.spatialTree.length === 0) {
         content.innerHTML = `<div class="spatial-tree-info">${t('viewer.noSpatialStructure')}</div>`;
@@ -4180,7 +3976,6 @@ function renderSpatialTree() {
     }
 
     content.innerHTML = html;
-    console.log('Tree rendered');
 }
 
 // Change spatial tree file
@@ -4202,8 +3997,6 @@ function expandAllTreeNodes() {
         toggle.classList.remove('collapsed');
         toggle.classList.add('expanded');
     });
-
-    console.log('Expanded all nodes');
 }
 
 // Collapse all tree nodes
@@ -4219,13 +4012,10 @@ function collapseAllTreeNodes() {
         toggle.classList.remove('expanded');
         toggle.classList.add('collapsed');
     });
-
-    console.log('Collapsed all nodes');
 }
 
 // Event listeners - inicializace až po načtení DOM
 function initSpatialTreeListeners() {
-    console.log('Initializing spatial tree listeners...');
     const toggleBtn = document.getElementById('toggleSpatialTreeBtn');
     const closeBtn = document.getElementById('closeSpatialTreeBtn');
     const overlay = document.getElementById('spatialTreeOverlay');
@@ -4234,37 +4024,22 @@ function initSpatialTreeListeners() {
     // DŮLEŽITÉ: Zajistit, že panel začne ve skrytém stavu
     if (panel) {
         panel.classList.remove('open');
-        console.log('Panel initial state: closed');
     }
     if (overlay) {
         overlay.classList.remove('visible');
-        console.log('Overlay initial state: hidden');
     }
 
     // Reset stavu
     spatialTreeOpen = false;
 
-    console.log('Toggle button:', toggleBtn);
-    console.log('Close button:', closeBtn);
-    console.log('Overlay:', overlay);
-
     if (toggleBtn) {
         toggleBtn.addEventListener('click', toggleSpatialTree);
-        console.log('Toggle button listener attached');
-    } else {
-        console.error('Toggle button not found!');
     }
     if (closeBtn) {
         closeBtn.addEventListener('click', closeSpatialTree);
-        console.log('Close button listener attached');
-    } else {
-        console.error('Close button not found!');
     }
     if (overlay) {
         overlay.addEventListener('click', closeSpatialTree);
-        console.log('Overlay listener attached');
-    } else {
-        console.error('Overlay not found!');
     }
 }
 

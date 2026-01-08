@@ -53,20 +53,82 @@ function updateProgress(percent, text = '') {
     }
 }
 
-// Show error message
+/**
+ * Show error message in a designated error element
+ * @param {string} message - Error message to display
+ * @param {string} containerId - ID of the error element (default: 'errorMessage')
+ */
 function showError(message, containerId = 'errorMessage') {
     const errorElement = document.getElementById(containerId);
     if (errorElement) {
         errorElement.textContent = message;
         errorElement.style.display = 'block';
+        errorElement.classList.remove('success', 'warning');
+        errorElement.classList.add('error');
     }
 }
 
-// Hide error message
+/**
+ * Hide error message
+ * @param {string} containerId - ID of the error element (default: 'errorMessage')
+ */
 function hideError(containerId = 'errorMessage') {
     const errorElement = document.getElementById(containerId);
     if (errorElement) {
         errorElement.style.display = 'none';
+    }
+}
+
+/**
+ * Show success message in a designated element
+ * @param {string} message - Success message to display
+ * @param {string} containerId - ID of the message element (default: 'errorMessage')
+ * @param {number} autoHideMs - Auto-hide after milliseconds (0 = no auto-hide)
+ */
+function showSuccess(message, containerId = 'errorMessage', autoHideMs = 3000) {
+    const element = document.getElementById(containerId);
+    if (element) {
+        element.textContent = message;
+        element.style.display = 'block';
+        element.classList.remove('error', 'warning');
+        element.classList.add('success');
+
+        if (autoHideMs > 0) {
+            setTimeout(() => hideError(containerId), autoHideMs);
+        }
+    }
+}
+
+/**
+ * Show warning message in a designated element
+ * @param {string} message - Warning message to display
+ * @param {string} containerId - ID of the message element (default: 'errorMessage')
+ */
+function showWarning(message, containerId = 'errorMessage') {
+    const element = document.getElementById(containerId);
+    if (element) {
+        element.textContent = message;
+        element.style.display = 'block';
+        element.classList.remove('error', 'success');
+        element.classList.add('warning');
+    }
+}
+
+/**
+ * Show message with auto-hide functionality
+ * @param {string} message - Message to display
+ * @param {string} containerId - ID of the message element
+ * @param {number} hideAfterMs - Hide after milliseconds (default: 5000)
+ */
+function showTemporaryMessage(message, containerId = 'errorMessage', hideAfterMs = 5000) {
+    const element = document.getElementById(containerId);
+    if (element) {
+        element.textContent = message;
+        element.style.display = 'block';
+
+        setTimeout(() => {
+            element.style.display = 'none';
+        }, hideAfterMs);
     }
 }
 

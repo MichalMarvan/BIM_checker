@@ -32,7 +32,8 @@ class PerformanceMonitor {
         this.maxHistoryLength = 60; // Keep last 60 samples
         this.lastFrameTime = performance.now();
         this.frameCount = 0;
-        
+        this.memoryIntervalId = null; // Store interval ID for cleanup
+
         if (this.enabled) {
             this.init();
         }
@@ -181,7 +182,7 @@ class PerformanceMonitor {
         
         // Monitor memory (if available)
         if (performance.memory) {
-            setInterval(() => {
+            this.memoryIntervalId = setInterval(() => {
                 this.metrics.memory = Math.round(performance.memory.usedJSHeapSize / 1048576);
                 this.updateHistory();
                 this.updatePanel();
@@ -415,6 +416,12 @@ class PerformanceMonitor {
     }
 
     destroy() {
+        // Clear memory monitoring interval
+        if (this.memoryIntervalId) {
+            clearInterval(this.memoryIntervalId);
+            this.memoryIntervalId = null;
+        }
+
         if (this.panel) {
             this.panel.remove();
         }

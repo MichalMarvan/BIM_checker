@@ -1,3 +1,11 @@
+// XSS prevention utility
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const str = String(text);
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
 
 let ifcFiles = [];
 let idsFiles = [];
@@ -105,6 +113,9 @@ function handleIDSFiles(files) {
                 showError(t('validator.error.idsLoadError') + ' ' + file.name + ': ' + error.message);
             }
         };
+        reader.onerror = () => {
+            showError(t('validator.error.idsLoadError') + ' ' + file.name + ': ' + (reader.error?.message || 'Unknown error'));
+        };
         reader.readAsText(file);
     });
 }
@@ -118,12 +129,24 @@ function updateIFCFileList() {
 
     if (ifcFiles.length > 0) {
         box.classList.add('has-files');
-        list.innerHTML = ifcFiles.map((file, idx) => `
-            <div class="file-item">
-                <span class="file-item-name">${file.name}</span>
-                <button class="file-remove" onclick="removeIFCFile(${idx})">×</button>
-            </div>
-        `).join('');
+        list.innerHTML = '';
+        ifcFiles.forEach((file, idx) => {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+
+            const span = document.createElement('span');
+            span.className = 'file-item-name';
+            span.textContent = file.name;
+
+            const btn = document.createElement('button');
+            btn.className = 'file-remove';
+            btn.textContent = '×';
+            btn.addEventListener('click', () => removeIFCFile(idx));
+
+            div.appendChild(span);
+            div.appendChild(btn);
+            list.appendChild(div);
+        });
     } else {
         box.classList.remove('has-files');
         list.innerHTML = '';
@@ -139,12 +162,24 @@ function updateIDSFileList() {
 
     if (idsFiles.length > 0) {
         box.classList.add('has-files');
-        list.innerHTML = idsFiles.map((file, idx) => `
-            <div class="file-item">
-                <span class="file-item-name">${file.fileName}</span>
-                <button class="file-remove" onclick="removeIDSFile(${idx})">×</button>
-            </div>
-        `).join('');
+        list.innerHTML = '';
+        idsFiles.forEach((file, idx) => {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+
+            const span = document.createElement('span');
+            span.className = 'file-item-name';
+            span.textContent = file.fileName;
+
+            const btn = document.createElement('button');
+            btn.className = 'file-remove';
+            btn.textContent = '×';
+            btn.addEventListener('click', () => removeIDSFile(idx));
+
+            div.appendChild(span);
+            div.appendChild(btn);
+            list.appendChild(div);
+        });
     } else {
         box.classList.remove('has-files');
         list.innerHTML = '';
@@ -161,11 +196,6 @@ function removeIDSFile(index) {
     idsFiles.splice(index, 1);
     updateIDSFileList();
     updateValidateButton();
-}
-
-function updateValidateButton() {
-    const btn = document.getElementById('validateBtn');
-    btn.disabled = !(ifcFiles.length > 0 && idsFiles.length > 0);
 }
 
 function showError(message) {
@@ -465,9 +495,11 @@ async function parseIFCFileAsync(content, fileName) {
                     for (let [relId, rel] of relDefinesMap) {
                         if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
                             const psetId = rel.relatingPropertyDefinition;
-                            if (propertySetMap.has(psetId)) {
+                            if (psetId && propertySetMap.has(psetId)) {
                                 const pset = propertySetMap.get(psetId);
-                                propertySets[pset.name] = pset.properties;
+                                if (pset && pset.name) {
+                                    propertySets[pset.name] = pset.properties;
+                                }
                             }
                         }
                     }
@@ -537,9 +569,11 @@ function parseIFCFile(content, fileName) {
                 for (let [relId, rel] of relDefinesMap) {
                     if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
                         const psetId = rel.relatingPropertyDefinition;
-                        if (propertySetMap.has(psetId)) {
+                        if (psetId && propertySetMap.has(psetId)) {
                             const pset = propertySetMap.get(psetId);
-                            propertySets[pset.name] = pset.properties;
+                            if (pset && pset.name) {
+                                propertySets[pset.name] = pset.properties;
+                            }
                         }
                     }
                 }
@@ -1030,27 +1064,32 @@ function displayStats() {
 
     statsContainer.innerHTML = `
         <div class="stat-card">
-            <div class="stat-number">${totalValidations}</div>
-            <div class="stat-label">${t('validator.stats.idsFiles')}</div>
+            <div class="stat-number">${escapeHtml(totalValidations)}</div>
+            <div class="stat-label">${escapeHtml(t('validator.stats.idsFiles'))}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">${totalEntities}</div>
-            <div class="stat-label">${t('validator.stats.totalValidations')}</div>
+            <div class="stat-number">${escapeHtml(totalEntities)}</div>
+            <div class="stat-label">${escapeHtml(t('validator.stats.totalValidations'))}</div>
         </div>
         <div class="stat-card pass">
-            <div class="stat-number">${totalPass}</div>
-            <div class="stat-label">✅ ${t('validator.stats.passed')}</div>
+            <div class="stat-number">${escapeHtml(totalPass)}</div>
+            <div class="stat-label">✅ ${escapeHtml(t('validator.stats.passed'))}</div>
         </div>
         <div class="stat-card fail">
-            <div class="stat-number">${totalFail}</div>
-            <div class="stat-label">❌ ${t('validator.stats.failed')}</div>
+            <div class="stat-number">${escapeHtml(totalFail)}</div>
+            <div class="stat-label">❌ ${escapeHtml(t('validator.stats.failed'))}</div>
         </div>
     `;
 }
 
 function populateSpecFilter() {
     const select = document.getElementById('specFilter');
-    select.innerHTML = `<option value="">${t('validator.stats.allIds')}</option>`;
+    select.innerHTML = '';
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = t('validator.stats.allIds');
+    select.appendChild(defaultOption);
 
     for (let idsResult of validationResults) {
         const option = document.createElement('option');
@@ -1109,20 +1148,20 @@ function createIDSResultElement(idsResult) {
 
     const headerDiv = document.createElement('div');
     headerDiv.className = 'spec-header';
-    headerDiv.onclick = () => toggleSpecification(div);
+    headerDiv.addEventListener('click', () => toggleSpecification(div));
 
     headerDiv.innerHTML = `
         <div class="spec-title">
             <span class="expand-icon">▼</span>
-            <span class="spec-name">📋 ${idsResult.idsTitle}</span>
+            <span class="spec-name">📋 ${escapeHtml(idsResult.idsTitle)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
             <div class="spec-stats">
-                <span>✅ ${totalPass}</span>
-                <span>❌ ${totalFail}</span>
+                <span>✅ ${escapeHtml(totalPass)}</span>
+                <span>❌ ${escapeHtml(totalFail)}</span>
             </div>
-            <span class="spec-status-badge ${status}">
-                ${status === 'pass' ? '✅ ' + t('validator.status.passed') : '❌ ' + t('validator.status.failed')}
+            <span class="spec-status-badge ${escapeHtml(status)}">
+                ${status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.passed')) : '❌ ' + escapeHtml(t('validator.status.failed'))}
             </span>
         </div>
     `;
@@ -1164,7 +1203,7 @@ function createIFCResultElement(ifcResult) {
 
     const header = document.createElement('div');
     header.style.cssText = 'background: #e9ecef; padding: 12px 15px; border-radius: 6px; font-weight: 600; color: #495057; margin-bottom: 10px; cursor: pointer;';
-    header.onclick = () => {
+    header.addEventListener('click', () => {
         const content = header.nextElementSibling;
         const icon = header.querySelector('.toggle-icon');
         if (content.style.display === 'none') {
@@ -1174,12 +1213,12 @@ function createIFCResultElement(ifcResult) {
             content.style.display = 'none';
             icon.textContent = '▶';
         }
-    };
+    });
     header.innerHTML = `
         <span class="toggle-icon">▼</span>
-        📦 ${ifcResult.ifcFileName}
+        📦 ${escapeHtml(ifcResult.ifcFileName)}
         <span style="margin-left: 15px; font-size: 0.9em; color: #6c757d;">
-            ✅ ${totalPass} | ❌ ${totalFail}
+            ✅ ${escapeHtml(totalPass)} | ❌ ${escapeHtml(totalFail)}
         </span>
     `;
 
@@ -1207,20 +1246,20 @@ function createSpecificationResultElement(specResult) {
 
     const headerDiv = document.createElement('div');
     headerDiv.className = 'spec-header';
-    headerDiv.onclick = () => toggleSpecification(div);
+    headerDiv.addEventListener('click', () => toggleSpecification(div));
 
     headerDiv.innerHTML = `
         <div class="spec-title">
             <span class="expand-icon">▼</span>
-            <span class="spec-name">${specResult.specification}</span>
+            <span class="spec-name">${escapeHtml(specResult.specification)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
             <div class="spec-stats">
-                <span>✅ ${specResult.passCount}</span>
-                <span>❌ ${specResult.failCount}</span>
+                <span>✅ ${escapeHtml(specResult.passCount)}</span>
+                <span>❌ ${escapeHtml(specResult.failCount)}</span>
             </div>
-            <span class="spec-status-badge ${specResult.status}">
-                ${specResult.status === 'pass' ? '✅ ' + t('validator.status.ok') : '❌ ' + t('validator.status.fail')}
+            <span class="spec-status-badge ${escapeHtml(specResult.status)}">
+                ${specResult.status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.ok')) : '❌ ' + escapeHtml(t('validator.status.fail'))}
             </span>
         </div>
     `;
@@ -1241,7 +1280,7 @@ function createSpecificationResultElement(specResult) {
 
 function createEntityResultElement(entityResult) {
     const div = document.createElement('div');
-    div.className = `entity-result ${entityResult.status}`;
+    div.className = `entity-result ${escapeHtml(entityResult.status)}`;
     div.dataset.entity = entityResult.entity;
     div.dataset.name = entityResult.name;
     div.dataset.guid = entityResult.guid;
@@ -1253,11 +1292,11 @@ function createEntityResultElement(entityResult) {
         for (let validation of entityResult.validations) {
             const icon = validation.status === 'pass' ? '✅' : '❌';
             validationsHTML += `
-                <div class="validation-item ${validation.status}">
+                <div class="validation-item ${escapeHtml(validation.status)}">
                     <span class="validation-icon">${icon}</span>
                     <div class="validation-message">
-                        <div class="validation-label">${validation.message}</div>
-                        <div class="validation-value">${validation.details}</div>
+                        <div class="validation-label">${escapeHtml(validation.message)}</div>
+                        <div class="validation-value">${escapeHtml(validation.details)}</div>
                     </div>
                 </div>
             `;
@@ -1268,13 +1307,13 @@ function createEntityResultElement(entityResult) {
     div.innerHTML = `
         <div class="entity-header">
             <div class="entity-info">
-                <div class="entity-type">${entityResult.entity}</div>
-                <div class="entity-name">Name: ${entityResult.name}</div>
-                <div class="entity-guid">GUID: ${entityResult.guid}</div>
-                <div class="entity-name" style="font-size: 0.85em; color: #6c757d;">File: ${entityResult.fileName}</div>
+                <div class="entity-type">${escapeHtml(entityResult.entity)}</div>
+                <div class="entity-name">Name: ${escapeHtml(entityResult.name)}</div>
+                <div class="entity-guid">GUID: ${escapeHtml(entityResult.guid)}</div>
+                <div class="entity-name" style="font-size: 0.85em; color: #6c757d;">File: ${escapeHtml(entityResult.fileName)}</div>
             </div>
-            <span class="entity-status ${entityResult.status}">
-                ${entityResult.status === 'pass' ? '✅ ' + t('validator.status.ok') : '❌ ' + t('validator.status.fail')}
+            <span class="entity-status ${escapeHtml(entityResult.status)}">
+                ${entityResult.status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.ok')) : '❌ ' + escapeHtml(t('validator.status.fail'))}
             </span>
         </div>
         ${validationsHTML}
@@ -1616,74 +1655,176 @@ function renderValidationGroups() {
     const container = document.getElementById('validationGroups');
 
     if (validationGroups.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 60px; color: #a0aec0;">
-                <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
-                <h3 style="color: #6c757d;">${t('validator.group.noGroups')}</h3>
-                <p>${t('validator.group.clickToAdd')}</p>
-            </div>
-        `;
+        container.innerHTML = '';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'text-align: center; padding: 60px; color: #a0aec0;';
+
+        const iconDiv = document.createElement('div');
+        iconDiv.style.cssText = 'font-size: 4em; margin-bottom: 20px;';
+        iconDiv.textContent = '📋';
+
+        const h3 = document.createElement('h3');
+        h3.style.color = '#6c757d';
+        h3.textContent = t('validator.group.noGroups');
+
+        const p = document.createElement('p');
+        p.textContent = t('validator.group.clickToAdd');
+
+        emptyDiv.appendChild(iconDiv);
+        emptyDiv.appendChild(h3);
+        emptyDiv.appendChild(p);
+        container.appendChild(emptyDiv);
         return;
     }
 
-    let html = '';
+    container.innerHTML = '';
     validationGroups.forEach((group, index) => {
-        html += `
-            <div class="validation-group" id="group-${index}">
-                <div class="group-header">
-                    <div class="group-title">📊 ${t('validator.group.title')} ${index + 1}</div>
-                    <button class="group-delete-btn" onclick="deleteValidationGroup(${index})">🗑️ ${t('validator.group.delete')}</button>
-                </div>
-                <div class="group-content">
-                    <div class="group-section">
-                        <h4>📦 ${t('validator.group.ifcFiles')} (${group.ifcFiles.length})</h4>
-                        <button class="storage-btn" onclick="openIfcStoragePicker(${index})">
-                            📂 ${t('validator.group.selectStorage')}
-                        </button>
-                        <div class="drop-zone" data-group-index="${index}" data-type="ifc">
-                            <div class="drop-zone-content">
-                                <span class="drop-zone-icon">📁</span>
-                                <span class="drop-zone-text">${t('validator.group.dropIfc')}</span>
-                                <span class="drop-zone-hint">${t('validator.group.orSelect')}</span>
-                            </div>
-                        </div>
-                        <div class="selected-files-list" id="ifc-files-${index}">
-                            ${group.ifcFiles.length === 0 ? `<p style="color: #a0aec0; text-align: center; padding: 20px;">${t('validator.group.noFiles')}</p>` : ''}
-                            ${group.ifcFiles.map(file => `
-                                <div class="selected-file-item">
-                                    <span class="file-icon">📄</span>
-                                    <span class="file-name">${file.name}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    <div class="group-section">
-                        <h4>📋 ${t('validator.group.idsSpec')}</h4>
-                        <button class="storage-btn" onclick="openIdsStoragePicker(${index})">
-                            📂 ${t('validator.group.selectStorage')}
-                        </button>
-                        <div class="drop-zone" data-group-index="${index}" data-type="ids">
-                            <div class="drop-zone-content">
-                                <span class="drop-zone-icon">📋</span>
-                                <span class="drop-zone-text">${t('validator.group.dropIds')}</span>
-                                <span class="drop-zone-hint">${t('validator.group.orSelect')}</span>
-                            </div>
-                        </div>
-                        <div class="selected-files-list">
-                            ${group.idsFile ? `
-                                <div class="selected-file-item">
-                                    <span class="file-icon">📋</span>
-                                    <span class="file-name">${group.idsFile.name}</span>
-                                </div>
-                            ` : `<p style="color: #a0aec0; text-align: center; padding: 20px;">${t('validator.group.noFile')}</p>`}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'validation-group';
+        groupDiv.id = `group-${index}`;
 
-    container.innerHTML = html;
+        // Group header
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'group-header';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'group-title';
+        titleDiv.textContent = `📊 ${t('validator.group.title')} ${index + 1}`;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'group-delete-btn';
+        deleteBtn.textContent = `🗑️ ${t('validator.group.delete')}`;
+        deleteBtn.addEventListener('click', () => deleteValidationGroup(index));
+
+        headerDiv.appendChild(titleDiv);
+        headerDiv.appendChild(deleteBtn);
+
+        // Group content
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'group-content';
+
+        // IFC Section
+        const ifcSection = document.createElement('div');
+        ifcSection.className = 'group-section';
+
+        const ifcH4 = document.createElement('h4');
+        ifcH4.textContent = `📦 ${t('validator.group.ifcFiles')} (${group.ifcFiles.length})`;
+
+        const ifcStorageBtn = document.createElement('button');
+        ifcStorageBtn.className = 'storage-btn';
+        ifcStorageBtn.textContent = `📂 ${t('validator.group.selectStorage')}`;
+        ifcStorageBtn.addEventListener('click', () => openIfcStoragePicker(index));
+
+        const ifcDropZone = document.createElement('div');
+        ifcDropZone.className = 'drop-zone';
+        ifcDropZone.dataset.groupIndex = index;
+        ifcDropZone.dataset.type = 'ifc';
+
+        const ifcDropContent = document.createElement('div');
+        ifcDropContent.className = 'drop-zone-content';
+        ifcDropContent.innerHTML = `
+            <span class="drop-zone-icon">📁</span>
+            <span class="drop-zone-text">${escapeHtml(t('validator.group.dropIfc'))}</span>
+            <span class="drop-zone-hint">${escapeHtml(t('validator.group.orSelect'))}</span>
+        `;
+        ifcDropZone.appendChild(ifcDropContent);
+
+        const ifcFilesList = document.createElement('div');
+        ifcFilesList.className = 'selected-files-list';
+        ifcFilesList.id = `ifc-files-${index}`;
+
+        if (group.ifcFiles.length === 0) {
+            const noFilesP = document.createElement('p');
+            noFilesP.style.cssText = 'color: #a0aec0; text-align: center; padding: 20px;';
+            noFilesP.textContent = t('validator.group.noFiles');
+            ifcFilesList.appendChild(noFilesP);
+        } else {
+            group.ifcFiles.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'selected-file-item';
+
+                const fileIcon = document.createElement('span');
+                fileIcon.className = 'file-icon';
+                fileIcon.textContent = '📄';
+
+                const fileName = document.createElement('span');
+                fileName.className = 'file-name';
+                fileName.textContent = file.name;
+
+                fileItem.appendChild(fileIcon);
+                fileItem.appendChild(fileName);
+                ifcFilesList.appendChild(fileItem);
+            });
+        }
+
+        ifcSection.appendChild(ifcH4);
+        ifcSection.appendChild(ifcStorageBtn);
+        ifcSection.appendChild(ifcDropZone);
+        ifcSection.appendChild(ifcFilesList);
+
+        // IDS Section
+        const idsSection = document.createElement('div');
+        idsSection.className = 'group-section';
+
+        const idsH4 = document.createElement('h4');
+        idsH4.textContent = `📋 ${t('validator.group.idsSpec')}`;
+
+        const idsStorageBtn = document.createElement('button');
+        idsStorageBtn.className = 'storage-btn';
+        idsStorageBtn.textContent = `📂 ${t('validator.group.selectStorage')}`;
+        idsStorageBtn.addEventListener('click', () => openIdsStoragePicker(index));
+
+        const idsDropZone = document.createElement('div');
+        idsDropZone.className = 'drop-zone';
+        idsDropZone.dataset.groupIndex = index;
+        idsDropZone.dataset.type = 'ids';
+
+        const idsDropContent = document.createElement('div');
+        idsDropContent.className = 'drop-zone-content';
+        idsDropContent.innerHTML = `
+            <span class="drop-zone-icon">📋</span>
+            <span class="drop-zone-text">${escapeHtml(t('validator.group.dropIds'))}</span>
+            <span class="drop-zone-hint">${escapeHtml(t('validator.group.orSelect'))}</span>
+        `;
+        idsDropZone.appendChild(idsDropContent);
+
+        const idsFilesList = document.createElement('div');
+        idsFilesList.className = 'selected-files-list';
+
+        if (group.idsFile) {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'selected-file-item';
+
+            const fileIcon = document.createElement('span');
+            fileIcon.className = 'file-icon';
+            fileIcon.textContent = '📋';
+
+            const fileName = document.createElement('span');
+            fileName.className = 'file-name';
+            fileName.textContent = group.idsFile.name;
+
+            fileItem.appendChild(fileIcon);
+            fileItem.appendChild(fileName);
+            idsFilesList.appendChild(fileItem);
+        } else {
+            const noFileP = document.createElement('p');
+            noFileP.style.cssText = 'color: #a0aec0; text-align: center; padding: 20px;';
+            noFileP.textContent = t('validator.group.noFile');
+            idsFilesList.appendChild(noFileP);
+        }
+
+        idsSection.appendChild(idsH4);
+        idsSection.appendChild(idsStorageBtn);
+        idsSection.appendChild(idsDropZone);
+        idsSection.appendChild(idsFilesList);
+
+        contentDiv.appendChild(ifcSection);
+        contentDiv.appendChild(idsSection);
+
+        groupDiv.appendChild(headerDiv);
+        groupDiv.appendChild(contentDiv);
+        container.appendChild(groupDiv);
+    });
 
     // Add drop zone event listeners
     setupDropZones();
@@ -1797,16 +1938,6 @@ async function handleIdsDrop(files, groupIndex) {
     updateValidateButton();
 }
 
-// Helper function to read file as text
-function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(e);
-        reader.readAsText(file);
-    });
-}
-
 // Update validate button
 function updateValidateButton() {
     const btn = document.getElementById('validateBtn');
@@ -1841,6 +1972,53 @@ function closeIfcStorageModal() {
     document.getElementById('ifcStorageModal').classList.remove('active');
 }
 
+// Setup IFC tree event listeners (delegated)
+function setupIfcTreeEventListeners() {
+    const tree = document.getElementById('ifcStorageTree');
+    if (!tree) return;
+
+    // Use event delegation - single listener on parent
+    tree.addEventListener('click', (e) => {
+        const target = e.target;
+
+        // Folder toggle (arrow or name)
+        if (target.classList.contains('ifc-folder-toggle')) {
+            e.stopPropagation();
+            const folderId = target.dataset.folderId;
+            if (folderId) toggleIfcFolder(folderId);
+            return;
+        }
+
+        // Folder checkbox
+        if (target.classList.contains('ifc-folder-checkbox')) {
+            e.stopPropagation();
+            e.preventDefault();
+            const folderId = target.dataset.folderId;
+            if (folderId) selectAllIfcFilesInFolder(folderId);
+            return;
+        }
+
+        // File item (div or checkbox)
+        if (target.classList.contains('ifc-file-item') || target.closest('.ifc-file-item')) {
+            const fileItem = target.classList.contains('ifc-file-item') ? target : target.closest('.ifc-file-item');
+            const fileId = fileItem.dataset.fileId;
+            if (fileId) {
+                e.stopPropagation();
+                toggleIfcFileSelection(fileId);
+            }
+            return;
+        }
+
+        // File checkbox
+        if (target.classList.contains('ifc-file-checkbox')) {
+            e.stopPropagation();
+            const fileId = target.dataset.fileId;
+            if (fileId) toggleIfcFileSelection(fileId);
+            return;
+        }
+    });
+}
+
 // Render IFC storage tree
 async function renderIfcStorageTree() {
     // Use pre-loaded metadata if available (instant!)
@@ -1849,6 +2027,7 @@ async function renderIfcStorageTree() {
         const html = renderIfcFolderRecursive('root', 0);
         document.getElementById('ifcStorageTree').innerHTML = html;
         document.getElementById('ifcSelectedCount').textContent = selectedIfcFiles.size;
+        setupIfcTreeEventListeners();
         return;
     }
 
@@ -1862,7 +2041,11 @@ async function renderIfcStorageTree() {
             const fullData = request.result?.value;
 
             if (!fullData || !fullData.files || Object.keys(fullData.files).length === 0) {
-                document.getElementById('ifcStorageTree').innerHTML = `<p class="storage-empty-message">${t('validator.storage.noIfcFiles')}</p>`;
+                const emptyMsg = document.createElement('p');
+                emptyMsg.className = 'storage-empty-message';
+                emptyMsg.textContent = t('validator.storage.noIfcFiles');
+                document.getElementById('ifcStorageTree').innerHTML = '';
+                document.getElementById('ifcStorageTree').appendChild(emptyMsg);
                 resolve();
                 return;
             }
@@ -1889,6 +2072,7 @@ async function renderIfcStorageTree() {
             const html = renderIfcFolderRecursive('root', 0);
             document.getElementById('ifcStorageTree').innerHTML = html;
             document.getElementById('ifcSelectedCount').textContent = selectedIfcFiles.size;
+            setupIfcTreeEventListeners();
             resolve();
         };
 
@@ -1951,6 +2135,9 @@ function renderIfcFolderRecursive(folderId, level) {
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
 
+    // Sanitize folderId to prevent XSS (only allow alphanumeric, underscore, hyphen)
+    const safeFolderId = String(folderId).replace(/[^a-zA-Z0-9_-]/g, '');
+
     let html = '';
 
     if (folderId !== 'root') {
@@ -1961,11 +2148,11 @@ function renderIfcFolderRecursive(folderId, level) {
         html += `
             <div style="margin-bottom: 8px;">
                 <div class="tree-folder-header" style="margin-left: ${level * 20}px;">
-                    <span onclick="toggleIfcFolder('${folderId}')" class="tree-folder-arrow">${arrow}</span>
-                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllIfcFilesInFolder('${folderId}')" style="margin-right: 10px;" title="${t('viewer.selectAllInFolder')}">
-                    <span onclick="toggleIfcFolder('${folderId}')" class="tree-folder-name">
-                        📁 ${folder.name}
-                        ${allFolderFiles.length > 0 ? `<span class="tree-folder-count">(${allFolderFiles.length} ${t('viewer.files')})</span>` : ''}
+                    <span data-folder-id="${safeFolderId}" class="tree-folder-arrow ifc-folder-toggle">${arrow}</span>
+                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} data-folder-id="${safeFolderId}" class="ifc-folder-checkbox" style="margin-right: 10px;" title="${escapeHtml(t('viewer.selectAllInFolder'))}">
+                    <span data-folder-id="${safeFolderId}" class="tree-folder-name ifc-folder-toggle">
+                        📁 ${escapeHtml(folder.name)}
+                        ${allFolderFiles.length > 0 ? `<span class="tree-folder-count">(${allFolderFiles.length} ${escapeHtml(t('viewer.files'))})</span>` : ''}
                     </span>
                 </div>
         `;
@@ -1983,14 +2170,16 @@ function renderIfcFolderRecursive(folderId, level) {
                 const file = ifcStorageData.files[fileId];
                 if (!file) return;
 
+                // Sanitize fileId
+                const safeFileId = String(fileId).replace(/[^a-zA-Z0-9_-]/g, '');
                 const isSelected = selectedIfcFiles.has(fileId);
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
-                    <div onclick="toggleIfcFileSelection('${fileId}')"
-                         class="tree-file-item ${isSelected ? 'selected' : ''}" style="margin-left: ${(level + 1) * 20}px;">
-                        <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleIfcFileSelection('${fileId}');" style="margin-right: 10px;">
-                        <span class="tree-file-name">📄 ${file.name}</span>
-                        <span class="tree-file-size">${sizeKB} KB</span>
+                    <div data-file-id="${safeFileId}"
+                         class="tree-file-item ifc-file-item ${isSelected ? 'selected' : ''}" style="margin-left: ${(level + 1) * 20}px;">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} data-file-id="${safeFileId}" class="ifc-file-checkbox" style="margin-right: 10px;">
+                        <span class="tree-file-name">📄 ${escapeHtml(file.name)}</span>
+                        <span class="tree-file-size">${escapeHtml(sizeKB)} KB</span>
                     </div>
                 `;
             });
@@ -2096,6 +2285,44 @@ function closeIdsStorageModal() {
     document.getElementById('idsStorageModal').classList.remove('active');
 }
 
+// Setup IDS tree event listeners (delegated)
+function setupIdsTreeEventListeners() {
+    const tree = document.getElementById('idsStorageTree');
+    if (!tree) return;
+
+    // Use event delegation - single listener on parent
+    tree.addEventListener('click', (e) => {
+        const target = e.target;
+
+        // Folder toggle (arrow or name)
+        if (target.classList.contains('ids-folder-toggle')) {
+            e.stopPropagation();
+            const folderId = target.dataset.folderId;
+            if (folderId) toggleIdsFolder(folderId);
+            return;
+        }
+
+        // File item (div or radio)
+        if (target.classList.contains('ids-file-item') || target.closest('.ids-file-item')) {
+            const fileItem = target.classList.contains('ids-file-item') ? target : target.closest('.ids-file-item');
+            const fileId = fileItem.dataset.fileId;
+            if (fileId) {
+                e.stopPropagation();
+                selectIdsFile(fileId);
+            }
+            return;
+        }
+
+        // File radio
+        if (target.classList.contains('ids-file-radio')) {
+            e.stopPropagation();
+            const fileId = target.dataset.fileId;
+            if (fileId) selectIdsFile(fileId);
+            return;
+        }
+    });
+}
+
 // Render IDS storage tree (similar to IFC, but single-select)
 async function renderIdsStorageTree() {
     // Use pre-loaded metadata if available (instant!)
@@ -2104,6 +2331,7 @@ async function renderIdsStorageTree() {
         const html = renderIdsFolderRecursive('root', 0);
         document.getElementById('idsStorageTree').innerHTML = html;
         updateIdsSelectedName();
+        setupIdsTreeEventListeners();
         return;
     }
 
@@ -2117,7 +2345,11 @@ async function renderIdsStorageTree() {
             const fullData = request.result?.value;
 
             if (!fullData || !fullData.files || Object.keys(fullData.files).length === 0) {
-                document.getElementById('idsStorageTree').innerHTML = `<p class="storage-empty-message">${t('validator.storage.noIdsFiles')}</p>`;
+                const emptyMsg = document.createElement('p');
+                emptyMsg.className = 'storage-empty-message';
+                emptyMsg.textContent = t('validator.storage.noIdsFiles');
+                document.getElementById('idsStorageTree').innerHTML = '';
+                document.getElementById('idsStorageTree').appendChild(emptyMsg);
                 resolve();
                 return;
             }
@@ -2144,6 +2376,7 @@ async function renderIdsStorageTree() {
             const html = renderIdsFolderRecursive('root', 0);
             document.getElementById('idsStorageTree').innerHTML = html;
             updateIdsSelectedName();
+            setupIdsTreeEventListeners();
             resolve();
         };
 
@@ -2163,15 +2396,18 @@ function renderIdsFolderRecursive(folderId, level) {
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
 
+    // Sanitize folderId to prevent XSS (only allow alphanumeric, underscore, hyphen)
+    const safeFolderId = String(folderId).replace(/[^a-zA-Z0-9_-]/g, '');
+
     let html = '';
 
     if (folderId !== 'root') {
         html += `
             <div style="margin-bottom: 8px;">
                 <div class="tree-folder-header" style="margin-left: ${level * 20}px;">
-                    <span onclick="toggleIdsFolder('${folderId}')" class="tree-folder-arrow">${arrow}</span>
-                    <span onclick="toggleIdsFolder('${folderId}')" class="tree-folder-name">
-                        📁 ${folder.name}
+                    <span data-folder-id="${safeFolderId}" class="tree-folder-arrow ids-folder-toggle">${arrow}</span>
+                    <span data-folder-id="${safeFolderId}" class="tree-folder-name ids-folder-toggle">
+                        📁 ${escapeHtml(folder.name)}
                     </span>
                 </div>
         `;
@@ -2189,14 +2425,16 @@ function renderIdsFolderRecursive(folderId, level) {
                 const file = idsStorageData.files[fileId];
                 if (!file) return;
 
+                // Sanitize fileId
+                const safeFileId = String(fileId).replace(/[^a-zA-Z0-9_-]/g, '');
                 const isSelected = selectedIdsFile === fileId;
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
-                    <div onclick="selectIdsFile('${fileId}')"
-                         class="tree-file-item ${isSelected ? 'selected' : ''}" style="margin-left: ${(level + 1) * 20}px;">
-                        <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); selectIdsFile('${fileId}');" style="margin-right: 10px;">
-                        <span class="tree-file-name">📋 ${file.name}</span>
-                        <span class="tree-file-size">${sizeKB} KB</span>
+                    <div data-file-id="${safeFileId}"
+                         class="tree-file-item ids-file-item ${isSelected ? 'selected' : ''}" style="margin-left: ${(level + 1) * 20}px;">
+                        <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} data-file-id="${safeFileId}" class="ids-file-radio" style="margin-right: 10px;">
+                        <span class="tree-file-name">📋 ${escapeHtml(file.name)}</span>
+                        <span class="tree-file-size">${escapeHtml(sizeKB)} KB</span>
                     </div>
                 `;
             });

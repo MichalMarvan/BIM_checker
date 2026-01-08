@@ -28,8 +28,9 @@
   },
   "type": "module",
   "scripts": {
-    "test": "echo 'Open tests/test-runner.html in browser'",
-    "lint": "echo 'Linting not configured yet'",
+    "test": "node tests/run-tests.js",
+    "test:browser": "echo 'Open tests/test-runner.html in browser'",
+    "lint": "eslint assets/js/",
     "serve": "python3 -m http.server 8000"
   },
   "engines": {
@@ -40,5 +41,13 @@
     "last 2 versions",
     "not dead",
     "not IE 11"
-  ]
+  ],
+  "devDependencies": {
+    "eslint": "^9.39.2",
+    "globals": "^17.0.0",
+    "puppeteer": "^24.34.0"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
 }
