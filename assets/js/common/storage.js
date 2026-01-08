@@ -258,14 +258,20 @@ class StorageManager {
         };
 
         this.data.files[id] = fileMetadata;
-        this.metadata.files[id] = { ...fileMetadata };
-
         this.data.folders[folderId].files.push(id);
-        this.metadata.folders[folderId].files.push(id);
+
+        // Update metadata only if it's a different object than data
+        // (they share the same reference when loaded from IndexedDB)
+        if (this.metadata.files !== this.data.files) {
+            this.metadata.files[id] = { ...fileMetadata };
+        }
+        if (this.metadata.folders !== this.data.folders) {
+            this.metadata.folders[folderId].files.push(id);
+        }
 
         // Save file content separately in IndexedDB (huge performance win!)
         const contentKey = `${this.storageKey}_file_${id}`;
-        this.idb.set(contentKey, file.content).catch(err =>
+        await this.idb.set(contentKey, file.content).catch(err =>
             console.error('Failed to save file content:', err)
         );
 
@@ -313,7 +319,8 @@ class StorageManager {
         const oldFolder = this.data.folders[file.folder];
         if (oldFolder) {
             oldFolder.files = oldFolder.files.filter(id => id !== fileId);
-            if (this.metadata.folders[file.folder]) {
+            // Only update metadata if different reference
+            if (this.metadata.folders !== this.data.folders && this.metadata.folders[file.folder]) {
                 this.metadata.folders[file.folder].files = this.metadata.folders[file.folder].files.filter(id => id !== fileId);
             }
         }
@@ -321,8 +328,11 @@ class StorageManager {
         // Add to new folder
         file.folder = targetFolderId;
         this.data.folders[targetFolderId].files.push(fileId);
-        this.metadata.folders[targetFolderId].files.push(fileId);
-        if (this.metadata.files[fileId]) {
+        // Only update metadata if different reference
+        if (this.metadata.folders !== this.data.folders) {
+            this.metadata.folders[targetFolderId].files.push(fileId);
+        }
+        if (this.metadata.files !== this.data.files && this.metadata.files[fileId]) {
             this.metadata.files[fileId].folder = targetFolderId;
         }
 
