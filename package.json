@@ -46,8 +46,5 @@
     "eslint": "^9.39.2",
     "globals": "^17.0.0",
     "puppeteer": "^24.34.0"
-  },
-  "dependencies": {
-    "xlsx": "^0.18.5"
   }
 }

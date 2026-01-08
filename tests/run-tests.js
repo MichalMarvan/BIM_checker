@@ -137,17 +137,16 @@ async function runTests() {
                 suites.push({ name, tests });
             });
 
-            // Get summary
-            const summaryText = document.querySelector('.test-results')?.textContent || '';
-            const totalMatch = summaryText.match(/Total:\s*(\d+)/);
-            const passedMatch = summaryText.match(/Passed:\s*(\d+)/);
-            const failedMatch = summaryText.match(/Failed:\s*(\d+)/);
+            // Get summary from stat cards
+            const total = parseInt(document.getElementById('totalTests')?.textContent || '0');
+            const passed = parseInt(document.getElementById('passedTests')?.textContent || '0');
+            const failed = parseInt(document.getElementById('failedTests')?.textContent || '0');
 
             return {
                 suites,
-                total: totalMatch ? parseInt(totalMatch[1]) : 0,
-                passed: passedMatch ? parseInt(passedMatch[1]) : 0,
-                failed: failedMatch ? parseInt(failedMatch[1]) : 0
+                total,
+                passed,
+                failed
             };
         });
 
