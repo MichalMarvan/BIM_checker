@@ -5,9 +5,9 @@
 
 class IDSXMLGenerator {
     constructor() {
-        this.nsIds = "http://standards.buildingsmart.org/IDS";
-        this.nsXs = "http://www.w3.org/2001/XMLSchema";
-        this.nsXsi = "http://www.w3.org/2001/XMLSchema-instance";
+        this.nsIds = 'http://standards.buildingsmart.org/IDS';
+        this.nsXs = 'http://www.w3.org/2001/XMLSchema';
+        this.nsXsi = 'http://www.w3.org/2001/XMLSchema-instance';
     }
 
     /**
@@ -23,13 +23,27 @@ class IDSXMLGenerator {
         // Add info section
         xml += '  <info>\n';
         xml += `    <title>${this.escapeXml(idsData.title || 'IDS Specification')}</title>\n`;
-        if (idsData.copyright) xml += `    <copyright>${this.escapeXml(idsData.copyright)}</copyright>\n`;
-        if (idsData.version) xml += `    <version>${this.escapeXml(idsData.version)}</version>\n`;
-        if (idsData.description) xml += `    <description>${this.escapeXml(idsData.description)}</description>\n`;
-        if (idsData.author) xml += `    <author>${this.escapeXml(idsData.author)}</author>\n`;
-        if (idsData.date) xml += `    <date>${this.escapeXml(idsData.date)}</date>\n`;
-        if (idsData.purpose) xml += `    <purpose>${this.escapeXml(idsData.purpose)}</purpose>\n`;
-        if (idsData.milestone) xml += `    <milestone>${this.escapeXml(idsData.milestone)}</milestone>\n`;
+        if (idsData.copyright) {
+            xml += `    <copyright>${this.escapeXml(idsData.copyright)}</copyright>\n`;
+        }
+        if (idsData.version) {
+            xml += `    <version>${this.escapeXml(idsData.version)}</version>\n`;
+        }
+        if (idsData.description) {
+            xml += `    <description>${this.escapeXml(idsData.description)}</description>\n`;
+        }
+        if (idsData.author) {
+            xml += `    <author>${this.escapeXml(idsData.author)}</author>\n`;
+        }
+        if (idsData.date) {
+            xml += `    <date>${this.escapeXml(idsData.date)}</date>\n`;
+        }
+        if (idsData.purpose) {
+            xml += `    <purpose>${this.escapeXml(idsData.purpose)}</purpose>\n`;
+        }
+        if (idsData.milestone) {
+            xml += `    <milestone>${this.escapeXml(idsData.milestone)}</milestone>\n`;
+        }
         xml += '  </info>\n';
 
         // Add specifications
@@ -51,12 +65,24 @@ class IDSXMLGenerator {
     generateSpecificationString(specData, indent = '') {
         let xml = `${indent}<specification`;
         xml += ` name="${this.escapeXml(specData.name || 'Unnamed Specification')}"`;
-        if (specData.ifcVersion) xml += ` ifcVersion="${this.escapeXml(specData.ifcVersion)}"`;
-        if (specData.minOccurs !== undefined) xml += ` minOccurs="${specData.minOccurs}"`;
-        if (specData.maxOccurs !== undefined) xml += ` maxOccurs="${specData.maxOccurs}"`;
-        if (specData.identifier) xml += ` identifier="${this.escapeXml(specData.identifier)}"`;
-        if (specData.description) xml += ` description="${this.escapeXml(specData.description)}"`;
-        if (specData.instructions) xml += ` instructions="${this.escapeXml(specData.instructions)}"`;
+        if (specData.ifcVersion) {
+            xml += ` ifcVersion="${this.escapeXml(specData.ifcVersion)}"`;
+        }
+        if (specData.minOccurs !== undefined) {
+            xml += ` minOccurs="${specData.minOccurs}"`;
+        }
+        if (specData.maxOccurs !== undefined) {
+            xml += ` maxOccurs="${specData.maxOccurs}"`;
+        }
+        if (specData.identifier) {
+            xml += ` identifier="${this.escapeXml(specData.identifier)}"`;
+        }
+        if (specData.description) {
+            xml += ` description="${this.escapeXml(specData.description)}"`;
+        }
+        if (specData.instructions) {
+            xml += ` instructions="${this.escapeXml(specData.instructions)}"`;
+        }
         xml += '>\n';
 
         // Applicability
@@ -249,7 +275,9 @@ class IDSXMLGenerator {
      * Escape XML special characters
      */
     escapeXml(text) {
-        if (!text) return '';
+        if (!text) {
+            return '';
+        }
         return String(text)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')

@@ -139,7 +139,9 @@ class IDSEditorCore {
      * Convert facets to editor format
      */
     convertFacets(facets) {
-        if (!facets || !Array.isArray(facets)) return [];
+        if (!facets || !Array.isArray(facets)) {
+            return [];
+        }
 
         return facets.map(facet => {
             // Convert parser format to editor format
@@ -149,7 +151,9 @@ class IDSEditorCore {
 
             // Convert all properties that might be value objects
             Object.keys(facet).forEach(key => {
-                if (key === 'type') return;
+                if (key === 'type') {
+                    return;
+                }
 
                 const value = facet[key];
 
@@ -193,12 +197,24 @@ class IDSEditorCore {
      * Detect facet type from facet data
      */
     detectFacetType(facet) {
-        if (facet.name && facet.predefinedType !== undefined) return 'entity';
-        if (facet.propertySet) return 'property';
-        if (facet.name && !facet.propertySet) return 'attribute';
-        if (facet.system) return 'classification';
-        if (facet.value && Object.keys(facet).length <= 2) return 'material';
-        if (facet.entity) return 'partOf';
+        if (facet.name && facet.predefinedType !== undefined) {
+            return 'entity';
+        }
+        if (facet.propertySet) {
+            return 'property';
+        }
+        if (facet.name && !facet.propertySet) {
+            return 'attribute';
+        }
+        if (facet.system) {
+            return 'classification';
+        }
+        if (facet.value && Object.keys(facet).length <= 2) {
+            return 'material';
+        }
+        if (facet.entity) {
+            return 'partOf';
+        }
         return 'entity';
     }
 
@@ -296,7 +312,9 @@ class IDSEditorCore {
      * Restore collapsed state of all collapsible sections
      */
     restoreCollapsedState(state) {
-        if (!state) return;
+        if (!state) {
+            return;
+        }
 
         // Restore specification collapsed states
         document.querySelectorAll('.specification-item').forEach(spec => {
@@ -346,13 +364,27 @@ class IDSEditorCore {
         html += `<div><strong>Title:</strong> ${this.escapeHtml(info.title)}</div>`;
 
         // Ostatní pole zobrazit jen pokud mají hodnotu
-        if (info.version) html += `<div><strong>Version:</strong> ${this.escapeHtml(info.version)}</div>`;
-        if (info.author) html += `<div><strong>Author:</strong> ${this.escapeHtml(info.author)}</div>`;
-        if (info.date) html += `<div><strong>Date:</strong> ${this.escapeHtml(info.date)}</div>`;
-        if (info.copyright) html += `<div><strong>Copyright:</strong> ${this.escapeHtml(info.copyright)}</div>`;
-        if (info.description) html += `<div><strong>Description:</strong> ${this.escapeHtml(info.description)}</div>`;
-        if (info.purpose) html += `<div><strong>Purpose:</strong> ${this.escapeHtml(info.purpose)}</div>`;
-        if (info.milestone) html += `<div><strong>Milestone:</strong> ${this.escapeHtml(info.milestone)}</div>`;
+        if (info.version) {
+            html += `<div><strong>Version:</strong> ${this.escapeHtml(info.version)}</div>`;
+        }
+        if (info.author) {
+            html += `<div><strong>Author:</strong> ${this.escapeHtml(info.author)}</div>`;
+        }
+        if (info.date) {
+            html += `<div><strong>Date:</strong> ${this.escapeHtml(info.date)}</div>`;
+        }
+        if (info.copyright) {
+            html += `<div><strong>Copyright:</strong> ${this.escapeHtml(info.copyright)}</div>`;
+        }
+        if (info.description) {
+            html += `<div><strong>Description:</strong> ${this.escapeHtml(info.description)}</div>`;
+        }
+        if (info.purpose) {
+            html += `<div><strong>Purpose:</strong> ${this.escapeHtml(info.purpose)}</div>`;
+        }
+        if (info.milestone) {
+            html += `<div><strong>Milestone:</strong> ${this.escapeHtml(info.milestone)}</div>`;
+        }
 
         html += '</div>';
 
@@ -444,7 +476,7 @@ class IDSEditorCore {
         // Show cardinality badge for requirements section (except entity which is always required)
         const showCardinality = section === 'requirements' && facet.type !== 'entity' && facet.cardinality;
         const cardinalityBadge = showCardinality ? this.getFacetCardinalityBadge(facet.cardinality) : '';
-        let html = `
+        const html = `
             <div class="facet-item ${facet.type}-facet" data-spec="${specIndex}" data-section="${section}" data-facet="${facetIndex}">
                 <div class="facet-header">
                     <span class="facet-icon">${icon}</span>
@@ -473,7 +505,9 @@ class IDSEditorCore {
 
         Object.keys(facet).forEach(key => {
             // Skip type and cardinality (shown in header badge)
-            if (key === 'type' || key === 'cardinality') return;
+            if (key === 'type' || key === 'cardinality') {
+                return;
+            }
 
             const value = facet[key];
             if (typeof value === 'object') {
@@ -667,7 +701,9 @@ class IDSEditorCore {
      * Delete specification
      */
     deleteSpecification(index) {
-        if (!confirm(t('editor.confirmDeleteSpec'))) return;
+        if (!confirm(t('editor.confirmDeleteSpec'))) {
+            return;
+        }
 
         this.idsData.specifications.splice(index, 1);
         this.hasUnsavedChanges = true;
@@ -734,7 +770,9 @@ class IDSEditorCore {
      * Delete facet
      */
     deleteFacet(specIndex, section, facetIndex) {
-        if (!confirm(t('editor.confirmDeleteFacet'))) return;
+        if (!confirm(t('editor.confirmDeleteFacet'))) {
+            return;
+        }
 
         this.idsData.specifications[specIndex][section].splice(facetIndex, 1);
         this.hasUnsavedChanges = true;
@@ -888,7 +926,9 @@ class IDSEditorCore {
         sections.forEach(section => {
             const icon = section.querySelector('.collapse-icon');
             section.classList.add('collapsed');
-            if (icon) icon.textContent = '▶';
+            if (icon) {
+                icon.textContent = '▶';
+            }
         });
     }
 
@@ -900,7 +940,9 @@ class IDSEditorCore {
         sections.forEach(section => {
             const icon = section.querySelector('.collapse-icon');
             section.classList.remove('collapsed');
-            if (icon) icon.textContent = '▼';
+            if (icon) {
+                icon.textContent = '▼';
+            }
         });
     }
 

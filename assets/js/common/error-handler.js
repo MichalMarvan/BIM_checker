@@ -109,7 +109,9 @@ class ErrorHandler {
 
         cancelBtn.addEventListener('click', () => {
             close();
-            if (onCancel) onCancel();
+            if (onCancel) {
+                onCancel();
+            }
         });
 
         confirmBtn.addEventListener('click', () => {
@@ -121,7 +123,9 @@ class ErrorHandler {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
                 close();
-                if (onCancel) onCancel();
+                if (onCancel) {
+                    onCancel();
+                }
             }
         });
     }
@@ -179,20 +183,26 @@ class ErrorHandler {
 
         cancelBtn.addEventListener('click', () => {
             close();
-            if (onCancel) onCancel();
+            if (onCancel) {
+                onCancel();
+            }
         });
 
         confirmBtn.addEventListener('click', submit);
 
         input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') submit();
+            if (e.key === 'Enter') {
+                submit();
+            }
         });
 
         // Close on overlay click
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
                 close();
-                if (onCancel) onCancel();
+                if (onCancel) {
+                    onCancel();
+                }
             }
         });
     }
@@ -214,7 +224,9 @@ class ErrorHandler {
      * Escape HTML to prevent XSS
      */
     static escapeHtml(text) {
-        if (typeof text !== 'string') return text;
+        if (typeof text !== 'string') {
+            return text;
+        }
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;

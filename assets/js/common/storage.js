@@ -114,7 +114,7 @@ class StorageManager {
             };
 
             // Copy only metadata (no content)
-            for (let fileId in stored.files) {
+            for (const fileId in stored.files) {
                 const file = stored.files[fileId];
                 this.metadata.files[fileId] = {
                     id: file.id,
@@ -161,7 +161,9 @@ class StorageManager {
     // Folder operations
     async createFolder(name, parentId = 'root') {
         // Load full data if not loaded
-        if (!this.data) await this.load();
+        if (!this.data) {
+            await this.load();
+        }
 
         const id = 'folder_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         this.data.folders[id] = {
@@ -188,7 +190,9 @@ class StorageManager {
     }
 
     async renameFolder(folderId, newName) {
-        if (!this.data) await this.load();
+        if (!this.data) {
+            await this.load();
+        }
 
         if (this.data.folders[folderId]) {
             // Update both data and metadata synchronously
@@ -205,11 +209,17 @@ class StorageManager {
     }
 
     async deleteFolder(folderId, skipSave = false) {
-        if (folderId === 'root') return false;
-        if (!this.data) await this.load();
+        if (folderId === 'root') {
+            return false;
+        }
+        if (!this.data) {
+            await this.load();
+        }
 
         const folder = this.data.folders[folderId];
-        if (!folder) return false;
+        if (!folder) {
+            return false;
+        }
 
         // Delete all files in folder (synchronously update both data and metadata)
         folder.files.forEach(fileId => {
@@ -244,7 +254,9 @@ class StorageManager {
 
     // File operations
     async addFile(file, folderId = 'root') {
-        if (!this.data) await this.load();
+        if (!this.data) {
+            await this.load();
+        }
 
         // Verify target folder exists
         if (!this.data.folders[folderId]) {
@@ -287,10 +299,14 @@ class StorageManager {
     }
 
     async deleteFile(fileId) {
-        if (!this.data) await this.load();
+        if (!this.data) {
+            await this.load();
+        }
 
         const file = this.data.files[fileId];
-        if (!file) return false;
+        if (!file) {
+            return false;
+        }
 
         // Synchronously update both data and metadata
         const folder = this.data.folders[file.folder];
@@ -316,10 +332,14 @@ class StorageManager {
     }
 
     async moveFile(fileId, targetFolderId) {
-        if (!this.data) await this.load();
+        if (!this.data) {
+            await this.load();
+        }
 
         const file = this.data.files[fileId];
-        if (!file || !this.data.folders[targetFolderId]) return false;
+        if (!file || !this.data.folders[targetFolderId]) {
+            return false;
+        }
 
         // Remove from old folder
         const oldFolder = this.data.folders[file.folder];
@@ -360,7 +380,7 @@ class StorageManager {
     saveExpandedStates() {
         // Save only expanded states to localStorage (very fast!)
         const expandedStates = {};
-        for (let folderId in this.metadata.folders) {
+        for (const folderId in this.metadata.folders) {
             expandedStates[folderId] = this.metadata.folders[folderId].expanded;
         }
         localStorage.setItem(`${this.storageKey}_expanded`, JSON.stringify(expandedStates));
@@ -372,7 +392,7 @@ class StorageManager {
             const saved = localStorage.getItem(`${this.storageKey}_expanded`);
             if (saved) {
                 const expandedStates = JSON.parse(saved);
-                for (let folderId in expandedStates) {
+                for (const folderId in expandedStates) {
                     if (this.metadata.folders[folderId]) {
                         this.metadata.folders[folderId].expanded = expandedStates[folderId];
                     }
@@ -393,7 +413,9 @@ class StorageManager {
     async getFileWithContent(fileId) {
         // Get metadata from data structure
         const metadata = this.data?.files[fileId] || this.metadata?.files[fileId];
-        if (!metadata) return null;
+        if (!metadata) {
+            return null;
+        }
 
         // Load content separately
         const content = await this.getFileContent(fileId);
@@ -439,7 +461,9 @@ window.BIMStorage = {
     initialized: false,
 
     async init() {
-        if (this.initialized) return true;
+        if (this.initialized) {
+            return true;
+        }
 
         this.ifcStorage = new StorageManager('ifc_files');
         this.idsStorage = new StorageManager('ids_files');
@@ -452,7 +476,9 @@ window.BIMStorage = {
     },
 
     async saveFile(type, file, folderId = 'root') {
-        if (!this.initialized) await this.init();
+        if (!this.initialized) {
+            await this.init();
+        }
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
 
@@ -466,10 +492,14 @@ window.BIMStorage = {
     },
 
     async getFiles(type) {
-        if (!this.initialized) await this.init();
+        if (!this.initialized) {
+            await this.init();
+        }
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
-        if (!storage.data) await storage.load();
+        if (!storage.data) {
+            await storage.load();
+        }
 
         return Object.values(storage.data.files);
     },
@@ -484,14 +514,18 @@ window.BIMStorage = {
     },
 
     async getFileContent(type, fileId) {
-        if (!this.initialized) await this.init();
+        if (!this.initialized) {
+            await this.init();
+        }
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
         return await storage.getFileContent(fileId);
     },
 
     async getFileWithContent(type, nameOrId) {
-        if (!this.initialized) await this.init();
+        if (!this.initialized) {
+            await this.init();
+        }
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
 
@@ -499,7 +533,9 @@ window.BIMStorage = {
         let fileId = nameOrId;
         if (typeof nameOrId === 'string' && !nameOrId.startsWith('file_')) {
             const file = await this.getFile(type, nameOrId);
-            if (!file) return null;
+            if (!file) {
+                return null;
+            }
             fileId = file.id;
         }
 
@@ -507,14 +543,18 @@ window.BIMStorage = {
     },
 
     async deleteFile(type, nameOrId) {
-        if (!this.initialized) await this.init();
+        if (!this.initialized) {
+            await this.init();
+        }
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
 
         // If it's a name, find the file ID first
         if (typeof nameOrId === 'string' && !nameOrId.startsWith('file_')) {
             const file = await this.getFile(type, nameOrId);
-            if (!file) return false;
+            if (!file) {
+                return false;
+            }
             nameOrId = file.id;
         }
 
@@ -522,10 +562,14 @@ window.BIMStorage = {
     },
 
     async clearFiles(type) {
-        if (!this.initialized) await this.init();
+        if (!this.initialized) {
+            await this.init();
+        }
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
-        if (!storage.data) await storage.load();
+        if (!storage.data) {
+            await storage.load();
+        }
 
         // Delete all files
         const fileIds = Object.keys(storage.data.files);
@@ -537,7 +581,9 @@ window.BIMStorage = {
     },
 
     getStats(type) {
-        if (!this.initialized) return { fileCount: 0, totalSize: 0 };
+        if (!this.initialized) {
+            return { fileCount: 0, totalSize: 0 };
+        }
 
         const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
         return storage.getStats();

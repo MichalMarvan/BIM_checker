@@ -15,7 +15,7 @@ class VirtualTreeView {
             onCollapse: options.onCollapse || (() => {}),
             ...options
         };
-        
+
         this.data = [];
         this.flatData = [];
         this.expandedNodes = new Set();
@@ -23,7 +23,7 @@ class VirtualTreeView {
         this.scrollTop = 0;
         this.startIndex = 0;
         this.endIndex = 0;
-        
+
         this.init();
     }
 
@@ -36,11 +36,11 @@ class VirtualTreeView {
                 </div>
             </div>
         `;
-        
+
         this.treeElement = this.container.querySelector('.virtual-tree');
         this.scrollElement = this.container.querySelector('.virtual-tree-scroll');
         this.contentElement = this.container.querySelector('.virtual-tree-content');
-        
+
         // Set up event listeners
         this.treeElement.addEventListener('scroll', this.handleScroll.bind(this));
         this.contentElement.addEventListener('click', this.handleClick.bind(this));
@@ -54,24 +54,24 @@ class VirtualTreeView {
 
     flattenData() {
         this.flatData = [];
-        
+
         const flatten = (nodes, level = 0, parent = null) => {
-            for (let node of nodes) {
+            for (const node of nodes) {
                 const flatNode = {
                     ...node,
                     level,
                     parent,
                     visible: parent ? this.expandedNodes.has(parent.id) : true
                 };
-                
+
                 this.flatData.push(flatNode);
-                
+
                 if (node.children && this.expandedNodes.has(node.id)) {
                     flatten(node.children, level + 1, node);
                 }
             }
         };
-        
+
         flatten(this.data);
     }
 
@@ -83,14 +83,18 @@ class VirtualTreeView {
     handleClick(event) {
         const target = event.target;
         const nodeElement = target.closest('.tree-node');
-        
-        if (!nodeElement) return;
-        
+
+        if (!nodeElement) {
+            return;
+        }
+
         const nodeId = nodeElement.dataset.id;
         const node = this.flatData.find(n => n.id === nodeId);
-        
-        if (!node) return;
-        
+
+        if (!node) {
+            return;
+        }
+
         // Handle expand/collapse
         if (target.classList.contains('tree-expand')) {
             this.toggleExpand(node);
@@ -109,7 +113,7 @@ class VirtualTreeView {
             this.expandedNodes.add(node.id);
             this.options.onExpand(node);
         }
-        
+
         this.flattenData();
         this.render();
     }
@@ -119,13 +123,13 @@ class VirtualTreeView {
         if (!this.options.multiSelect) {
             this.selectedNodes.clear();
         }
-        
+
         if (this.selectedNodes.has(node.id)) {
             this.selectedNodes.delete(node.id);
         } else {
             this.selectedNodes.add(node.id);
         }
-        
+
         this.options.onSelect(node, this.selectedNodes);
         this.render();
     }
@@ -142,30 +146,32 @@ class VirtualTreeView {
             }
             return true;
         });
-        
+
         // Calculate visible range
         const totalHeight = visibleNodes.length * this.options.itemHeight;
         const viewportHeight = this.treeElement.clientHeight;
-        
+
         this.startIndex = Math.floor(this.scrollTop / this.options.itemHeight);
         this.endIndex = Math.min(
             visibleNodes.length,
             this.startIndex + Math.ceil(viewportHeight / this.options.itemHeight) + 1
         );
-        
+
         // Set scroll height
         this.scrollElement.style.height = `${totalHeight}px`;
-        
+
         // Render visible items
         let html = '';
         for (let i = this.startIndex; i < this.endIndex; i++) {
             const node = visibleNodes[i];
-            if (!node) continue;
-            
+            if (!node) {
+                continue;
+            }
+
             const top = i * this.options.itemHeight;
             html += this.renderNode(node, top);
         }
-        
+
         this.contentElement.innerHTML = html;
     }
 
@@ -173,11 +179,11 @@ class VirtualTreeView {
         const hasChildren = node.children && node.children.length > 0;
         const isExpanded = this.expandedNodes.has(node.id);
         const isSelected = this.selectedNodes.has(node.id);
-        
+
         const indent = node.level * 20;
-        const expandIcon = hasChildren ? 
+        const expandIcon = hasChildren ?
             (isExpanded ? '▼' : '▶') : '&nbsp;';
-        
+
         return `
             <div class="tree-node ${isSelected ? 'selected' : ''}" 
                  data-id="${node.id}"
@@ -196,14 +202,14 @@ class VirtualTreeView {
 
     expandAll() {
         const addToExpanded = (nodes) => {
-            for (let node of nodes) {
+            for (const node of nodes) {
                 if (node.children && node.children.length > 0) {
                     this.expandedNodes.add(node.id);
                     addToExpanded(node.children);
                 }
             }
         };
-        
+
         addToExpanded(this.data);
         this.flattenData();
         this.render();
@@ -218,41 +224,41 @@ class VirtualTreeView {
     search(query) {
         const results = [];
         const searchInNodes = (nodes, path = []) => {
-            for (let node of nodes) {
+            for (const node of nodes) {
                 const currentPath = [...path, node];
-                
+
                 if (node.label && node.label.toLowerCase().includes(query.toLowerCase())) {
                     results.push({
                         node,
                         path: currentPath
                     });
                 }
-                
+
                 if (node.children) {
                     searchInNodes(node.children, currentPath);
                 }
             }
         };
-        
+
         searchInNodes(this.data);
-        
+
         // Expand paths to results
-        for (let result of results) {
-            for (let node of result.path) {
+        for (const result of results) {
+            for (const node of result.path) {
                 if (node.children) {
                     this.expandedNodes.add(node.id);
                 }
             }
         }
-        
+
         this.flattenData();
         this.render();
-        
+
         return results;
     }
 
     getSelectedNodes() {
-        return Array.from(this.selectedNodes).map(id => 
+        return Array.from(this.selectedNodes).map(id =>
             this.flatData.find(node => node.id === id)
         ).filter(Boolean);
     }

@@ -27,7 +27,7 @@ class IFCStreamParser {
         try {
             while (true) {
                 const { done, value } = await reader.read();
-                
+
                 if (done) {
                     // Process remaining buffer
                     if (this.buffer.trim()) {
@@ -43,13 +43,13 @@ class IFCStreamParser {
                 // Decode chunk
                 const chunk = decoder.decode(value, { stream: true });
                 this.processedBytes += value.byteLength;
-                
+
                 // Add to buffer
                 this.buffer += chunk;
-                
+
                 // Process complete lines
                 this.processBuffer();
-                
+
                 // Report progress
                 const progress = (this.processedBytes / this.totalBytes) * 100;
                 this.onProgress({
@@ -65,13 +65,13 @@ class IFCStreamParser {
     }
 
     processBuffer() {
-        let lines = this.buffer.split('\n');
-        
+        const lines = this.buffer.split('\n');
+
         // Keep last incomplete line in buffer
         this.buffer = lines.pop() || '';
-        
+
         // Process complete lines
-        for (let line of lines) {
+        for (const line of lines) {
             this.processLine(line);
         }
     }
@@ -108,7 +108,9 @@ class IFCStreamParser {
     processLine(line) {
         line = line.trim();
 
-        if (!line) return;
+        if (!line) {
+            return;
+        }
 
         // Skip header lines until DATA section
         if (!this.headerProcessed) {
@@ -167,10 +169,12 @@ class IFCStreamParser {
         try {
             // Basic IFC entity parsing
             const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)\);?$/);
-            if (!match) return null;
-            
+            if (!match) {
+                return null;
+            }
+
             const [, id, type, argsStr] = match;
-            
+
             return {
                 id: parseInt(id),
                 type: type,
@@ -203,8 +207,12 @@ class IFCStreamParser {
             }
 
             if (!inString) {
-                if (char === '(') depth++;
-                if (char === ')') depth--;
+                if (char === '(') {
+                    depth++;
+                }
+                if (char === ')') {
+                    depth--;
+                }
                 if (char === ',' && depth === 0) {
                     args.push(this.parseValue(current.trim()));
                     current = '';
@@ -227,23 +235,31 @@ class IFCStreamParser {
         if (value.startsWith("'") && value.endsWith("'")) {
             return value.slice(1, -1);
         }
-        
+
         // Check for reference
         if (value.startsWith('#')) {
             return { ref: parseInt(value.slice(1)) };
         }
-        
+
         // Check for number
         if (!isNaN(value)) {
             return parseFloat(value);
         }
-        
+
         // Check for boolean/special values
-        if (value === '.T.') return true;
-        if (value === '.F.') return false;
-        if (value === '$') return null;
-        if (value === '*') return undefined;
-        
+        if (value === '.T.') {
+            return true;
+        }
+        if (value === '.F.') {
+            return false;
+        }
+        if (value === '$') {
+            return null;
+        }
+        if (value === '*') {
+            return undefined;
+        }
+
         return value;
     }
 }

@@ -97,7 +97,9 @@ const ThemeManager = {
      * @param {string} theme - Current theme name
      */
     updateIcons(theme) {
-        if (!this.lightIcon || !this.darkIcon) return;
+        if (!this.lightIcon || !this.darkIcon) {
+            return;
+        }
 
         if (theme === 'light') {
             // In light mode, show moon icon (to switch to dark)

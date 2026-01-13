@@ -1,6 +1,8 @@
 // XSS prevention utility
 function escapeHtml(text) {
-    if (text === null || text === undefined) return '';
+    if (text === null || text === undefined) {
+        return '';
+    }
     const str = String(text);
     const div = document.createElement('div');
     div.textContent = str;
@@ -10,7 +12,7 @@ function escapeHtml(text) {
 let ifcFiles = [];
 let idsFiles = [];
 let validationResults = null;
-let allEntities = [];
+const allEntities = [];
 
 // Upload handlers (with null checks)
 const ifcUploadBox = document.getElementById('ifcUploadBox');
@@ -47,7 +49,9 @@ if (idsInput) {
 // Drag and drop for IFC
 function setupDragDrop(boxId, inputId, handler) {
     const box = document.getElementById(boxId);
-    if (!box) return; // Skip if element doesn't exist
+    if (!box) {
+        return;
+    } // Skip if element doesn't exist
 
     box.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -125,7 +129,9 @@ function updateIFCFileList() {
     const box = document.getElementById('ifcUploadBox');
 
     // These elements don't exist on this page (old version), so skip
-    if (!list || !box) return;
+    if (!list || !box) {
+        return;
+    }
 
     if (ifcFiles.length > 0) {
         box.classList.add('has-files');
@@ -158,7 +164,9 @@ function updateIDSFileList() {
     const box = document.getElementById('idsUploadBox');
 
     // These elements don't exist on this page (old version), so skip
-    if (!list || !box) return;
+    if (!list || !box) {
+        return;
+    }
 
     if (idsFiles.length > 0) {
         box.classList.add('has-files');
@@ -253,7 +261,9 @@ function extractSpecifications(xmlDoc) {
 }
 
 function extractFacets(facetsElement) {
-    if (!facetsElement) return [];
+    if (!facetsElement) {
+        return [];
+    }
 
     const facets = [];
     const facetTypes = ['entity', 'partOf', 'classification', 'attribute', 'property', 'material'];
@@ -386,7 +396,7 @@ async function performValidation() {
         const totalIds = idsFiles.length;
         let idsCount = 0;
 
-        for (let idsFile of idsFiles) {
+        for (const idsFile of idsFiles) {
             idsCount++;
             const idsResult = {
                 idsFileName: idsFile.fileName,
@@ -452,9 +462,13 @@ async function parseIFCFileAsync(content, fileName) {
         const chunk = lines.slice(i, i + CHUNK_SIZE);
         for (let line of chunk) {
             line = line.trim();
-            if (!line.startsWith('#')) continue;
+            if (!line.startsWith('#')) {
+                continue;
+            }
             const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
-            if (!match) continue;
+            if (!match) {
+                continue;
+            }
             const [, id, entityType, params] = match;
             entityMap.set(id, { id, type: entityType, params });
         }
@@ -465,7 +479,7 @@ async function parseIFCFileAsync(content, fileName) {
     const entities_array = Array.from(entityMap.entries());
     for (let i = 0; i < entities_array.length; i += CHUNK_SIZE) {
         const chunk = entities_array.slice(i, i + CHUNK_SIZE);
-        for (let [id, entity] of chunk) {
+        for (const [id, entity] of chunk) {
             if (entity.type === 'IFCPROPERTYSET') {
                 const props = parsePropertySet(entity.params, entityMap);
                 propertySetMap.set(id, props);
@@ -480,7 +494,7 @@ async function parseIFCFileAsync(content, fileName) {
     // Phase 3: Build entities list (chunked)
     for (let i = 0; i < entities_array.length; i += CHUNK_SIZE) {
         const chunk = entities_array.slice(i, i + CHUNK_SIZE);
-        for (let [id, entity] of chunk) {
+        for (const [id, entity] of chunk) {
             if (entity.type.startsWith('IFC') &&
                 !entity.type.includes('REL') &&
                 !entity.type.includes('PROPERTY') &&
@@ -492,7 +506,7 @@ async function parseIFCFileAsync(content, fileName) {
                 if (guid) {
                     const propertySets = {};
 
-                    for (let [relId, rel] of relDefinesMap) {
+                    for (const [relId, rel] of relDefinesMap) {
                         if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
                             const psetId = rel.relatingPropertyDefinition;
                             if (psetId && propertySetMap.has(psetId)) {
@@ -535,15 +549,19 @@ function parseIFCFile(content, fileName) {
     // Collect entities
     for (let line of lines) {
         line = line.trim();
-        if (!line.startsWith('#')) continue;
+        if (!line.startsWith('#')) {
+            continue;
+        }
         const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
-        if (!match) continue;
+        if (!match) {
+            continue;
+        }
         const [, id, entityType, params] = match;
         entityMap.set(id, { id, type: entityType, params });
     }
 
     // Parse property sets
-    for (let [id, entity] of entityMap) {
+    for (const [id, entity] of entityMap) {
         if (entity.type === 'IFCPROPERTYSET') {
             const props = parsePropertySet(entity.params, entityMap);
             propertySetMap.set(id, props);
@@ -554,7 +572,7 @@ function parseIFCFile(content, fileName) {
     }
 
     // Build entities list
-    for (let [id, entity] of entityMap) {
+    for (const [id, entity] of entityMap) {
         if (entity.type.startsWith('IFC') &&
             !entity.type.includes('REL') &&
             !entity.type.includes('PROPERTY') &&
@@ -566,7 +584,7 @@ function parseIFCFile(content, fileName) {
             if (guid) {
                 const propertySets = {};
 
-                for (let [relId, rel] of relDefinesMap) {
+                for (const [relId, rel] of relDefinesMap) {
                     if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
                         const psetId = rel.relatingPropertyDefinition;
                         if (psetId && propertySetMap.has(psetId)) {
@@ -608,7 +626,9 @@ function extractName(params) {
 }
 
 function decodeIFCString(str) {
-    if (!str) return str;
+    if (!str) {
+        return str;
+    }
 
     // Decode \S\X format (ISO 8859-1 supplement)
     // \S\X means: ASCII value of X + 128 (for characters 128-255)
@@ -651,12 +671,14 @@ function parsePropertySet(params, entityMap) {
     if (parts.length > 4) {
         const propIds = parts[4].match(/#\d+/g);
         if (propIds) {
-            for (let propId of propIds) {
+            for (const propId of propIds) {
                 const id = propId.substring(1);
                 const propEntity = entityMap.get(id);
                 if (propEntity && propEntity.type === 'IFCPROPERTYSINGLEVALUE') {
                     const prop = parseProperty(propEntity.params);
-                    if (prop) properties[prop.name] = prop.value;
+                    if (prop) {
+                        properties[prop.name] = prop.value;
+                    }
                 }
             }
         }
@@ -667,7 +689,9 @@ function parsePropertySet(params, entityMap) {
 
 function parseProperty(params) {
     const parts = splitParams(params);
-    if (parts.length < 3) return null;
+    if (parts.length < 3) {
+        return null;
+    }
     const rawName = parts[0].replace(/'/g, '');
     const name = decodeIFCString(rawName); // Decode property name
     let value = parts[2] || '';
@@ -747,9 +771,11 @@ function splitParams(params) {
             inString = !inString;
         }
         if (!inString) {
-            if (char === '(') depth++;
-            else if (char === ')') depth--;
-            else if (char === ',' && depth === 0) {
+            if (char === '(') {
+                depth++;
+            } else if (char === ')') {
+                depth--;
+            } else if (char === ',' && depth === 0) {
                 parts.push(current.trim());
                 current = '';
                 continue;
@@ -757,7 +783,9 @@ function splitParams(params) {
         }
         current += char;
     }
-    if (current) parts.push(current.trim());
+    if (current) {
+        parts.push(current.trim());
+    }
     return parts;
 }
 
@@ -765,7 +793,7 @@ function splitParams(params) {
 function validateEntitiesAgainstIDS(entities, specifications) {
     const results = [];
 
-    for (let spec of specifications) {
+    for (const spec of specifications) {
         const specResult = {
             specification: spec.name,
             status: 'pass',
@@ -778,7 +806,7 @@ function validateEntitiesAgainstIDS(entities, specifications) {
         const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability);
 
         // Validate each applicable entity against requirements
-        for (let entity of applicableEntities) {
+        for (const entity of applicableEntities) {
             const entityResult = validateEntityAgainstRequirements(entity, spec.requirements, spec.name);
             specResult.entityResults.push(entityResult);
 
@@ -804,7 +832,7 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
     const results = [];
     const CHUNK_SIZE = 50; // Process 50 entities at a time
 
-    for (let spec of specifications) {
+    for (const spec of specifications) {
         const specResult = {
             specification: spec.name,
             status: 'pass',
@@ -820,7 +848,7 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
         for (let i = 0; i < applicableEntities.length; i += CHUNK_SIZE) {
             const chunk = applicableEntities.slice(i, i + CHUNK_SIZE);
 
-            for (let entity of chunk) {
+            for (const entity of chunk) {
                 const entityResult = validateEntityAgainstRequirements(entity, spec.requirements, spec.name);
                 specResult.entityResults.push(entityResult);
 
@@ -853,7 +881,7 @@ function filterEntitiesByApplicability(entities, applicability) {
     }
 
     return entities.filter(entity => {
-        for (let facet of applicability) {
+        for (const facet of applicability) {
             if (!checkFacetMatch(entity, facet)) {
                 return false;
             }
@@ -873,7 +901,7 @@ function validateEntityAgainstRequirements(entity, requirements, specName) {
         validations: []
     };
 
-    for (let facet of requirements) {
+    for (const facet of requirements) {
         const validation = checkRequirementFacet(entity, facet);
         result.validations.push(validation);
 
@@ -922,7 +950,9 @@ function checkRequirementFacet(entity, facet) {
 }
 
 function checkEntityFacet(entity, facet) {
-    if (!facet.name) return true;
+    if (!facet.name) {
+        return true;
+    }
 
     if (facet.name.type === 'simple') {
         return entity.entity === facet.name.value;
@@ -1050,9 +1080,9 @@ function displayStats() {
     let totalValidations = 0;
 
     // Count across all IDS and IFC combinations
-    for (let idsResult of validationResults) {
-        for (let ifcResult of idsResult.ifcResults) {
-            for (let specResult of ifcResult.specificationResults) {
+    for (const idsResult of validationResults) {
+        for (const ifcResult of idsResult.ifcResults) {
+            for (const specResult of ifcResult.specificationResults) {
                 totalPass += specResult.passCount;
                 totalFail += specResult.failCount;
             }
@@ -1091,7 +1121,7 @@ function populateSpecFilter() {
     defaultOption.textContent = t('validator.stats.allIds');
     select.appendChild(defaultOption);
 
-    for (let idsResult of validationResults) {
+    for (const idsResult of validationResults) {
         const option = document.createElement('option');
         option.value = idsResult.idsFileName;
         option.textContent = idsResult.idsTitle;
@@ -1103,7 +1133,7 @@ function displaySpecificationResults() {
     const container = document.getElementById('resultsList');
     container.innerHTML = '';
 
-    for (let idsResult of validationResults) {
+    for (const idsResult of validationResults) {
         const idsDiv = createIDSResultElement(idsResult);
         if (idsDiv) {
             container.appendChild(idsDiv);
@@ -1123,11 +1153,11 @@ function createIDSResultElement(idsResult) {
     let totalFail = 0;
     const nonEmptyIfcResults = [];
 
-    for (let ifcResult of idsResult.ifcResults) {
+    for (const ifcResult of idsResult.ifcResults) {
         // Check if this IFC has any specifications with results
         if (ifcResult.specificationResults && ifcResult.specificationResults.length > 0) {
             nonEmptyIfcResults.push(ifcResult);
-            for (let specResult of ifcResult.specificationResults) {
+            for (const specResult of ifcResult.specificationResults) {
                 totalPass += specResult.passCount;
                 totalFail += specResult.failCount;
             }
@@ -1170,7 +1200,7 @@ function createIDSResultElement(idsResult) {
     detailsDiv.className = 'spec-details';
 
     // For each non-empty IFC file result
-    for (let ifcResult of nonEmptyIfcResults) {
+    for (const ifcResult of nonEmptyIfcResults) {
         const ifcDiv = createIFCResultElement(ifcResult);
         if (ifcDiv) {
             detailsDiv.appendChild(ifcDiv);
@@ -1192,7 +1222,7 @@ function createIFCResultElement(ifcResult) {
     // Calculate stats for this IFC
     let totalPass = 0;
     let totalFail = 0;
-    for (let specResult of ifcResult.specificationResults) {
+    for (const specResult of ifcResult.specificationResults) {
         totalPass += specResult.passCount;
         totalFail += specResult.failCount;
     }
@@ -1226,7 +1256,7 @@ function createIFCResultElement(ifcResult) {
     content.style.paddingLeft = '20px';
 
     // For each specification in this IFC
-    for (let specResult of ifcResult.specificationResults) {
+    for (const specResult of ifcResult.specificationResults) {
         const specDiv = createSpecificationResultElement(specResult);
         content.appendChild(specDiv);
     }
@@ -1267,7 +1297,7 @@ function createSpecificationResultElement(specResult) {
     const detailsDiv = document.createElement('div');
     detailsDiv.className = 'spec-details';
 
-    for (let entityResult of specResult.entityResults) {
+    for (const entityResult of specResult.entityResults) {
         const entityDiv = createEntityResultElement(entityResult);
         detailsDiv.appendChild(entityDiv);
     }
@@ -1289,7 +1319,7 @@ function createEntityResultElement(entityResult) {
     let validationsHTML = '';
     if (entityResult.validations && entityResult.validations.length > 0) {
         validationsHTML = '<div class="validation-details">';
-        for (let validation of entityResult.validations) {
+        for (const validation of entityResult.validations) {
             const icon = validation.status === 'pass' ? '✅' : '❌';
             validationsHTML += `
                 <div class="validation-item ${escapeHtml(validation.status)}">
@@ -1368,7 +1398,7 @@ function applyFilters() {
     // Get all IDS result divs (top level)
     const idsResults = document.querySelectorAll('.specification-result[data-idsfile]');
 
-    for (let idsDiv of idsResults) {
+    for (const idsDiv of idsResults) {
         const idsFileName = idsDiv.dataset.idsfile;
 
         // IDS file filter
@@ -1381,7 +1411,7 @@ function applyFilters() {
         const entityResults = idsDiv.querySelectorAll('.entity-result');
         let visibleCount = 0;
 
-        for (let entityDiv of entityResults) {
+        for (const entityDiv of entityResults) {
             let visible = true;
 
             // Status filter
@@ -1403,7 +1433,9 @@ function applyFilters() {
             }
 
             entityDiv.style.display = visible ? 'block' : 'none';
-            if (visible) visibleCount++;
+            if (visible) {
+                visibleCount++;
+            }
         }
 
         // Hide IDS if no entities visible
@@ -1423,8 +1455,8 @@ function exportToXLSX() {
     const wb = XLSX.utils.book_new();
 
     // Create a sheet for each IFC+IDS combination
-    for (let idsResult of validationResults) {
-        for (let ifcResult of idsResult.ifcResults) {
+    for (const idsResult of validationResults) {
+        for (const ifcResult of idsResult.ifcResults) {
             // Skip if no specifications with results
             if (!ifcResult.specificationResults || ifcResult.specificationResults.length === 0) {
                 continue;
@@ -1445,9 +1477,9 @@ function exportToXLSX() {
             ]);
 
             // Data rows
-            for (let specResult of ifcResult.specificationResults) {
-                for (let entityResult of specResult.entityResults) {
-                    for (let validation of entityResult.validations) {
+            for (const specResult of ifcResult.specificationResults) {
+                for (const entityResult of specResult.entityResults) {
+                    for (const validation of entityResult.validations) {
                         sheetData.push([
                             specResult.specification,
                             entityResult.entity,
@@ -1512,8 +1544,8 @@ function exportToXLSX() {
     summaryData.push([]);
     summaryData.push(['IFC File', 'IDS File', 'Total Validations', 'Passed', 'Failed', 'Pass Rate']);
 
-    for (let idsResult of validationResults) {
-        for (let ifcResult of idsResult.ifcResults) {
+    for (const idsResult of validationResults) {
+        for (const ifcResult of idsResult.ifcResults) {
             // Only process IFC files that have specifications with results
             if (!ifcResult.specificationResults || ifcResult.specificationResults.length === 0) {
                 continue;
@@ -1522,7 +1554,7 @@ function exportToXLSX() {
             let totalPass = 0;
             let totalFail = 0;
 
-            for (let specResult of ifcResult.specificationResults) {
+            for (const specResult of ifcResult.specificationResults) {
                 totalPass += specResult.passCount;
                 totalFail += specResult.failCount;
             }
@@ -1562,7 +1594,9 @@ function newValidation() {
     document.getElementById('resultsSection').style.display = 'none';
 
     const uploadSection = document.querySelector('.upload-section');
-    if (uploadSection) uploadSection.style.display = 'block';
+    if (uploadSection) {
+        uploadSection.style.display = 'block';
+    }
 
     // Reset validation results
     validationResults = null;
@@ -1601,7 +1635,7 @@ if (newValidationBtn) {
     newValidationBtn.addEventListener('click', newValidation);
 }
 // Validační skupiny
-let validationGroups = [];
+const validationGroups = [];
 let currentGroupIndex = null;
 
 // Storage variables
@@ -1610,10 +1644,10 @@ let ifcStorageData = null;
 let idsStorageData = null;
 let ifcMetadata = null; // Lightweight cache without file contents
 let idsMetadata = null; // Lightweight cache without file contents
-let selectedIfcFiles = new Set();
+const selectedIfcFiles = new Set();
 let selectedIdsFile = null;
-let expandedIfcFolders = new Set(['root']);
-let expandedIdsFolders = new Set(['root']);
+const expandedIfcFolders = new Set(['root']);
+const expandedIdsFolders = new Set(['root']);
 
 // Initialize IndexedDB
 async function initStorageDB() {
@@ -1976,7 +2010,9 @@ function closeIfcStorageModal() {
 let ifcTreeListenerAttached = false;
 function setupIfcTreeEventListeners() {
     const tree = document.getElementById('ifcStorageTree');
-    if (!tree || ifcTreeListenerAttached) return;
+    if (!tree || ifcTreeListenerAttached) {
+        return;
+    }
     ifcTreeListenerAttached = true;
 
     // Use event delegation - single listener on parent
@@ -1987,7 +2023,9 @@ function setupIfcTreeEventListeners() {
         if (target.classList.contains('ifc-folder-toggle')) {
             e.stopPropagation();
             const folderId = target.dataset.folderId;
-            if (folderId) toggleIfcFolder(folderId);
+            if (folderId) {
+                toggleIfcFolder(folderId);
+            }
             return;
         }
 
@@ -1996,7 +2034,9 @@ function setupIfcTreeEventListeners() {
             e.stopPropagation();
             e.preventDefault();
             const folderId = target.dataset.folderId;
-            if (folderId) selectAllIfcFilesInFolder(folderId);
+            if (folderId) {
+                selectAllIfcFilesInFolder(folderId);
+            }
             return;
         }
 
@@ -2015,7 +2055,9 @@ function setupIfcTreeEventListeners() {
         if (target.classList.contains('ifc-file-checkbox')) {
             e.stopPropagation();
             const fileId = target.dataset.fileId;
-            if (fileId) toggleIfcFileSelection(fileId);
+            if (fileId) {
+                toggleIfcFileSelection(fileId);
+            }
             return;
         }
     });
@@ -2059,7 +2101,7 @@ async function renderIfcStorageTree() {
             };
 
             // Copy only metadata (no content!)
-            for (let fileId in fullData.files) {
+            for (const fileId in fullData.files) {
                 const file = fullData.files[fileId];
                 ifcStorageData.files[fileId] = {
                     id: file.id,
@@ -2087,10 +2129,14 @@ async function renderIfcStorageTree() {
 
 // Get all files in folder recursively
 function getAllIfcFilesInFolder(folderId) {
-    if (!ifcStorageData) return [];
+    if (!ifcStorageData) {
+        return [];
+    }
 
     const folder = ifcStorageData.folders[folderId];
-    if (!folder) return [];
+    if (!folder) {
+        return [];
+    }
 
     let files = [...folder.files];
 
@@ -2106,10 +2152,14 @@ function getAllIfcFilesInFolder(folderId) {
 
 // Select all files in folder (toggle)
 function selectAllIfcFilesInFolder(folderId) {
-    if (!ifcStorageData) return;
+    if (!ifcStorageData) {
+        return;
+    }
 
     const folder = ifcStorageData.folders[folderId];
-    if (!folder) return;
+    if (!folder) {
+        return;
+    }
 
     // Get all files in this folder and subfolders
     const allFiles = getAllIfcFilesInFolder(folderId);
@@ -2131,7 +2181,9 @@ function selectAllIfcFilesInFolder(folderId) {
 // Render IFC folder recursively
 function renderIfcFolderRecursive(folderId, level) {
     const folder = ifcStorageData.folders[folderId];
-    if (!folder) return '';
+    if (!folder) {
+        return '';
+    }
 
     const isExpanded = expandedIfcFolders.has(folderId);
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
@@ -2170,7 +2222,9 @@ function renderIfcFolderRecursive(folderId, level) {
         if (folder.files && folder.files.length > 0) {
             folder.files.forEach(fileId => {
                 const file = ifcStorageData.files[fileId];
-                if (!file) return;
+                if (!file) {
+                    return;
+                }
 
                 // Sanitize fileId
                 const safeFileId = String(fileId).replace(/[^a-zA-Z0-9_-]/g, '');
@@ -2291,7 +2345,9 @@ function closeIdsStorageModal() {
 let idsTreeListenerAttached = false;
 function setupIdsTreeEventListeners() {
     const tree = document.getElementById('idsStorageTree');
-    if (!tree || idsTreeListenerAttached) return;
+    if (!tree || idsTreeListenerAttached) {
+        return;
+    }
     idsTreeListenerAttached = true;
 
     // Use event delegation - single listener on parent
@@ -2302,7 +2358,9 @@ function setupIdsTreeEventListeners() {
         if (target.classList.contains('ids-folder-toggle')) {
             e.stopPropagation();
             const folderId = target.dataset.folderId;
-            if (folderId) toggleIdsFolder(folderId);
+            if (folderId) {
+                toggleIdsFolder(folderId);
+            }
             return;
         }
 
@@ -2321,7 +2379,9 @@ function setupIdsTreeEventListeners() {
         if (target.classList.contains('ids-file-radio')) {
             e.stopPropagation();
             const fileId = target.dataset.fileId;
-            if (fileId) selectIdsFile(fileId);
+            if (fileId) {
+                selectIdsFile(fileId);
+            }
             return;
         }
     });
@@ -2365,7 +2425,7 @@ async function renderIdsStorageTree() {
             };
 
             // Copy only metadata (no content!)
-            for (let fileId in fullData.files) {
+            for (const fileId in fullData.files) {
                 const file = fullData.files[fileId];
                 idsStorageData.files[fileId] = {
                     id: file.id,
@@ -2394,7 +2454,9 @@ async function renderIdsStorageTree() {
 // Render IDS folder recursively
 function renderIdsFolderRecursive(folderId, level) {
     const folder = idsStorageData.folders[folderId];
-    if (!folder) return '';
+    if (!folder) {
+        return '';
+    }
 
     const isExpanded = expandedIdsFolders.has(folderId);
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
@@ -2427,7 +2489,9 @@ function renderIdsFolderRecursive(folderId, level) {
         if (folder.files && folder.files.length > 0) {
             folder.files.forEach(fileId => {
                 const file = idsStorageData.files[fileId];
-                if (!file) return;
+                if (!file) {
+                    return;
+                }
 
                 // Sanitize fileId
                 const safeFileId = String(fileId).replace(/[^a-zA-Z0-9_-]/g, '');
@@ -2668,7 +2732,7 @@ window.selectIdsFile = selectIdsFile;
                     folders: fullData.folders,
                     files: {}
                 };
-                for (let fileId in fullData.files) {
+                for (const fileId in fullData.files) {
                     const file = fullData.files[fileId];
                     ifcMetadata.files[fileId] = {
                         id: file.id,
@@ -2694,7 +2758,7 @@ window.selectIdsFile = selectIdsFile;
                     folders: fullData.folders,
                     files: {}
                 };
-                for (let fileId in fullData.files) {
+                for (const fileId in fullData.files) {
                     const file = fullData.files[fileId];
                     idsMetadata.files[fileId] = {
                         id: file.id,

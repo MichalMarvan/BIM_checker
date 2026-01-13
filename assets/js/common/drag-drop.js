@@ -228,7 +228,9 @@ function setupDragDrop(dropZoneId, fileInputId, handler, acceptedExtensions = []
  */
 function setupUploadBox(boxId, inputId, handler, options = {}) {
     const box = document.getElementById(boxId);
-    if (!box) return null;
+    if (!box) {
+        return null;
+    }
 
     const borderColorDefault = options.borderColorDefault || '#667eea';
     const borderColorActive = options.borderColorActive || '#764ba2';

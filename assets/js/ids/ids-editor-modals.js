@@ -121,12 +121,18 @@ class IDSEditorModals {
      * Extract simple value from various formats
      */
     extractSimpleValue(value) {
-        if (!value) return '';
-        if (typeof value === 'string') return value;
+        if (!value) {
+            return '';
+        }
+        if (typeof value === 'string') {
+            return value;
+        }
         if (value.type === 'simple' || value.type === 'simpleValue') {
             return value.value || '';
         }
-        if (value.value) return value.value;
+        if (value.value) {
+            return value.value;
+        }
         return '';
     }
 
@@ -270,10 +276,18 @@ class IDSEditorModals {
 
         // Normalize type from parser format
         let type = value.type || 'simpleValue';
-        if (type === 'simple') type = 'simpleValue';
-        if (type === 'restriction' && value.pattern) type = 'pattern';
-        if (type === 'restriction' && value.enumeration) type = 'enumeration';
-        if (type === 'restriction' && (value.minInclusive || value.maxInclusive)) type = 'bounds';
+        if (type === 'simple') {
+            type = 'simpleValue';
+        }
+        if (type === 'restriction' && value.pattern) {
+            type = 'pattern';
+        }
+        if (type === 'restriction' && value.enumeration) {
+            type = 'enumeration';
+        }
+        if (type === 'restriction' && (value.minInclusive || value.maxInclusive)) {
+            type = 'bounds';
+        }
 
         return type === checkType ? 'active' : '';
     }
@@ -411,10 +425,18 @@ class IDSEditorModals {
 
         // Normalize type (parser uses 'simple', editor uses 'simpleValue')
         let type = restriction.type || 'simpleValue';
-        if (type === 'simple') type = 'simpleValue';
-        if (type === 'restriction' && restriction.pattern) type = 'pattern';
-        if (type === 'restriction' && restriction.enumeration) type = 'enumeration';
-        if (type === 'restriction' && (restriction.minInclusive || restriction.maxInclusive)) type = 'bounds';
+        if (type === 'simple') {
+            type = 'simpleValue';
+        }
+        if (type === 'restriction' && restriction.pattern) {
+            type = 'pattern';
+        }
+        if (type === 'restriction' && restriction.enumeration) {
+            type = 'enumeration';
+        }
+        if (type === 'restriction' && (restriction.minInclusive || restriction.maxInclusive)) {
+            type = 'bounds';
+        }
 
         // Extract value from various formats
         let value = '';
@@ -581,7 +603,9 @@ class IDSEditorModals {
      */
     getEntityData() {
         const name = document.getElementById('entityName').value.trim();
-        if (!name) throw new Error('Entity name is required');
+        if (!name) {
+            throw new Error('Entity name is required');
+        }
 
         const facet = {
             type: 'entity',
@@ -636,7 +660,9 @@ class IDSEditorModals {
      */
     getAttributeData() {
         const name = document.getElementById('attributeName').value.trim();
-        if (!name) throw new Error('Attribute name is required');
+        if (!name) {
+            throw new Error('Attribute name is required');
+        }
 
         const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
         const value = this.getRestrictionData(restrictionType);
@@ -705,7 +731,9 @@ class IDSEditorModals {
      */
     getPartOfData() {
         const entity = document.getElementById('partOfEntity').value.trim();
-        if (!entity) throw new Error('Parent entity is required');
+        if (!entity) {
+            throw new Error('Parent entity is required');
+        }
 
         const facet = {
             type: 'partOf',
@@ -758,8 +786,12 @@ class IDSEditorModals {
             const base = document.getElementById('boundsBase')?.value || 'xs:decimal';
 
             const bounds = { type: 'bounds', base };
-            if (minInclusive) bounds.minInclusive = minInclusive;
-            if (maxInclusive) bounds.maxInclusive = maxInclusive;
+            if (minInclusive) {
+                bounds.minInclusive = minInclusive;
+            }
+            if (maxInclusive) {
+                bounds.maxInclusive = maxInclusive;
+            }
             return bounds;
         }
 
@@ -786,7 +818,9 @@ class IDSEditorModals {
      * Escape HTML to prevent XSS
      */
     escapeHtml(text) {
-        if (!text) return '';
+        if (!text) {
+            return '';
+        }
         const div = document.createElement('div');
         div.textContent = String(text);
         return div.innerHTML;

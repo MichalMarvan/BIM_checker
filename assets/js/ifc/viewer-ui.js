@@ -102,20 +102,20 @@ function combineData() {
 
     const newPropertySetGroups = {};
 
-    for (let file of state.loadedFiles) {
-        for (let item of file.data) {
-            for (let [psetName, props] of Object.entries(item.propertySets)) {
+    for (const file of state.loadedFiles) {
+        for (const item of file.data) {
+            for (const [psetName, props] of Object.entries(item.propertySets)) {
                 if (!newPropertySetGroups[psetName]) {
                     newPropertySetGroups[psetName] = new Set();
                 }
-                for (let propName of Object.keys(props)) {
+                for (const propName of Object.keys(props)) {
                     newPropertySetGroups[psetName].add(propName);
                 }
             }
         }
     }
 
-    for (let psetName of Object.keys(newPropertySetGroups)) {
+    for (const psetName of Object.keys(newPropertySetGroups)) {
         newPropertySetGroups[psetName] = Array.from(newPropertySetGroups[psetName]).sort();
     }
 
@@ -123,16 +123,16 @@ function combineData() {
         state.propertySetGroups = newPropertySetGroups;
         state.psetOrder = Object.keys(state.propertySetGroups).sort();
         state.visiblePsets = {};
-        for (let psetName of state.psetOrder) {
+        for (const psetName of state.psetOrder) {
             state.visiblePsets[psetName] = {};
-            for (let propName of state.propertySetGroups[psetName]) {
+            for (const propName of state.propertySetGroups[psetName]) {
                 state.visiblePsets[psetName][propName] = true;
             }
         }
     } else {
         const newPsetOrder = [...state.psetOrder.filter(name => newPropertySetGroups[name])];
 
-        for (let psetName of Object.keys(newPropertySetGroups)) {
+        for (const psetName of Object.keys(newPropertySetGroups)) {
             if (!newPsetOrder.includes(psetName)) {
                 newPsetOrder.push(psetName);
             }
@@ -141,14 +141,14 @@ function combineData() {
         const updatedPropertySetGroups = {};
         const updatedVisiblePsets = {};
 
-        for (let psetName of newPsetOrder) {
+        for (const psetName of newPsetOrder) {
             const newProps = newPropertySetGroups[psetName];
 
             if (state.propertySetGroups[psetName]) {
                 const oldProps = state.propertySetGroups[psetName];
                 const orderedProps = oldProps.filter(p => newProps.includes(p));
 
-                for (let prop of newProps) {
+                for (const prop of newProps) {
                     if (!orderedProps.includes(prop)) {
                         orderedProps.push(prop);
                     }
@@ -156,7 +156,7 @@ function combineData() {
 
                 updatedPropertySetGroups[psetName] = orderedProps;
                 updatedVisiblePsets[psetName] = {};
-                for (let propName of orderedProps) {
+                for (const propName of orderedProps) {
                     if (state.visiblePsets[psetName] && propName in state.visiblePsets[psetName]) {
                         updatedVisiblePsets[psetName][propName] = state.visiblePsets[psetName][propName];
                     } else {
@@ -166,7 +166,7 @@ function combineData() {
             } else {
                 updatedPropertySetGroups[psetName] = newProps;
                 updatedVisiblePsets[psetName] = {};
-                for (let propName of newProps) {
+                for (const propName of newProps) {
                     updatedVisiblePsets[psetName][propName] = true;
                 }
             }
@@ -235,7 +235,9 @@ function buildPsetManager() {
 
     for (let i = 0; i < state.psetOrder.length; i++) {
         const psetName = state.psetOrder[i];
-        if (!state.propertySetGroups[psetName]) continue;
+        if (!state.propertySetGroups[psetName]) {
+            continue;
+        }
 
         const group = document.createElement('div');
         group.className = 'pset-group';
@@ -258,7 +260,7 @@ function buildPsetManager() {
         const checkbox = header.querySelector('input');
         checkbox.addEventListener('change', (e) => {
             e.stopPropagation();
-            for (let propName of state.propertySetGroups[psetName]) {
+            for (const propName of state.propertySetGroups[psetName]) {
                 state.visiblePsets[psetName][propName] = e.target.checked;
             }
             buildPsetManager();
@@ -327,7 +329,9 @@ function handleDrop(e, targetGroup) {
     e.stopPropagation();
     e.preventDefault();
 
-    if (!draggedItem) return;
+    if (!draggedItem) {
+        return;
+    }
 
     if (dragType === 'pset') {
         if (draggedItem !== targetGroup) {
@@ -355,7 +359,9 @@ function handleDrop(e, targetGroup) {
                 }
             });
 
-            if (toIndex === -1) toIndex = propItems.length - 1;
+            if (toIndex === -1) {
+                toIndex = propItems.length - 1;
+            }
 
             if (fromIndex !== toIndex) {
                 const propArray = state.propertySetGroups[fromPsetName];
@@ -402,7 +408,9 @@ function setupAutoScroll() {
 
 function startAutoScroll(element, speed) {
     const state = window.ViewerState;
-    if (state.autoScrollInterval) return;
+    if (state.autoScrollInterval) {
+        return;
+    }
     state.autoScrollInterval = setInterval(() => {
         element.scrollTop += speed;
     }, 50);
@@ -466,11 +474,13 @@ function buildTable() {
     const lockedCols = [];
     const unlockedCols = [];
 
-    for (let psetName of state.psetOrder) {
-        if (!state.propertySetGroups[psetName]) continue;
+    for (const psetName of state.psetOrder) {
+        if (!state.propertySetGroups[psetName]) {
+            continue;
+        }
         const visibleProps = state.propertySetGroups[psetName].filter(p => state.visiblePsets[psetName][p]);
 
-        for (let propName of visibleProps) {
+        for (const propName of visibleProps) {
             const col = { psetName, propName };
             const isLocked = state.lockedColumns.some(lc => lc.psetName === psetName && lc.propName === propName);
 
@@ -483,7 +493,7 @@ function buildTable() {
     }
 
     if (lockedCols.length > 0) {
-        for (let col of lockedCols) {
+        for (const col of lockedCols) {
             const psetTh = document.createElement('th');
             psetTh.className = 'pset-header sticky-col';
             psetTh.textContent = col.psetName;
@@ -511,12 +521,14 @@ function buildTable() {
     });
 
     const unlockedGrouped = {};
-    for (let col of unlockedCols) {
-        if (!unlockedGrouped[col.psetName]) unlockedGrouped[col.psetName] = [];
+    for (const col of unlockedCols) {
+        if (!unlockedGrouped[col.psetName]) {
+            unlockedGrouped[col.psetName] = [];
+        }
         unlockedGrouped[col.psetName].push(col);
     }
 
-    for (let psetName of Object.keys(unlockedGrouped)) {
+    for (const psetName of Object.keys(unlockedGrouped)) {
         const psetTh = document.createElement('th');
         psetTh.className = 'pset-header';
         psetTh.textContent = psetName;
@@ -526,7 +538,7 @@ function buildTable() {
 
     currentLeft = fileColWidth;
 
-    for (let col of lockedCols) {
+    for (const col of lockedCols) {
         const propTh = document.createElement('th');
         propTh.className = 'prop-header sticky-col';
         propTh.style.cursor = 'pointer';
@@ -560,7 +572,7 @@ function buildTable() {
         currentLeft += 120;
     }
 
-    for (let col of unlockedCols) {
+    for (const col of unlockedCols) {
         const propTh = document.createElement('th');
         propTh.className = 'prop-header';
         propTh.style.cursor = 'pointer';
@@ -667,15 +679,25 @@ function applyFiltersAndRender() {
                     const regex = new RegExp(pattern, flags);
 
                     state.filteredData = state.filteredData.filter(item => {
-                        if (columnName === 'GUID' && regex.test(item.guid)) return true;
-                        if ((columnName === 'Entita' || columnName === 'Entity') && regex.test(item.entity)) return true;
-                        if (columnName === 'Name' && regex.test(item.name)) return true;
-                        if ((columnName === 'Soubor' || columnName === 'File') && regex.test(item.fileName)) return true;
+                        if (columnName === 'GUID' && regex.test(item.guid)) {
+                            return true;
+                        }
+                        if ((columnName === 'Entita' || columnName === 'Entity') && regex.test(item.entity)) {
+                            return true;
+                        }
+                        if (columnName === 'Name' && regex.test(item.name)) {
+                            return true;
+                        }
+                        if ((columnName === 'Soubor' || columnName === 'File') && regex.test(item.fileName)) {
+                            return true;
+                        }
 
-                        for (let [psetName, pset] of Object.entries(item.propertySets)) {
-                            for (let [propName, value] of Object.entries(pset)) {
+                        for (const [psetName, pset] of Object.entries(item.propertySets)) {
+                            for (const [propName, value] of Object.entries(pset)) {
                                 if (propName === columnName || `${psetName}.${propName}` === columnName) {
-                                    if (regex.test(String(value))) return true;
+                                    if (regex.test(String(value))) {
+                                        return true;
+                                    }
                                 }
                             }
                         }
@@ -688,15 +710,25 @@ function applyFiltersAndRender() {
                 const searchLower = searchPattern.toLowerCase();
 
                 state.filteredData = state.filteredData.filter(item => {
-                    if (columnName === 'GUID' && item.guid.toLowerCase().includes(searchLower)) return true;
-                    if ((columnName === 'Entita' || columnName === 'Entity') && item.entity.toLowerCase().includes(searchLower)) return true;
-                    if (columnName === 'Name' && item.name.toLowerCase().includes(searchLower)) return true;
-                    if ((columnName === 'Soubor' || columnName === 'File') && item.fileName.toLowerCase().includes(searchLower)) return true;
+                    if (columnName === 'GUID' && item.guid.toLowerCase().includes(searchLower)) {
+                        return true;
+                    }
+                    if ((columnName === 'Entita' || columnName === 'Entity') && item.entity.toLowerCase().includes(searchLower)) {
+                        return true;
+                    }
+                    if (columnName === 'Name' && item.name.toLowerCase().includes(searchLower)) {
+                        return true;
+                    }
+                    if ((columnName === 'Soubor' || columnName === 'File') && item.fileName.toLowerCase().includes(searchLower)) {
+                        return true;
+                    }
 
-                    for (let [psetName, pset] of Object.entries(item.propertySets)) {
-                        for (let [propName, value] of Object.entries(pset)) {
+                    for (const [psetName, pset] of Object.entries(item.propertySets)) {
+                        for (const [propName, value] of Object.entries(pset)) {
                             if (propName === columnName || `${psetName}.${propName}` === columnName) {
-                                if (String(value).toLowerCase().includes(searchLower)) return true;
+                                if (String(value).toLowerCase().includes(searchLower)) {
+                                    return true;
+                                }
                             }
                         }
                     }
@@ -713,13 +745,21 @@ function applyFiltersAndRender() {
                     const regex = new RegExp(pattern, flags);
 
                     state.filteredData = state.filteredData.filter(item => {
-                        if (regex.test(item.guid)) return true;
-                        if (regex.test(item.entity)) return true;
-                        if (regex.test(item.name)) return true;
-                        if (regex.test(item.fileName)) return true;
+                        if (regex.test(item.guid)) {
+                            return true;
+                        }
+                        if (regex.test(item.entity)) {
+                            return true;
+                        }
+                        if (regex.test(item.name)) {
+                            return true;
+                        }
+                        if (regex.test(item.fileName)) {
+                            return true;
+                        }
 
-                        for (let pset of Object.values(item.propertySets)) {
-                            for (let [key, value] of Object.entries(pset)) {
+                        for (const pset of Object.values(item.propertySets)) {
+                            for (const [key, value] of Object.entries(pset)) {
                                 if (regex.test(key) || regex.test(String(value))) {
                                     return true;
                                 }
@@ -735,13 +775,21 @@ function applyFiltersAndRender() {
 
                 state.filteredData = state.filteredData.filter(item => {
                     return searchWords.every(word => {
-                        if (item.guid.toLowerCase().includes(word)) return true;
-                        if (item.entity.toLowerCase().includes(word)) return true;
-                        if (item.name.toLowerCase().includes(word)) return true;
-                        if (item.fileName.toLowerCase().includes(word)) return true;
+                        if (item.guid.toLowerCase().includes(word)) {
+                            return true;
+                        }
+                        if (item.entity.toLowerCase().includes(word)) {
+                            return true;
+                        }
+                        if (item.name.toLowerCase().includes(word)) {
+                            return true;
+                        }
+                        if (item.fileName.toLowerCase().includes(word)) {
+                            return true;
+                        }
 
-                        for (let pset of Object.values(item.propertySets)) {
-                            for (let [key, value] of Object.entries(pset)) {
+                        for (const pset of Object.values(item.propertySets)) {
+                            for (const [key, value] of Object.entries(pset)) {
                                 if (key.toLowerCase().includes(word) ||
                                     String(value).toLowerCase().includes(word)) {
                                     return true;
@@ -788,8 +836,12 @@ function applyFiltersAndRender() {
                 valB = b.propertySets[psetName]?.[propName] || '';
             }
 
-            if (valA < valB) return state.sortDirection === 'asc' ? -1 : 1;
-            if (valA > valB) return state.sortDirection === 'asc' ? 1 : -1;
+            if (valA < valB) {
+                return state.sortDirection === 'asc' ? -1 : 1;
+            }
+            if (valA > valB) {
+                return state.sortDirection === 'asc' ? 1 : -1;
+            }
             return 0;
         });
     }
@@ -819,7 +871,7 @@ function renderTable() {
 
     const fileColWidth = 150;
 
-    for (let item of pageData) {
+    for (const item of pageData) {
         const row = document.createElement('tr');
 
         if (state.editMode) {
@@ -852,7 +904,7 @@ function renderTable() {
         const unlockedCols = [];
 
         const columns = window.currentColumns || [];
-        for (let col of columns) {
+        for (const col of columns) {
             const isLocked = state.lockedColumns.some(lc => lc.psetName === col.psetName && lc.propName === col.propName);
             if (isLocked) {
                 lockedCols.push(col);
@@ -861,7 +913,7 @@ function renderTable() {
             }
         }
 
-        for (let col of lockedCols) {
+        for (const col of lockedCols) {
             const cell = document.createElement('td');
             const value = item.propertySets[col.psetName]?.[col.propName];
             cell.textContent = value || '-';
@@ -903,7 +955,7 @@ function renderTable() {
         layerCell.style.color = item.layer && item.layer !== '-' ? '#212529' : '#ccc';
         row.appendChild(layerCell);
 
-        for (let col of unlockedCols) {
+        for (const col of unlockedCols) {
             const cell = document.createElement('td');
             const value = item.propertySets[col.psetName]?.[col.propName];
             cell.textContent = value || '-';
@@ -983,12 +1035,12 @@ function showStatistics() {
     });
 
     const entityCounts = {};
-    for (let item of state.allData) {
+    for (const item of state.allData) {
         entityCounts[item.entity] = (entityCounts[item.entity] || 0) + 1;
     }
     const sorted = Object.entries(entityCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
 
-    for (let [entity, count] of sorted) {
+    for (const [entity, count] of sorted) {
         const card = document.createElement('div');
         card.style.cssText = 'background: white; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef;';
         card.innerHTML = `
@@ -1035,11 +1087,21 @@ function updateSelectedCount() {
     const renamePropBtn = document.getElementById('renamePropertyBtn');
     const exportBtn = document.getElementById('exportIfcBtn');
 
-    if (bulkBtn) bulkBtn.disabled = count === 0;
-    if (addBtn) addBtn.disabled = count === 0;
-    if (renameBtn) renameBtn.disabled = count === 0;
-    if (renamePropBtn) renamePropBtn.disabled = count === 0;
-    if (exportBtn) exportBtn.disabled = Object.keys(state.modifications).length === 0;
+    if (bulkBtn) {
+        bulkBtn.disabled = count === 0;
+    }
+    if (addBtn) {
+        addBtn.disabled = count === 0;
+    }
+    if (renameBtn) {
+        renameBtn.disabled = count === 0;
+    }
+    if (renamePropBtn) {
+        renamePropBtn.disabled = count === 0;
+    }
+    if (exportBtn) {
+        exportBtn.disabled = Object.keys(state.modifications).length === 0;
+    }
 }
 
 // Export to window

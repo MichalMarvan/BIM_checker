@@ -22,27 +22,27 @@ let statistics = {
 // Message handler
 self.onmessage = async function(e) {
     const { type, data } = e.data;
-    
+
     switch(type) {
         case 'PARSE_FILE':
             await parseFile(data.file);
             break;
-            
+
         case 'SEARCH':
             const results = searchEntities(data.query, data.regex);
-            self.postMessage({ 
-                type: 'SEARCH_RESULTS', 
-                data: results 
+            self.postMessage({
+                type: 'SEARCH_RESULTS',
+                data: results
             });
             break;
-            
+
         case 'GET_STATS':
-            self.postMessage({ 
-                type: 'STATS', 
-                data: statistics 
+            self.postMessage({
+                type: 'STATS',
+                data: statistics
             });
             break;
-            
+
         case 'CLEAR':
             clearData();
             break;
@@ -59,35 +59,35 @@ async function parseFile(file) {
         materials: 0,
         classifications: 0
     };
-    
+
     currentParser = new IFCStreamParser({
         chunkSize: 2 * 1024 * 1024, // 2MB chunks
-        
+
         onEntity: (entity) => {
             // Store entity
             entities.push(entity);
-            
+
             // Update statistics
             statistics.totalEntities++;
-            statistics.entityTypes[entity.type] = 
+            statistics.entityTypes[entity.type] =
                 (statistics.entityTypes[entity.type] || 0) + 1;
-            
+
             // Track property sets
             if (entity.type === 'IFCPROPERTYSET') {
                 statistics.propertySets++;
                 processPropertySet(entity);
             }
-            
+
             // Track materials
             if (entity.type.includes('MATERIAL')) {
                 statistics.materials++;
             }
-            
+
             // Track classifications
             if (entity.type.includes('CLASSIFICATION')) {
                 statistics.classifications++;
             }
-            
+
             // Send batch updates every 1000 entities
             if (entities.length % 1000 === 0) {
                 self.postMessage({
@@ -99,14 +99,14 @@ async function parseFile(file) {
                 });
             }
         },
-        
+
         onProgress: (progress) => {
             self.postMessage({
                 type: 'PROGRESS',
                 data: progress
             });
         },
-        
+
         onComplete: (result) => {
             self.postMessage({
                 type: 'PARSE_COMPLETE',
@@ -119,7 +119,7 @@ async function parseFile(file) {
             });
         }
     });
-    
+
     try {
         await currentParser.parseFile(file);
     } catch (error) {
@@ -138,7 +138,7 @@ function processPropertySet(entity) {
     if (entity.arguments && entity.arguments.length > 4) {
         const name = entity.arguments[2]; // Usually the name
         const properties = entity.arguments[4]; // Usually properties list
-        
+
         if (name && typeof name === 'string') {
             propertySets[entity.id] = {
                 id: entity.id,
@@ -151,7 +151,7 @@ function processPropertySet(entity) {
 
 function searchEntities(query, useRegex = false) {
     let searchFn;
-    
+
     if (useRegex) {
         try {
             const regex = new RegExp(query, 'gi');
@@ -163,24 +163,28 @@ function searchEntities(query, useRegex = false) {
         const lowerQuery = query.toLowerCase();
         searchFn = (text) => text.toLowerCase().includes(lowerQuery);
     }
-    
+
     const results = entities.filter(entity => {
         // Search in entity type
-        if (searchFn(entity.type)) return true;
-        
+        if (searchFn(entity.type)) {
+            return true;
+        }
+
         // Search in line content
-        if (searchFn(entity.line)) return true;
-        
+        if (searchFn(entity.line)) {
+            return true;
+        }
+
         // Search in string arguments
-        for (let arg of entity.arguments) {
+        for (const arg of entity.arguments) {
             if (typeof arg === 'string' && searchFn(arg)) {
                 return true;
             }
         }
-        
+
         return false;
     });
-    
+
     return {
         results: results.slice(0, 1000), // Limit results
         totalFound: results.length,
@@ -198,7 +202,7 @@ function clearData() {
         materials: 0,
         classifications: 0
     };
-    
+
     self.postMessage({
         type: 'CLEARED',
         data: true

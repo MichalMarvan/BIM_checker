@@ -278,7 +278,9 @@ class FilePanel {
     async collapseAll() {
         // Collapse all in metadata (fast!)
         Object.values(this.storage.metadata.folders).forEach(folder => {
-            if (folder.id !== 'root') folder.expanded = false;
+            if (folder.id !== 'root') {
+                folder.expanded = false;
+            }
         });
         // Save to localStorage (instant!)
         this.storage.saveExpandedStates();
@@ -287,7 +289,9 @@ class FilePanel {
 
     renderFolder(folderId, level = 0) {
         const folder = this.storage.metadata.folders[folderId];
-        if (!folder) return '';
+        if (!folder) {
+            return '';
+        }
 
         const isExpanded = folder.expanded;
         const hasChildren = folder.children.length > 0 || folder.files.length > 0;
@@ -410,7 +414,9 @@ class FilePanel {
 
     // Escape HTML to prevent XSS
     escapeHtml(str) {
-        if (typeof str !== 'string') return str;
+        if (typeof str !== 'string') {
+            return str;
+        }
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
@@ -473,7 +479,9 @@ class FilePanel {
     }
 
     selectFolder(folderId, event) {
-        if (event) event.stopPropagation();
+        if (event) {
+            event.stopPropagation();
+        }
 
         const folder = this.storage.metadata.folders[folderId];
         if (folder) {
@@ -498,7 +506,9 @@ class FilePanel {
     }
 
     selectFile(fileId, event) {
-        if (event) event.stopPropagation();
+        if (event) {
+            event.stopPropagation();
+        }
 
         // Ignore click if we just finished dragging
         if (this.isDragging) {
@@ -552,7 +562,9 @@ class FilePanel {
         const files = [];
         const collectFiles = (folderId) => {
             const folder = this.storage.metadata.folders[folderId];
-            if (!folder) return;
+            if (!folder) {
+                return;
+            }
 
             // Child folders FIRST (sorted by name) - matches render order
             const childFolders = folder.children
@@ -609,9 +621,13 @@ class FilePanel {
         event.target.style.opacity = '1';
         // Remove drag badge if present
         const badge = event.target.querySelector('.drag-badge');
-        if (badge) badge.remove();
+        if (badge) {
+            badge.remove();
+        }
         // Keep isDragging true briefly to prevent click event
-        setTimeout(() => { this.isDragging = false; }, 100);
+        setTimeout(() => {
+            this.isDragging = false;
+        }, 100);
     }
 
     handleDragOver(event, folderId) {
@@ -633,15 +649,21 @@ class FilePanel {
         event.stopPropagation();
         event.currentTarget.classList.remove('drag-over');
 
-        if (!this.draggedFiles || this.draggedFiles.length === 0) return;
+        if (!this.draggedFiles || this.draggedFiles.length === 0) {
+            return;
+        }
 
         // Move all dragged files to target folder
         for (const fileId of this.draggedFiles) {
             const file = this.storage.metadata.files[fileId];
-            if (!file) continue;
+            if (!file) {
+                continue;
+            }
 
             // Don't move if already in target folder
-            if (file.folder === targetFolderId) continue;
+            if (file.folder === targetFolderId) {
+                continue;
+            }
 
             await this.storage.moveFile(fileId, targetFolderId);
         }
@@ -674,6 +696,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Re-render file trees when language changes
 window.addEventListener('languageChanged', () => {
-    if (filePanel_ifc) filePanel_ifc.render();
-    if (filePanel_ids) filePanel_ids.render();
+    if (filePanel_ifc) {
+        filePanel_ifc.render();
+    }
+    if (filePanel_ids) {
+        filePanel_ids.render();
+    }
 });

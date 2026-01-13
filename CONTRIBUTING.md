@@ -93,12 +93,11 @@ assets/
 ├── js/
 │   ├── common/          # Shared utilities (i18n, storage, theme, etc.)
 │   ├── ids/             # IDS-specific logic (editor, XML generator)
-│   ├── ifc/             # IFC-specific logic (stream parser)
+│   ├── ifc/             # IFC viewer modules (core, init, parser, ui)
 │   ├── vendor/          # Third-party libraries (xlsx)
 │   ├── workers/         # Web Workers
 │   ├── parser.js        # IDS parser page logic
-│   ├── validator.js     # IFC-IDS validator page logic
-│   └── viewer.js        # IFC viewer page logic
+│   └── validator.js     # IFC-IDS validator page logic
 ├── css/
 │   ├── common.css       # Shared styles
 │   └── [tool].css       # Tool-specific styles

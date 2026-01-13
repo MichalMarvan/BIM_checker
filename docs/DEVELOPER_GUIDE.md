@@ -64,11 +64,15 @@ BIM_checker/
 │   │   │   ├── ids-editor-modals.js    # Editor modals
 │   │   │   ├── ids-xml-generator.js    # XML generator
 │   │   │   └── ifc-data.js             # IFC schema data
+│   │   ├── ifc/            # ⭐ IFC viewer modules
+│   │   │   ├── viewer-core.js          # Core viewer logic
+│   │   │   ├── viewer-init.js          # Initialization
+│   │   │   ├── viewer-parser.js        # IFC parsing integration
+│   │   │   └── viewer-ui.js            # UI interactions
 │   │   ├── vendor/         # Third-party libraries
 │   │   │   └── xlsx.full.min.js        # SheetJS for Excel export
 │   │   ├── workers/
 │   │   │   └── ifc-parser.worker.js    # Web Worker
-│   │   ├── viewer.js       # ⭐ IFC viewer page logic
 │   │   ├── parser.js       # ⭐ IDS parser page logic
 │   │   ├── index.js        # Main page logic
 │   │   └── validator.js    # ⭐ IDS-IFC validator page logic
@@ -196,7 +200,7 @@ function validateEntity(entity, specification) {
 <input type="text" id="myNewFilter" placeholder="New Filter">
 
 // 2. Add an event listener
-// assets/js/viewer.js
+// assets/js/ifc/viewer-ui.js
 document.getElementById('myNewFilter').addEventListener('input', (e) => {
     const filterValue = e.target.value;
     applyMyNewFilter(filterValue);

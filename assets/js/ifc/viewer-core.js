@@ -33,7 +33,9 @@ class VirtualArray {
     find(callback) {
         for (const arr of this.arrays) {
             const result = arr.find(callback);
-            if (result !== undefined) return result;
+            if (result !== undefined) {
+                return result;
+            }
         }
         return undefined;
     }
@@ -219,7 +221,9 @@ async function initIFCCache() {
 }
 
 async function storeIFCContent(fileName, content) {
-    if (!ViewerState.ifcCacheDB) await initIFCCache();
+    if (!ViewerState.ifcCacheDB) {
+        await initIFCCache();
+    }
 
     return new Promise((resolve, reject) => {
         const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files'], 'readwrite');
@@ -232,7 +236,9 @@ async function storeIFCContent(fileName, content) {
 }
 
 async function getIFCContent(fileName) {
-    if (!ViewerState.ifcCacheDB) await initIFCCache();
+    if (!ViewerState.ifcCacheDB) {
+        await initIFCCache();
+    }
 
     return new Promise((resolve, reject) => {
         const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files'], 'readonly');
@@ -245,7 +251,9 @@ async function getIFCContent(fileName) {
 }
 
 async function deleteIFCContent(fileName) {
-    if (!ViewerState.ifcCacheDB) await initIFCCache();
+    if (!ViewerState.ifcCacheDB) {
+        await initIFCCache();
+    }
 
     return new Promise((resolve, reject) => {
         const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files'], 'readwrite');

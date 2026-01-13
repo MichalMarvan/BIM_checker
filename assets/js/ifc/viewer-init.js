@@ -48,9 +48,9 @@ document.getElementById('applyColumnsBtn').addEventListener('click', () => {
 
 document.getElementById('selectAllBtn').addEventListener('click', () => {
     const state = window.ViewerState;
-    for (let psetName of state.psetOrder) {
+    for (const psetName of state.psetOrder) {
         if (state.propertySetGroups[psetName]) {
-            for (let propName of state.propertySetGroups[psetName]) {
+            for (const propName of state.propertySetGroups[psetName]) {
                 state.visiblePsets[psetName][propName] = true;
             }
         }
@@ -60,9 +60,9 @@ document.getElementById('selectAllBtn').addEventListener('click', () => {
 
 document.getElementById('deselectAllColumnsBtn').addEventListener('click', () => {
     const state = window.ViewerState;
-    for (let psetName of state.psetOrder) {
+    for (const psetName of state.psetOrder) {
         if (state.propertySetGroups[psetName]) {
-            for (let propName of state.propertySetGroups[psetName]) {
+            for (const propName of state.propertySetGroups[psetName]) {
                 state.visiblePsets[psetName][propName] = false;
             }
         }
@@ -133,14 +133,14 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     const state = window.ViewerState;
     const columns = window.currentColumns || [];
     let csv = `${i18n.t('viewer.csv.file')},${i18n.t('viewer.csv.guid')},${i18n.t('viewer.csv.entity')},${i18n.t('viewer.csv.name')},${i18n.t('viewer.csv.layer')}`;
-    for (let col of columns) {
+    for (const col of columns) {
         csv += ',"' + col.psetName + ' ' + col.propName + '"';
     }
     csv += '\n';
 
-    for (let item of state.filteredData) {
+    for (const item of state.filteredData) {
         const row = ['"' + item.fileName + '"', item.guid, item.entity, '"' + item.name + '"', '"' + (item.layer || '-') + '"'];
-        for (let col of columns) {
+        for (const col of columns) {
             const val = item.propertySets[col.psetName]?.[col.propName] || '';
             row.push('"' + val + '"');
         }
@@ -281,7 +281,9 @@ document.getElementById('selectAllPagesBtn').addEventListener('click', () => {
             `${i18n.t('viewer.confirmSelectAll')} ${totalCount} ${i18n.t('viewer.entities')}?\n\n` +
             `${i18n.t('viewer.mayTakeLonger')}`
         );
-        if (!confirmed) return;
+        if (!confirmed) {
+            return;
+        }
     }
 
     state.filteredData.forEach(item => {
@@ -315,7 +317,9 @@ document.getElementById('deselectAllBtn').addEventListener('click', () => {
 
 function makeEditable(cell, guid, psetName, propName) {
     const state = window.ViewerState;
-    if (!state.editMode || state.editingCell === cell) return;
+    if (!state.editMode || state.editingCell === cell) {
+        return;
+    }
 
     state.editingCell = cell;
     const currentValue = cell.textContent;
@@ -389,7 +393,7 @@ document.getElementById('bulkEditBtn').addEventListener('click', () => {
     const psetSelect = document.getElementById('bulkPsetName');
 
     psetSelect.innerHTML = `<option value="">${i18n.t('viewer.selectPset')}</option>`;
-    for (let psetName of state.psetOrder) {
+    for (const psetName of state.psetOrder) {
         if (state.propertySetGroups[psetName]) {
             psetSelect.innerHTML += `<option value="${window.escapeHtml(psetName)}">${window.escapeHtml(psetName)}</option>`;
         }
@@ -417,7 +421,7 @@ document.getElementById('bulkPsetName').addEventListener('change', (e) => {
     propSelect.innerHTML = `<option value="">${i18n.t('viewer.selectProp')}</option>`;
 
     if (state.propertySetGroups[psetName]) {
-        for (let propName of state.propertySetGroups[psetName]) {
+        for (const propName of state.propertySetGroups[psetName]) {
             propSelect.innerHTML += `<option value="${window.escapeHtml(propName)}">${window.escapeHtml(propName)}</option>`;
         }
     }
@@ -438,9 +442,11 @@ document.getElementById('bulkPropName').addEventListener('change', (e) => {
     const valueCount = {};
     let emptyCount = 0;
 
-    for (let guid of state.selectedEntities) {
+    for (const guid of state.selectedEntities) {
         const entity = state.allData.find(e => e.guid === guid);
-        if (!entity) continue;
+        if (!entity) {
+            continue;
+        }
 
         const value = entity.propertySets[psetName]?.[propName];
         if (value) {
@@ -510,9 +516,11 @@ function applyBulkEdit() {
         return;
     }
 
-    for (let guid of state.selectedEntities) {
+    for (const guid of state.selectedEntities) {
         const entity = state.allData.find(e => e.guid === guid);
-        if (!entity) continue;
+        if (!entity) {
+            continue;
+        }
 
         if (!state.modifications[guid]) {
             state.modifications[guid] = {};
@@ -578,9 +586,11 @@ function applyAddPset() {
         state.visiblePsets[psetName][propName] = true;
     }
 
-    for (let guid of state.selectedEntities) {
+    for (const guid of state.selectedEntities) {
         const entity = state.allData.find(e => e.guid === guid);
-        if (!entity) continue;
+        if (!entity) {
+            continue;
+        }
 
         if (!state.modifications[guid]) {
             state.modifications[guid] = {};
@@ -617,7 +627,7 @@ document.getElementById('renamePsetBtn').addEventListener('click', () => {
     const dropdown = document.getElementById('oldPsetName');
 
     const allPsets = new Set();
-    for (let guid of state.selectedEntities) {
+    for (const guid of state.selectedEntities) {
         const entity = state.allData.find(e => e.guid === guid);
         if (entity && entity.propertySets) {
             Object.keys(entity.propertySets).forEach(pset => allPsets.add(pset));
@@ -663,9 +673,11 @@ function applyPsetRename() {
     }
 
     let count = 0;
-    for (let guid of state.selectedEntities) {
+    for (const guid of state.selectedEntities) {
         const entity = state.allData.find(e => e.guid === guid);
-        if (!entity || !entity.propertySets[oldName]) continue;
+        if (!entity || !entity.propertySets[oldName]) {
+            continue;
+        }
 
         if (!state.modifications[guid]) {
             state.modifications[guid] = {};
@@ -696,7 +708,7 @@ document.getElementById('renamePropertyBtn').addEventListener('click', () => {
     const psetDropdown = document.getElementById('renamePropPsetName');
 
     const allPsets = new Set();
-    for (let guid of state.selectedEntities) {
+    for (const guid of state.selectedEntities) {
         const entity = state.allData.find(e => e.guid === guid);
         if (entity && entity.propertySets) {
             Object.keys(entity.propertySets).forEach(pset => allPsets.add(pset));
@@ -739,7 +751,7 @@ function updatePropertyDropdown() {
     }
 
     const allProperties = new Set();
-    for (let guid of state.selectedEntities) {
+    for (const guid of state.selectedEntities) {
         const entity = state.allData.find(e => e.guid === guid);
         if (entity && entity.propertySets && entity.propertySets[psetName]) {
             Object.keys(entity.propertySets[psetName]).forEach(prop => allProperties.add(prop));
@@ -784,9 +796,11 @@ function applyPropertyRename() {
     }
 
     let count = 0;
-    for (let guid of state.selectedEntities) {
+    for (const guid of state.selectedEntities) {
         const entity = state.allData.find(e => e.guid === guid);
-        if (!entity || !entity.propertySets[psetName] || !entity.propertySets[psetName][oldPropName]) continue;
+        if (!entity || !entity.propertySets[psetName] || !entity.propertySets[psetName][oldPropName]) {
+            continue;
+        }
 
         if (!state.modifications[guid]) {
             state.modifications[guid] = {};
@@ -872,7 +886,7 @@ async function exportModifiedIFC(fileInfo) {
 function applyModificationsToIFC(ifcContent, modifications, fileName) {
     const state = window.ViewerState;
     const lines = ifcContent.split('\n');
-    let modifiedLines = [...lines];
+    const modifiedLines = [...lines];
 
     const entityMap = new Map();
     const propertySetMap = new Map();
@@ -882,14 +896,20 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
     lines.forEach((originalLine, lineIndex) => {
         const line = originalLine.trim();
-        if (!line || !line.startsWith('#')) return;
+        if (!line || !line.startsWith('#')) {
+            return;
+        }
 
         const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?\s*$/i);
-        if (!match) return;
+        if (!match) {
+            return;
+        }
 
         const [, id, entityType, params] = match;
         const numId = parseInt(id);
-        if (numId > maxEntityId) maxEntityId = numId;
+        if (numId > maxEntityId) {
+            maxEntityId = numId;
+        }
 
         entityMap.set(id, { lineIndex, type: entityType, params, line: originalLine });
 
@@ -918,13 +938,19 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
 
     for (const [guid, psetModifications] of Object.entries(modifications)) {
         const entity = state.allData.find(e => e.guid === guid && e.fileName === fileName);
-        if (!entity) continue;
+        if (!entity) {
+            continue;
+        }
 
         const entityId = guidToEntityId.get(guid);
-        if (!entityId) continue;
+        if (!entityId) {
+            continue;
+        }
 
         for (const [psetName, propModifications] of Object.entries(psetModifications)) {
-            if (psetName === 'renamedPsets' || psetName === 'renamedProperties') continue;
+            if (psetName === 'renamedPsets' || psetName === 'renamedProperties') {
+                continue;
+            }
 
             const newProperties = {};
 
@@ -995,7 +1021,9 @@ function updatePropertyInIFC(lines, entityMap, propertySetMap, propertySingleVal
     let updatedCount = 0;
 
     for (const [psetId, psetInfo] of propertySetMap) {
-        if (!psetInfo.params) continue;
+        if (!psetInfo.params) {
+            continue;
+        }
 
         const quotedStrings = [];
         const regex = /'([^']*(?:\\'[^']*)*)'/g;
@@ -1005,25 +1033,37 @@ function updatePropertyInIFC(lines, entityMap, propertySetMap, propertySingleVal
             quotedStrings.push(match[1]);
         }
 
-        let foundPsetName = quotedStrings.length > 1 ? quotedStrings[1] : null;
-        if (foundPsetName !== psetName) continue;
+        const foundPsetName = quotedStrings.length > 1 ? quotedStrings[1] : null;
+        if (foundPsetName !== psetName) {
+            continue;
+        }
 
         const propIdsMatch = psetInfo.params.match(/\(([#\d,\s]+)\)[^)]*$/);
-        if (!propIdsMatch) continue;
+        if (!propIdsMatch) {
+            continue;
+        }
 
         const propIds = propIdsMatch[1].match(/#\d+/g);
-        if (!propIds) continue;
+        if (!propIds) {
+            continue;
+        }
 
         for (const propIdRef of propIds) {
             const propId = propIdRef.substring(1);
             const propInfo = propertySingleValueMap.get(propId);
-            if (!propInfo) continue;
+            if (!propInfo) {
+                continue;
+            }
 
             const propNameMatch = propInfo.params.match(/'([^']*)'/);
-            if (!propNameMatch) continue;
+            if (!propNameMatch) {
+                continue;
+            }
 
             const currentPropName = propNameMatch[1];
-            if (currentPropName !== propName) continue;
+            if (currentPropName !== propName) {
+                continue;
+            }
 
             const oldLine = propInfo.line;
             const newLine = updatePropertyValue(oldLine, newValue);
@@ -1066,7 +1106,7 @@ function updatePropertyValue(line, newValue) {
     if (match) {
         const [fullMatch, ifcType] = match;
         const boolValue = newValue.toUpperCase() === 'TRUE' || newValue === '1' || newValue.toUpperCase() === 'T' ? 'T' :
-                         newValue.toUpperCase() === 'FALSE' || newValue === '0' || newValue.toUpperCase() === 'F' ? 'F' : 'UNKNOWN';
+            newValue.toUpperCase() === 'FALSE' || newValue === '0' || newValue.toUpperCase() === 'F' ? 'F' : 'UNKNOWN';
         const newMatch = `${ifcType}(.${boolValue}.)`;
         return line.replace(fullMatch, newMatch);
     }
@@ -1075,7 +1115,9 @@ function updatePropertyValue(line, newValue) {
 }
 
 function encodeIFCString(str) {
-    if (!str) return '';
+    if (!str) {
+        return '';
+    }
     return String(str).replace(/'/g, "\\'");
 }
 
@@ -1143,7 +1185,7 @@ function createRelDefinesByProperties(id, guid, relatedObjects, relatingPset) {
 // =======================
 
 let storageDB = null;
-let selectedStorageFiles = new Set();
+const selectedStorageFiles = new Set();
 let expandedStorageFolders = new Set(['root']);
 let storageMetadata = null;
 let storageInitPromise = null;
@@ -1179,7 +1221,7 @@ async function loadStorageMetadata() {
                     files: {}
                 };
 
-                for (let fileId in fullData.files) {
+                for (const fileId in fullData.files) {
                     const file = fullData.files[fileId];
                     storageMetadata.files[fileId] = {
                         id: file.id,
@@ -1247,10 +1289,14 @@ function toggleStorageFolder(folderId) {
 }
 
 function selectAllFilesInFolder(folderId) {
-    if (!storageMetadata) return;
+    if (!storageMetadata) {
+        return;
+    }
 
     const folder = storageMetadata.folders[folderId];
-    if (!folder) return;
+    if (!folder) {
+        return;
+    }
 
     const allFiles = getAllFilesInFolder(folderId);
     const allSelected = allFiles.every(fileId => selectedStorageFiles.has(fileId));
@@ -1265,10 +1311,14 @@ function selectAllFilesInFolder(folderId) {
 }
 
 function getAllFilesInFolder(folderId) {
-    if (!storageMetadata) return [];
+    if (!storageMetadata) {
+        return [];
+    }
 
     const folder = storageMetadata.folders[folderId];
-    if (!folder) return [];
+    if (!folder) {
+        return [];
+    }
 
     let files = [...folder.files];
 
@@ -1298,7 +1348,9 @@ function renderStorageTree() {
 
 function renderStorageFolderRecursive(folderId, level) {
     const folder = storageMetadata.folders[folderId];
-    if (!folder) return '';
+    if (!folder) {
+        return '';
+    }
 
     const isExpanded = expandedStorageFolders.has(folderId);
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
@@ -1503,9 +1555,11 @@ function getEntityIcon(type) {
 }
 
 function countChildren(node) {
-    if (!node.children || node.children.length === 0) return 0;
+    if (!node.children || node.children.length === 0) {
+        return 0;
+    }
     let count = node.children.length;
-    for (let child of node.children) {
+    for (const child of node.children) {
         count += countChildren(child);
     }
     return count;
@@ -1533,13 +1587,13 @@ function renderTreeNode(node, depth = 0) {
 
     if (hasChildren) {
         html += `<div class="tree-node-children" id="children-${node.id}">`;
-        for (let child of node.children) {
+        for (const child of node.children) {
             html += renderTreeNode(child, depth + 1);
         }
-        html += `</div>`;
+        html += '</div>';
     }
 
-    html += `</div>`;
+    html += '</div>';
     return html;
 }
 
@@ -1569,21 +1623,29 @@ function handleTreeNodeClick(nodeId, nodeType, event) {
     }
 
     function findNodeById(nodes, targetId) {
-        for (let node of nodes) {
-            if (node.id === targetId) return node;
+        for (const node of nodes) {
+            if (node.id === targetId) {
+                return node;
+            }
             if (node.children) {
                 const found = findNodeById(node.children, targetId);
-                if (found) return found;
+                if (found) {
+                    return found;
+                }
             }
         }
         return null;
     }
 
     const currentFile = state.loadedFiles[currentTreeFileIndex];
-    if (!currentFile || !currentFile.spatialTree) return;
+    if (!currentFile || !currentFile.spatialTree) {
+        return;
+    }
 
     const clickedNode = findNodeById(currentFile.spatialTree, nodeId);
-    if (!clickedNode) return;
+    if (!clickedNode) {
+        return;
+    }
 
     const allIds = getAllChildIds(clickedNode);
 
@@ -1609,7 +1671,9 @@ function toggleTreeNode(nodeId) {
     const childrenDiv = document.getElementById(`children-${nodeId}`);
     const nodeDiv = document.querySelector(`[data-node-id="${nodeId}"]`);
 
-    if (!childrenDiv || !nodeDiv) return;
+    if (!childrenDiv || !nodeDiv) {
+        return;
+    }
 
     const toggle = nodeDiv.querySelector('.tree-node-toggle');
     const isExpanded = childrenDiv.classList.contains('expanded');
@@ -1673,7 +1737,7 @@ function renderSpatialTree() {
         </div>
     `;
 
-    for (let rootNode of currentFile.spatialTree) {
+    for (const rootNode of currentFile.spatialTree) {
         html += renderTreeNode(rootNode);
     }
 
@@ -1745,7 +1809,9 @@ function initSpatialTreeListeners() {
 
 function initScrollSpeedLimiter() {
     const tableContainer = document.getElementById('tableContainer');
-    if (!tableContainer) return;
+    if (!tableContainer) {
+        return;
+    }
 
     const MAX_SCROLL_SPEED = 100;
 

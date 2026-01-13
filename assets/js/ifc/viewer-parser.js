@@ -8,7 +8,9 @@
 // =======================
 
 function decodeIFCString(str) {
-    if (!str) return str;
+    if (!str) {
+        return str;
+    }
 
     // Decode \S\X format (ISO 8859-1 supplement)
     str = str.replace(/\\S\\(.)/g, (m, char) => String.fromCharCode(char.charCodeAt(0) + 128));
@@ -67,9 +69,11 @@ function splitParams(params) {
             inString = !inString;
         }
         if (!inString) {
-            if (char === '(') depth++;
-            else if (char === ')') depth--;
-            else if (char === ',' && depth === 0) {
+            if (char === '(') {
+                depth++;
+            } else if (char === ')') {
+                depth--;
+            } else if (char === ',' && depth === 0) {
                 parts.push(current.trim());
                 current = '';
                 continue;
@@ -77,7 +81,9 @@ function splitParams(params) {
         }
         current += char;
     }
-    if (current) parts.push(current.trim());
+    if (current) {
+        parts.push(current.trim());
+    }
     return parts;
 }
 
@@ -114,7 +120,9 @@ function parsePropertySet(params, entityMap) {
                 const propEntity = entityMap.get(id);
                 if (propEntity && propEntity.type === 'IFCPROPERTYSINGLEVALUE') {
                     const prop = parseProperty(propEntity.params);
-                    if (prop) properties[prop.name] = prop.value;
+                    if (prop) {
+                        properties[prop.name] = prop.value;
+                    }
                 }
             }
         }
@@ -125,7 +133,9 @@ function parsePropertySet(params, entityMap) {
 
 function parseProperty(params) {
     const parts = splitParams(params);
-    if (parts.length < 3) return null;
+    if (parts.length < 3) {
+        return null;
+    }
     const rawName = parts[0].replace(/'/g, '');
     const name = decodeIFCString(rawName);
     let value = parts[2] || '';
@@ -241,8 +251,12 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                     continue;
                 }
 
-                if (!inDataSection) continue;
-                if (!line) continue;
+                if (!inDataSection) {
+                    continue;
+                }
+                if (!line) {
+                    continue;
+                }
 
                 if (entityBuffer) {
                     entityBuffer += ' ' + line;
@@ -376,7 +390,9 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                                             }
                                         }
                                     }
-                                    if (entityLayer !== '-') break;
+                                    if (entityLayer !== '-') {
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -427,11 +443,15 @@ function buildSpatialTree(entityMap, aggregatesMap, containedInSpatialMap) {
     const processedNodes = new Set();
 
     function buildNode(entityId) {
-        if (processedNodes.has(entityId)) return null;
+        if (processedNodes.has(entityId)) {
+            return null;
+        }
         processedNodes.add(entityId);
 
         const entity = entityMap.get(entityId);
-        if (!entity) return null;
+        if (!entity) {
+            return null;
+        }
 
         const node = {
             id: entityId,
@@ -496,7 +516,9 @@ function handleOrphanedContainers(spatialTree, entityMap, containedInSpatialMap,
         }
     }
 
-    if (orphanedContainers.length === 0) return;
+    if (orphanedContainers.length === 0) {
+        return;
+    }
 
     function findAppropriateParent(tree, orphanType) {
         const typeHierarchy = {
@@ -538,7 +560,9 @@ function handleOrphanedContainers(spatialTree, entityMap, containedInSpatialMap,
     }
 
     for (const orphan of orphanedContainers) {
-        if (!orphan.entity) continue;
+        if (!orphan.entity) {
+            continue;
+        }
 
         const orphanNode = {
             id: orphan.id,

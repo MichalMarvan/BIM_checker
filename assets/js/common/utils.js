@@ -5,7 +5,9 @@
 
 // Format file size to human-readable format
 function formatFileSize(bytes) {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) {
+        return '0 B';
+    }
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -30,8 +32,12 @@ function showLoading(text = i18n.t('loading.text'), subtext = i18n.t('loading.su
     if (overlay) {
         const loadingText = document.getElementById('loadingText');
         const loadingSubtext = document.getElementById('loadingSubtext');
-        if (loadingText) loadingText.textContent = text;
-        if (loadingSubtext) loadingSubtext.textContent = subtext;
+        if (loadingText) {
+            loadingText.textContent = text;
+        }
+        if (loadingSubtext) {
+            loadingSubtext.textContent = subtext;
+        }
         overlay.classList.add('show');
     }
 }
@@ -171,7 +177,9 @@ function downloadFile(content, filename, type = 'text/plain') {
 
 // Format date to locale string
 function formatDate(dateString) {
-    if (!dateString) return '';
+    if (!dateString) {
+        return '';
+    }
     const date = new Date(dateString);
     return date.toLocaleDateString('cs-CZ', {
         year: 'numeric',
@@ -185,7 +193,7 @@ function formatDate(dateString) {
 // Parse XML string to DOM
 function parseXML(xmlString) {
     const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+    const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
 
     // Check for parse errors
     const parserError = xmlDoc.querySelector('parsererror');
@@ -250,7 +258,9 @@ function generateId(prefix = 'id') {
 
 // Check if value matches pattern (regex or simple string)
 function matchesPattern(value, pattern) {
-    if (!pattern) return true;
+    if (!pattern) {
+        return true;
+    }
     if (typeof pattern === 'string') {
         // Try as regex first
         try {
@@ -270,8 +280,12 @@ function sortByProperty(array, property, ascending = true) {
         const aVal = a[property];
         const bVal = b[property];
 
-        if (aVal < bVal) return ascending ? -1 : 1;
-        if (aVal > bVal) return ascending ? 1 : -1;
+        if (aVal < bVal) {
+            return ascending ? -1 : 1;
+        }
+        if (aVal > bVal) {
+            return ascending ? 1 : -1;
+        }
         return 0;
     });
 }
