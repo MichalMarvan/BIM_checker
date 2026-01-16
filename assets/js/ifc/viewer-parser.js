@@ -4,6 +4,289 @@
    =========================================== */
 
 // =======================
+// LARGE FILE OPTIMIZATION
+// =======================
+
+// Entity types to SKIP (geometry, styling - not needed for property viewer)
+const SKIP_ENTITY_TYPES = new Set([
+    // Geometry primitives
+    'IFCCARTESIANPOINT',
+    'IFCCARTESIANPOINTLIST2D',
+    'IFCCARTESIANPOINTLIST3D',
+    'IFCDIRECTION',
+    'IFCVECTOR',
+    'IFCAXIS1PLACEMENT',
+    'IFCAXIS2PLACEMENT2D',
+    'IFCAXIS2PLACEMENT3D',
+    // Mesh/solid geometry
+    'IFCINDEXEDPOLYGONALFACE',
+    'IFCINDEXEDPOLYGONALFACEWITHVOIDS',
+    'IFCPOLYGONALFACESET',
+    'IFCTRIANGULATEDFACESET',
+    'IFCEXTRUDEDAREASOLID',
+    'IFCREVOLVEDAREASOLID',
+    'IFCSWEPTDISKSOLID',
+    'IFCBOOLEANCLIPPINGRESULT',
+    'IFCBOOLEANRESULT',
+    'IFCHALFSPACESOLID',
+    'IFCPOLYGONALBOUNDEDHALFSPACE',
+    // Curves and profiles
+    'IFCPOLYLINE',
+    'IFCINDEXEDPOLYCURVE',
+    'IFCCOMPOSITECURVE',
+    'IFCCOMPOSITECURVESEGMENT',
+    'IFCTRIMMEDCURVE',
+    'IFCCIRCLE',
+    'IFCELLIPSE',
+    'IFCLINE',
+    'IFCARBITRARYCLOSEDPROFILEDEF',
+    'IFCARBITRARYOPENPROFILEDEF',
+    'IFCARBITRARYPROFILEDEFWITHVOIDS',
+    'IFCRECTANGLEPROFILEDEF',
+    'IFCCIRCLEPROFILEDEF',
+    'IFCISHAPEPROFILEDEF',
+    'IFCLSHAPEPROFILEDEF',
+    'IFCTSHAPEPROFILEDEF',
+    'IFCUSHAPEPROFILEDEF',
+    'IFCZSHAPEPROFILEDEF',
+    'IFCCSHAPEPROFILEDEF',
+    'IFCASYMMETRICISHAPEPROFILEDEF',
+    // Representation items
+    'IFCFACETEDBREP',
+    'IFCFACEOUTERBOUND',
+    'IFCFACEBOUND',
+    'IFCFACE',
+    'IFCCLOSEDSHELL',
+    'IFCOPENSHELL',
+    'IFCCONNECTEDFACESET',
+    'IFCGEOMETRICSET',
+    'IFCGEOMETRICCURVESET',
+    // Styling (colors, materials appearance)
+    'IFCSTYLEDITEM',
+    'IFCSTYLEDREPRESENTATION',
+    'IFCPRESENTATIONSTYLEASSIGNMENT',
+    'IFCSURFACESTYLE',
+    'IFCSURFACESTYLERENDERING',
+    'IFCSURFACESTYLESHADING',
+    'IFCCOLOURRGB',
+    'IFCCOLOURRGBLIST',
+    'IFCINDEXEDCOLOURMAP',
+    'IFCDRAUGHTINGPREDEFINEDCOLOUR',
+    'IFCCURVESTYLE',
+    'IFCFILLAREASTYLE',
+    'IFCTEXTSTYLE',
+    // Mapped items (instances)
+    'IFCMAPPEDITEM',
+    'IFCREPRESENTATIONMAP',
+    // Tessellation
+    'IFCTESSELLATEDITEM',
+    'IFCPOLYGONALTESSELLATEDFACESET',
+    // Topology
+    'IFCEDGECURVE',
+    'IFCORIENTEDEDGE',
+    'IFCEDGELOOP',
+    'IFCPOLYLOOP',
+    'IFCVERTEXPOINT',
+    // Additional geometry
+    'IFCBSPLINECURVE',
+    'IFCBSPLINECURVEWITHKNOTS',
+    'IFCBSPLINESURFACE',
+    'IFCBSPLINESURFACEWITHKNOTS',
+    'IFCRATIONALBSPLINECURVEWITHKNOTS',
+    'IFCRATIONALBSPLINESURFACEWITHKNOTS',
+    'IFCSURFACECURVE',
+    'IFCPCURVE',
+    'IFCOFFSETCURVE2D',
+    'IFCOFFSETCURVE3D',
+    // Context items we don't need
+    'IFCGEOMETRICREPRESENTATIONCONTEXT',
+    'IFCGEOMETRICREPRESENTATIONSUBCONTEXT',
+    // Shape representations (keep IFCPRODUCTDEFINITIONSHAPE for layer lookup)
+    'IFCSHAPEREPRESENTATION',
+    'IFCSHAPEASPECT',
+    'IFCTOPOLOGYREPRESENTATION'
+]);
+
+// Entity types we NEED (will be parsed fully)
+const REQUIRED_ENTITY_TYPES = new Set([
+    // Spatial structure
+    'IFCPROJECT',
+    'IFCSITE',
+    'IFCBUILDING',
+    'IFCBUILDINGSTOREY',
+    'IFCSPACE',
+    'IFCZONE',
+    // Products (building elements)
+    'IFCWALL',
+    'IFCWALLSTANDARDCASE',
+    'IFCCURTAINWALL',
+    'IFCDOOR',
+    'IFCWINDOW',
+    'IFCSLAB',
+    'IFCROOF',
+    'IFCBEAM',
+    'IFCCOLUMN',
+    'IFCMEMBER',
+    'IFCPLATE',
+    'IFCSTAIR',
+    'IFCSTAIRFLIGHT',
+    'IFCRAMP',
+    'IFCRAMPFLIGHT',
+    'IFCRAILING',
+    'IFCCOVERING',
+    'IFCFOOTING',
+    'IFCPILE',
+    'IFCBUILDINGELEMENTPROXY',
+    // Furniture and equipment
+    'IFCFURNITURE',
+    'IFCFURNISHINGELEMENT',
+    'IFCSYSTEMFURNITUREELEMENT',
+    // MEP elements
+    'IFCFLOWSEGMENT',
+    'IFCFLOWTERMINAL',
+    'IFCFLOWFITTING',
+    'IFCFLOWCONTROLLER',
+    'IFCFLOWMOVINGDEVICE',
+    'IFCFLOWSTORAGEDEVICE',
+    'IFCFLOWTREATMENTDEVICE',
+    'IFCENERGYCONVERSIONDEVICE',
+    'IFCDISTRIBUTIONELEMENT',
+    'IFCDISTRIBUTIONCONTROLELEMENT',
+    'IFCDISTRIBUTIONFLOWELEMENT',
+    'IFCDISTRIBUTIONPORT',
+    'IFCDUCTFITTING',
+    'IFCDUCTSEGMENT',
+    'IFCDUCTSILENCER',
+    'IFCPIPEFITTING',
+    'IFCPIPESEGMENT',
+    'IFCCABLECARRIERFITTING',
+    'IFCCABLECARRIERSEGMENT',
+    'IFCCABLEFITTING',
+    'IFCCABLESEGMENT',
+    // Infrastructure
+    'IFCBRIDGE',
+    'IFCBRIDGEPART',
+    'IFCROAD',
+    'IFCROADPART',
+    'IFCRAILWAY',
+    'IFCRAILWAYPART',
+    'IFCALIGNMENT',
+    'IFCREFERENT',
+    // Assemblies
+    'IFCELEMENTASSEMBLY',
+    // Opening elements
+    'IFCOPENINGELEMENT',
+    // Properties and relationships
+    'IFCPROPERTYSET',
+    'IFCPROPERTYSINGLEVALUE',
+    'IFCRELDEFINESBYPROPERTIES',
+    'IFCRELDEFINESBYTYPE',
+    'IFCRELASSOCIATESMATERIAL',
+    'IFCRELCONTAINEDINSPATIALSTRUCTURE',
+    'IFCRELAGGREGATES',
+    // Types
+    'IFCWALLTYPE',
+    'IFCDOORTYPE',
+    'IFCWINDOWTYPE',
+    'IFCSLABTYPE',
+    'IFCBEAMTYPE',
+    'IFCCOLUMNTYPE',
+    'IFCMEMBERTYPE',
+    'IFCFURNITURETYPE',
+    'IFCSPACETYPE',
+    'IFCBUILDINGELEMENTPROXYTYPE',
+    // Layers (needed for layer info)
+    'IFCPRESENTATIONLAYERASSIGNMENT',
+    // Product shape (needed for layer lookup)
+    'IFCPRODUCTDEFINITIONSHAPE',
+    // Owner history
+    'IFCOWNERHISTORY',
+    'IFCPERSON',
+    'IFCORGANIZATION',
+    'IFCPERSONANDORGANIZATION',
+    'IFCAPPLICATION'
+]);
+
+// Large file threshold (50MB)
+const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
+// Very large file threshold (150MB) - show stronger warning
+const VERY_LARGE_FILE_THRESHOLD = 150 * 1024 * 1024;
+
+/**
+ * Fast entity parsing using indexOf/substring instead of regex
+ * Much faster for long lines (1MB+ geometry data)
+ */
+function parseEntityFast(line) {
+    // Find #ID=
+    if (!line.startsWith('#')) {
+        return null;
+    }
+
+    const eqPos = line.indexOf('=');
+    if (eqPos === -1) {
+        return null;
+    }
+
+    const id = line.substring(1, eqPos).trim();
+
+    // Find entity type
+    const parenPos = line.indexOf('(', eqPos);
+    if (parenPos === -1) {
+        return null;
+    }
+
+    const entityType = line.substring(eqPos + 1, parenPos).trim();
+
+    // Check if we should skip this entity type
+    if (SKIP_ENTITY_TYPES.has(entityType)) {
+        return { id, type: entityType, params: null, skipped: true };
+    }
+
+    // Extract params (everything between first ( and last ))
+    const lastParen = line.lastIndexOf(')');
+    if (lastParen === -1) {
+        return null;
+    }
+
+    const params = line.substring(parenPos + 1, lastParen);
+
+    return { id, type: entityType, params, skipped: false };
+}
+
+/**
+ * Check if file is valid IFC and detect encryption
+ */
+function validateIFCContent(content) {
+    // Check for encryption signatures
+    if (content.includes('MSMAMARPCRYPT') || content.includes('AES/CBC')) {
+        return {
+            valid: false,
+            error: 'encrypted',
+            message: 'Soubor je zašifrovaný (Microsoft Intune). Dešifrujte ho před nahráním.'
+        };
+    }
+
+    // Check for valid IFC header
+    if (!content.includes('ISO-10303-21;') && !content.includes('ISO-10303-21 ;')) {
+        return {
+            valid: false,
+            error: 'invalid',
+            message: 'Neplatný IFC formát - soubor neobsahuje standardní IFC hlavičku.'
+        };
+    }
+
+    if (!content.includes('DATA;')) {
+        return {
+            valid: false,
+            error: 'invalid',
+            message: 'Neplatný IFC formát - soubor neobsahuje datovou sekci.'
+        };
+    }
+
+    return { valid: true };
+}
+
+// =======================
 // STRING ENCODING/DECODING
 // =======================
 
@@ -211,6 +494,32 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
     const state = window.ViewerState;
 
     try {
+        // === VALIDATION ===
+        const validation = validateIFCContent(content);
+        if (!validation.valid) {
+            throw new Error(validation.message);
+        }
+
+        // === LARGE FILE WARNING ===
+        const fileSize = content.length;
+        let skippedEntities = 0;
+
+        if (fileSize > VERY_LARGE_FILE_THRESHOLD) {
+            const sizeMB = (fileSize / (1024 * 1024)).toFixed(0);
+            const confirmed = confirm(
+                `⚠️ Velmi velký soubor (${sizeMB} MB)!\n\n` +
+                `Soubor "${fileName}" je velmi velký a může způsobit zpomalení prohlížeče.\n\n` +
+                'Pro optimalizaci budou přeskočeny geometrické entity (viewer je nepotřebuje pro zobrazení properties).\n\n' +
+                'Chcete pokračovat?'
+            );
+            if (!confirmed) {
+                throw new Error('Načítání zrušeno uživatelem.');
+            }
+        } else if (fileSize > LARGE_FILE_THRESHOLD) {
+            const sizeMB = (fileSize / (1024 * 1024)).toFixed(0);
+            console.info(`[IFC Parser] Velký soubor (${sizeMB} MB) - používám optimalizovaný parser.`);
+        }
+
         const fileData = [];
         const lines = content.split('\n');
         const entityMap = new Map();
@@ -222,8 +531,8 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         const CHUNK_SIZE = 2000;
         const totalLines = lines.length;
 
-        // Phase 1: Collect entities with multi-line support
-        window.window.updateProgress(0, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')}`);
+        // Phase 1: Collect entities with multi-line support (OPTIMIZED)
+        window.updateProgress(0, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')}`);
 
         let entityBuffer = '';
         let inDataSection = false;
@@ -240,10 +549,12 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 }
                 if (line === 'ENDSEC;') {
                     if (entityBuffer) {
-                        const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
-                        if (match) {
-                            const [, id, entityType, params] = match;
-                            entityMap.set(id, { id, type: entityType, params });
+                        // Use fast parsing for buffered entities
+                        const parsed = parseEntityFast(entityBuffer);
+                        if (parsed && !parsed.skipped) {
+                            entityMap.set(parsed.id, { id: parsed.id, type: parsed.type, params: parsed.params });
+                        } else if (parsed && parsed.skipped) {
+                            skippedEntities++;
                         }
                         entityBuffer = '';
                     }
@@ -261,19 +572,23 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                 if (entityBuffer) {
                     entityBuffer += ' ' + line;
                     if (window.isIfcEntityComplete(entityBuffer)) {
-                        const match = entityBuffer.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
-                        if (match) {
-                            const [, id, entityType, params] = match;
-                            entityMap.set(id, { id, type: entityType, params });
+                        // Use fast parsing for long lines
+                        const parsed = parseEntityFast(entityBuffer);
+                        if (parsed && !parsed.skipped) {
+                            entityMap.set(parsed.id, { id: parsed.id, type: parsed.type, params: parsed.params });
+                        } else if (parsed && parsed.skipped) {
+                            skippedEntities++;
                         }
                         entityBuffer = '';
                     }
                 } else if (line.startsWith('#')) {
                     if (window.isIfcEntityComplete(line)) {
-                        const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?$/i);
-                        if (match) {
-                            const [, id, entityType, params] = match;
-                            entityMap.set(id, { id, type: entityType, params });
+                        // Use fast parsing - much faster for long lines
+                        const parsed = parseEntityFast(line);
+                        if (parsed && !parsed.skipped) {
+                            entityMap.set(parsed.id, { id: parsed.id, type: parsed.type, params: parsed.params });
+                        } else if (parsed && parsed.skipped) {
+                            skippedEntities++;
                         }
                     } else {
                         entityBuffer = line;
@@ -285,6 +600,11 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
             window.updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')} (${i + CHUNK_SIZE}/${totalLines} ${i18n.t('viewer.rows')})`);
 
             await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        // Log optimization stats
+        if (skippedEntities > 0) {
+            console.info(`[IFC Parser] Přeskočeno ${skippedEntities.toLocaleString()} geometrických entit pro optimalizaci.`);
         }
 
         // Phase 2: Parse property sets and relationships
@@ -611,3 +931,10 @@ window.parseLayerAssignment = parseLayerAssignment;
 window.parseIFCAsync = parseIFCAsync;
 window.parseIFC = parseIFC;
 window.buildSpatialTree = buildSpatialTree;
+// Large file optimization exports
+window.parseEntityFast = parseEntityFast;
+window.validateIFCContent = validateIFCContent;
+window.SKIP_ENTITY_TYPES = SKIP_ENTITY_TYPES;
+window.REQUIRED_ENTITY_TYPES = REQUIRED_ENTITY_TYPES;
+window.LARGE_FILE_THRESHOLD = LARGE_FILE_THRESHOLD;
+window.VERY_LARGE_FILE_THRESHOLD = VERY_LARGE_FILE_THRESHOLD;

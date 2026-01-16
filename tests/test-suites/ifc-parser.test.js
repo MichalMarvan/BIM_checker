@@ -193,9 +193,189 @@ END-ISO-10303-21;`;
     it('should handle IFC file with windows line endings', () => {
         const ifcWithCRLF = "#1=IFCPROJECT();\r\n#2=IFCSITE();";
         const lines = ifcWithCRLF.split(/\r?\n/);
-        
+
         expect(lines.length).toBe(2);
         expect(lines[0]).toContain('IFCPROJECT');
         expect(lines[1]).toContain('IFCSITE');
+    });
+});
+
+// =======================
+// LARGE FILE OPTIMIZATION TESTS
+// =======================
+
+describe('IFC Parser - Large File Optimization', () => {
+
+    describe('parseEntityFast', () => {
+        it('should parse simple IFC entity', () => {
+            const result = window.parseEntityFast('#1=IFCWALL(test);');
+            expect(result).toBeDefined();
+            expect(result.id).toBe('1');
+            expect(result.type).toBe('IFCWALL');
+            expect(result.params).toBe('test');
+        });
+
+        it('should parse entity with spaces around equals', () => {
+            const result = window.parseEntityFast('#123 = IFCPROJECT (params);');
+            expect(result).toBeDefined();
+            expect(result.id).toBe('123');
+            expect(result.type).toBe('IFCPROJECT');
+        });
+
+        it('should return null for invalid input', () => {
+            expect(window.parseEntityFast('invalid')).toBeNull();
+            expect(window.parseEntityFast('')).toBeNull();
+            expect(window.parseEntityFast('#1=NOPARENS')).toBeNull();
+        });
+
+        it('should handle nested parentheses in params', () => {
+            const result = window.parseEntityFast('#1=IFCWALL(nested(parens));');
+            expect(result).toBeDefined();
+            expect(result.params).toBe('nested(parens)');
+        });
+
+        it('should skip geometry entities', () => {
+            const geometryEntities = [
+                '#1=IFCCARTESIANPOINT((0.,0.,0.));',
+                '#2=IFCCARTESIANPOINTLIST3D(((1.,2.,3.)));',
+                '#3=IFCINDEXEDPOLYGONALFACE((1,2,3));',
+                '#4=IFCSTYLEDITEM(#5,$,$);',
+                '#5=IFCCOLOURRGB($,1.,0.,0.);'
+            ];
+
+            geometryEntities.forEach(entity => {
+                const result = window.parseEntityFast(entity);
+                expect(result).toBeDefined();
+                expect(result.skipped).toBe(true);
+                expect(result.params).toBeNull();
+            });
+        });
+
+        it('should NOT skip required entities', () => {
+            const requiredEntities = [
+                '#1=IFCPROJECT(test);',
+                '#2=IFCWALL(test);',
+                '#3=IFCPROPERTYSET(test);',
+                '#4=IFCRELDEFINESBYPROPERTIES(test);'
+            ];
+
+            requiredEntities.forEach(entity => {
+                const result = window.parseEntityFast(entity);
+                expect(result).toBeDefined();
+                expect(result.skipped).toBeFalsy();
+                expect(result.params).toBeDefined();
+            });
+        });
+
+        it('should handle very long geometry lines efficiently', () => {
+            // Simulate a long IFCCARTESIANPOINTLIST line (common in large IFC files)
+            const longParams = Array(1000).fill('(1.,2.,3.)').join(',');
+            const longLine = `#999=IFCCARTESIANPOINTLIST3D((${longParams}));`;
+
+            const start = performance.now();
+            const result = window.parseEntityFast(longLine);
+            const duration = performance.now() - start;
+
+            expect(result).toBeDefined();
+            expect(result.skipped).toBe(true);
+            expect(duration).toBeLessThan(10); // Should be very fast since we skip params extraction
+        });
+    });
+
+    describe('validateIFCContent', () => {
+        it('should validate correct IFC content', () => {
+            const validIFC = 'ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=IFCWALL();';
+            const result = window.validateIFCContent(validIFC);
+            expect(result.valid).toBe(true);
+        });
+
+        it('should validate IFC with space before semicolon', () => {
+            const validIFC = 'ISO-10303-21 ;\nDATA;';
+            const result = window.validateIFCContent(validIFC);
+            expect(result.valid).toBe(true);
+        });
+
+        it('should detect encrypted files (Microsoft Intune)', () => {
+            const encryptedContent = 'MSMAMARPCRYPT AES/CBC/NoPadding encrypted data';
+            const result = window.validateIFCContent(encryptedContent);
+            expect(result.valid).toBe(false);
+            expect(result.error).toBe('encrypted');
+        });
+
+        it('should detect invalid IFC without header', () => {
+            const invalidIFC = 'random data without header';
+            const result = window.validateIFCContent(invalidIFC);
+            expect(result.valid).toBe(false);
+            expect(result.error).toBe('invalid');
+        });
+
+        it('should detect invalid IFC without DATA section', () => {
+            const invalidIFC = 'ISO-10303-21;\nHEADER;\nENDSEC;';
+            const result = window.validateIFCContent(invalidIFC);
+            expect(result.valid).toBe(false);
+            expect(result.error).toBe('invalid');
+        });
+    });
+
+    describe('SKIP_ENTITY_TYPES and REQUIRED_ENTITY_TYPES', () => {
+        it('should have SKIP_ENTITY_TYPES defined', () => {
+            expect(window.SKIP_ENTITY_TYPES).toBeDefined();
+            expect(window.SKIP_ENTITY_TYPES instanceof Set).toBe(true);
+            expect(window.SKIP_ENTITY_TYPES.size).toBeGreaterThan(50);
+        });
+
+        it('should have REQUIRED_ENTITY_TYPES defined', () => {
+            expect(window.REQUIRED_ENTITY_TYPES).toBeDefined();
+            expect(window.REQUIRED_ENTITY_TYPES instanceof Set).toBe(true);
+            expect(window.REQUIRED_ENTITY_TYPES.size).toBeGreaterThan(30);
+        });
+
+        it('should have no overlap between SKIP and REQUIRED', () => {
+            const overlap = [...window.SKIP_ENTITY_TYPES].filter(x => window.REQUIRED_ENTITY_TYPES.has(x));
+            expect(overlap.length).toBe(0);
+        });
+
+        it('should skip common geometry entities', () => {
+            const geometryTypes = [
+                'IFCCARTESIANPOINT',
+                'IFCCARTESIANPOINTLIST3D',
+                'IFCINDEXEDPOLYGONALFACE',
+                'IFCEXTRUDEDAREASOLID',
+                'IFCSTYLEDITEM',
+                'IFCCOLOURRGB'
+            ];
+            geometryTypes.forEach(type => {
+                expect(window.SKIP_ENTITY_TYPES.has(type)).toBe(true);
+            });
+        });
+
+        it('should require important entities', () => {
+            const requiredTypes = [
+                'IFCPROJECT',
+                'IFCWALL',
+                'IFCPROPERTYSET',
+                'IFCPROPERTYSINGLEVALUE',
+                'IFCRELDEFINESBYPROPERTIES'
+            ];
+            requiredTypes.forEach(type => {
+                expect(window.REQUIRED_ENTITY_TYPES.has(type)).toBe(true);
+            });
+        });
+    });
+
+    describe('File size thresholds', () => {
+        it('should have LARGE_FILE_THRESHOLD defined', () => {
+            expect(window.LARGE_FILE_THRESHOLD).toBeDefined();
+            expect(window.LARGE_FILE_THRESHOLD).toBe(50 * 1024 * 1024); // 50MB
+        });
+
+        it('should have VERY_LARGE_FILE_THRESHOLD defined', () => {
+            expect(window.VERY_LARGE_FILE_THRESHOLD).toBeDefined();
+            expect(window.VERY_LARGE_FILE_THRESHOLD).toBe(150 * 1024 * 1024); // 150MB
+        });
+
+        it('should have VERY_LARGE greater than LARGE', () => {
+            expect(window.VERY_LARGE_FILE_THRESHOLD).toBeGreaterThan(window.LARGE_FILE_THRESHOLD);
+        });
     });
 });
