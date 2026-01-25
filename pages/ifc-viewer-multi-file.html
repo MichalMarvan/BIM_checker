@@ -8,13 +8,22 @@
     <link rel="stylesheet" href="../assets/css/common.css">
     <link rel="stylesheet" href="../assets/css/index.css">
     <link rel="stylesheet" href="../assets/css/ifc-viewer.css">
-    <!-- Prevent theme flash - set theme before render -->
+    <link rel="stylesheet" href="../assets/css/wizard.css">
+    <!-- Prevent theme and language flash - set before render -->
     <script>
         (function() {
             var theme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
+            var lang = localStorage.getItem('bim_checker_language');
+            if (!lang) lang = (navigator.language || '').startsWith('cs') ? 'cs' : 'cs';
+            document.documentElement.lang = lang;
+            document.documentElement.setAttribute('data-lang', lang);
         })();
     </script>
+    <style>
+        html:not(.i18n-ready) [data-i18n] { opacity: 0; }
+        html.i18n-ready [data-i18n] { opacity: 1; transition: opacity 0.15s ease; }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-subpage">
@@ -22,6 +31,20 @@
             <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
             <h1 class="page-title" data-i18n="viewer.title">IFC Multi-File Viewer</h1>
             <div class="navbar-actions">
+                <!-- Wizard Tour Button -->
+                <button class="wizard-header-btn" id="wizard-tour-btn" title="Spustit průvodce">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                </button>
+                <!-- Help Button -->
+                <button class="wizard-header-btn" id="wizard-help-btn" title="Nápověda">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </button>
                 <div class="language-switcher">
                     <button class="lang-btn active" data-lang="cs">CZ</button>
                     <button class="lang-btn" data-lang="en">EN</button>
@@ -384,5 +407,31 @@
     <script src="../assets/js/ifc/viewer-parser.js"></script>
     <script src="../assets/js/ifc/viewer-ui.js"></script>
     <script src="../assets/js/ifc/viewer-init.js"></script>
+    <!-- Update Checker for desktop app -->
+    <script type="module" src="../assets/js/common/update-checker.js"></script>
+
+    <!-- Wizard -->
+    <script src="../assets/js/common/wizard.js"></script>
+    <script src="../assets/js/common/wizard-steps.js"></script>
+    <script>
+        function initWizard() {
+            if (!window.WizardManager || !window.WIZARD_STEPS || !window.i18n || !window.translations) return;
+
+            window.wizard = new WizardManager();
+            window.wizard.init('viewer');
+
+            const tourBtn = document.getElementById('wizard-tour-btn');
+            if (tourBtn) tourBtn.addEventListener('click', () => window.wizard.start());
+
+            const helpBtn = document.getElementById('wizard-help-btn');
+            if (helpBtn) helpBtn.addEventListener('click', () => window.wizard.openSidebar());
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => setTimeout(initWizard, 10));
+        } else {
+            setTimeout(initWizard, 10);
+        }
+    </script>
 </body>
 </html>

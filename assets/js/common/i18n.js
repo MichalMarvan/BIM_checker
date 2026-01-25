@@ -47,23 +47,71 @@ class I18n {
     }
 
     /**
-   * Get translation by key
+   * Get translation by key with optional interpolation
    * @param {string} key - Translation key (e.g., 'app.title')
+   * @param {Object} params - Optional parameters for interpolation (e.g., {current: 1, total: 5})
    * @returns {string} Translated text
    */
-    t(key) {
+    t(key, params = null) {
     // Handle undefined, null, or non-string keys
         if (key === undefined || key === null || typeof key !== 'string') {
             console.warn(`Translation missing for key: ${key} (${this.currentLang})`);
             return String(key || '');
         }
 
-        const translation = this.translations[this.currentLang]?.[key];
+        // Always read from window.translations to get latest
+        const translations = window.translations || this.translations;
+        let translation = translations[this.currentLang]?.[key];
         if (!translation) {
-            console.warn(`Translation missing for key: ${key} (${this.currentLang})`);
+            // Don't warn for wizard keys during initial load - they may not be ready yet
+            if (!key.startsWith('wizard.')) {
+                console.warn(`Translation missing for key: ${key} (${this.currentLang})`);
+            }
             return key;
         }
+
+        // Interpolate parameters if provided
+        if (params && typeof params === 'object') {
+            Object.keys(params).forEach(param => {
+                translation = translation.replace(new RegExp(`\\{${param}\\}`, 'g'), params[param]);
+            });
+        }
+
         return translation;
+    }
+
+    /**
+     * Translate all data-i18n elements within a container
+     * @param {HTMLElement} container - Container element to translate
+     */
+    translateElement(container) {
+        if (!container) return;
+
+        container.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            const translation = this.t(key);
+
+            // Skip elements with SVG or special content
+            if (el.querySelector('svg') || el.classList.contains('gradient-text')) {
+                // Find text node and update only that
+                const textNodes = Array.from(el.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+                if (textNodes.length > 0) {
+                    textNodes[0].textContent = translation;
+                }
+            } else {
+                el.textContent = translation;
+            }
+        });
+
+        container.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            el.placeholder = this.t(key);
+        });
+
+        container.querySelectorAll('[data-i18n-title]').forEach(el => {
+            const key = el.getAttribute('data-i18n-title');
+            el.title = this.t(key);
+        });
     }
 
     /**
@@ -137,6 +185,10 @@ class I18n {
 
         // 5. HTML lang attribute
         document.documentElement.lang = this.currentLang;
+        document.documentElement.setAttribute('data-lang', this.currentLang);
+
+        // 6. Mark as ready (prevents language flash)
+        document.documentElement.classList.add('i18n-ready');
     }
 
     /**
@@ -181,7 +233,7 @@ if (typeof window !== 'undefined') {
     window.i18n = i18n;
 
     // Also expose a simple t() function for easier use
-    window.t = function(key) {
-        return i18n.t(key);
+    window.t = function(key, params) {
+        return i18n.t(key, params);
     };
 }

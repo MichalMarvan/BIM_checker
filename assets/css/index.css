@@ -154,6 +154,7 @@ body {
 }
 
 .navbar-container {
+    position: relative;
     max-width: 1400px;
     margin: 0 auto;
     padding: var(--spacing-lg) var(--spacing-xl);
@@ -175,8 +176,11 @@ body {
     margin: 0;
 }
 
-/* Navigation menu */
+/* Navigation menu - centered */
 .navbar-menu {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
     gap: var(--spacing-xl);
@@ -301,14 +305,16 @@ body {
     gap: var(--spacing-lg);
 }
 
-/* Page title in navbar for subpages */
+/* Page title in navbar for subpages - centered */
 .page-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
-    text-align: center;
-    flex: 1;
+    white-space: nowrap;
 }
 
 .language-switcher {
