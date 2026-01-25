@@ -183,6 +183,12 @@ class FilePanel {
                         size: file.size,
                         content: e.target.result
                     }, targetFolder); // Use saved targetFolder
+
+                    // Dispatch event for wizard
+                    window.dispatchEvent(new CustomEvent('storage:fileAdded', {
+                        detail: { fileName: file.name }
+                    }));
+
                     processed++;
 
                     const overallPercent = Math.round((processed / validFiles.length) * 100);
