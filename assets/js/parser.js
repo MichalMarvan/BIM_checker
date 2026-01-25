@@ -1018,6 +1018,9 @@ parseIDS = function(xmlText) {
         });
     }
 
+    // Dispatch event for wizard
+    window.dispatchEvent(new CustomEvent('ids:loaded'));
+
     return result;
 };
 // Storage variables

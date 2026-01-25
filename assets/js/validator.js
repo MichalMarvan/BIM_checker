@@ -1673,6 +1673,9 @@ function addValidationGroup() {
     });
     renderValidationGroups();
     updateValidateButton();
+
+    // Dispatch event for wizard
+    window.dispatchEvent(new CustomEvent('validator:groupAdded'));
 }
 
 // Delete validation group
@@ -1938,6 +1941,9 @@ async function handleIfcDrop(files, groupIndex) {
 
     renderValidationGroups();
     updateValidateButton();
+
+    // Dispatch event for wizard
+    window.dispatchEvent(new CustomEvent('validator:ifcLoaded'));
 }
 
 // Handle IDS file drop
@@ -1970,6 +1976,9 @@ async function handleIdsDrop(files, groupIndex) {
 
     renderValidationGroups();
     updateValidateButton();
+
+    // Dispatch event for wizard
+    window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
 }
 
 // Update validate button
@@ -2593,6 +2602,9 @@ async function confirmIdsSelection() {
             closeIdsStorageModal();
             renderValidationGroups();
             updateValidateButton();
+
+            // Dispatch event for wizard
+            window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
         };
 
         metadataRequest.onerror = () => {
@@ -2686,6 +2698,11 @@ async function validateAll() {
 
             // Scroll to results
             document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+
+            // Dispatch event for wizard
+            window.dispatchEvent(new CustomEvent('validator:complete', {
+                detail: { resultCount: validationResults.length }
+            }));
         } else {
             ErrorHandler.warning(t('validator.result.noResults'));
         }

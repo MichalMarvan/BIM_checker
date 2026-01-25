@@ -28,6 +28,9 @@ async function handleFiles(files) {
         document.getElementById('loading').classList.remove('show');
         combineData();
         updateUI();
+
+        // Dispatch event for wizard
+        window.dispatchEvent(new CustomEvent('ifc:fileSelected'));
     } catch (error) {
         ErrorHandler.error(`${i18n.t('parser.error.parsingError')}: ${error.message}`);
         document.getElementById('loading').classList.remove('show');
