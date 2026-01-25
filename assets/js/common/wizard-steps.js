@@ -3,6 +3,8 @@
  * Defines steps and help content for each page
  */
 
+/* global switchTab */
+
 const WIZARD_STEPS = {
     // ========================================
     // INDEX PAGE

@@ -85,7 +85,7 @@ class I18n {
      * @param {HTMLElement} container - Container element to translate
      */
     translateElement(container) {
-        if (!container) return;
+        if (!container) { return; }
 
         container.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
