@@ -2321,6 +2321,9 @@ async function confirmIfcSelection() {
             closeIfcStorageModal();
             renderValidationGroups();
             updateValidateButton();
+
+            // Dispatch event for wizard
+            window.dispatchEvent(new CustomEvent('validator:ifcLoaded'));
         };
 
         metadataRequest.onerror = () => {
