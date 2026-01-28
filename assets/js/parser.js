@@ -445,19 +445,19 @@ function formatFacets(facets, isRequirements = false) {
         html += `<div class="facet-type">${getFacetTypeName(facet.type)}${cardinalityBadge}</div>`;
         html += '<div class="facet-details">';
 
-        // Zobrazení názvu
+        // Zobrazení názvu (pro non-property facety)
         if (facet.name) {
             html += `${escapeHtml(t('parser.facet.name'))} <span class="facet-value">${formatValue(facet.name)}</span><br>`;
         }
 
-        // Zobrazení baseName (pro property)
-        if (facet.baseName) {
-            html += `${escapeHtml(t('parser.facet.name'))} <span class="facet-value">${formatValue(facet.baseName)}</span><br>`;
-        }
-
-        // Zobrazení property setu
+        // Zobrazení property setu (první pro property)
         if (facet.propertySet) {
             html += `${escapeHtml(t('parser.facet.propertySet'))} <span class="facet-value">${formatValue(facet.propertySet)}</span><br>`;
+        }
+
+        // Zobrazení baseName (název property - pod propertySet)
+        if (facet.baseName) {
+            html += `${escapeHtml(t('parser.facet.name'))} <span class="facet-value">${formatValue(facet.baseName)}</span><br>`;
         }
 
         // Zobrazení hodnoty
