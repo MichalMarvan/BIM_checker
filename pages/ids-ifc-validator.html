@@ -31,7 +31,10 @@
     <!-- Loading Overlay - mimo page-container pro správné centrování -->
     <div class="loading-overlay-modern" id="loading">
         <div class="loading-card">
-            <div class="loading-spinner-modern"></div>
+            <div class="loading-spinner-container">
+                <div class="loading-spinner-modern"></div>
+                <div class="loading-spinner-percent" id="overallPercent">0%</div>
+            </div>
             <h3 class="loading-title" id="loadingText" data-i18n="validator.validating">Probíhá validace...</h3>
             <p class="loading-subtitle" id="progressText" style="font-weight: 600; color: var(--primary-color);"></p>
             <p class="loading-subtitle" id="currentFile" style="color: var(--text-tertiary); font-size: 0.9em;"></p>

@@ -2658,6 +2658,27 @@ async function validateAll() {
     document.getElementById('progressText').textContent = '';
     document.getElementById('currentFile').textContent = '';
 
+    // Overall progress tracking
+    const overallPercentEl = document.getElementById('overallPercent');
+    let totalFiles = 0;
+    let completedFiles = 0;
+    validGroups.forEach(g => totalFiles += g.ifcFiles.length);
+
+    // Reset percent display
+    if (overallPercentEl) {
+        overallPercentEl.textContent = '0%';
+    }
+
+    function updateOverallProgress() {
+        const percent = totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
+        if (overallPercentEl) {
+            overallPercentEl.textContent = `${percent}%`;
+        }
+        if (progressPanel) {
+            progressPanel.update({ phase: 'validating', overall: percent });
+        }
+    }
+
     // Reset results
     validationResults = [];
 
@@ -2684,82 +2705,79 @@ async function validateAll() {
                 ifcResults: []
             };
 
-            // Process each IFC file in the group
-            for (let ifcIndex = 0; ifcIndex < group.ifcFiles.length; ifcIndex++) {
-                // Check for abort
-                if (validationAborted) break;
+            // Process IFC files in parallel (max 4 concurrent)
+            const maxConcurrent = Math.min(4, navigator.hardwareConcurrency || 4);
+            const ifcFiles = group.ifcFiles;
 
-                const ifcFile = group.ifcFiles[ifcIndex];
+            // Helper function to process single IFC file
+            async function processIfcFile(ifcFile) {
+                if (validationAborted) return null;
 
-                document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfcNum')} ${ifcIndex + 1}/${group.ifcFiles.length}: ${ifcFile.name}`;
-                await new Promise(resolve => setTimeout(resolve, 100)); // Yield
-
-                // Update progress panel
+                // Update UI - starting
                 if (progressPanel) {
-                    const overallProgress = ((groupIndex / validGroups.length) + (ifcIndex / group.ifcFiles.length / validGroups.length)) * 100;
                     progressPanel.update({
                         phase: 'parsing',
-                        overall: overallProgress,
                         files: {
-                            [ifcFile.name]: {
-                                name: ifcFile.name,
-                                phase: 'parsing',
-                                percent: 0
-                            }
+                            [ifcFile.name]: { name: ifcFile.name, phase: 'parsing', percent: 0 }
                         }
                     });
                 }
 
-                // Parse IFC file with chunking
-                document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfc')} ${ifcFile.name}`;
+                // Parse IFC file
                 const entities = await parseIFCFileAsync(ifcFile.content, ifcFile.name);
                 if (!entities || entities.length === 0) {
                     console.warn('No entities in IFC file:', ifcFile.name);
-                    continue;
+                    completedFiles++;
+                    updateOverallProgress();
+                    return null;
                 }
 
-                // Update progress panel - parsing complete
+                // Update UI - validating
                 if (progressPanel) {
                     progressPanel.update({
                         phase: 'validating',
                         files: {
-                            [ifcFile.name]: {
-                                name: ifcFile.name,
-                                phase: 'validating',
-                                percent: 30,
-                                entityCount: entities.length
-                            }
+                            [ifcFile.name]: { name: ifcFile.name, phase: 'validating', percent: 50, entityCount: entities.length }
                         }
                     });
                 }
 
-                // Validate with chunking
-                document.getElementById('currentFile').textContent = `${t('validator.loading.validationProgress')} ${ifcFile.name} ${t('validator.loading.against')} ${group.idsFile.name}`;
-                await new Promise(resolve => setTimeout(resolve, 100)); // Yield
-
+                // Validate
                 const specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
 
-                // Update progress panel - validation complete
+                // Update UI - complete
+                completedFiles++;
+                updateOverallProgress();
                 if (progressPanel) {
-                    const overallProgress = ((groupIndex / validGroups.length) + ((ifcIndex + 1) / group.ifcFiles.length / validGroups.length)) * 100;
                     progressPanel.update({
-                        phase: 'validating',
-                        overall: overallProgress,
                         files: {
-                            [ifcFile.name]: {
-                                name: ifcFile.name,
-                                phase: 'complete',
-                                percent: 100,
-                                entityCount: entities.length
-                            }
+                            [ifcFile.name]: { name: ifcFile.name, phase: 'complete', percent: 100, entityCount: entities.length }
                         }
                     });
                 }
 
-                idsResult.ifcResults.push({
+                return {
                     ifcFileName: ifcFile.name,
                     specificationResults: specificationResults
-                });
+                };
+            }
+
+            // Process files in batches for parallel execution
+            document.getElementById('currentFile').textContent = `${t('validator.loading.validating')} ${ifcFiles.length} IFC ${ifcFiles.length === 1 ? 'soubor' : 'souborů'}...`;
+
+            for (let i = 0; i < ifcFiles.length; i += maxConcurrent) {
+                if (validationAborted) break;
+
+                const batch = ifcFiles.slice(i, i + maxConcurrent);
+                const batchPromises = batch.map(file => processIfcFile(file));
+                const batchResults = await Promise.all(batchPromises);
+
+                // Add valid results
+                for (const result of batchResults) {
+                    if (result) {
+                        idsResult.ifcResults.push(result);
+                    }
+                }
             }
 
             validationResults.push(idsResult);
