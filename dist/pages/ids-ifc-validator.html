@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDS-IFC Validátor</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <script src="../assets/js/vendor/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="../assets/css/common.css">
+    <link rel="stylesheet" href="../assets/css/index.css">
+    <link rel="stylesheet" href="../assets/css/ids-validator.css">
+    <!-- Prevent theme flash - set theme before render -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+</head>
+<body>
+    <!-- Loading Overlay - mimo page-container pro správné centrování -->
+    <div class="loading-overlay-modern" id="loading">
+        <div class="loading-card">
+            <div class="loading-spinner-modern"></div>
+            <h3 class="loading-title" id="loadingText" data-i18n="validator.validating">Probíhá validace...</h3>
+            <p class="loading-subtitle" id="progressText" style="font-weight: 600; color: var(--primary-color);"></p>
+            <p class="loading-subtitle" id="currentFile" style="color: var(--text-tertiary); font-size: 0.9em;"></p>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-subpage">
+        <div class="navbar-container">
+            <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
+            <h1 class="page-title" data-i18n="validator.title">IDS-IFC Validátor</h1>
+            <div class="navbar-actions">
+                <div class="language-switcher">
+                    <button class="lang-btn active" data-lang="cs">CZ</button>
+                    <button class="lang-btn" data-lang="en">EN</button>
+                </div>
+                <button class="theme-toggle" id="themeToggle" title="Přepnout motiv">
+                    <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="theme-icon theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+    <div class="page-container">
+        <div class="upload-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                    <h2 style="margin: 0; color: var(--text-primary);" data-i18n="validator.groups">📋 Validační skupiny</h2>
+                    <button class="btn btn-success" onclick="addValidationGroup()" data-i18n="validator.addGroup">➕ Přidat validační skupinu</button>
+                </div>
+
+                <div id="validationGroups">
+                    <!-- Validační skupiny se zde vygenerují dynamicky -->
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+
+                <div class="validate-button-container" style="margin-top: 30px;">
+                    <button class="btn btn-primary" id="validateBtn" onclick="validateAll()" disabled data-i18n="validator.validateAll">
+                        🔍 Validovat vše
+                    </button>
+                </div>
+            </div>
+
+
+            <div class="results-section" id="resultsSection">
+                <div class="results-header">
+                    <h2 data-i18n="validator.results">📊 Výsledky validace</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-success" id="exportBtn" data-i18n="validator.exportExcel">📥 Export XLSX</button>
+                        <button class="btn btn-secondary" id="expandAllBtn" data-i18n="validator.expandAll">📖 Rozbalit vše</button>
+                        <button class="btn btn-secondary" id="collapseAllBtn" data-i18n="validator.collapseAll">📕 Sbalit vše</button>
+                        <button class="btn btn-secondary" id="newValidationBtn" data-i18n="validator.newValidation">🔄 Nová validace</button>
+                    </div>
+                </div>
+
+                <div class="results-stats" id="resultsStats"></div>
+
+                <div class="filters-section">
+                    <div class="filters-grid">
+                        <input type="text" id="searchFilter" class="filter-input" data-i18n-placeholder="validator.searchPlaceholder" placeholder="🔍 Hledat...">
+                        <select id="statusFilter" class="filter-input">
+                            <option value="" data-i18n="validator.allStatus">Všechny stavy</option>
+                            <option value="pass" data-i18n="validator.passed">✅ Splněno</option>
+                            <option value="fail" data-i18n="validator.failed">❌ Nesplněno</option>
+                        </select>
+                        <select id="specFilter" class="filter-input">
+                            <option value="" data-i18n="validator.allSpecs">Všechny specifikace</option>
+                        </select>
+                        <button class="btn btn-secondary" id="clearFiltersBtn" data-i18n="validator.clearFilters">Vymazat filtry</button>
+                    </div>
+                </div>
+
+                <div id="resultsList"></div>
+            </div>
+        </div>
+    </main>
+    <footer class="footer-modern">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="footer-brand-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="footer-brand-name" data-i18n="app.title">BIM Checker</div>
+                        <div class="footer-brand-tagline" data-i18n="footer.text">Nástroje pro práci s BIM daty</div>
+                    </div>
+                </div>
+                <div class="footer-meta">
+                    <span data-i18n="app.version">Beta verze 0.1</span>
+                    <span class="footer-divider">•</span>
+                    <span data-i18n="app.year">2025</span>
+                </div>
+            </div>
+            <div class="footer-tech">
+                <span class="tech-badge-modern">HTML5</span>
+                <span class="tech-badge-modern">CSS3</span>
+                <span class="tech-badge-modern">JavaScript</span>
+                <span class="tech-badge-modern">IFC</span>
+                <span class="tech-badge-modern">IDS</span>
+                <span class="tech-badge-modern">buildingSMART</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- IFC Storage Picker Modal -->
+    <div id="ifcStorageModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 data-i18n="validator.modalIfcTitle">📦 Vybrat IFC soubory z úložiště</h2>
+                <button class="modal-close" onclick="closeIfcStorageModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: var(--text-secondary);" data-i18n="validator.selectMultiple"></p>
+                <div id="ifcStorageTree" class="storage-file-tree">
+                    <!-- Tree structure will be rendered here -->
+                </div>
+                <div class="selected-files-info">
+                    <strong data-i18n="validator.selectedCount"></strong> <span id="ifcSelectedCount">0</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeIfcStorageModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-primary" onclick="confirmIfcSelection()" data-i18n="validator.confirmSelection"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- IDS Storage Picker Modal -->
+    <div id="idsStorageModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 data-i18n="validator.modalIdsTitle"></h2>
+                <button class="modal-close" onclick="closeIdsStorageModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: var(--text-secondary);" data-i18n="validator.selectSingle"></p>
+                <div id="idsStorageTree" class="storage-file-tree">
+                    <!-- Tree structure will be rendered here -->
+                </div>
+                <div class="selected-files-info">
+                    <strong data-i18n="validator.selectedFileLabel"></strong> <span id="idsSelectedName" data-i18n="parser.noFile"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeIdsStorageModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-primary" onclick="confirmIdsSelection()" data-i18n="validator.confirmSelection"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common/translations.js"></script>
+    <script src="../assets/js/common/i18n.js"></script>
+    <script src="../assets/js/common/error-handler.js"></script>
+    <script src="../assets/js/common/storage.js"></script>
+    <script src="../assets/js/common/theme.js"></script>
+    <script src="../assets/js/validator.js"></script>
+    <!-- Update Checker for desktop app -->
+    <script type="module" src="../assets/js/common/update-checker.js"></script>
+</body>
+</html>

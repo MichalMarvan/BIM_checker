@@ -2640,19 +2640,15 @@ async function validateAll() {
     // Reset abort flag
     validationAborted = false;
 
-    // Initialize progress panel if container exists
+    // Initialize progress panel if container exists (inside loading modal)
     const progressContainer = document.getElementById('validationProgress');
     if (progressContainer && typeof ProgressPanel !== 'undefined') {
         progressPanel = new ProgressPanel(progressContainer, {
             onCancel: () => {
                 validationAborted = true;
-                if (progressPanel) {
-                    progressPanel.hide();
-                }
                 document.getElementById('loading').classList.remove('show');
             }
         });
-        progressPanel.show();
         progressPanel.update({ phase: 'starting', overall: 0, files: {} });
     }
 
@@ -2769,19 +2765,8 @@ async function validateAll() {
             validationResults.push(idsResult);
         }
 
-        // Hide loading
+        // Hide loading (also hides progress panel inside it)
         document.getElementById('loading').classList.remove('show');
-
-        // Complete progress panel
-        if (progressPanel) {
-            progressPanel.complete(true);
-            // Hide after delay
-            setTimeout(() => {
-                if (progressPanel) {
-                    progressPanel.hide();
-                }
-            }, 2000);
-        }
 
         // Show results
         if (validationResults.length > 0) {
@@ -2803,11 +2788,6 @@ async function validateAll() {
         console.error('Validation error:', error);
         ErrorHandler.error(t('validator.error.validationError') + ' ' + error.message);
         document.getElementById('loading').classList.remove('show');
-
-        // Hide progress panel on error
-        if (progressPanel) {
-            progressPanel.hide();
-        }
     }
 }
 

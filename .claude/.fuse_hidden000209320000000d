@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "WebSearch",
+      "Bash(wc:*)",
+      "Bash(node:*)",
+      "Bash(tailscale ip:*)",
+      "Bash(ip addr:*)",
+      "Bash(curl:*)",
+      "Bash(pgrep:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix Tekla IFC encoding support and splitParams parsing\n\n- Fix splitParams to use IFC quote escaping \\(''''\\) instead of backslash\n- Add decodeIFCString support for \\\\S\\\\, \\\\X\\\\, \\\\X2\\\\, \\\\X4\\\\ encodings\n- Fix parseProperty to extract IFCBOOLEAN, IFCLOGICAL, and numeric values\n- Add comprehensive tests for IFC string encoding\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(git commit:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx eslint:*)",
+      "Bash(git reset:*)",
+      "Bash(ls:*)",
+      "Bash(git push:*)",
+      "Bash(npm audit:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(xxd:*)",
+      "Bash(du:*)",
+      "Bash(awk:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs:*)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(chromium:*)",
+      "Bash(pkill:*)",
+      "Bash(dpkg:*)"
+    ]
+  }
+}

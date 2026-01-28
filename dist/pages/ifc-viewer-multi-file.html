@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="viewer.title"></title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../assets/css/common.css">
+    <link rel="stylesheet" href="../assets/css/index.css">
+    <link rel="stylesheet" href="../assets/css/ifc-viewer.css">
+    <!-- Prevent theme flash - set theme before render -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-subpage">
+        <div class="navbar-container">
+            <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
+            <h1 class="page-title" data-i18n="viewer.title">IFC Multi-File Viewer</h1>
+            <div class="navbar-actions">
+                <div class="language-switcher">
+                    <button class="lang-btn active" data-lang="cs">CZ</button>
+                    <button class="lang-btn" data-lang="en">EN</button>
+                </div>
+                <button class="theme-toggle" id="themeToggle" title="Přepnout motiv">
+                    <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="theme-icon theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="upload-section">
+                <div class="drop-zone-modern" id="uploadArea">
+                    <div class="drop-zone-content">
+                        <div class="drop-zone-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                            </svg>
+                        </div>
+                        <p class="drop-zone-title" data-i18n="viewer.upload">Přetáhněte IFC soubory sem</p>
+                        <p class="drop-zone-subtitle">nebo klikněte pro výběr</p>
+                        <div class="drop-zone-formats">.ifc</div>
+                    </div>
+                    <input type="file" id="fileInput" accept=".ifc" multiple style="display: none;">
+                </div>
+                <button class="btn btn-primary" id="loadFromStorageBtn" style="margin: 15px 0; width: 100%; font-size: 1.1em;" data-i18n="viewer.loadFromStorage">
+                    📦 Načíst z úložiště
+                </button>
+                <div class="file-list" id="fileList"></div>
+            </div>
+
+            <div class="loading-overlay-modern" id="loading">
+                <div class="loading-card">
+                    <div class="loading-spinner-modern"></div>
+                    <h3 class="loading-title" data-i18n="viewer.loading">Načítám IFC soubory...</h3>
+                    <p class="loading-subtitle" id="loadingStatus">Prosím čekejte...</p>
+                    <div class="progress-bar-modern-container">
+                        <div class="progress-bar-modern" id="progressBar">
+                            <div class="progress-bar-fill"></div>
+                            <span class="progress-bar-text">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="edit-panel" id="editPanel">
+                <h3 data-i18n="viewer.bulkOps">🎯 Hromadné operace</h3>
+                <p><span data-i18n="viewer.selected">Vybráno</span>: <span class="selected-count" id="selectedCount">0</span> <span data-i18n="viewer.entities">entit</span> <span id="totalFilteredCount" class="filtered-count"></span></p>
+                <div class="edit-panel-buttons">
+                    <button class="btn btn-warning" id="bulkEditBtn" disabled data-i18n="viewer.bulkEdit">✏️ Hromadná úprava PSetu</button>
+                    <button class="btn btn-success" id="addPsetBtn" disabled data-i18n="viewer.addPset">➕ Přidat PropertySet</button>
+                    <button class="btn btn-info" id="renamePsetBtn" disabled data-i18n="viewer.renamePset">🔄 Přejmenovat PropertySet</button>
+                    <button class="btn btn-info" id="renamePropertyBtn" disabled data-i18n="viewer.renameProperty">🔄 Přejmenovat Property</button>
+                    <button class="btn btn-primary" id="exportIfcBtn" disabled data-i18n="viewer.exportIfc">💾 Uložit upravený IFC</button>
+                    <button class="btn btn-secondary" id="selectAllVisibleBtn" data-i18n="viewer.selectVisible">☑️ Vybrat vše na stránce</button>
+                    <button class="btn btn-success" id="selectAllPagesBtn" data-i18n="viewer.selectAll">☑️☑️ Vybrat vše na VŠECH stránkách</button>
+                    <button class="btn btn-secondary" id="deselectAllBtn" data-i18n="viewer.deselectAll">☐ Zrušit výběr</button>
+                </div>
+            </div>
+
+            <div class="controls" id="controls">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                    <button class="btn btn-info" id="toggleSpatialTreeBtn" data-i18n="viewer.spatialTree">🌳 Stromová struktura</button>
+                    <input type="text" id="searchInput" data-i18n-placeholder="viewer.search" placeholder="🔍 Hledat... (text, /regex/, nebo Sloupec /regex/)" class="control-input">
+                    <select id="entityFilter" class="control-select">
+                        <option value="" data-i18n="viewer.allEntities">Všechny entity</option>
+                    </select>
+                    <select id="fileFilter" class="control-select">
+                        <option value="" data-i18n="viewer.allFiles">Všechny soubory</option>
+                    </select>
+                    <select id="pageSizeSelectTop" class="control-select" style="font-weight: 600;">
+                        <option value="100" data-i18n-rows="viewer.rows">100 řádků</option>
+                        <option value="250" data-i18n-rows="viewer.rows">250 řádků</option>
+                        <option value="500" selected data-i18n-rows="viewer.rows">500 řádků</option>
+                        <option value="1000" data-i18n-rows="viewer.rows">1000 řádků</option>
+                        <option value="2500" data-i18n-rows="viewer.rows">2500 řádků</option>
+                        <option value="-1" data-i18n="viewer.allSlow">Vše (pomalé!)</option>
+                    </select>
+                    <button class="btn btn-success" id="columnManagerBtn" data-i18n="viewer.columnManager">⚙️ Správa PropertySetů</button>
+                    <button class="btn btn-secondary" id="clearFiltersBtn" data-i18n="viewer.clearFilters">Vymazat filtry</button>
+                    <button class="btn btn-primary" id="toggleEditModeBtn" data-i18n="viewer.editMode">✏️ Editační režim</button>
+                    <button class="btn btn-primary" id="exportBtn" data-i18n="btn.export">📥 Export CSV</button>
+                </div>
+
+                <div class="column-manager" id="columnManager">
+                    <h3 data-i18n="viewer.columnManagerTitle">🔧 Přesuňte PropertySety (☰) nebo jednotlivé Properties (⋮)</h3>
+                    <div id="psetList"></div>
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="btn btn-success" id="applyColumnsBtn" data-i18n="viewer.applyChanges">✓ Použít změny</button>
+                        <button class="btn btn-secondary" id="selectAllBtn" data-i18n="viewer.selectAllColumns">Vybrat vše</button>
+                        <button class="btn btn-secondary" id="deselectAllColumnsBtn" data-i18n="viewer.deselectAllColumns">Odebrat vše</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container" id="tableContainer">
+                <table class="data-table">
+                    <thead>
+                        <tr class="header-row-pset" id="headerRowPset"></tr>
+                        <tr class="header-row-prop" id="headerRowProp"></tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="pagination-container" id="paginationContainer">
+                <div class="pagination-info">
+                    <span id="paginationInfo"></span>
+                </div>
+                <div class="pagination-controls">
+                    <button id="firstPageBtn" data-i18n-title="viewer.firstPage" title="První stránka">⏮️</button>
+                    <button id="prevPageBtn" data-i18n-title="viewer.previousPage" title="Předchozí stránka">◀️</button>
+
+                    <div class="page-input-group">
+                        <span data-i18n="viewer.page">Stránka</span>
+                        <input type="number" id="pageInput" min="1" value="1">
+                        <span data-i18n="viewer.of">z</span> <span id="totalPages">1</span>
+                        <button id="goToPageBtn" data-i18n="viewer.goTo">Přejít</button>
+                    </div>
+
+                    <button id="nextPageBtn" data-i18n-title="viewer.nextPage" title="Další stránka">▶️</button>
+                    <button id="lastPageBtn" data-i18n-title="viewer.lastPage" title="Poslední stránka">⏭️</button>
+
+                    <select id="pageSizeSelect">
+                        <option value="100" data-i18n-rows="viewer.rows">100 řádků</option>
+                        <option value="250" data-i18n-rows="viewer.rows">250 řádků</option>
+                        <option value="500" selected data-i18n-rows="viewer.rows">500 řádků</option>
+                        <option value="1000" data-i18n-rows="viewer.rows">1000 řádků</option>
+                        <option value="2500" data-i18n-rows="viewer.rows">2500 řádků</option>
+                        <option value="-1" data-i18n="viewer.allSlow">Vše (pomalé!)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="statsSection" class="stats-section" style="display: none;">
+                <h3 data-i18n="viewer.totalStats"></h3>
+                <div id="statsGrid" class="stats-grid"></div>
+            </div>
+        </div>
+    <footer class="footer-modern">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="footer-brand-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="footer-brand-name" data-i18n="app.title">BIM Checker</div>
+                        <div class="footer-brand-tagline" data-i18n="footer.text">Nástroje pro práci s BIM daty</div>
+                    </div>
+                </div>
+                <div class="footer-meta">
+                    <span data-i18n="app.version">Beta verze 0.1</span>
+                    <span class="footer-divider">•</span>
+                    <span data-i18n="app.year">2025</span>
+                </div>
+            </div>
+            <div class="footer-tech">
+                <span class="tech-badge-modern">HTML5</span>
+                <span class="tech-badge-modern">CSS3</span>
+                <span class="tech-badge-modern">JavaScript</span>
+                <span class="tech-badge-modern">IFC</span>
+                <span class="tech-badge-modern">IDS</span>
+                <span class="tech-badge-modern">buildingSMART</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Spatial Tree Panel -->
+    <div class="spatial-tree-panel" id="spatialTreePanel">
+        <div class="spatial-tree-header">
+            <h3 data-i18n="viewer.spatialTree"></h3>
+            <button class="spatial-tree-close" id="closeSpatialTreeBtn">✕</button>
+        </div>
+        <div class="spatial-tree-content" id="spatialTreeContent">
+            <div class="spatial-tree-info" data-i18n="viewer.loadIfcForStructure"></div>
+        </div>
+    </div>
+
+    <!-- Spatial Tree Overlay -->
+    <div class="spatial-tree-overlay" id="spatialTreeOverlay"></div>
+
+    <!-- Modals -->
+    <div id="bulkEditModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 data-i18n="viewer.bulkEditPset"></h2>
+                <button class="modal-close" onclick="closeBulkEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="parser.facet.propertySet"></label>
+                    <select id="bulkPsetName">
+                        <option value="" data-i18n="viewer.selectPset"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="parser.facet.property"></label>
+                    <select id="bulkPropName" disabled>
+                        <option value="" data-i18n="viewer.selectProp"></option>
+                    </select>
+                </div>
+                <div id="currentValuesSection" class="current-values-section" style="display: none;">
+                    <h4 data-i18n="viewer.currentValues"></h4>
+                    <div id="currentValuesList"></div>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="viewer.newValue"></label>
+                    <input type="text" id="bulkValue" data-i18n-placeholder="viewer.enterNewValue">
+                </div>
+                <p class="modal-info-text">
+                    <span data-i18n="viewer.bulkEditInfo"></span> <span id="bulkEditCount" class="count-highlight">0</span> <span data-i18n="viewer.entities"></span>.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeBulkEditModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-warning" onclick="applyBulkEdit()" data-i18n="viewer.applyChanges"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Storage Picker Modal -->
+    <div id="storagePickerModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 data-i18n="viewer.modalIfcTitle"></h2>
+                <button class="modal-close" onclick="closeStoragePickerModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-info-text" style="margin-bottom: 15px;" data-i18n="viewer.selectMultiple"></p>
+                <div id="storageFileTree" class="storage-file-tree">
+                    <!-- Tree structure will be rendered here -->
+                </div>
+                <div class="selected-files-info">
+                    <strong data-i18n="viewer.selectedCount"></strong> <span id="selectedFilesCount">0</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeStoragePickerModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-primary" onclick="loadSelectedFilesFromStorage()" data-i18n="validator.confirmSelection"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addPsetModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 data-i18n="viewer.addPset"></h2>
+                <button class="modal-close" onclick="closeAddPsetModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="viewer.newPsetName"></label>
+                    <input type="text" id="newPsetName" data-i18n-placeholder="viewer.examplePsetName">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="viewer.newPropName"></label>
+                    <input type="text" id="newPropName" data-i18n-placeholder="viewer.examplePropName">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="parser.facet.value"></label>
+                    <input type="text" id="newPropValue" data-i18n-placeholder="viewer.enterValue">
+                </div>
+                <p class="modal-info-text">
+                    <span data-i18n="viewer.addPsetInfo"></span> <span id="addPsetCount" class="count-highlight">0</span> <span data-i18n="viewer.entities"></span>.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddPsetModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-success" onclick="applyAddPset()" data-i18n="viewer.add"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="renamePsetModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 data-i18n="viewer.renamePset"></h2>
+                <button class="modal-close" onclick="closeRenamePsetModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="viewer.oldPsetName"></label>
+                    <select id="oldPsetName" class="form-select">
+                        <option value="" data-i18n="viewer.selectPset"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="viewer.newPsetName"></label>
+                    <input type="text" id="newPsetNameRename" data-i18n-placeholder="viewer.exampleCustomPset">
+                </div>
+                <p class="modal-info-text">
+                    <span data-i18n="viewer.renamePsetInfo"></span> <span id="renamePsetCount" class="count-highlight">0</span> <span data-i18n="viewer.entities"></span>.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRenamePsetModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-info" onclick="applyPsetRename()" data-i18n="viewer.rename"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="renamePropertyModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 data-i18n="viewer.renameProperty"></h2>
+                <button class="modal-close" onclick="closeRenamePropertyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="parser.facet.propertySet"></label>
+                    <select id="renamePropPsetName" onchange="updatePropertyDropdown()" class="form-select">
+                        <option value="" data-i18n="viewer.selectPset"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="viewer.oldPropName"></label>
+                    <select id="oldPropertyName" class="form-select" disabled>
+                        <option value="" data-i18n="viewer.selectProp"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="viewer.newPropName"></label>
+                    <input type="text" id="newPropertyName" data-i18n-placeholder="viewer.exampleCustomProp">
+                </div>
+                <p class="modal-info-text">
+                    <span data-i18n="viewer.renamePropInfo"></span> <span id="renamePropertyCount" class="count-highlight">0</span> <span data-i18n="viewer.entities"></span>.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRenamePropertyModal()" data-i18n="btn.cancel"></button>
+                <button class="btn btn-info" onclick="applyPropertyRename()" data-i18n="viewer.rename"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/common/translations.js"></script>
+    <script src="../assets/js/common/i18n.js"></script>
+    <script src="../assets/js/common/error-handler.js"></script>
+    <script src="../assets/js/common/storage.js"></script>
+    <script src="../assets/js/common/theme.js"></script>
+    <!-- IFC Viewer modules (order matters) -->
+    <script src="../assets/js/ifc/viewer-core.js"></script>
+    <script src="../assets/js/ifc/viewer-parser.js"></script>
+    <script src="../assets/js/ifc/viewer-ui.js"></script>
+    <script src="../assets/js/ifc/viewer-init.js"></script>
+    <!-- Update Checker for desktop app -->
+    <script type="module" src="../assets/js/common/update-checker.js"></script>
+</body>
+</html>
