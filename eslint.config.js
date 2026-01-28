@@ -39,6 +39,9 @@ export default [
                 idsEditorCore: 'readonly',
                 idsEditorModals: 'readonly',
                 IDSXMLGenerator: 'readonly',
+                IDSExcelParser: 'readonly',
+                IDSExcelGenerator: 'readonly',
+                IDSExcelTemplate: 'readonly',
                 // Storage functions
                 initStorageDB: 'readonly',
                 // Worker globals
