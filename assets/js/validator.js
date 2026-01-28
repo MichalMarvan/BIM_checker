@@ -957,7 +957,7 @@ function checkEntityFacet(entity, facet) {
     if (facet.name.type === 'simple') {
         return entity.entity === facet.name.value;
     } else if (facet.name.type === 'restriction' && facet.name.isRegex) {
-        const regex = new RegExp(facet.name.pattern);
+        const regex = RegexCache.get(facet.name.pattern);
         return regex.test(entity.entity);
     }
 
@@ -1008,7 +1008,7 @@ function checkPropertyFacet(entity, facet, isApplicability) {
                     return isApplicability ? false : validation;
                 }
             } else if (facet.value.isRegex) {
-                const regex = new RegExp(facet.value.pattern);
+                const regex = RegexCache.get(facet.value.pattern);
                 if (!regex.test(String(propValue))) {
                     validation.details = i18n.t('validator.valueNoMatch', { value: propValue, pattern: facet.value.pattern });
                     return isApplicability ? false : validation;
@@ -1052,7 +1052,7 @@ function checkAttributeFacet(entity, facet, isApplicability) {
                 return isApplicability ? false : validation;
             }
         } else if (facet.value.type === 'restriction' && facet.value.isRegex) {
-            const regex = new RegExp(facet.value.pattern);
+            const regex = RegexCache.get(facet.value.pattern);
             if (!regex.test(String(attrValue))) {
                 validation.details = i18n.t('validator.valueNoMatch', { value: attrValue, pattern: facet.value.pattern });
                 return isApplicability ? false : validation;
