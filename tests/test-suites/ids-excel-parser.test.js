@@ -90,4 +90,99 @@ describe('IDS Excel Parser', () => {
 
     });
 
+    describe('Applicability Parsing', () => {
+
+        it('should add entity facet to specification', () => {
+            const specs = [{ spec_id: 'SPEC_01', applicability: [], requirements: [] }];
+            const applicabilityData = [
+                { spec_id: 'SPEC_01', facet_type: 'entity', entity_name: 'IFCWALL' }
+            ];
+            const warnings = [];
+
+            IDSExcelParser._addApplicabilityToSpecs(specs, applicabilityData, warnings);
+
+            expect(specs[0].applicability.length).toBe(1);
+            expect(specs[0].applicability[0].type).toBe('entity');
+            expect(specs[0].applicability[0].name.value).toBe('IFCWALL');
+        });
+
+        it('should warn on unknown spec_id', () => {
+            const specs = [{ spec_id: 'SPEC_01', applicability: [], requirements: [] }];
+            const applicabilityData = [
+                { spec_id: 'SPEC_99', facet_type: 'entity', entity_name: 'IFCWALL' }
+            ];
+            const warnings = [];
+
+            IDSExcelParser._addApplicabilityToSpecs(specs, applicabilityData, warnings);
+
+            expect(warnings.length).toBe(1);
+            expect(warnings[0]).toContain('SPEC_99');
+        });
+
+        it('should parse property facet', () => {
+            const specs = [{ spec_id: 'SPEC_01', applicability: [], requirements: [] }];
+            const applicabilityData = [
+                { spec_id: 'SPEC_01', facet_type: 'property', pset_name: 'Pset_WallCommon', property_name: 'IsExternal', property_value: 'true' }
+            ];
+            const warnings = [];
+
+            IDSExcelParser._addApplicabilityToSpecs(specs, applicabilityData, warnings);
+
+            expect(specs[0].applicability[0].type).toBe('property');
+            expect(specs[0].applicability[0].propertySet.value).toBe('Pset_WallCommon');
+        });
+
+    });
+
+    describe('Requirements Parsing', () => {
+
+        it('should add requirements from psets_lookup and element_psets', () => {
+            const specs = [{ spec_id: 'SPEC_01', applicability: [], requirements: [] }];
+            const psetsLookup = [
+                { pset_name: 'Pset_WallCommon', property_name: 'IsExternal', dataType: 'boolean' },
+                { pset_name: 'Pset_WallCommon', property_name: 'FireRating', dataType: 'string' }
+            ];
+            const elementPsets = [
+                { spec_id: 'SPEC_01', pset_name: 'Pset_WallCommon', cardinality: 'required' }
+            ];
+            const warnings = [];
+
+            IDSExcelParser._addRequirementsToSpecs(specs, psetsLookup, elementPsets, warnings);
+
+            expect(specs[0].requirements.length).toBe(2);
+            expect(specs[0].requirements[0].baseName.value).toBe('IsExternal');
+            expect(specs[0].requirements[1].baseName.value).toBe('FireRating');
+        });
+
+        it('should apply value_override', () => {
+            const specs = [{ spec_id: 'SPEC_01', applicability: [], requirements: [] }];
+            const psetsLookup = [
+                { pset_name: 'Pset_WallCommon', property_name: 'IsExternal', value: '' }
+            ];
+            const elementPsets = [
+                { spec_id: 'SPEC_01', pset_name: 'Pset_WallCommon', value_override: 'true' }
+            ];
+            const warnings = [];
+
+            IDSExcelParser._addRequirementsToSpecs(specs, psetsLookup, elementPsets, warnings);
+
+            expect(specs[0].requirements[0].value.value).toBe('true');
+        });
+
+        it('should warn on unknown pset', () => {
+            const specs = [{ spec_id: 'SPEC_01', applicability: [], requirements: [] }];
+            const psetsLookup = [];
+            const elementPsets = [
+                { spec_id: 'SPEC_01', pset_name: 'Unknown_Pset' }
+            ];
+            const warnings = [];
+
+            IDSExcelParser._addRequirementsToSpecs(specs, psetsLookup, elementPsets, warnings);
+
+            expect(warnings.length).toBe(1);
+            expect(warnings[0]).toContain('Unknown_Pset');
+        });
+
+    });
+
 });
