@@ -491,7 +491,10 @@ async function parseIFCFileAsync(content, fileName) {
         await new Promise(resolve => setTimeout(resolve, 0));
     }
 
-    // Phase 3: Build entities list (chunked)
+    // Phase 3: Build inverted index for property sets (O(n+m) instead of O(n*m))
+    const propertySetIndex = PropertySetIndex.build(relDefinesMap);
+
+    // Phase 4: Build entities list (chunked)
     for (let i = 0; i < entities_array.length; i += CHUNK_SIZE) {
         const chunk = entities_array.slice(i, i + CHUNK_SIZE);
         for (const [id, entity] of chunk) {
@@ -506,14 +509,13 @@ async function parseIFCFileAsync(content, fileName) {
                 if (guid) {
                     const propertySets = {};
 
-                    for (const [relId, rel] of relDefinesMap) {
-                        if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
-                            const psetId = rel.relatingPropertyDefinition;
-                            if (psetId && propertySetMap.has(psetId)) {
-                                const pset = propertySetMap.get(psetId);
-                                if (pset && pset.name) {
-                                    propertySets[pset.name] = pset.properties;
-                                }
+                    // O(1) lookup using inverted index
+                    const psetIds = PropertySetIndex.getPropertySetIds(propertySetIndex, id);
+                    for (const psetId of psetIds) {
+                        if (propertySetMap.has(psetId)) {
+                            const pset = propertySetMap.get(psetId);
+                            if (pset && pset.name) {
+                                propertySets[pset.name] = pset.properties;
                             }
                         }
                     }
@@ -571,6 +573,9 @@ function parseIFCFile(content, fileName) {
         }
     }
 
+    // Build inverted index for property sets
+    const propertySetIndex = PropertySetIndex.build(relDefinesMap);
+
     // Build entities list
     for (const [id, entity] of entityMap) {
         if (entity.type.startsWith('IFC') &&
@@ -584,14 +589,13 @@ function parseIFCFile(content, fileName) {
             if (guid) {
                 const propertySets = {};
 
-                for (const [relId, rel] of relDefinesMap) {
-                    if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
-                        const psetId = rel.relatingPropertyDefinition;
-                        if (psetId && propertySetMap.has(psetId)) {
-                            const pset = propertySetMap.get(psetId);
-                            if (pset && pset.name) {
-                                propertySets[pset.name] = pset.properties;
-                            }
+                // O(1) lookup using inverted index
+                const psetIds = PropertySetIndex.getPropertySetIds(propertySetIndex, id);
+                for (const psetId of psetIds) {
+                    if (propertySetMap.has(psetId)) {
+                        const pset = propertySetMap.get(psetId);
+                        if (pset && pset.name) {
+                            propertySets[pset.name] = pset.properties;
                         }
                     }
                 }
