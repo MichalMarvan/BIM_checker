@@ -14,6 +14,10 @@ let idsFiles = [];
 let validationResults = null;
 const allEntities = [];
 
+// Progress panel globals
+let progressPanel = null;
+let validationAborted = false;
+
 // Upload handlers (with null checks)
 const ifcUploadBox = document.getElementById('ifcUploadBox');
 const idsUploadBox = document.getElementById('idsUploadBox');
@@ -2633,6 +2637,25 @@ async function validateAll() {
         return;
     }
 
+    // Reset abort flag
+    validationAborted = false;
+
+    // Initialize progress panel if container exists
+    const progressContainer = document.getElementById('validationProgress');
+    if (progressContainer && typeof ProgressPanel !== 'undefined') {
+        progressPanel = new ProgressPanel(progressContainer, {
+            onCancel: () => {
+                validationAborted = true;
+                if (progressPanel) {
+                    progressPanel.hide();
+                }
+                document.getElementById('loading').classList.remove('show');
+            }
+        });
+        progressPanel.show();
+        progressPanel.update({ phase: 'starting', overall: 0, files: {} });
+    }
+
     // Show loading
     document.getElementById('loading').classList.add('show');
     document.getElementById('loadingText').textContent = t('validator.loading.validating');
@@ -2667,10 +2690,29 @@ async function validateAll() {
 
             // Process each IFC file in the group
             for (let ifcIndex = 0; ifcIndex < group.ifcFiles.length; ifcIndex++) {
+                // Check for abort
+                if (validationAborted) break;
+
                 const ifcFile = group.ifcFiles[ifcIndex];
 
                 document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfcNum')} ${ifcIndex + 1}/${group.ifcFiles.length}: ${ifcFile.name}`;
                 await new Promise(resolve => setTimeout(resolve, 100)); // Yield
+
+                // Update progress panel
+                if (progressPanel) {
+                    const overallProgress = ((groupIndex / validGroups.length) + (ifcIndex / group.ifcFiles.length / validGroups.length)) * 100;
+                    progressPanel.update({
+                        phase: 'parsing',
+                        overall: overallProgress,
+                        files: {
+                            [ifcFile.name]: {
+                                name: ifcFile.name,
+                                phase: 'parsing',
+                                percent: 0
+                            }
+                        }
+                    });
+                }
 
                 // Parse IFC file with chunking
                 document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfc')} ${ifcFile.name}`;
@@ -2680,11 +2722,43 @@ async function validateAll() {
                     continue;
                 }
 
+                // Update progress panel - parsing complete
+                if (progressPanel) {
+                    progressPanel.update({
+                        phase: 'validating',
+                        files: {
+                            [ifcFile.name]: {
+                                name: ifcFile.name,
+                                phase: 'validating',
+                                percent: 30,
+                                entityCount: entities.length
+                            }
+                        }
+                    });
+                }
+
                 // Validate with chunking
                 document.getElementById('currentFile').textContent = `${t('validator.loading.validationProgress')} ${ifcFile.name} ${t('validator.loading.against')} ${group.idsFile.name}`;
                 await new Promise(resolve => setTimeout(resolve, 100)); // Yield
 
                 const specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
+
+                // Update progress panel - validation complete
+                if (progressPanel) {
+                    const overallProgress = ((groupIndex / validGroups.length) + ((ifcIndex + 1) / group.ifcFiles.length / validGroups.length)) * 100;
+                    progressPanel.update({
+                        phase: 'validating',
+                        overall: overallProgress,
+                        files: {
+                            [ifcFile.name]: {
+                                name: ifcFile.name,
+                                phase: 'complete',
+                                percent: 100,
+                                entityCount: entities.length
+                            }
+                        }
+                    });
+                }
 
                 idsResult.ifcResults.push({
                     ifcFileName: ifcFile.name,
@@ -2697,6 +2771,17 @@ async function validateAll() {
 
         // Hide loading
         document.getElementById('loading').classList.remove('show');
+
+        // Complete progress panel
+        if (progressPanel) {
+            progressPanel.complete(true);
+            // Hide after delay
+            setTimeout(() => {
+                if (progressPanel) {
+                    progressPanel.hide();
+                }
+            }, 2000);
+        }
 
         // Show results
         if (validationResults.length > 0) {
@@ -2718,6 +2803,11 @@ async function validateAll() {
         console.error('Validation error:', error);
         ErrorHandler.error(t('validator.error.validationError') + ' ' + error.message);
         document.getElementById('loading').classList.remove('show');
+
+        // Hide progress panel on error
+        if (progressPanel) {
+            progressPanel.hide();
+        }
     }
 }
 
