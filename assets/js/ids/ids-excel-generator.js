@@ -79,8 +79,9 @@ const IDSExcelGenerator = (function() {
     function _generateApplicabilitySheet(specifications) {
         const rows = [];
 
-        for (const spec of specifications) {
-            const specId = spec.identifier || '';
+        for (let index = 0; index < specifications.length; index++) {
+            const spec = specifications[index];
+            const specId = spec.identifier || `SPEC_${String(index + 1).padStart(2, '0')}`;
 
             for (const facet of (spec.applicability || [])) {
                 const row = {
@@ -165,8 +166,9 @@ const IDSExcelGenerator = (function() {
     function _generateElementPsetsSheet(specifications) {
         const rows = [];
 
-        for (const spec of specifications) {
-            const specId = spec.identifier || '';
+        for (let index = 0; index < specifications.length; index++) {
+            const spec = specifications[index];
+            const specId = spec.identifier || `SPEC_${String(index + 1).padStart(2, '0')}`;
             const seenPsets = new Set();
 
             for (const req of (spec.requirements || [])) {
