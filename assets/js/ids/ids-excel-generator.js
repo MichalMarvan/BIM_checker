@@ -142,21 +142,76 @@ const IDSExcelGenerator = (function() {
                 if (!psetName || !propName || seen.has(key)) continue;
 
                 seen.add(key);
+
+                // Determine value type and extract value
+                const valueInfo = _extractValueInfo(req.value);
+
                 rows.push({
                     pset_name: psetName,
                     property_name: propName,
                     dataType: req.dataType || '',
-                    value: req.value?.value || ''
+                    value_type: valueInfo.type,
+                    value: valueInfo.value
                 });
             }
         }
 
         // Ensure at least headers exist
         if (rows.length === 0) {
-            rows.push({ pset_name: '', property_name: '', dataType: '', value: '' });
+            rows.push({ pset_name: '', property_name: '', dataType: '', value_type: '', value: '' });
         }
 
         return rows;
+    }
+
+    /**
+     * Extract value type and string representation from IDS value object
+     * @private
+     */
+    function _extractValueInfo(valueObj) {
+        if (!valueObj) {
+            return { type: '', value: '' };
+        }
+
+        // Simple value
+        if (valueObj.type === 'simple') {
+            return { type: 'simple', value: valueObj.value || '' };
+        }
+
+        // Restriction (regex, enumeration, range, etc.)
+        if (valueObj.type === 'restriction') {
+            // Regex pattern
+            if (valueObj.isRegex && valueObj.pattern) {
+                return { type: 'pattern', value: valueObj.pattern };
+            }
+
+            // Enumeration (options)
+            if (valueObj.options && valueObj.options.length > 0) {
+                return { type: 'enumeration', value: valueObj.options.join('|') };
+            }
+
+            // Range (min/max)
+            if (valueObj.minInclusive !== undefined || valueObj.maxInclusive !== undefined) {
+                const min = valueObj.minInclusive ?? '';
+                const max = valueObj.maxInclusive ?? '';
+                return { type: 'range', value: `${min}..${max}` };
+            }
+
+            // Length restriction
+            if (valueObj.minLength !== undefined || valueObj.maxLength !== undefined) {
+                const min = valueObj.minLength ?? '0';
+                const max = valueObj.maxLength ?? '';
+                return { type: 'length', value: `${min}..${max}` };
+            }
+
+            // Fallback - try pattern
+            if (valueObj.pattern) {
+                return { type: 'pattern', value: valueObj.pattern };
+            }
+        }
+
+        // Fallback to simple value
+        return { type: 'simple', value: valueObj.value || '' };
     }
 
     /**

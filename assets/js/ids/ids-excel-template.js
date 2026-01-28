@@ -90,6 +90,7 @@ const IDSExcelTemplate = (function() {
                     pset_name: pset.pset,
                     property_name: prop,
                     dataType: '',
+                    value_type: 'simple',
                     value: ''
                 });
             }

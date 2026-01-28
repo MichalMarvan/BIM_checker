@@ -202,6 +202,7 @@ const IDSExcelParser = (function() {
             psetCatalog.get(psetName).push({
                 name: propName,
                 dataType: row.dataType || row.data_type || '',
+                valueType: row.value_type || 'simple',
                 value: row.value || ''
             });
         }
@@ -231,17 +232,71 @@ const IDSExcelParser = (function() {
 
             // Add each property as a requirement
             for (const prop of properties) {
-                const value = valueOverride || prop.value;
+                const valueStr = valueOverride || prop.value;
+                const valueType = valueOverride ? 'simple' : prop.valueType;
 
                 spec.requirements.push({
                     type: 'property',
                     propertySet: { type: 'simple', value: psetName },
                     baseName: { type: 'simple', value: prop.name },
-                    value: value ? { type: 'simple', value: value } : null,
+                    value: _parseValueFromExcel(valueStr, valueType),
                     dataType: prop.dataType || null,
                     cardinality: cardinality
                 });
             }
+        }
+    }
+
+    /**
+     * Parse value from Excel format back to IDS value object
+     * @private
+     */
+    function _parseValueFromExcel(valueStr, valueType) {
+        if (!valueStr) {
+            return null;
+        }
+
+        switch (valueType) {
+            case 'pattern':
+                return {
+                    type: 'restriction',
+                    pattern: valueStr,
+                    isRegex: true
+                };
+
+            case 'enumeration':
+                return {
+                    type: 'restriction',
+                    options: valueStr.split('|').map(s => s.trim()).filter(s => s)
+                };
+
+            case 'range': {
+                const parts = valueStr.split('..');
+                const result = { type: 'restriction' };
+                if (parts[0]) {
+                    result.minInclusive = parts[0];
+                }
+                if (parts[1]) {
+                    result.maxInclusive = parts[1];
+                }
+                return result;
+            }
+
+            case 'length': {
+                const parts = valueStr.split('..');
+                const result = { type: 'restriction' };
+                if (parts[0]) {
+                    result.minLength = parts[0];
+                }
+                if (parts[1]) {
+                    result.maxLength = parts[1];
+                }
+                return result;
+            }
+
+            case 'simple':
+            default:
+                return { type: 'simple', value: valueStr };
         }
     }
 
