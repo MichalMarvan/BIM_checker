@@ -47,6 +47,27 @@ class IDSEditorCore {
                 e.returnValue = '';
             }
         });
+
+        // Excel buttons
+        const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
+        if (downloadTemplateBtn) {
+            downloadTemplateBtn.addEventListener('click', () => this.downloadExcelTemplate());
+        }
+
+        const importExcelBtn = document.getElementById('importExcelBtn');
+        if (importExcelBtn) {
+            importExcelBtn.addEventListener('click', () => this.importExcel());
+        }
+
+        const exportExcelBtn = document.getElementById('exportExcelBtn');
+        if (exportExcelBtn) {
+            exportExcelBtn.addEventListener('click', () => this.exportExcel());
+        }
+
+        const excelFileInput = document.getElementById('excelFileInput');
+        if (excelFileInput) {
+            excelFileInput.addEventListener('change', (e) => this.handleExcelFile(e));
+        }
     }
 
     /**
@@ -953,6 +974,144 @@ class IDSEditorCore {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // ========================================
+    // Excel Import/Export Methods
+    // ========================================
+
+    /**
+     * Download Excel template
+     */
+    downloadExcelTemplate() {
+        if (typeof IDSExcelTemplate !== 'undefined') {
+            IDSExcelTemplate.downloadTemplate();
+            this.showMessage(t('editor.templateDownloaded') || 'Template downloaded', 'success');
+        } else {
+            this.showMessage('Excel template not available', 'error');
+        }
+    }
+
+    /**
+     * Import Excel file
+     */
+    importExcel() {
+        const input = document.getElementById('excelFileInput');
+        if (input) {
+            input.click();
+        }
+    }
+
+    /**
+     * Handle Excel file selection
+     */
+    async handleExcelFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Reset input
+        event.target.value = '';
+
+        // Check unsaved changes
+        if (this.hasUnsavedChanges) {
+            if (!confirm(t('editor.unsavedChanges'))) {
+                return;
+            }
+        }
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const result = IDSExcelParser.parse(buffer);
+
+            // Show warnings if any
+            if (result.warnings.length > 0) {
+                this.showExcelWarnings(result.warnings, result.data);
+            } else {
+                this.loadExcelData(result.data);
+            }
+        } catch (error) {
+            this.showMessage(`Import error: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * Show Excel import warnings dialog
+     */
+    showExcelWarnings(warnings, data) {
+        const specsCount = data.specifications ? data.specifications.length : 0;
+        const reqsCount = data.specifications ? data.specifications.reduce((sum, s) => sum + (s.requirements ? s.requirements.length : 0), 0) : 0;
+
+        const dialog = document.createElement('div');
+        dialog.className = 'excel-warning-dialog';
+        dialog.innerHTML = `
+            <div class="excel-warning-content">
+                <div class="excel-warning-header">
+                    ⚠️ ${t('editor.importWarnings') || 'Import completed with warnings'}
+                </div>
+                <ul class="excel-warning-list">
+                    ${warnings.map(w => `<li>• ${this.escapeHtml(w)}</li>`).join('')}
+                </ul>
+                <div class="excel-warning-summary">
+                    ${t('editor.imported') || 'Imported'}: ${specsCount} ${t('editor.specifications') || 'specifications'}, ${reqsCount} ${t('editor.requirements') || 'requirements'}
+                </div>
+                <div class="excel-warning-actions">
+                    <button class="btn btn-secondary excel-warning-cancel">
+                        ${t('btn.cancel') || 'Cancel'}
+                    </button>
+                    <button class="btn btn-primary excel-warning-continue">
+                        ${t('editor.continueToEditor') || 'Continue to Editor'}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        // Event listeners
+        dialog.querySelector('.excel-warning-cancel').addEventListener('click', () => {
+            dialog.remove();
+        });
+
+        dialog.querySelector('.excel-warning-continue').addEventListener('click', () => {
+            dialog.remove();
+            this.loadExcelData(data);
+        });
+
+        // Click outside to close
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                dialog.remove();
+            }
+        });
+    }
+
+    /**
+     * Load Excel data into editor
+     */
+    loadExcelData(data) {
+        this.idsData = data;
+        this.hasUnsavedChanges = true;
+        this.renderIDS();
+        this.enableEditMode();
+        this.showMessage(t('editor.excelImported') || 'Excel imported successfully', 'success');
+    }
+
+    /**
+     * Export to Excel
+     */
+    exportExcel() {
+        if (!this.idsData) {
+            this.showMessage(t('editor.noDataToExport') || 'No data to export', 'error');
+            return;
+        }
+
+        if (typeof IDSExcelGenerator !== 'undefined') {
+            const filename = (this.idsData.title || 'ids-export').replace(/[^a-zA-Z0-9]/g, '_');
+            IDSExcelGenerator.download(this.idsData, filename);
+            this.showMessage(t('editor.excelExported') || 'Exported to Excel', 'success');
+        } else {
+            this.showMessage('Excel generator not available', 'error');
+        }
     }
 }
 
