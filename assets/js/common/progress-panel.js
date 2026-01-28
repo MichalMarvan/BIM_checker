@@ -12,8 +12,9 @@ class ProgressPanel {
     constructor(container, options = {}) {
         this.container = container;
         this.options = options;
-        this.expanded = false;
+        this.expanded = true; // Start expanded to show files
         this.onCancel = options.onCancel || (() => {});
+        this.fileStates = {}; // Track all file states
 
         this._render();
     }
@@ -33,9 +34,9 @@ class ProgressPanel {
                     <div class="validation-progress__fill" style="width: 0%"></div>
                 </div>
                 <button class="validation-progress__toggle">
-                    <span class="toggle-icon">▼</span> Details
+                    <span class="toggle-icon">▲</span> Details
                 </button>
-                <div class="validation-progress__details">
+                <div class="validation-progress__details expanded">
                     <div class="validation-progress__files"></div>
                     <div class="validation-progress__stats"></div>
                 </div>
@@ -91,9 +92,20 @@ class ProgressPanel {
         };
         this.elements.title.textContent = phaseText[progress.phase] || 'Processing...';
 
-        // Update file details
+        // Merge file updates with existing state
         if (progress.files) {
-            this._updateFileList(progress.files);
+            Object.assign(this.fileStates, progress.files);
+            this._updateFileList(this.fileStates);
+        }
+    }
+
+    /**
+     * Reset file states
+     */
+    reset() {
+        this.fileStates = {};
+        if (this.elements.files) {
+            this.elements.files.innerHTML = '';
         }
     }
 

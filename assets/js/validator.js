@@ -2643,12 +2643,15 @@ async function validateAll() {
     // Initialize progress panel if container exists (inside loading modal)
     const progressContainer = document.getElementById('validationProgress');
     if (progressContainer && typeof ProgressPanel !== 'undefined') {
-        progressPanel = new ProgressPanel(progressContainer, {
-            onCancel: () => {
-                validationAborted = true;
-                document.getElementById('loading').classList.remove('show');
-            }
-        });
+        if (!progressPanel) {
+            progressPanel = new ProgressPanel(progressContainer, {
+                onCancel: () => {
+                    validationAborted = true;
+                    document.getElementById('loading').classList.remove('show');
+                }
+            });
+        }
+        progressPanel.reset();
         progressPanel.update({ phase: 'starting', overall: 0, files: {} });
     }
 
@@ -2737,13 +2740,20 @@ async function validateAll() {
                     progressPanel.update({
                         phase: 'validating',
                         files: {
-                            [ifcFile.name]: { name: ifcFile.name, phase: 'validating', percent: 50, entityCount: entities.length }
+                            [ifcFile.name]: { name: ifcFile.name, phase: 'validating', percent: 30, entityCount: entities.length }
                         }
                     });
                 }
 
-                // Validate
-                const specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
+                // Validate - use ValidationEngine for parallel spec validation
+                let specificationResults;
+                if (typeof ValidationEngine !== 'undefined' && entities.length > 100) {
+                    // Use ValidationEngine for better performance with large datasets
+                    specificationResults = await validateWithEngine(entities, idsData.specifications, ifcFile.name);
+                } else {
+                    // Fallback to original method
+                    specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
+                }
 
                 // Update UI - complete
                 completedFiles++;
@@ -2760,6 +2770,49 @@ async function validateAll() {
                     ifcFileName: ifcFile.name,
                     specificationResults: specificationResults
                 };
+            }
+
+            // Parallel validation using ValidationEngine
+            async function validateWithEngine(entities, specifications, fileName) {
+                const results = [];
+
+                // Validate all specs in parallel
+                const specPromises = specifications.map(async (spec, index) => {
+                    // Yield occasionally to keep UI responsive
+                    if (index % 2 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+
+                    const result = ValidationEngine.validateBatch(entities, spec);
+
+                    // Update progress
+                    if (progressPanel) {
+                        const specProgress = 30 + ((index + 1) / specifications.length) * 70;
+                        progressPanel.update({
+                            files: {
+                                [fileName]: {
+                                    name: fileName,
+                                    phase: 'validating',
+                                    percent: Math.round(specProgress),
+                                    currentSpec: spec.name
+                                }
+                            }
+                        });
+                    }
+
+                    return result;
+                });
+
+                const specResults = await Promise.all(specPromises);
+
+                // Filter out empty results
+                for (const result of specResults) {
+                    if (result && result.entityResults && result.entityResults.length > 0) {
+                        results.push(result);
+                    }
+                }
+
+                return results;
             }
 
             // Process files in batches for parallel execution
