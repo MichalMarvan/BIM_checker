@@ -114,10 +114,20 @@ class ProgressPanel {
      * @private
      */
     _updateFileList(files) {
-        const filesHtml = Object.entries(files).map(([id, file]) => {
+        const allFiles = Object.entries(files);
+        const completedFiles = allFiles.filter(([id, file]) => file.phase === 'complete');
+        const activeFiles = allFiles.filter(([id, file]) => file.phase !== 'complete');
+
+        // Show completed count header if any completed
+        let headerHtml = '';
+        if (completedFiles.length > 0) {
+            headerHtml = `<div class="validation-progress__completed">✓ ${completedFiles.length} dokončeno</div>`;
+        }
+
+        const filesHtml = activeFiles.map(([id, file]) => {
             const percent = Math.round(file.percent || 0);
             const statusText = this._getStatusText(file);
-            const icon = percent >= 100 ? '✓' : '📄';
+            const icon = '📄';
 
             return `
                 <div class="validation-progress__file">
@@ -134,7 +144,7 @@ class ProgressPanel {
             `;
         }).join('');
 
-        this.elements.files.innerHTML = filesHtml;
+        this.elements.files.innerHTML = headerHtml + filesHtml;
     }
 
     /**

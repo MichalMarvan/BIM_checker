@@ -76,6 +76,15 @@
     display: block;
 }
 
+.validation-progress__completed {
+    color: var(--success, #22c55e);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 0 8px;
+    border-bottom: 1px solid var(--border, #ddd);
+    margin-bottom: 8px;
+}
+
 .validation-progress__file {
     display: flex;
     align-items: center;
