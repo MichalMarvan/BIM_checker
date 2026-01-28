@@ -450,6 +450,11 @@ function formatFacets(facets, isRequirements = false) {
             html += `${escapeHtml(t('parser.facet.name'))} <span class="facet-value">${formatValue(facet.name)}</span><br>`;
         }
 
+        // Zobrazení baseName (pro property)
+        if (facet.baseName) {
+            html += `${escapeHtml(t('parser.facet.name'))} <span class="facet-value">${formatValue(facet.baseName)}</span><br>`;
+        }
+
         // Zobrazení property setu
         if (facet.propertySet) {
             html += `${escapeHtml(t('parser.facet.propertySet'))} <span class="facet-value">${formatValue(facet.propertySet)}</span><br>`;
