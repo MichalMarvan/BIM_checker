@@ -117,11 +117,16 @@
                 </div>
 
                 <div id="editorTab" class="tab-content">
-                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e9ecef;">
+                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e9ecef; flex-wrap: wrap;">
                         <button class="btn btn-secondary" id="createNewIdsBtn" data-i18n="parser.createNew">✨ Vytvořit nový IDS</button>
                         <button class="btn btn-primary" id="toggleEditBtn" data-i18n="parser.editMode">✏️ Editační režim</button>
                         <button class="btn btn-success" id="downloadIdsBtn" data-i18n="parser.download">💾 Stáhnout IDS</button>
+                        <span class="btn-divider"></span>
+                        <button class="btn btn-excel" id="downloadTemplateBtn" data-i18n="parser.downloadTemplate">📋 Stáhnout šablonu</button>
+                        <button class="btn btn-excel" id="importExcelBtn" data-i18n="parser.importExcel">📥 Import z Excelu</button>
+                        <button class="btn btn-excel" id="exportExcelBtn" data-i18n="parser.exportExcel">📤 Export do Excelu</button>
                     </div>
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
                     <div id="idsContent"></div>
                 </div>
 
