@@ -173,21 +173,49 @@ const IDSExcelGenerator = (function() {
             return { type: '', value: '' };
         }
 
-        // Simple value
-        if (valueObj.type === 'simple') {
+        // Simple value (editor format: {type: 'simple', value: 'x'} or {type: 'simpleValue', value: 'x'})
+        if (valueObj.type === 'simple' || valueObj.type === 'simpleValue') {
             return { type: 'simple', value: valueObj.value || '' };
         }
 
-        // Restriction (regex, enumeration, range, etc.)
+        // Pattern (editor format: {type: 'pattern', value: 'regex'})
+        if (valueObj.type === 'pattern') {
+            return { type: 'pattern', value: valueObj.value || '' };
+        }
+
+        // Enumeration (editor format: {type: 'enumeration', values: ['a', 'b']})
+        if (valueObj.type === 'enumeration') {
+            const values = valueObj.values || valueObj.options || [];
+            return { type: 'enumeration', value: values.join('|') };
+        }
+
+        // Bounds/Range (editor format: {type: 'bounds', minInclusive: x, maxInclusive: y})
+        if (valueObj.type === 'bounds') {
+            const min = valueObj.minInclusive ?? '';
+            const max = valueObj.maxInclusive ?? '';
+            return { type: 'range', value: `${min}..${max}` };
+        }
+
+        // Restriction (parser format: {type: 'restriction', ...})
         if (valueObj.type === 'restriction') {
             // Regex pattern
             if (valueObj.isRegex && valueObj.pattern) {
                 return { type: 'pattern', value: valueObj.pattern };
             }
 
+            // Pattern without isRegex flag
+            if (valueObj.pattern) {
+                return { type: 'pattern', value: valueObj.pattern };
+            }
+
             // Enumeration (options)
             if (valueObj.options && valueObj.options.length > 0) {
                 return { type: 'enumeration', value: valueObj.options.join('|') };
+            }
+
+            // Enumeration alternative format
+            if (valueObj.enumeration && valueObj.enumeration.length > 0) {
+                return { type: 'enumeration', value: valueObj.enumeration.join('|') };
             }
 
             // Range (min/max)
@@ -202,11 +230,6 @@ const IDSExcelGenerator = (function() {
                 const min = valueObj.minLength ?? '0';
                 const max = valueObj.maxLength ?? '';
                 return { type: 'length', value: `${min}..${max}` };
-            }
-
-            // Fallback - try pattern
-            if (valueObj.pattern) {
-                return { type: 'pattern', value: valueObj.pattern };
             }
         }
 
