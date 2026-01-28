@@ -49,7 +49,15 @@ export default [
                 // CommonJS (for compatibility checks)
                 module: 'readonly',
                 // HTML Components
-                HTMLComponents: 'readonly'
+                HTMLComponents: 'readonly',
+                // Parallel validation modules
+                RegexCache: 'readonly',
+                PropertySetIndex: 'readonly',
+                ValidationEngine: 'readonly',
+                ValidationOrchestrator: 'readonly',
+                WorkerPool: 'readonly',
+                ProgressPanel: 'readonly',
+                parseIFCFileAsync: 'readonly'
             }
         },
         rules: {
