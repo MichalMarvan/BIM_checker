@@ -11,6 +11,10 @@ const translations = {
         'app.version': 'verze 0.1.2',
         'app.year': '2025',
 
+        // === FOOTER ===
+        'footer.github': 'GitHub',
+        'footer.author': 'Autor',
+
         // === NAVIGACE ===
         'nav.storage': 'Úložiště',
         'nav.tools': 'Nástroje',
@@ -734,6 +738,10 @@ const translations = {
         'app.subtitle': 'Professional tools for BIM data validation and analysis',
         'app.version': 'version 0.1.2',
         'app.year': '2025',
+
+        // === FOOTER ===
+        'footer.github': 'GitHub',
+        'footer.author': 'Author',
 
         // === NAVIGATION ===
         'nav.storage': 'Storage',
