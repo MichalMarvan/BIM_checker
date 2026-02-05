@@ -15,9 +15,9 @@ class IDSXMLGenerator {
      */
     generateIDS(idsData) {
         let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-        xml += '<ids xmlns:xs="http://www.w3.org/2001/XMLSchema" ';
+        xml += '<ids xmlns="http://standards.buildingsmart.org/IDS" ';
+        xml += 'xmlns:xs="http://www.w3.org/2001/XMLSchema" ';
         xml += 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ';
-        xml += 'xmlns:ids="http://standards.buildingsmart.org/IDS" ';
         xml += 'xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">\n';
 
         // Add info section
@@ -91,7 +91,7 @@ class IDSXMLGenerator {
             const maxOccurs = specData.maxOccurs !== undefined ? specData.maxOccurs : 'unbounded';
             xml += `${indent}  <applicability minOccurs="${minOccurs}" maxOccurs="${maxOccurs}">\n`;
             for (const facet of specData.applicability) {
-                xml += this.generateFacetString(facet, indent + '    ');
+                xml += this.generateFacetString(facet, indent + '    ', false);
             }
             xml += `${indent}  </applicability>\n`;
         }
@@ -100,7 +100,7 @@ class IDSXMLGenerator {
         if (specData.requirements && specData.requirements.length > 0) {
             xml += `${indent}  <requirements>\n`;
             for (const facet of specData.requirements) {
-                xml += this.generateFacetString(facet, indent + '    ');
+                xml += this.generateFacetString(facet, indent + '    ', true);
             }
             xml += `${indent}  </requirements>\n`;
         }
@@ -112,22 +112,22 @@ class IDSXMLGenerator {
     /**
      * Generate a facet as string
      */
-    generateFacetString(facetData, indent = '') {
+    generateFacetString(facetData, indent = '', isRequirement = false) {
         const type = facetData.type;
 
         switch (type) {
             case 'entity':
                 return this.generateEntityFacetString(facetData, indent);
             case 'property':
-                return this.generatePropertyFacetString(facetData, indent);
+                return this.generatePropertyFacetString(facetData, indent, isRequirement);
             case 'attribute':
-                return this.generateAttributeFacetString(facetData, indent);
+                return this.generateAttributeFacetString(facetData, indent, isRequirement);
             case 'classification':
-                return this.generateClassificationFacetString(facetData, indent);
+                return this.generateClassificationFacetString(facetData, indent, isRequirement);
             case 'material':
-                return this.generateMaterialFacetString(facetData, indent);
+                return this.generateMaterialFacetString(facetData, indent, isRequirement);
             case 'partOf':
-                return this.generatePartOfFacetString(facetData, indent);
+                return this.generatePartOfFacetString(facetData, indent, isRequirement);
             default:
                 return '';
         }
@@ -137,7 +137,7 @@ class IDSXMLGenerator {
      * Generate entity facet as string
      */
     generateEntityFacetString(data, indent) {
-        let xml = `${indent}<entity cardinality="required">\n`;
+        let xml = `${indent}<entity>\n`;
         if (data.name) {
             xml += this.addRestrictionString(data.name, 'name', indent + '  ');
         }
@@ -151,9 +151,13 @@ class IDSXMLGenerator {
     /**
      * Generate property facet as string
      */
-    generatePropertyFacetString(data, indent) {
-        const cardinality = data.cardinality || 'required';
-        let xml = `${indent}<property cardinality="${cardinality}">\n`;
+    generatePropertyFacetString(data, indent, isRequirement = false) {
+        let xml = `${indent}<property`;
+        if (isRequirement) {
+            const cardinality = data.cardinality || 'required';
+            xml += ` cardinality="${cardinality}"`;
+        }
+        xml += '>\n';
         if (data.propertySet) {
             xml += this.addRestrictionString(data.propertySet, 'propertySet', indent + '  ');
         }
@@ -170,9 +174,13 @@ class IDSXMLGenerator {
     /**
      * Generate attribute facet as string
      */
-    generateAttributeFacetString(data, indent) {
-        const cardinality = data.cardinality || 'required';
-        let xml = `${indent}<attribute cardinality="${cardinality}">\n`;
+    generateAttributeFacetString(data, indent, isRequirement = false) {
+        let xml = `${indent}<attribute`;
+        if (isRequirement) {
+            const cardinality = data.cardinality || 'required';
+            xml += ` cardinality="${cardinality}"`;
+        }
+        xml += '>\n';
         if (data.name) {
             xml += this.addRestrictionString(data.name, 'name', indent + '  ');
         }
@@ -186,9 +194,13 @@ class IDSXMLGenerator {
     /**
      * Generate classification facet as string
      */
-    generateClassificationFacetString(data, indent) {
-        const cardinality = data.cardinality || 'required';
-        let xml = `${indent}<classification cardinality="${cardinality}">\n`;
+    generateClassificationFacetString(data, indent, isRequirement = false) {
+        let xml = `${indent}<classification`;
+        if (isRequirement) {
+            const cardinality = data.cardinality || 'required';
+            xml += ` cardinality="${cardinality}"`;
+        }
+        xml += '>\n';
         if (data.system) {
             xml += this.addRestrictionString(data.system, 'system', indent + '  ');
         }
@@ -202,9 +214,13 @@ class IDSXMLGenerator {
     /**
      * Generate material facet as string
      */
-    generateMaterialFacetString(data, indent) {
-        const cardinality = data.cardinality || 'required';
-        let xml = `${indent}<material cardinality="${cardinality}">\n`;
+    generateMaterialFacetString(data, indent, isRequirement = false) {
+        let xml = `${indent}<material`;
+        if (isRequirement) {
+            const cardinality = data.cardinality || 'required';
+            xml += ` cardinality="${cardinality}"`;
+        }
+        xml += '>\n';
         if (data.value) {
             xml += this.addRestrictionString(data.value, 'value', indent + '  ');
         }
@@ -215,13 +231,16 @@ class IDSXMLGenerator {
     /**
      * Generate partOf facet as string
      */
-    generatePartOfFacetString(data, indent) {
-        const cardinality = data.cardinality || 'required';
+    generatePartOfFacetString(data, indent, isRequirement = false) {
         let xml = `${indent}<partOf`;
         if (data.relation) {
             xml += ` relation="${this.escapeXml(data.relation)}"`;
         }
-        xml += ` cardinality="${cardinality}">\n`;
+        if (isRequirement) {
+            const cardinality = data.cardinality || 'required';
+            xml += ` cardinality="${cardinality}"`;
+        }
+        xml += '>\n';
         if (data.entity) {
             xml += this.addRestrictionString(data.entity, 'entity', indent + '  ');
         }

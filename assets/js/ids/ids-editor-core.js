@@ -825,7 +825,7 @@ class IDSEditorCore {
                     </div>
                     <div class="form-group">
                         <label>Author:</label>
-                        <input type="text" id="editInfoAuthor" value="${this.escapeHtml(this.idsData.author || '')}" placeholder="${t('editor.authorName')}">
+                        <input type="email" id="editInfoAuthor" value="${this.escapeHtml(this.idsData.author || '')}" placeholder="${t('editor.authorName')}">
                     </div>
                     <div class="form-group">
                         <label>Date:</label>
@@ -872,9 +872,15 @@ class IDSEditorCore {
             return;
         }
 
+        const author = document.getElementById('editInfoAuthor').value.trim();
+        if (author && !/^[^@]+@[^.]+\..+$/.test(author)) {
+            alert(t('editor.authorEmailInvalid'));
+            return;
+        }
+
         this.idsData.title = title;
         this.idsData.version = document.getElementById('editInfoVersion').value.trim();
-        this.idsData.author = document.getElementById('editInfoAuthor').value.trim();
+        this.idsData.author = author;
         this.idsData.date = document.getElementById('editInfoDate').value;
         this.idsData.copyright = document.getElementById('editInfoCopyright').value.trim();
         this.idsData.description = document.getElementById('editInfoDescription').value.trim();
