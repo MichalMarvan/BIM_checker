@@ -104,8 +104,8 @@ function extractSpecifications(xmlDoc) {
         const specification = {
             name: spec.getAttribute('name') || `${t('parser.info.noSpec')} ${index + 1}`,
             ifcVersion: spec.getAttribute('ifcVersion') || t('parser.info.unspecified'),
-            minOccurs: spec.getAttribute('minOccurs'),
-            maxOccurs: spec.getAttribute('maxOccurs'),
+            // minOccurs: spec.getAttribute('minOccurs'), // Not allowed on <specification>
+            // maxOccurs: spec.getAttribute('maxOccurs'), // Not allowed on <specification>
             identifier: spec.getAttribute('identifier') || '',
             description: spec.getAttribute('description') || '',
             instructions: spec.getAttribute('instructions') || '',
@@ -141,21 +141,15 @@ function extractFacet(element, type) {
 
     // Extrakce různých částí facetu
     const nameElem = element.querySelector('name');
-    const baseNameElem = element.querySelector('baseName'); // Pro váš formát
+    const baseNameElem = element.querySelector('baseName');
 
     if (type === 'property') {
-        // Pro property používáme baseName místo name
         if (baseNameElem) {
             facet.baseName = extractValue(baseNameElem);
-        } else if (nameElem) {
-            facet.baseName = extractValue(nameElem);
         }
     } else {
-        // Pro ostatní facety používáme name
         if (nameElem) {
             facet.name = extractValue(nameElem);
-        } else if (baseNameElem) {
-            facet.name = extractValue(baseNameElem);
         }
     }
 
@@ -197,16 +191,15 @@ function extractFacet(element, type) {
     // Cardinality
     facet.cardinality = element.getAttribute('cardinality') || 'required';
 
-    // minOccurs/maxOccurs
-    const minOccurs = element.getAttribute('minOccurs');
-    const maxOccurs = element.getAttribute('maxOccurs');
-    if (minOccurs) {
-        facet.minOccurs = minOccurs;
-    }
-    if (maxOccurs) {
-        facet.maxOccurs = maxOccurs;
-    }
-
+                // minOccurs/maxOccurs are not allowed on individual facets by XSD
+                // const minOccurs = element.getAttribute('minOccurs');
+                // const maxOccurs = element.getAttribute('maxOccurs');
+                // if (minOccurs) {
+                //     facet.minOccurs = minOccurs;
+                // }
+                // if (maxOccurs) {
+                //     facet.maxOccurs = maxOccurs;
+                // }
     return facet;
 }
 
@@ -246,10 +239,13 @@ function extractRestriction(restriction) {
         result.isRegex = true;
     }
 
-    // Options (enumeration)
-    const options = restriction.querySelectorAll('option');
-    if (options.length > 0) {
-        result.options = Array.from(options).map(opt => opt.textContent);
+    let enumeration = restriction.querySelectorAll('enumeration'); // Look for xs:enumeration
+    if (!enumeration.length) {
+        enumeration = restriction.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'enumeration');
+    }
+    if (enumeration.length > 0) {
+        result.type = 'enumeration'; // Explicitly set type for clarity
+        result.values = Array.from(enumeration).map(enumElem => enumElem.getAttribute('value'));
     }
 
     // Bounds (numeric ranges)

@@ -403,9 +403,10 @@ class IDSEditorModals {
                 <select id="partOfRelation">
                     <option value="">${t('editor.allRelations')}</option>
                     <option value="IFCRELAGGREGATES" ${data.relation === 'IFCRELAGGREGATES' ? 'selected' : ''}>IFCRELAGGREGATES</option>
+                    <option value="IFCRELASSIGNSTOGROUP" ${data.relation === 'IFCRELASSIGNSTOGROUP' ? 'selected' : ''}>IFCRELASSIGNSTOGROUP</option>
                     <option value="IFCRELCONTAINEDINSPATIALSTRUCTURE" ${data.relation === 'IFCRELCONTAINEDINSPATIALSTRUCTURE' ? 'selected' : ''}>IFCRELCONTAINEDINSPATIALSTRUCTURE</option>
-                    <option value="IFCRELVOIDSELEMENT" ${data.relation === 'IFCRELVOIDSELEMENT' ? 'selected' : ''}>IFCRELVOIDSELEMENT</option>
-                    <option value="IFCRELFILLSELEMENT" ${data.relation === 'IFCRELFILLSELEMENT' ? 'selected' : ''}>IFCRELFILLSELEMENT</option>
+                    <option value="IFCRELNESTS" ${data.relation === 'IFCRELNESTS' ? 'selected' : ''}>IFCRELNESTS</option>
+                    <option value="IFCRELVOIDSELEMENT IFCRELFILLSELEMENT" ${data.relation === 'IFCRELVOIDSELEMENT IFCRELFILLSELEMENT' ? 'selected' : ''}>IFCRELVOIDSELEMENT IFCRELFILLSELEMENT</option>
                 </select>
                 <small>${t('editor.relationTypeDesc')}</small>
             </div>
@@ -855,21 +856,12 @@ class IDSEditorModals {
                 <select id="specIfcVersion">
                     <option value="IFC2X3" ${specData.ifcVersion === 'IFC2X3' ? 'selected' : ''}>IFC2X3</option>
                     <option value="IFC4" ${!specData.ifcVersion || specData.ifcVersion === 'IFC4' ? 'selected' : ''}>IFC4</option>
-                    <option value="IFC4X3" ${specData.ifcVersion === 'IFC4X3' ? 'selected' : ''}>IFC4X3</option>
                     <option value="IFC4X3_ADD2" ${specData.ifcVersion === 'IFC4X3_ADD2' ? 'selected' : ''}>IFC4X3_ADD2</option>
                 </select>
                 <small>${t('editor.ifcVersionDesc')}</small>
             </div>
 
-            <div class="form-group">
-                <label>${t('cardinality.specLabel')}</label>
-                <select id="specCardinality" onchange="idsEditorModals.updateCardinalityDescription()">
-                    <option value="required" ${currentCardinality === 'required' ? 'selected' : ''}>${t('cardinality.required')}</option>
-                    <option value="optional" ${currentCardinality === 'optional' ? 'selected' : ''}>${t('cardinality.optional')}</option>
-                    <option value="prohibited" ${currentCardinality === 'prohibited' ? 'selected' : ''}>${t('cardinality.prohibited')}</option>
-                </select>
-                <small id="cardinalityDesc">${this.getCardinalityDescription(currentCardinality)}</small>
-            </div>
+
 
             <div class="form-group">
                 <label>${t('editor.descriptionOptional')}</label>
@@ -883,18 +875,7 @@ class IDSEditorModals {
     /**
      * Get cardinality description text
      */
-    getCardinalityDescription(cardinality) {
-        switch (cardinality) {
-            case 'required':
-                return t('cardinality.requiredDesc');
-            case 'optional':
-                return t('cardinality.optionalDesc');
-            case 'prohibited':
-                return t('cardinality.prohibitedDesc');
-            default:
-                return '';
-        }
-    }
+
 
     /**
      * Get facet cardinality description text
@@ -945,10 +926,7 @@ class IDSEditorModals {
     /**
      * Update cardinality description when selection changes
      */
-    updateCardinalityDescription() {
-        const cardinality = document.getElementById('specCardinality').value;
-        document.getElementById('cardinalityDesc').textContent = this.getCardinalityDescription(cardinality);
-    }
+
 
     /**
      * Save specification data
@@ -960,32 +938,16 @@ class IDSEditorModals {
             return;
         }
 
-        const cardinality = document.getElementById('specCardinality').value;
-
-        // Convert cardinality to minOccurs/maxOccurs
-        let minOccurs, maxOccurs;
-        switch (cardinality) {
-            case 'required':
-                minOccurs = '1';
-                maxOccurs = 'unbounded';
-                break;
-            case 'optional':
-                minOccurs = '0';
-                maxOccurs = 'unbounded';
-                break;
-            case 'prohibited':
-                minOccurs = '0';
-                maxOccurs = '0';
-                break;
+        const ifcVersion = document.getElementById('specIfcVersion').value;
+        if (!ifcVersion) {
+            alert('IFC Version is required!'); // TODO: Use translation key
+            return;
         }
 
         const specData = {
             name: name,
-            ifcVersion: document.getElementById('specIfcVersion').value,
-            description: document.getElementById('specDescription').value.trim(),
-            minOccurs: minOccurs,
-            maxOccurs: maxOccurs,
-            cardinality: cardinality
+            ifcVersion: ifcVersion,
+            description: document.getElementById('specDescription').value.trim()
         };
 
         if (this.currentSpecCallback) {

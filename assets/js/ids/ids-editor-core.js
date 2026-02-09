@@ -130,23 +130,12 @@ class IDSEditorCore {
 
         if (parsed.specifications) {
             idsData.specifications = parsed.specifications.map(spec => {
-                // Determine cardinality from minOccurs/maxOccurs
-                let cardinality = 'required'; // default
-                if (spec.minOccurs === '0' && spec.maxOccurs === '0') {
-                    cardinality = 'prohibited';
-                } else if (spec.minOccurs === '0') {
-                    cardinality = 'optional';
-                }
-
                 return {
                     name: spec.name,
                     ifcVersion: spec.ifcVersion || '',
                     identifier: spec.identifier || '',
                     description: spec.description || '',
                     instructions: spec.instructions || '',
-                    minOccurs: spec.minOccurs,
-                    maxOccurs: spec.maxOccurs,
-                    cardinality: cardinality,
                     applicability: this.convertFacets(spec.applicability),
                     requirements: this.convertFacets(spec.requirements)
                 };
@@ -423,14 +412,12 @@ class IDSEditorCore {
     renderSpecification(spec, index) {
         const totalFacets = (spec.applicability ? spec.applicability.length : 0) + (spec.requirements ? spec.requirements.length : 0);
         const ifcVersion = spec.ifcVersion || 'IFC4';
-        const cardinality = spec.cardinality || 'required';
-        const cardinalityBadge = this.getCardinalityBadge(cardinality);
+
         let html = `
             <div class="specification-item collapsible-section" data-index="${index}">
                 <div class="spec-header collapsible-header" onclick="idsEditorCore.toggleSection(this)">
                     <span class="collapse-icon">▼</span>
                     <h4 style="margin: 0; flex: 1;">${this.escapeHtml(spec.name)}</h4>
-                    ${cardinalityBadge}
                     <span class="ifc-version-badge" style="background: #667eea; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; margin-right: 10px;">${ifcVersion}</span>
                     <span class="facet-count">${totalFacets} facets</span>
                     ${this.editMode ? `
@@ -710,9 +697,6 @@ class IDSEditorCore {
             spec.name = specData.name;
             spec.ifcVersion = specData.ifcVersion;
             spec.description = specData.description;
-            spec.minOccurs = specData.minOccurs;
-            spec.maxOccurs = specData.maxOccurs;
-            spec.cardinality = specData.cardinality;
             this.hasUnsavedChanges = true;
             this.renderIDS();
         });
