@@ -12,12 +12,28 @@ describe('IDS XML Generator', () => {
     // --- Bug #1: Default namespace ---
 
     it('should use default namespace xmlns without prefix', () => {
-        const xml = generator.generateIDS({ title: 'Test' });
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Dummy Spec',
+                ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
+                requirements: []
+            }]
+        });
         expect(xml).toContain('xmlns="http://standards.buildingsmart.org/IDS"');
     });
 
     it('should NOT use prefixed xmlns:ids namespace', () => {
-        const xml = generator.generateIDS({ title: 'Test' });
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Dummy Spec',
+                ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
+                requirements: []
+            }]
+        });
         expect(xml.includes('xmlns:ids=')).toBe(false);
     });
 
@@ -32,7 +48,13 @@ describe('IDS XML Generator', () => {
             date: '2025-01-01',
             purpose: 'Testing',
             copyright: 'Copyright',
-            milestone: 'Design'
+            milestone: 'Design',
+            specifications: [{
+                name: 'Dummy Spec',
+                ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
+                requirements: []
+            }]
         });
         const titleIdx = xml.indexOf('<title>');
         const copyrightIdx = xml.indexOf('<copyright>');
