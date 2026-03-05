@@ -14,6 +14,10 @@ class IDSXMLGenerator {
      * Generate complete IDS XML document
      */
     generateIDS(idsData) {
+        if (!idsData.specifications || idsData.specifications.length === 0) {
+            throw new Error('IDS must contain at least one specification.');
+        }
+
         let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xml += '<ids xmlns="http://standards.buildingsmart.org/IDS" ';
         xml += 'xmlns:xs="http://www.w3.org/2001/XMLSchema" ';
@@ -65,15 +69,8 @@ class IDSXMLGenerator {
     generateSpecificationString(specData, indent = '') {
         let xml = `${indent}<specification`;
         xml += ` name="${this.escapeXml(specData.name || 'Unnamed Specification')}"`;
-        if (specData.ifcVersion) {
-            xml += ` ifcVersion="${this.escapeXml(specData.ifcVersion)}"`;
-        }
-        if (specData.minOccurs !== undefined) {
-            xml += ` minOccurs="${specData.minOccurs}"`;
-        }
-        if (specData.maxOccurs !== undefined) {
-            xml += ` maxOccurs="${specData.maxOccurs}"`;
-        }
+        xml += ` ifcVersion="${this.escapeXml(specData.ifcVersion || 'IFC4')}"`;
+
         if (specData.identifier) {
             xml += ` identifier="${this.escapeXml(specData.identifier)}"`;
         }
@@ -86,15 +83,15 @@ class IDSXMLGenerator {
         xml += '>\n';
 
         // Applicability
+        const applicabilityMinOccurs = specData.minOccurs !== undefined ? specData.minOccurs : '0'; // Default to 0 for applicability
+        const applicabilityMaxOccurs = specData.maxOccurs !== undefined ? specData.maxOccurs : 'unbounded'; // Default to unbounded
+        xml += `${indent}  <applicability minOccurs="${applicabilityMinOccurs}" maxOccurs="${applicabilityMaxOccurs}">\n`;
         if (specData.applicability && specData.applicability.length > 0) {
-            const minOccurs = specData.minOccurs !== undefined ? specData.minOccurs : '0';
-            const maxOccurs = specData.maxOccurs !== undefined ? specData.maxOccurs : 'unbounded';
-            xml += `${indent}  <applicability minOccurs="${minOccurs}" maxOccurs="${maxOccurs}">\n`;
             for (const facet of specData.applicability) {
                 xml += this.generateFacetString(facet, indent + '    ', false);
             }
-            xml += `${indent}  </applicability>\n`;
         }
+        xml += `${indent}  </applicability>\n`;
 
         // Requirements
         if (specData.requirements && specData.requirements.length > 0) {

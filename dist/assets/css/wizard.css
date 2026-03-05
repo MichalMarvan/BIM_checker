@@ -580,32 +580,41 @@
    Header Buttons
    ======================================== */
 .wizard-header-btn {
-    position: relative;
-    width: 40px;
-    height: 40px;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-lg, 12px);
+    border: none;
+    background: var(--gray-100, #f1f5f9);
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
     transition: all 0.2s ease;
+    margin-right: 0.5rem;
 }
 
 .wizard-header-btn:hover {
-    background: rgba(139, 92, 246, 0.1);
+    background: var(--gray-200, #e2e8f0);
+    transform: scale(1.05);
 }
 
 .wizard-header-btn svg {
-    width: 22px;
-    height: 22px;
-    color: var(--text-secondary, #64748b);
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--text-primary, #1a1a2e);
     transition: color 0.2s ease;
 }
 
-.wizard-header-btn:hover svg {
-    color: var(--primary-color, #8b5cf6);
+[data-theme="dark"] .wizard-header-btn {
+    background: var(--gray-100, #374151);
+}
+
+[data-theme="dark"] .wizard-header-btn:hover {
+    background: var(--gray-200, #4b5563);
+}
+
+[data-theme="dark"] .wizard-header-btn svg {
+    color: var(--text-primary, #f1f5f9);
 }
 
 /* First visit hint */

@@ -14,6 +14,10 @@ let idsFiles = [];
 let validationResults = null;
 const allEntities = [];
 
+// Progress panel globals
+let progressPanel = null;
+let validationAborted = false;
+
 // Upload handlers (with null checks)
 const ifcUploadBox = document.getElementById('ifcUploadBox');
 const idsUploadBox = document.getElementById('idsUploadBox');
@@ -491,7 +495,10 @@ async function parseIFCFileAsync(content, fileName) {
         await new Promise(resolve => setTimeout(resolve, 0));
     }
 
-    // Phase 3: Build entities list (chunked)
+    // Phase 3: Build inverted index for property sets (O(n+m) instead of O(n*m))
+    const propertySetIndex = PropertySetIndex.build(relDefinesMap);
+
+    // Phase 4: Build entities list (chunked)
     for (let i = 0; i < entities_array.length; i += CHUNK_SIZE) {
         const chunk = entities_array.slice(i, i + CHUNK_SIZE);
         for (const [id, entity] of chunk) {
@@ -506,14 +513,13 @@ async function parseIFCFileAsync(content, fileName) {
                 if (guid) {
                     const propertySets = {};
 
-                    for (const [relId, rel] of relDefinesMap) {
-                        if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
-                            const psetId = rel.relatingPropertyDefinition;
-                            if (psetId && propertySetMap.has(psetId)) {
-                                const pset = propertySetMap.get(psetId);
-                                if (pset && pset.name) {
-                                    propertySets[pset.name] = pset.properties;
-                                }
+                    // O(1) lookup using inverted index
+                    const psetIds = PropertySetIndex.getPropertySetIds(propertySetIndex, id);
+                    for (const psetId of psetIds) {
+                        if (propertySetMap.has(psetId)) {
+                            const pset = propertySetMap.get(psetId);
+                            if (pset && pset.name) {
+                                propertySets[pset.name] = pset.properties;
                             }
                         }
                     }
@@ -571,6 +577,9 @@ function parseIFCFile(content, fileName) {
         }
     }
 
+    // Build inverted index for property sets
+    const propertySetIndex = PropertySetIndex.build(relDefinesMap);
+
     // Build entities list
     for (const [id, entity] of entityMap) {
         if (entity.type.startsWith('IFC') &&
@@ -584,14 +593,13 @@ function parseIFCFile(content, fileName) {
             if (guid) {
                 const propertySets = {};
 
-                for (const [relId, rel] of relDefinesMap) {
-                    if (rel.relatedObjects && rel.relatedObjects.includes(id)) {
-                        const psetId = rel.relatingPropertyDefinition;
-                        if (psetId && propertySetMap.has(psetId)) {
-                            const pset = propertySetMap.get(psetId);
-                            if (pset && pset.name) {
-                                propertySets[pset.name] = pset.properties;
-                            }
+                // O(1) lookup using inverted index
+                const psetIds = PropertySetIndex.getPropertySetIds(propertySetIndex, id);
+                for (const psetId of psetIds) {
+                    if (propertySetMap.has(psetId)) {
+                        const pset = propertySetMap.get(psetId);
+                        if (pset && pset.name) {
+                            propertySets[pset.name] = pset.properties;
                         }
                     }
                 }
@@ -957,7 +965,7 @@ function checkEntityFacet(entity, facet) {
     if (facet.name.type === 'simple') {
         return entity.entity === facet.name.value;
     } else if (facet.name.type === 'restriction' && facet.name.isRegex) {
-        const regex = new RegExp(facet.name.pattern);
+        const regex = RegexCache.get(facet.name.pattern);
         return regex.test(entity.entity);
     }
 
@@ -1008,7 +1016,7 @@ function checkPropertyFacet(entity, facet, isApplicability) {
                     return isApplicability ? false : validation;
                 }
             } else if (facet.value.isRegex) {
-                const regex = new RegExp(facet.value.pattern);
+                const regex = RegexCache.get(facet.value.pattern);
                 if (!regex.test(String(propValue))) {
                     validation.details = i18n.t('validator.valueNoMatch', { value: propValue, pattern: facet.value.pattern });
                     return isApplicability ? false : validation;
@@ -1052,7 +1060,7 @@ function checkAttributeFacet(entity, facet, isApplicability) {
                 return isApplicability ? false : validation;
             }
         } else if (facet.value.type === 'restriction' && facet.value.isRegex) {
-            const regex = new RegExp(facet.value.pattern);
+            const regex = RegexCache.get(facet.value.pattern);
             if (!regex.test(String(attrValue))) {
                 validation.details = i18n.t('validator.valueNoMatch', { value: attrValue, pattern: facet.value.pattern });
                 return isApplicability ? false : validation;
@@ -1673,6 +1681,9 @@ function addValidationGroup() {
     });
     renderValidationGroups();
     updateValidateButton();
+
+    // Dispatch event for wizard
+    window.dispatchEvent(new CustomEvent('validator:groupAdded'));
 }
 
 // Delete validation group
@@ -1938,6 +1949,9 @@ async function handleIfcDrop(files, groupIndex) {
 
     renderValidationGroups();
     updateValidateButton();
+
+    // Dispatch event for wizard
+    window.dispatchEvent(new CustomEvent('validator:ifcLoaded'));
 }
 
 // Handle IDS file drop
@@ -1970,6 +1984,9 @@ async function handleIdsDrop(files, groupIndex) {
 
     renderValidationGroups();
     updateValidateButton();
+
+    // Dispatch event for wizard
+    window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
 }
 
 // Update validate button
@@ -2312,6 +2329,9 @@ async function confirmIfcSelection() {
             closeIfcStorageModal();
             renderValidationGroups();
             updateValidateButton();
+
+            // Dispatch event for wizard
+            window.dispatchEvent(new CustomEvent('validator:ifcLoaded'));
         };
 
         metadataRequest.onerror = () => {
@@ -2593,6 +2613,9 @@ async function confirmIdsSelection() {
             closeIdsStorageModal();
             renderValidationGroups();
             updateValidateButton();
+
+            // Dispatch event for wizard
+            window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
         };
 
         metadataRequest.onerror = () => {
@@ -2614,11 +2637,50 @@ async function validateAll() {
         return;
     }
 
+    // Reset abort flag
+    validationAborted = false;
+
+    // Initialize progress panel if container exists (inside loading modal)
+    const progressContainer = document.getElementById('validationProgress');
+    if (progressContainer && typeof ProgressPanel !== 'undefined') {
+        if (!progressPanel) {
+            progressPanel = new ProgressPanel(progressContainer, {
+                onCancel: () => {
+                    validationAborted = true;
+                    document.getElementById('loading').classList.remove('show');
+                }
+            });
+        }
+        progressPanel.reset();
+        progressPanel.update({ phase: 'starting', overall: 0, files: {} });
+    }
+
     // Show loading
     document.getElementById('loading').classList.add('show');
     document.getElementById('loadingText').textContent = t('validator.loading.validating');
     document.getElementById('progressText').textContent = '';
     document.getElementById('currentFile').textContent = '';
+
+    // Overall progress tracking
+    const overallPercentEl = document.getElementById('overallPercent');
+    let totalFiles = 0;
+    let completedFiles = 0;
+    validGroups.forEach(g => totalFiles += g.ifcFiles.length);
+
+    // Reset percent display
+    if (overallPercentEl) {
+        overallPercentEl.textContent = '0%';
+    }
+
+    function updateOverallProgress() {
+        const percent = totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
+        if (overallPercentEl) {
+            overallPercentEl.textContent = `${percent}%`;
+        }
+        if (progressPanel) {
+            progressPanel.update({ phase: 'validating', overall: percent });
+        }
+    }
 
     // Reset results
     validationResults = [];
@@ -2646,37 +2708,135 @@ async function validateAll() {
                 ifcResults: []
             };
 
-            // Process each IFC file in the group
-            for (let ifcIndex = 0; ifcIndex < group.ifcFiles.length; ifcIndex++) {
-                const ifcFile = group.ifcFiles[ifcIndex];
+            // Process IFC files in parallel (max 4 concurrent)
+            const maxConcurrent = Math.min(4, navigator.hardwareConcurrency || 4);
+            const ifcFiles = group.ifcFiles;
 
-                document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfcNum')} ${ifcIndex + 1}/${group.ifcFiles.length}: ${ifcFile.name}`;
-                await new Promise(resolve => setTimeout(resolve, 100)); // Yield
+            // Helper function to process single IFC file
+            async function processIfcFile(ifcFile) {
+                if (validationAborted) return null;
 
-                // Parse IFC file with chunking
-                document.getElementById('currentFile').textContent = `${t('validator.loading.parsingIfc')} ${ifcFile.name}`;
+                // Update UI - starting
+                if (progressPanel) {
+                    progressPanel.update({
+                        phase: 'parsing',
+                        files: {
+                            [ifcFile.name]: { name: ifcFile.name, phase: 'parsing', percent: 0 }
+                        }
+                    });
+                }
+
+                // Parse IFC file
                 const entities = await parseIFCFileAsync(ifcFile.content, ifcFile.name);
                 if (!entities || entities.length === 0) {
                     console.warn('No entities in IFC file:', ifcFile.name);
-                    continue;
+                    completedFiles++;
+                    updateOverallProgress();
+                    return null;
                 }
 
-                // Validate with chunking
-                document.getElementById('currentFile').textContent = `${t('validator.loading.validationProgress')} ${ifcFile.name} ${t('validator.loading.against')} ${group.idsFile.name}`;
-                await new Promise(resolve => setTimeout(resolve, 100)); // Yield
+                // Update UI - validating
+                if (progressPanel) {
+                    progressPanel.update({
+                        phase: 'validating',
+                        files: {
+                            [ifcFile.name]: { name: ifcFile.name, phase: 'validating', percent: 30, entityCount: entities.length }
+                        }
+                    });
+                }
 
-                const specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
+                // Validate - use ValidationEngine for parallel spec validation
+                let specificationResults;
+                if (typeof ValidationEngine !== 'undefined' && entities.length > 100) {
+                    // Use ValidationEngine for better performance with large datasets
+                    specificationResults = await validateWithEngine(entities, idsData.specifications, ifcFile.name);
+                } else {
+                    // Fallback to original method
+                    specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
+                }
 
-                idsResult.ifcResults.push({
+                // Update UI - complete
+                completedFiles++;
+                updateOverallProgress();
+                if (progressPanel) {
+                    progressPanel.update({
+                        files: {
+                            [ifcFile.name]: { name: ifcFile.name, phase: 'complete', percent: 100, entityCount: entities.length }
+                        }
+                    });
+                }
+
+                return {
                     ifcFileName: ifcFile.name,
                     specificationResults: specificationResults
+                };
+            }
+
+            // Parallel validation using ValidationEngine
+            async function validateWithEngine(entities, specifications, fileName) {
+                const results = [];
+
+                // Validate all specs in parallel
+                const specPromises = specifications.map(async (spec, index) => {
+                    // Yield occasionally to keep UI responsive
+                    if (index % 2 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+
+                    const result = ValidationEngine.validateBatch(entities, spec);
+
+                    // Update progress
+                    if (progressPanel) {
+                        const specProgress = 30 + ((index + 1) / specifications.length) * 70;
+                        progressPanel.update({
+                            files: {
+                                [fileName]: {
+                                    name: fileName,
+                                    phase: 'validating',
+                                    percent: Math.round(specProgress),
+                                    currentSpec: spec.name
+                                }
+                            }
+                        });
+                    }
+
+                    return result;
                 });
+
+                const specResults = await Promise.all(specPromises);
+
+                // Filter out empty results
+                for (const result of specResults) {
+                    if (result && result.entityResults && result.entityResults.length > 0) {
+                        results.push(result);
+                    }
+                }
+
+                return results;
+            }
+
+            // Process files in batches for parallel execution
+            document.getElementById('currentFile').textContent = `${t('validator.loading.validating')} ${ifcFiles.length} IFC ${ifcFiles.length === 1 ? 'soubor' : 'souborů'}...`;
+
+            for (let i = 0; i < ifcFiles.length; i += maxConcurrent) {
+                if (validationAborted) break;
+
+                const batch = ifcFiles.slice(i, i + maxConcurrent);
+                const batchPromises = batch.map(file => processIfcFile(file));
+                const batchResults = await Promise.all(batchPromises);
+
+                // Add valid results
+                for (const result of batchResults) {
+                    if (result) {
+                        idsResult.ifcResults.push(result);
+                    }
+                }
             }
 
             validationResults.push(idsResult);
         }
 
-        // Hide loading
+        // Hide loading (also hides progress panel inside it)
         document.getElementById('loading').classList.remove('show');
 
         // Show results
@@ -2686,6 +2846,11 @@ async function validateAll() {
 
             // Scroll to results
             document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+
+            // Dispatch event for wizard
+            window.dispatchEvent(new CustomEvent('validator:complete', {
+                detail: { resultCount: validationResults.length }
+            }));
         } else {
             ErrorHandler.warning(t('validator.result.noResults'));
         }

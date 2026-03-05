@@ -593,6 +593,16 @@ class WizardManager {
             }
         });
 
+        // Language change - re-render sidebar and update tooltip
+        window.addEventListener('languageChanged', () => {
+            if (this.helpContent) {
+                this.sidebar.render(this.helpContent);
+            }
+            if (this.isActive && this.steps[this.currentStep]) {
+                this.tooltip.show(this.steps[this.currentStep], this.currentStep, this.steps.length);
+            }
+        });
+
         console.log(`[Wizard] Initialized for page: ${pageName}`);
     }
 
@@ -1163,8 +1173,9 @@ class WizardManager {
             };
 
             // Custom event listener - this is the only way to complete the step
-            document.addEventListener(waitFor.event, handler, { once: true });
-            this.eventListeners.push({ event: waitFor.event, handler });
+            // Listen on window because storage events are dispatched on window
+            window.addEventListener(waitFor.event, handler, { once: true });
+            this.eventListeners.push({ element: window, event: waitFor.event, handler });
 
             // For file inputs, also listen for change event
             const step = this.steps[this.currentStep];

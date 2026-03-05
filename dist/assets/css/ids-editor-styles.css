@@ -672,3 +672,109 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ========================================
+   Excel Import/Export Styles
+   ======================================== */
+
+/* Excel button styles */
+.btn-excel {
+    background: linear-gradient(135deg, #217346 0%, #185c37 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.btn-excel:hover {
+    background: linear-gradient(135deg, #185c37 0%, #0d4226 100%);
+    transform: translateY(-1px);
+}
+
+.btn-divider {
+    width: 1px;
+    background: var(--border-color, #e9ecef);
+    margin: 0 5px;
+}
+
+/* Warning dialog styles */
+.excel-warning-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.excel-warning-content {
+    background: var(--bg-primary, white);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.excel-warning-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    color: #856404;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.excel-warning-list {
+    background: #fff3cd;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.excel-warning-list li {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #664d03;
+}
+
+.excel-warning-summary {
+    font-weight: 500;
+    margin-bottom: 16px;
+    color: #28a745;
+}
+
+.excel-warning-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .excel-warning-content {
+    background: var(--bg-primary);
+}
+
+[data-theme="dark"] .excel-warning-list {
+    background: #4a3f00;
+}
+
+[data-theme="dark"] .excel-warning-list li {
+    color: #ffc107;
+}
+
+[data-theme="dark"] .excel-warning-header {
+    color: #ffc107;
+}

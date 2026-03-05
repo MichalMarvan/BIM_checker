@@ -107,10 +107,10 @@ class ValidationOrchestrator {
 
         try {
             this.workerPool = new WorkerPool({
-                workerScript: (function() {
-                    var scripts = document.querySelectorAll('script[src*="validation-orchestrator"]');
-                    var src = scripts.length ? scripts[0].src : '';
-                    var base = src ? src.substring(0, src.lastIndexOf('/common/')) : '';
+                workerScript: (() => {
+                    const scripts = document.querySelectorAll('script[src*="validation-orchestrator"]');
+                    const src = scripts.length ? scripts[0].src : '';
+                    const base = src ? src.substring(0, src.lastIndexOf('/common/')) : '';
                     return base + '/workers/validation.worker.js';
                 })()
             });

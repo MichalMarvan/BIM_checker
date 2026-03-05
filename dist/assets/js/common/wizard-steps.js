@@ -3,6 +3,8 @@
  * Defines steps and help content for each page
  */
 
+/* global switchTab */
+
 const WIZARD_STEPS = {
     // ========================================
     // INDEX PAGE
@@ -287,7 +289,7 @@ const WIZARD_STEPS = {
             },
             {
                 id: 'load-file',
-                target: '#loadOptionsContainer',
+                target: '.upload-section',
                 title: 'wizard.parser.load.title',
                 content: 'wizard.parser.load.content',
                 icon: '📂',

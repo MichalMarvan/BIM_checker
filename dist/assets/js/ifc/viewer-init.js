@@ -1476,6 +1476,9 @@ async function loadSelectedFilesFromStorage() {
             window.combineData();
             window.updateUI();
 
+            // Dispatch event for wizard
+            window.dispatchEvent(new CustomEvent('ifc:fileSelected'));
+
             selectedStorageFiles.clear();
         };
 
