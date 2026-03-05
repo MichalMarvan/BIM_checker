@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BIM Checker - Nástroje pro práci s IFC a IDS</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <link rel="apple-touch-icon" href="assets/icons/pwa/icon-256x256.png">
     <link rel="stylesheet" href="assets/css/common.css">
     <link rel="stylesheet" href="assets/css/index.css">
     <link rel="stylesheet" href="assets/css/wizard.css">
@@ -74,6 +77,14 @@
                     <button class="lang-btn active" data-lang="cs">CZ</button>
                     <button class="lang-btn" data-lang="en">EN</button>
                 </div>
+                <button class="pwa-install-btn" id="pwaInstallBtn" title="Nainstalovat aplikaci" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span class="pwa-install-text" data-i18n="pwa.install">Instalovat</span>
+                </button>
                 <button class="theme-toggle" id="themeToggle" title="Přepnout motiv">
                     <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"/>
@@ -568,5 +579,7 @@
     </script>
     <!-- Update Checker for desktop app -->
     <script type="module" src="assets/js/common/update-checker.js"></script>
+    <!-- PWA -->
+    <script src="assets/js/common/pwa.js"></script>
 </body>
 </html>

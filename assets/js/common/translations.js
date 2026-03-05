@@ -88,6 +88,9 @@ const translations = {
         // === FOOTER ===
         'footer.text': 'Nástroje pro práci s BIM daty',
 
+        // === PWA ===
+        'pwa.install': 'Instalovat',
+
         // === IFC VIEWER ===
         'viewer.title': 'IFC Multi-File Viewer',
         'viewer.subtitle': 'Načtěte více IFC souborů a zobrazte je v jedné společné tabulce',
@@ -817,6 +820,9 @@ const translations = {
 
         // === FOOTER ===
         'footer.text': 'Tools for working with BIM data',
+
+        // === PWA ===
+        'pwa.install': 'Install',
 
         // === IFC VIEWER ===
         'viewer.title': 'IFC Multi-File Viewer',

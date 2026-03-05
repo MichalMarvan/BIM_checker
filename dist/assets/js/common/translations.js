@@ -88,6 +88,9 @@ const translations = {
         // === FOOTER ===
         'footer.text': 'Nástroje pro práci s BIM daty',
 
+        // === PWA ===
+        'pwa.install': 'Instalovat',
+
         // === IFC VIEWER ===
         'viewer.title': 'IFC Multi-File Viewer',
         'viewer.subtitle': 'Načtěte více IFC souborů a zobrazte je v jedné společné tabulce',
@@ -291,6 +294,7 @@ const translations = {
         'cardinality.facetOptionalDesc': 'Facet MŮŽE existovat, pokud ano, MUSÍ mít správnou hodnotu',
         'cardinality.facetProhibitedDesc': 'Facet NESMÍ existovat',
 
+        'editor.selectFacetType': 'Vybrat typ facetu', // ADDED TRANSLATION
         'editor.unsavedChanges': 'Máte neuložené změny. Opravdu chcete vytvořit nový IDS?',
         'editor.confirmDeleteSpec': 'Opravdu chcete smazat tuto specifikaci?',
         'editor.confirmDeleteFacet': 'Opravdu chcete smazat tento facet?',
@@ -817,6 +821,9 @@ const translations = {
         // === FOOTER ===
         'footer.text': 'Tools for working with BIM data',
 
+        // === PWA ===
+        'pwa.install': 'Install',
+
         // === IFC VIEWER ===
         'viewer.title': 'IFC Multi-File Viewer',
         'viewer.subtitle': 'Load multiple IFC files and display them in a single combined table',
@@ -1020,6 +1027,7 @@ const translations = {
         'cardinality.facetOptionalDesc': 'Facet MAY exist, if present, MUST have correct value',
         'cardinality.facetProhibitedDesc': 'Facet MUST NOT exist',
 
+        'editor.selectFacetType': 'Select Facet Type', // ADDED TRANSLATION
         'editor.unsavedChanges': 'You have unsaved changes. Are you sure you want to create a new IDS?',
         'editor.confirmDeleteSpec': 'Are you sure you want to delete this specification?',
         'editor.confirmDeleteFacet': 'Are you sure you want to delete this facet?',

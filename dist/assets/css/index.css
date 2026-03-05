@@ -154,6 +154,7 @@ body {
 }
 
 .navbar-container {
+    position: relative;
     max-width: 1400px;
     margin: 0 auto;
     padding: var(--spacing-lg) var(--spacing-xl);
@@ -175,8 +176,11 @@ body {
     margin: 0;
 }
 
-/* Navigation menu */
+/* Navigation menu - centered */
 .navbar-menu {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
     gap: var(--spacing-xl);
@@ -301,14 +305,16 @@ body {
     gap: var(--spacing-lg);
 }
 
-/* Page title in navbar for subpages */
+/* Page title in navbar for subpages - centered */
 .page-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
-    text-align: center;
-    flex: 1;
+    white-space: nowrap;
 }
 
 .language-switcher {
@@ -379,6 +385,47 @@ body {
 
 [data-theme="dark"] .theme-icon-dark {
     display: block;
+}
+
+/* PWA Install Button */
+.pwa-install-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-lg);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all var(--transition-base);
+    white-space: nowrap;
+}
+
+.pwa-install-btn svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+}
+
+.pwa-install-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+    .pwa-install-text {
+        display: none;
+    }
+    .pwa-install-btn {
+        padding: 0.4rem;
+        width: 2.2rem;
+        height: 2.2rem;
+        justify-content: center;
+    }
 }
 
 /* Hero Section */
@@ -1243,6 +1290,16 @@ body {
     color: var(--border-secondary);
 }
 
+.footer-link {
+    color: var(--text-tertiary);
+    text-decoration: none;
+    transition: color var(--transition-base);
+}
+
+.footer-link:hover {
+    color: var(--accent-primary);
+}
+
 .footer-tech {
     display: flex;
     justify-content: center;
@@ -1297,14 +1354,30 @@ body {
     border: 1px solid var(--border-primary);
 }
 
-.loading-spinner-modern {
-    width: 4rem;
-    height: 4rem;
+.loading-spinner-container {
+    position: relative;
+    width: 5rem;
+    height: 5rem;
     margin: 0 auto var(--spacing-lg);
+}
+
+.loading-spinner-modern {
+    width: 5rem;
+    height: 5rem;
     border: 4px solid var(--border-primary);
     border-top-color: var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
+}
+
+.loading-spinner-percent {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--primary-color);
 }
 
 @keyframes spin {
