@@ -1,6 +1,5 @@
-const CACHE_VERSION = 'bim-checker-v1';
+const CACHE_VERSION = 'bim-checker-v2';
 const ASSETS_TO_CACHE = [
-    './',
     './index.html',
     './favicon.svg',
     './favicon.ico',
@@ -59,12 +58,18 @@ const ASSETS_TO_CACHE = [
     './assets/icons/pwa/icon-512x512.png'
 ];
 
-// Install - cache all static assets
+// Install - cache assets individually (don't fail on single missing file)
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_VERSION)
-            .then((cache) => cache.addAll(ASSETS_TO_CACHE))
-            .then(() => self.skipWaiting())
+        caches.open(CACHE_VERSION).then((cache) => {
+            return Promise.allSettled(
+                ASSETS_TO_CACHE.map((url) =>
+                    cache.add(url).catch((err) => {
+                        console.warn('Failed to cache:', url, err);
+                    })
+                )
+            );
+        }).then(() => self.skipWaiting())
     );
 });
 
@@ -83,11 +88,31 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch - cache-first for cached assets, network-first for others
+// Fetch - network-first for HTML, cache-first for assets
 self.addEventListener('fetch', (event) => {
-    // Only handle GET requests
     if (event.request.method !== 'GET') return;
 
+    // HTML pages: network-first (always get latest, fall back to cache)
+    if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    if (response && response.status === 200) {
+                        const clone = response.clone();
+                        caches.open(CACHE_VERSION).then((cache) => {
+                            cache.put(event.request, clone);
+                        });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
+
+    // Static assets (JS, CSS, images): cache-first
     event.respondWith(
         caches.match(event.request)
             .then((cachedResponse) => {
@@ -95,23 +120,15 @@ self.addEventListener('fetch', (event) => {
                     return cachedResponse;
                 }
                 return fetch(event.request).then((response) => {
-                    // Don't cache non-ok responses or opaque responses
                     if (!response || response.status !== 200) {
                         return response;
                     }
-                    // Cache new requests dynamically
-                    const responseClone = response.clone();
+                    const clone = response.clone();
                     caches.open(CACHE_VERSION).then((cache) => {
-                        cache.put(event.request, responseClone);
+                        cache.put(event.request, clone);
                     });
                     return response;
                 });
-            })
-            .catch(() => {
-                // Fallback for navigation requests
-                if (event.request.mode === 'navigate') {
-                    return caches.match('./index.html');
-                }
             })
     );
 });
