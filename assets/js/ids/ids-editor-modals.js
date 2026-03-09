@@ -8,6 +8,8 @@ class IDSEditorModals {
         this.currentCallback = null;
         this.currentFacetType = null;
         this.currentIfcVersion = 'IFC4'; // Default IFC version
+        this.applicabilityFacets = []; // For auto-transfer to requirements
+        this._dictionaryCache = null; // Cached dictionary list
         this.initializeModals();
     }
 
@@ -137,29 +139,39 @@ class IDSEditorModals {
     }
 
     /**
-     * Select facet type and show appropriate form
+     * Select facet type and show appropriate form.
+     * When adding to requirements, auto-transfers matching applicability data.
      */
     selectFacetType(type) {
         this.currentFacetType = type;
 
+        // Auto-transfer: find matching facet from applicability when in requirements
+        let prefill = {};
+        if (this.currentSection === 'requirements' && this.applicabilityFacets.length > 0) {
+            const match = this.applicabilityFacets.find(f => f.type === type);
+            if (match) {
+                prefill = JSON.parse(JSON.stringify(match)); // deep clone
+            }
+        }
+
         switch (type) {
             case 'entity':
-                this.showEntityForm();
+                this.showEntityForm(prefill);
                 break;
             case 'property':
-                this.showPropertyForm();
+                this.showPropertyForm(prefill);
                 break;
             case 'attribute':
-                this.showAttributeForm();
+                this.showAttributeForm(prefill);
                 break;
             case 'classification':
-                this.showClassificationForm();
+                this.showClassificationForm(prefill);
                 break;
             case 'material':
-                this.showMaterialForm();
+                this.showMaterialForm(prefill);
                 break;
             case 'partOf':
-                this.showPartOfForm();
+                this.showPartOfForm(prefill);
                 break;
         }
     }
@@ -227,9 +239,8 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>bSDD Dictionary Filter:</label>
-                <select id="bsddDictFilterProp">
-                    <option value="">-- All dictionaries --</option>
-                </select>
+                <div id="bsddDictFilterPropContainer"></div>
+                <input type="hidden" id="bsddDictFilterProp" value="">
                 <small>Filter bSDD search by dictionary</small>
             </div>
 
@@ -350,8 +361,8 @@ class IDSEditorModals {
             }
         });
 
-        // Load dictionary filter options
-        this._loadDictionaryFilter('bsddDictFilterProp');
+        // Initialize dictionary filter autocomplete
+        this._initDictionaryFilter('bsddDictFilterPropContainer', 'bsddDictFilterProp');
 
         this.openModal();
     }
@@ -427,9 +438,8 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>bSDD Dictionary Filter:</label>
-                <select id="bsddDictFilter">
-                    <option value="">-- All dictionaries --</option>
-                </select>
+                <div id="bsddDictFilterContainer"></div>
+                <input type="hidden" id="bsddDictFilter" value="">
                 <small>Filter bSDD search by dictionary</small>
             </div>
 
@@ -486,8 +496,8 @@ class IDSEditorModals {
             }
         });
 
-        // Load dictionary filter options
-        this._loadDictionaryFilter('bsddDictFilter');
+        // Initialize dictionary filter autocomplete
+        this._initDictionaryFilter('bsddDictFilterContainer', 'bsddDictFilter');
     }
 
     /**
@@ -505,9 +515,8 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>bSDD Dictionary Filter:</label>
-                <select id="bsddDictFilterMat">
-                    <option value="">-- All dictionaries --</option>
-                </select>
+                <div id="bsddDictFilterMatContainer"></div>
+                <input type="hidden" id="bsddDictFilterMat" value="">
                 <small>Filter bSDD search by dictionary</small>
             </div>
 
@@ -554,8 +563,8 @@ class IDSEditorModals {
             }
         });
 
-        // Load dictionary filter options
-        this._loadDictionaryFilter('bsddDictFilterMat');
+        // Initialize dictionary filter autocomplete
+        this._initDictionaryFilter('bsddDictFilterMatContainer', 'bsddDictFilterMat');
     }
 
     /**
@@ -1159,21 +1168,58 @@ class IDSEditorModals {
     }
 
     /**
-     * Load bSDD dictionary options into a filter dropdown
+     * Initialize searchable dictionary filter autocomplete.
+     * Loads dictionaries once, then filters client-side.
      */
-    async _loadDictionaryFilter(selectId) {
-        try {
-            const dictionaries = await BsddApi.getDictionaries();
-            const select = document.getElementById(selectId);
-            if (!select) return;
-            dictionaries.forEach(dict => {
-                const option = document.createElement('option');
-                option.value = dict.uri;
-                option.textContent = `${dict.name} (${dict.version})`;
-                select.appendChild(option);
+    async _initDictionaryFilter(containerId, hiddenInputId) {
+        const container = document.getElementById(containerId);
+        const hiddenInput = document.getElementById(hiddenInputId);
+        if (!container || !hiddenInput) return;
+
+        // Load dictionaries (cached after first call)
+        if (!this._dictionaryCache) {
+            try {
+                this._dictionaryCache = await BsddApi.getDictionaries();
+            } catch (e) {
+                console.warn('Failed to load bSDD dictionaries:', e);
+                this._dictionaryCache = [];
+            }
+        }
+
+        const dictionaries = this._dictionaryCache;
+
+        new BsddAutocomplete({
+            container: container,
+            inputId: hiddenInputId + '_search',
+            placeholder: t('bsdd.allDictionaries'),
+            initialValue: '',
+            onSearch: (query) => {
+                const lowerQuery = query.toLowerCase();
+                return Promise.resolve(
+                    dictionaries
+                        .filter(d => d.name.toLowerCase().includes(lowerQuery) ||
+                                     (d.version || '').toLowerCase().includes(lowerQuery))
+                        .map(d => ({
+                            name: `${d.name} (${d.version})`,
+                            code: '',
+                            uri: d.uri,
+                            dictionaryName: d.name
+                        }))
+                );
+            },
+            onSelect: (item) => {
+                hiddenInput.value = item.uri;
+            }
+        });
+
+        // Allow clearing the filter by emptying the input
+        const searchInput = document.getElementById(hiddenInputId + '_search');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                if (!searchInput.value.trim()) {
+                    hiddenInput.value = '';
+                }
             });
-        } catch (e) {
-            console.warn('Failed to load bSDD dictionaries:', e);
         }
     }
 }

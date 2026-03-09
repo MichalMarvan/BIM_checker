@@ -727,6 +727,9 @@ class IDSEditorCore {
         const spec = this.idsData.specifications[specIndex];
         const ifcVersion = spec.ifcVersion || 'IFC4';
 
+        // Pass applicability facets for auto-transfer to requirements
+        idsEditorModals.applicabilityFacets = spec.applicability || [];
+
         idsEditorModals.showFacetTypeSelector((facetData) => {
             this.idsData.specifications[specIndex][section].push(facetData);
             this.hasUnsavedChanges = true;
