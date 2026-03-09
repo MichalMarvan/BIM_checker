@@ -512,8 +512,8 @@ class IDSEditorCore {
         let html = '';
 
         Object.keys(facet).forEach(key => {
-            // Skip type and cardinality (shown in header badge)
-            if (key === 'type' || key === 'cardinality') {
+            // Skip type, cardinality (shown in header badge), and uri (shown separately below)
+            if (key === 'type' || key === 'cardinality' || key === 'uri') {
                 return;
             }
 
@@ -524,6 +524,11 @@ class IDSEditorCore {
                 html += `<div><strong>${key}:</strong> ${this.escapeHtml(String(value))}</div>`;
             }
         });
+
+        // Show bSDD URI if present
+        if (facet.uri) {
+            html += `<div class="bsdd-uri-display">bSDD: ${this.escapeHtml(facet.uri)}</div>`;
+        }
 
         return html;
     }
