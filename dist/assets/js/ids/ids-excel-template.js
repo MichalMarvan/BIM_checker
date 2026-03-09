@@ -91,7 +91,8 @@ const IDSExcelTemplate = (function() {
                     property_name: prop,
                     dataType: '',
                     value_type: 'simple',
-                    value: ''
+                    value: '',
+                    uri: ''
                 });
             }
         }
@@ -129,9 +130,9 @@ const IDSExcelTemplate = (function() {
 
         // Applicability sheet
         const applicabilityData = [
-            { spec_id: 'SPEC_walls', facet_type: 'entity', entity_name: 'IFCWALL', predefinedType: '' },
-            { spec_id: 'SPEC_doors', facet_type: 'entity', entity_name: 'IFCDOOR', predefinedType: '' },
-            { spec_id: 'SPEC_windows', facet_type: 'entity', entity_name: 'IFCWINDOW', predefinedType: '' }
+            { spec_id: 'SPEC_walls', facet_type: 'entity', entity_name: 'IFCWALL', predefinedType: '', pset_name: '', property_name: '', property_value: '', attribute_name: '', attribute_value: '', classification_system: '', classification_value: '', material_value: '', uri: '' },
+            { spec_id: 'SPEC_doors', facet_type: 'entity', entity_name: 'IFCDOOR', predefinedType: '', pset_name: '', property_name: '', property_value: '', attribute_name: '', attribute_value: '', classification_system: '', classification_value: '', material_value: '', uri: '' },
+            { spec_id: 'SPEC_windows', facet_type: 'entity', entity_name: 'IFCWINDOW', predefinedType: '', pset_name: '', property_name: '', property_value: '', attribute_name: '', attribute_value: '', classification_system: '', classification_value: '', material_value: '', uri: '' }
         ];
         XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(applicabilityData), 'applicability');
 

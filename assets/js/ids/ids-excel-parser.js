@@ -162,12 +162,16 @@ const IDSExcelParser = (function() {
                 }
             } else if (facetType === 'property') {
                 if (row.pset_name && row.property_name) {
-                    spec.applicability.push({
+                    const facet = {
                         type: 'property',
                         propertySet: { type: 'simple', value: row.pset_name },
                         baseName: { type: 'simple', value: row.property_name },
                         value: row.property_value ? { type: 'simple', value: row.property_value } : null
-                    });
+                    };
+                    if (row.uri) {
+                        facet.uri = row.uri;
+                    }
+                    spec.applicability.push(facet);
                 }
             } else if (facetType === 'attribute') {
                 if (row.attribute_name) {
@@ -177,6 +181,25 @@ const IDSExcelParser = (function() {
                         value: row.attribute_value ? { type: 'simple', value: row.attribute_value } : null
                     });
                 }
+            } else if (facetType === 'classification') {
+                const facet = {
+                    type: 'classification',
+                    system: row.classification_system || '',
+                    value: row.classification_value ? { type: 'simple', value: row.classification_value } : null
+                };
+                if (row.uri) {
+                    facet.uri = row.uri;
+                }
+                spec.applicability.push(facet);
+            } else if (facetType === 'material') {
+                const facet = {
+                    type: 'material',
+                    value: row.material_value ? { type: 'simple', value: row.material_value } : null
+                };
+                if (row.uri) {
+                    facet.uri = row.uri;
+                }
+                spec.applicability.push(facet);
             }
         }
     }
@@ -203,7 +226,8 @@ const IDSExcelParser = (function() {
                 name: propName,
                 dataType: row.dataType || row.data_type || '',
                 valueType: row.value_type || 'simple',
-                value: row.value || ''
+                value: row.value || '',
+                uri: row.uri || ''
             });
         }
 
@@ -235,14 +259,18 @@ const IDSExcelParser = (function() {
                 const valueStr = valueOverride || prop.value;
                 const valueType = valueOverride ? 'simple' : prop.valueType;
 
-                spec.requirements.push({
+                const reqFacet = {
                     type: 'property',
                     propertySet: { type: 'simple', value: psetName },
                     baseName: { type: 'simple', value: prop.name },
                     value: _parseValueFromExcel(valueStr, valueType),
                     dataType: prop.dataType || null,
                     cardinality: cardinality
-                });
+                };
+                if (prop.uri) {
+                    reqFacet.uri = prop.uri;
+                }
+                spec.requirements.push(reqFacet);
             }
         }
     }

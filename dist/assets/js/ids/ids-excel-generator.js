@@ -99,7 +99,15 @@ const IDSExcelGenerator = (function() {
                 } else if (facet.type === 'attribute') {
                     row.attribute_name = facet.name?.value || '';
                     row.attribute_value = facet.value?.value || '';
+                } else if (facet.type === 'classification') {
+                    row.classification_system = facet.system?.value || facet.system || '';
+                    row.classification_value = facet.value?.value || '';
+                } else if (facet.type === 'material') {
+                    row.material_value = facet.value?.value || '';
                 }
+
+                // bSDD URI (for classification, property, material)
+                row.uri = facet.uri || '';
 
                 rows.push(row);
             }
@@ -116,7 +124,11 @@ const IDSExcelGenerator = (function() {
                 property_name: '',
                 property_value: '',
                 attribute_name: '',
-                attribute_value: ''
+                attribute_value: '',
+                classification_system: '',
+                classification_value: '',
+                material_value: '',
+                uri: ''
             });
         }
 
@@ -151,14 +163,15 @@ const IDSExcelGenerator = (function() {
                     property_name: propName,
                     dataType: req.dataType || '',
                     value_type: valueInfo.type,
-                    value: valueInfo.value
+                    value: valueInfo.value,
+                    uri: req.uri || ''
                 });
             }
         }
 
         // Ensure at least headers exist
         if (rows.length === 0) {
-            rows.push({ pset_name: '', property_name: '', dataType: '', value_type: '', value: '' });
+            rows.push({ pset_name: '', property_name: '', dataType: '', value_type: '', value: '', uri: '' });
         }
 
         return rows;
