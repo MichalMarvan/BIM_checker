@@ -44,13 +44,21 @@ const BsddApi = {
         return data;
     },
 
+    _pendingReject: null,
+
     /**
-     * Debounced search — returns a Promise that resolves after debounce
+     * Debounced search — returns a Promise that resolves after debounce.
+     * Earlier calls are rejected when superseded by a newer call.
      */
     debouncedSearch(query, dictionaryUri) {
         return new Promise((resolve, reject) => {
             clearTimeout(this._debounceTimer);
+            if (this._pendingReject) {
+                this._pendingReject(new Error('Debounced: superseded by newer call'));
+            }
+            this._pendingReject = reject;
             this._debounceTimer = setTimeout(async () => {
+                this._pendingReject = null;
                 try {
                     const results = await this.searchClasses(query, dictionaryUri);
                     resolve(results);

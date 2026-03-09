@@ -46,4 +46,15 @@ describe('BsddApi', () => {
     it('should debounce rapid calls', () => {
         expect(typeof BsddApi._debounceTimer === 'undefined').toBe(false);
     });
+
+    it('should return empty array for short queries', async () => {
+        const result = await BsddApi.searchClasses('a');
+        expect(result.length).toBe(0);
+    });
+
+    it('should clear cache when clearCache is called', () => {
+        BsddApi._cache.set('test-key', { data: {}, timestamp: Date.now() });
+        BsddApi.clearCache();
+        expect(BsddApi._cache.size).toBe(0);
+    });
 });
