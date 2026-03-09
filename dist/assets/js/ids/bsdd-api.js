@@ -2,40 +2,80 @@
  * bSDD API Service Layer
  * Handles communication with buildingSMART Data Dictionary API
  *
- * Uses test.bsdd.buildingsmart.org which provides Access-Control-Allow-Origin: *
- * The production endpoint (api.bsdd.buildingsmart.org) requires domain registration
- * for CORS access — the test endpoint is the official way to access bSDD from
- * browser-based apps without a registered domain.
+ * Uses a Cloudflare Pages Function proxy (/api/bsdd-proxy) to access the
+ * production bSDD API (api.bsdd.buildingsmart.org) which has no CORS headers.
+ * Falls back to the test API (test.bsdd.buildingsmart.org) which has CORS
+ * enabled but contains fewer dictionaries and search results.
  */
 const BsddApi = {
-    BASE_URL: 'https://test.bsdd.buildingsmart.org',
+    PRODUCTION_URL: 'https://api.bsdd.buildingsmart.org',
+    FALLBACK_URL: 'https://test.bsdd.buildingsmart.org',
+    PROXY_PATH: '/api/bsdd-proxy',
 
     _cache: new Map(),
     _debounceTimer: null,
+    _useProxy: null, // null = not tested, true/false after first request
     DEBOUNCE_MS: 300,
     CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
 
     /**
-     * Build URL for text search
+     * Build a proxied URL for the production API.
+     * The proxy runs on the same domain as the app (Cloudflare Pages Function).
+     */
+    _proxyUrl(apiUrl) {
+        return `${this.PROXY_PATH}?url=${encodeURIComponent(apiUrl)}`;
+    },
+
+    /**
+     * Build URL for text search (production API path)
      */
     _buildSearchUrl(query, dictionaryUri) {
         const params = new URLSearchParams({ SearchText: query });
         if (dictionaryUri) {
             params.set('DictionaryUri', dictionaryUri);
         }
-        return `${this.BASE_URL}/api/TextSearch/v2?${params.toString()}`;
+        return `/api/TextSearch/v2?${params.toString()}`;
     },
 
     /**
-     * Fetch with caching. Calls bSDD test API directly (CORS enabled).
+     * Detect whether the proxy is available (runs once, then cached).
      */
-    async _fetchCached(url) {
-        const cached = this._cache.get(url);
+    async _detectProxy() {
+        if (this._useProxy !== null) {
+            return this._useProxy;
+        }
+        try {
+            const testUrl = this._proxyUrl(`${this.PRODUCTION_URL}/api/Dictionary/v1?Limit=1`);
+            const response = await fetch(testUrl, {
+                headers: { 'Accept': 'application/json' }
+            });
+            this._useProxy = response.ok;
+        } catch {
+            this._useProxy = false;
+        }
+        return this._useProxy;
+    },
+
+    /**
+     * Fetch with caching. Tries proxy to production API first,
+     * falls back to test API with direct CORS access.
+     */
+    async _fetchCached(apiPath) {
+        const cached = this._cache.get(apiPath);
         if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL_MS)) {
             return cached.data;
         }
 
-        const response = await fetch(url, {
+        const useProxy = await this._detectProxy();
+
+        let fetchUrl;
+        if (useProxy) {
+            fetchUrl = this._proxyUrl(`${this.PRODUCTION_URL}${apiPath}`);
+        } else {
+            fetchUrl = `${this.FALLBACK_URL}${apiPath}`;
+        }
+
+        const response = await fetch(fetchUrl, {
             headers: { 'Accept': 'application/json' }
         });
 
@@ -44,7 +84,7 @@ const BsddApi = {
         }
 
         const data = await response.json();
-        this._cache.set(url, { data, timestamp: Date.now() });
+        this._cache.set(apiPath, { data, timestamp: Date.now() });
         return data;
     },
 
@@ -79,9 +119,8 @@ const BsddApi = {
      */
     async searchClasses(query, dictionaryUri) {
         if (!query || query.length < 2) return [];
-        const url = this._buildSearchUrl(query, dictionaryUri);
-        const data = await this._fetchCached(url);
-        // API returns classes at top level with dictionaryUri per class
+        const apiPath = this._buildSearchUrl(query, dictionaryUri);
+        const data = await this._fetchCached(apiPath);
         return (data.classes || []).map(cls => ({
             name: cls.name,
             code: cls.code || '',
@@ -95,8 +134,8 @@ const BsddApi = {
      * Get class details including properties
      */
     async getClassDetails(classUri) {
-        const url = `${this.BASE_URL}/api/Class/v1?uri=${encodeURIComponent(classUri)}&includeClassProperties=true`;
-        return this._fetchCached(url);
+        const apiPath = `/api/Class/v1?uri=${encodeURIComponent(classUri)}&includeClassProperties=true`;
+        return this._fetchCached(apiPath);
     },
 
     /**
@@ -119,8 +158,7 @@ const BsddApi = {
      * Returns array of {name, uri, version}
      */
     async getDictionaries() {
-        const url = `${this.BASE_URL}/api/Dictionary/v1`;
-        const data = await this._fetchCached(url);
+        const data = await this._fetchCached('/api/Dictionary/v1');
         return (data.dictionaries || []).map(dict => ({
             name: dict.name,
             uri: dict.uri,
@@ -133,6 +171,7 @@ const BsddApi = {
      */
     clearCache() {
         this._cache.clear();
+        this._useProxy = null;
     }
 };
 

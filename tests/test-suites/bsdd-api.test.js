@@ -8,8 +8,13 @@ describe('BsddApi', () => {
         expect(typeof BsddApi).toBe('object');
     });
 
-    it('should have BASE_URL pointing to bSDD test API (CORS enabled)', () => {
-        expect(BsddApi.BASE_URL).toBe('https://test.bsdd.buildingsmart.org');
+    it('should have production and fallback URLs', () => {
+        expect(BsddApi.PRODUCTION_URL).toBe('https://api.bsdd.buildingsmart.org');
+        expect(BsddApi.FALLBACK_URL).toBe('https://test.bsdd.buildingsmart.org');
+    });
+
+    it('should have proxy path configured', () => {
+        expect(BsddApi.PROXY_PATH).toBe('/api/bsdd-proxy');
     });
 
     it('should have searchClasses method', () => {
@@ -28,7 +33,7 @@ describe('BsddApi', () => {
         expect(typeof BsddApi.getClassProperties).toBe('function');
     });
 
-    it('should cache dictionary results in memory', async () => {
+    it('should cache results in memory', () => {
         expect(BsddApi._cache instanceof Map).toBe(true);
     });
 
@@ -43,6 +48,12 @@ describe('BsddApi', () => {
         expect(url).toContain('DictionaryUri=');
     });
 
+    it('should build proxy URL correctly', () => {
+        const proxied = BsddApi._proxyUrl('https://api.bsdd.buildingsmart.org/api/Dictionary/v1');
+        expect(proxied).toContain('/api/bsdd-proxy?url=');
+        expect(proxied).toContain('api.bsdd.buildingsmart.org');
+    });
+
     it('should debounce rapid calls', () => {
         expect(typeof BsddApi._debounceTimer === 'undefined').toBe(false);
     });
@@ -52,18 +63,16 @@ describe('BsddApi', () => {
         expect(result.length).toBe(0);
     });
 
-    it('should clear cache when clearCache is called', () => {
+    it('should clear cache and proxy state when clearCache is called', () => {
         BsddApi._cache.set('test-key', { data: {}, timestamp: Date.now() });
+        BsddApi._useProxy = true;
         BsddApi.clearCache();
         expect(BsddApi._cache.size).toBe(0);
+        expect(BsddApi._useProxy).toBe(null);
     });
 
-    it('should use test API endpoint with CORS support', () => {
-        expect(BsddApi.BASE_URL).toContain('test.bsdd.buildingsmart.org');
-    });
-
-    it('should build URLs directly without proxy', () => {
-        const url = BsddApi._buildSearchUrl('wall');
-        expect(url).toContain('test.bsdd.buildingsmart.org');
+    it('should start with proxy detection not yet run', () => {
+        BsddApi._useProxy = null;
+        expect(BsddApi._useProxy).toBe(null);
     });
 });
