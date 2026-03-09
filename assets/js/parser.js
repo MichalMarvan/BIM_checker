@@ -1,33 +1,36 @@
 // Globální proměnná pro uchování IDS dat
 let currentIDSData = null;
 
-// Event listeners
-document.getElementById('fileUploadArea').addEventListener('click', () => {
-    document.getElementById('fileInput').click();
-});
+// Event listeners (only attach when DOM elements exist)
+const fileUploadArea = document.getElementById('fileUploadArea');
+const fileInput = document.getElementById('fileInput');
 
-document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+if (fileUploadArea && fileInput) {
+    fileUploadArea.addEventListener('click', () => {
+        fileInput.click();
+    });
 
-// Drag and drop
-const uploadArea = document.getElementById('fileUploadArea');
+    fileInput.addEventListener('change', handleFileSelect);
 
-uploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadArea.classList.add('dragover');
-});
+    // Drag and drop
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
 
-uploadArea.addEventListener('dragleave', () => {
-    uploadArea.classList.remove('dragover');
-});
+    fileUploadArea.addEventListener('dragleave', () => {
+        fileUploadArea.classList.remove('dragover');
+    });
 
-uploadArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        handleFile(files[0]);
-    }
-});
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    });
+}
 
 function handleFileSelect(e) {
     const file = e.target.files[0];
@@ -73,9 +76,12 @@ function parseIDS(xmlString) {
     };
 
     // Zobrazení vizualizace
-    displayIDS();
-    document.getElementById('visualizationSection').style.display = 'block';
-    hideError();
+    const visualizationSection = document.getElementById('visualizationSection');
+    if (visualizationSection) {
+        displayIDS();
+        visualizationSection.style.display = 'block';
+        hideError();
+    }
 }
 
 function extractInfo(xmlDoc) {
@@ -190,6 +196,12 @@ function extractFacet(element, type) {
 
     // Cardinality
     facet.cardinality = element.getAttribute('cardinality') || 'required';
+
+    // bSDD URI
+    const uri = element.getAttribute('uri');
+    if (uri) {
+        facet.uri = uri;
+    }
 
                 // minOccurs/maxOccurs are not allowed on individual facets by XSD
                 // const minOccurs = element.getAttribute('minOccurs');
@@ -1250,11 +1262,14 @@ async function loadSelectedIdsFromStorage() {
 }
 
 // Click on overlay to close
-document.getElementById('idsStorageModal').addEventListener('click', (e) => {
-    if (e.target.id === 'idsStorageModal') {
-        closeIdsStoragePicker();
-    }
-});
+const idsStorageModalEl = document.getElementById('idsStorageModal');
+if (idsStorageModalEl) {
+    idsStorageModalEl.addEventListener('click', (e) => {
+        if (e.target.id === 'idsStorageModal') {
+            closeIdsStoragePicker();
+        }
+    });
+}
 
 // Re-render content when language changes
 window.addEventListener('languageChanged', () => {

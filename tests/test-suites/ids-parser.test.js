@@ -314,8 +314,81 @@ describe('IDS Parser (XML)', () => {
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(xml, 'text/xml');
-        
+
         const property = doc.querySelector('property');
         expect(property.getAttribute('cardinality')).toBe('required');
+    });
+
+    describe('bSDD URI parsing', () => {
+        it('should extract uri attribute from classification facet', () => {
+            const xmlString = `<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+  <info><title>Test</title></info>
+  <specifications>
+    <specification name="Test Spec" ifcVersion="IFC4">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+      </applicability>
+      <requirements>
+        <classification uri="https://identifier.buildingsmart.org/uri/test/class/1" cardinality="required">
+          <system><simpleValue>TestSystem</simpleValue></system>
+          <value><simpleValue>TestValue</simpleValue></value>
+        </classification>
+      </requirements>
+    </specification>
+  </specifications>
+</ids>`;
+            parseIDS(xmlString);
+            const spec = currentIDSData.specifications[0];
+            const classificationFacet = spec.requirements.find(f => f.type === 'classification');
+            expect(classificationFacet.uri).toBe('https://identifier.buildingsmart.org/uri/test/class/1');
+        });
+
+        it('should extract uri attribute from property facet', () => {
+            const xmlString = `<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+  <info><title>Test</title></info>
+  <specifications>
+    <specification name="Test Spec" ifcVersion="IFC4">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+      </applicability>
+      <requirements>
+        <property uri="https://identifier.buildingsmart.org/uri/test/prop/1" cardinality="required">
+          <propertySet><simpleValue>Pset_WallCommon</simpleValue></propertySet>
+          <baseName><simpleValue>FireRating</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+  </specifications>
+</ids>`;
+            parseIDS(xmlString);
+            const spec = currentIDSData.specifications[0];
+            const propertyFacet = spec.requirements.find(f => f.type === 'property');
+            expect(propertyFacet.uri).toBe('https://identifier.buildingsmart.org/uri/test/prop/1');
+        });
+
+        it('should not have uri when not present in XML', () => {
+            const xmlString = `<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+  <info><title>Test</title></info>
+  <specifications>
+    <specification name="Test Spec" ifcVersion="IFC4">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+      </applicability>
+      <requirements>
+        <classification cardinality="required">
+          <system><simpleValue>Uniclass</simpleValue></system>
+        </classification>
+      </requirements>
+    </specification>
+  </specifications>
+</ids>`;
+            parseIDS(xmlString);
+            const spec = currentIDSData.specifications[0];
+            const classificationFacet = spec.requirements.find(f => f.type === 'classification');
+            expect(classificationFacet.uri).toBe(undefined);
+        });
     });
 });
