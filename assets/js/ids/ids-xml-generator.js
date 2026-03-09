@@ -150,6 +150,9 @@ class IDSXMLGenerator {
      */
     generatePropertyFacetString(data, indent, isRequirement = false) {
         let xml = `${indent}<property`;
+        if (data.uri) {
+            xml += ` uri="${this.escapeXml(data.uri)}"`;
+        }
         if (isRequirement) {
             const cardinality = data.cardinality || 'required';
             xml += ` cardinality="${cardinality}"`;
@@ -193,6 +196,9 @@ class IDSXMLGenerator {
      */
     generateClassificationFacetString(data, indent, isRequirement = false) {
         let xml = `${indent}<classification`;
+        if (data.uri) {
+            xml += ` uri="${this.escapeXml(data.uri)}"`;
+        }
         if (isRequirement) {
             const cardinality = data.cardinality || 'required';
             xml += ` cardinality="${cardinality}"`;
@@ -213,6 +219,9 @@ class IDSXMLGenerator {
      */
     generateMaterialFacetString(data, indent, isRequirement = false) {
         let xml = `${indent}<material`;
+        if (data.uri) {
+            xml += ` uri="${this.escapeXml(data.uri)}"`;
+        }
         if (isRequirement) {
             const cardinality = data.cardinality || 'required';
             xml += ` cardinality="${cardinality}"`;

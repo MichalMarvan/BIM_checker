@@ -169,4 +169,81 @@ describe('IDS XML Generator', () => {
         expect(xml).toContain('<specifications>');
         expect(xml).toContain('</specifications>');
     });
+
+    // --- bSDD URI support ---
+
+    it('should include uri attribute on classification facet when present', () => {
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Spec',
+                ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
+                requirements: [{
+                    type: 'classification',
+                    system: 'Uniclass',
+                    value: { type: 'simpleValue', value: 'Ss_25' },
+                    uri: 'https://identifier.buildingsmart.org/uri/example/class/1',
+                    cardinality: 'required'
+                }]
+            }]
+        });
+        expect(xml).toContain('uri="https://identifier.buildingsmart.org/uri/example/class/1"');
+    });
+
+    it('should NOT include uri attribute when uri is not present', () => {
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Spec',
+                ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
+                requirements: [{
+                    type: 'classification',
+                    system: 'Uniclass',
+                    value: { type: 'simpleValue', value: 'Ss_25' },
+                    cardinality: 'required'
+                }]
+            }]
+        });
+        expect(xml.includes('uri=')).toBe(false);
+    });
+
+    it('should include uri attribute on property facet when present', () => {
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Spec',
+                ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
+                requirements: [{
+                    type: 'property',
+                    propertySet: 'Pset_WallCommon',
+                    baseName: 'FireRating',
+                    value: { type: 'simpleValue', value: 'A' },
+                    uri: 'https://identifier.buildingsmart.org/uri/example/prop/1',
+                    cardinality: 'required'
+                }]
+            }]
+        });
+        expect(xml).toContain('uri="https://identifier.buildingsmart.org/uri/example/prop/1"');
+    });
+
+    it('should include uri attribute on material facet when present', () => {
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Spec',
+                ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
+                requirements: [{
+                    type: 'material',
+                    value: { type: 'simpleValue', value: 'Concrete' },
+                    uri: 'https://identifier.buildingsmart.org/uri/example/mat/1',
+                    cardinality: 'required'
+                }]
+            }]
+        });
+        expect(xml).toContain('uri="https://identifier.buildingsmart.org/uri/example/mat/1"');
+    });
 });
