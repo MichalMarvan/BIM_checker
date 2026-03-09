@@ -57,4 +57,14 @@ describe('BsddApi', () => {
         BsddApi.clearCache();
         expect(BsddApi._cache.size).toBe(0);
     });
+
+    it('should have CORS proxy configured', () => {
+        expect(BsddApi.CORS_PROXY).toContain('corsproxy.io');
+    });
+
+    it('should wrap URLs with CORS proxy', () => {
+        const proxied = BsddApi._proxyUrl('https://api.bsdd.buildingsmart.org/api/Dictionary/v1');
+        expect(proxied).toContain('corsproxy.io');
+        expect(proxied).toContain('api.bsdd.buildingsmart.org');
+    });
 });

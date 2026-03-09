@@ -5,11 +5,20 @@
  */
 const BsddApi = {
     BASE_URL: 'https://api.bsdd.buildingsmart.org',
+    CORS_PROXY: 'https://corsproxy.io/?',
 
     _cache: new Map(),
     _debounceTimer: null,
     DEBOUNCE_MS: 300,
     CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
+
+    /**
+     * Get proxied URL to bypass CORS restrictions.
+     * bSDD API requires domain registration for CORS — we use a proxy for browser access.
+     */
+    _proxyUrl(url) {
+        return this.CORS_PROXY + encodeURIComponent(url);
+    },
 
     /**
      * Build URL for text search
@@ -23,7 +32,7 @@ const BsddApi = {
     },
 
     /**
-     * Fetch with caching
+     * Fetch with caching. Uses CORS proxy for browser compatibility.
      */
     async _fetchCached(url) {
         const cached = this._cache.get(url);
@@ -31,7 +40,8 @@ const BsddApi = {
             return cached.data;
         }
 
-        const response = await fetch(url, {
+        const fetchUrl = this._proxyUrl(url);
+        const response = await fetch(fetchUrl, {
             headers: { 'Accept': 'application/json' }
         });
 
@@ -77,15 +87,14 @@ const BsddApi = {
         if (!query || query.length < 2) return [];
         const url = this._buildSearchUrl(query, dictionaryUri);
         const data = await this._fetchCached(url);
-        return (data.dictionaries || []).flatMap(dict =>
-            (dict.classes || []).map(cls => ({
-                name: cls.name,
-                code: cls.code || '',
-                uri: cls.uri,
-                dictionaryName: dict.name || '',
-                dictionaryUri: dict.uri || ''
-            }))
-        );
+        // API returns classes at top level with dictionaryUri per class
+        return (data.classes || []).map(cls => ({
+            name: cls.name,
+            code: cls.code || '',
+            uri: cls.uri,
+            dictionaryName: cls.dictionaryUri || '',
+            dictionaryUri: cls.dictionaryUri || ''
+        }));
     },
 
     /**
