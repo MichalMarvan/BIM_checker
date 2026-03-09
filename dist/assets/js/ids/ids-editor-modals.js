@@ -207,7 +207,11 @@ class IDSEditorModals {
         const propertySetValue = this.extractSimpleValue(data.propertySet);
         const baseNameValue = this.extractSimpleValue(data.baseName);
 
-        // Get PropertySets for current IFC version
+        // Store bSDD URI for editing
+        this._currentBsddPropertyUri = data.uri || null;
+        this._bsddPropertyResults = [];
+
+        // Get PropertySets for current IFC version (used as fallback)
         const propertySets = window.getPropertySetsForVersion
             ? window.getPropertySetsForVersion(this.currentIfcVersion)
             : (window.IFC_PROPERTY_SETS || []);
@@ -222,8 +226,16 @@ class IDSEditorModals {
             ${this.getFacetCardinalityField(data.cardinality || 'required')}
 
             <div class="form-group">
+                <label>bSDD Dictionary Filter:</label>
+                <select id="bsddDictFilterProp">
+                    <option value="">-- All dictionaries --</option>
+                </select>
+                <small>Filter bSDD search by dictionary</small>
+            </div>
+
+            <div class="form-group">
                 <label>PropertySet Name:</label>
-                <input type="text" id="propertySet" list="ifcPropertySets" value="${propertySetValue}" placeholder="${t('editor.example')} Pset_WallCommon" autocomplete="off">
+                <div id="propertySetContainer"></div>
                 <datalist id="ifcPropertySets">
                     ${psetDatalistOptions}
                 </datalist>
@@ -232,8 +244,12 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>Property Name (baseName):</label>
-                <input type="text" id="propertyBaseName" value="${baseNameValue}" placeholder="${t('editor.example')} FireRating">
+                <div id="propertyBaseNameContainer"></div>
                 <small>${t('editor.propertyName')}</small>
+            </div>
+
+            <div class="bsdd-uri-display" id="bsddPropertyUriDisplay" style="${this._currentBsddPropertyUri ? '' : 'display:none;'}">
+                bSDD URI: <span>${this.escapeHtml(this._currentBsddPropertyUri || '')}</span>
             </div>
 
             <div class="form-group">
@@ -263,6 +279,80 @@ class IDSEditorModals {
                 ${this.getRestrictionFields(data.value || { type: 'simpleValue', value: '' })}
             </div>
         `;
+
+        // Initialize bSDD autocomplete for PropertySet
+        new BsddAutocomplete({
+            container: document.getElementById('propertySetContainer'),
+            inputId: 'propertySet',
+            placeholder: `${t('editor.example')} Pset_WallCommon`,
+            initialValue: propertySetValue,
+            dictionaryFilterId: 'bsddDictFilterProp',
+            onSearch: (query, dictUri) => BsddApi.debouncedSearch(query, dictUri),
+            onSelect: (item) => {
+                // When a bSDD class is selected as PropertySet, load its properties
+                if (item.uri) {
+                    BsddApi.getClassProperties(item.uri).then(props => {
+                        this._bsddPropertyResults = props;
+                    }).catch(e => console.warn('Failed to load class properties:', e));
+                }
+            }
+        });
+
+        // Initialize bSDD autocomplete for baseName
+        new BsddAutocomplete({
+            container: document.getElementById('propertyBaseNameContainer'),
+            inputId: 'propertyBaseName',
+            placeholder: `${t('editor.example')} FireRating`,
+            initialValue: baseNameValue,
+            dictionaryFilterId: 'bsddDictFilterProp',
+            onSearch: (query, dictUri) => {
+                // Search locally in cached bSDD property results first
+                if (this._bsddPropertyResults && this._bsddPropertyResults.length > 0) {
+                    const lowerQuery = query.toLowerCase();
+                    const localResults = this._bsddPropertyResults
+                        .filter(p => p.name.toLowerCase().includes(lowerQuery))
+                        .map(p => ({
+                            name: p.name,
+                            code: p.propertySet || '',
+                            uri: p.uri,
+                            dictionaryName: p.propertySet || ''
+                        }));
+                    if (localResults.length > 0) {
+                        return Promise.resolve(localResults);
+                    }
+                }
+                // Fall back to API search
+                return BsddApi.debouncedSearch(query, dictUri);
+            },
+            onSelect: (item) => {
+                this._currentBsddPropertyUri = item.uri || null;
+                // Auto-set dataType if mappable
+                if (item.dataType) {
+                    const dataTypeMap = {
+                        'Boolean': 'IFCBOOLEAN',
+                        'Integer': 'IFCINTEGER',
+                        'Real': 'IFCREAL',
+                        'String': 'IFCLABEL',
+                        'Text': 'IFCTEXT'
+                    };
+                    const mapped = dataTypeMap[item.dataType];
+                    if (mapped) {
+                        const dtSelect = document.getElementById('propertyDataType');
+                        if (dtSelect) dtSelect.value = mapped;
+                    }
+                }
+                // Show URI display
+                const uriDisplay = document.getElementById('bsddPropertyUriDisplay');
+                if (uriDisplay && item.uri) {
+                    uriDisplay.style.display = '';
+                    uriDisplay.querySelector('span').textContent = item.uri;
+                }
+            }
+        });
+
+        // Load dictionary filter options
+        this._loadDictionaryFilter('bsddDictFilterProp');
+
         this.openModal();
     }
 
@@ -325,19 +415,37 @@ class IDSEditorModals {
      * Show Classification form
      */
     showClassificationForm(data = {}) {
+        // Store bSDD URI for editing
+        this._currentBsddUri = data.uri || null;
+
+        const systemValue = this.extractSimpleValue(data.system);
+        const valueValue = this.extractSimpleValue(data.value);
+
         document.getElementById('modalTitle').textContent = '📚 Classification Facet';
         document.getElementById('modalBody').innerHTML = `
             ${this.getFacetCardinalityField(data.cardinality || 'required')}
 
             <div class="form-group">
+                <label>bSDD Dictionary Filter:</label>
+                <select id="bsddDictFilter">
+                    <option value="">-- All dictionaries --</option>
+                </select>
+                <small>Filter bSDD search by dictionary</small>
+            </div>
+
+            <div class="form-group">
                 <label>Classification System:</label>
-                <input type="text" id="classificationSystem" value="${data.system || ''}" placeholder="${t('editor.example')} Uniclass, OmniClass">
+                <div id="classificationSystemContainer"></div>
                 <small>${t('editor.classSystem')}</small>
+            </div>
+
+            <div class="bsdd-uri-display" id="bsddUriDisplay" style="${this._currentBsddUri ? '' : 'display:none;'}">
+                bSDD URI: <span>${this.escapeHtml(this._currentBsddUri || '')}</span>
             </div>
 
             <div class="form-group">
                 <label>Classification Value:</label>
-                <input type="text" id="classificationValue" value="${data.value || ''}" placeholder="${t('editor.example')} Ss_25_10_20">
+                <input type="text" id="classificationValue" value="${this.escapeHtml(valueValue)}" placeholder="${t('editor.example')} Ss_25_10_20">
                 <small>${t('editor.classValue')}</small>
             </div>
 
@@ -350,23 +458,67 @@ class IDSEditorModals {
             </div>
 
             <div id="restrictionFields">
-                ${this.getRestrictionFields(data.valueRestriction || { type: 'simpleValue', value: data.value || '' })}
+                ${this.getRestrictionFields(data.valueRestriction || { type: 'simpleValue', value: valueValue })}
             </div>
         `;
+
+        // Initialize bSDD autocomplete for Classification System
+        new BsddAutocomplete({
+            container: document.getElementById('classificationSystemContainer'),
+            inputId: 'classificationSystem',
+            placeholder: `${t('editor.example')} Uniclass, OmniClass`,
+            initialValue: systemValue,
+            dictionaryFilterId: 'bsddDictFilter',
+            onSearch: (query, dictUri) => BsddApi.debouncedSearch(query, dictUri),
+            onSelect: (item) => {
+                this._currentBsddUri = item.uri || null;
+                // Auto-fill classification value with item code
+                if (item.code) {
+                    const valueInput = document.getElementById('classificationValue');
+                    if (valueInput) valueInput.value = item.code;
+                }
+                // Show URI display
+                const uriDisplay = document.getElementById('bsddUriDisplay');
+                if (uriDisplay && item.uri) {
+                    uriDisplay.style.display = '';
+                    uriDisplay.querySelector('span').textContent = item.uri;
+                }
+            }
+        });
+
+        // Load dictionary filter options
+        this._loadDictionaryFilter('bsddDictFilter');
     }
 
     /**
      * Show Material form
      */
     showMaterialForm(data = {}) {
+        // Store bSDD URI for editing
+        this._currentBsddMaterialUri = data.uri || null;
+
+        const valueValue = this.extractSimpleValue(data.value);
+
         document.getElementById('modalTitle').textContent = '🧱 Material Facet';
         document.getElementById('modalBody').innerHTML = `
             ${this.getFacetCardinalityField(data.cardinality || 'required')}
 
             <div class="form-group">
+                <label>bSDD Dictionary Filter:</label>
+                <select id="bsddDictFilterMat">
+                    <option value="">-- All dictionaries --</option>
+                </select>
+                <small>Filter bSDD search by dictionary</small>
+            </div>
+
+            <div class="form-group">
                 <label>Material Value:</label>
-                <input type="text" id="materialValue" value="${data.value || ''}" placeholder="${t('editor.example')} Concrete, Steel">
+                <div id="materialValueContainer"></div>
                 <small>${t('editor.materialName')}</small>
+            </div>
+
+            <div class="bsdd-uri-display" id="bsddMaterialUriDisplay" style="${this._currentBsddMaterialUri ? '' : 'display:none;'}">
+                bSDD URI: <span>${this.escapeHtml(this._currentBsddMaterialUri || '')}</span>
             </div>
 
             <div class="form-group">
@@ -379,9 +531,31 @@ class IDSEditorModals {
             </div>
 
             <div id="restrictionFields">
-                ${this.getRestrictionFields(data.valueRestriction || { type: 'simpleValue', value: data.value || '' })}
+                ${this.getRestrictionFields(data.valueRestriction || { type: 'simpleValue', value: valueValue })}
             </div>
         `;
+
+        // Initialize bSDD autocomplete for Material Value
+        new BsddAutocomplete({
+            container: document.getElementById('materialValueContainer'),
+            inputId: 'materialValue',
+            placeholder: `${t('editor.example')} Concrete, Steel`,
+            initialValue: valueValue,
+            dictionaryFilterId: 'bsddDictFilterMat',
+            onSearch: (query, dictUri) => BsddApi.debouncedSearch(query, dictUri),
+            onSelect: (item) => {
+                this._currentBsddMaterialUri = item.uri || null;
+                // Show URI display
+                const uriDisplay = document.getElementById('bsddMaterialUriDisplay');
+                if (uriDisplay && item.uri) {
+                    uriDisplay.style.display = '';
+                    uriDisplay.querySelector('span').textContent = item.uri;
+                }
+            }
+        });
+
+        // Load dictionary filter options
+        this._loadDictionaryFilter('bsddDictFilterMat');
     }
 
     /**
@@ -647,6 +821,10 @@ class IDSEditorModals {
             facet.dataType = dataType;
         }
 
+        if (this._currentBsddPropertyUri) {
+            facet.uri = this._currentBsddPropertyUri;
+        }
+
         // Add cardinality if in requirements section
         const cardinality = this.getCurrentFacetCardinality();
         if (cardinality) {
@@ -697,6 +875,10 @@ class IDSEditorModals {
             value
         };
 
+        if (this._currentBsddUri) {
+            facet.uri = this._currentBsddUri;
+        }
+
         // Add cardinality if in requirements section
         const cardinality = this.getCurrentFacetCardinality();
         if (cardinality) {
@@ -717,6 +899,10 @@ class IDSEditorModals {
             type: 'material',
             value
         };
+
+        if (this._currentBsddMaterialUri) {
+            facet.uri = this._currentBsddMaterialUri;
+        }
 
         // Add cardinality if in requirements section
         const cardinality = this.getCurrentFacetCardinality();
@@ -970,6 +1156,25 @@ class IDSEditorModals {
     closeSpecificationModal() {
         document.getElementById('specificationModalOverlay').classList.remove('active');
         this.currentSpecCallback = null;
+    }
+
+    /**
+     * Load bSDD dictionary options into a filter dropdown
+     */
+    async _loadDictionaryFilter(selectId) {
+        try {
+            const dictionaries = await BsddApi.getDictionaries();
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            dictionaries.forEach(dict => {
+                const option = document.createElement('option');
+                option.value = dict.uri;
+                option.textContent = `${dict.name} (${dict.version})`;
+                select.appendChild(option);
+            });
+        } catch (e) {
+            console.warn('Failed to load bSDD dictionaries:', e);
+        }
     }
 }
 
