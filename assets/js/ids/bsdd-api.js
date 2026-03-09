@@ -1,24 +1,19 @@
 /**
  * bSDD API Service Layer
  * Handles communication with buildingSMART Data Dictionary API
- * https://api.bsdd.buildingsmart.org
+ *
+ * Uses test.bsdd.buildingsmart.org which provides Access-Control-Allow-Origin: *
+ * The production endpoint (api.bsdd.buildingsmart.org) requires domain registration
+ * for CORS access — the test endpoint is the official way to access bSDD from
+ * browser-based apps without a registered domain.
  */
 const BsddApi = {
-    BASE_URL: 'https://api.bsdd.buildingsmart.org',
-    CORS_PROXY: 'https://corsproxy.io/?',
+    BASE_URL: 'https://test.bsdd.buildingsmart.org',
 
     _cache: new Map(),
     _debounceTimer: null,
     DEBOUNCE_MS: 300,
     CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
-
-    /**
-     * Get proxied URL to bypass CORS restrictions.
-     * bSDD API requires domain registration for CORS — we use a proxy for browser access.
-     */
-    _proxyUrl(url) {
-        return this.CORS_PROXY + encodeURIComponent(url);
-    },
 
     /**
      * Build URL for text search
@@ -32,7 +27,7 @@ const BsddApi = {
     },
 
     /**
-     * Fetch with caching. Uses CORS proxy for browser compatibility.
+     * Fetch with caching. Calls bSDD test API directly (CORS enabled).
      */
     async _fetchCached(url) {
         const cached = this._cache.get(url);
@@ -40,8 +35,7 @@ const BsddApi = {
             return cached.data;
         }
 
-        const fetchUrl = this._proxyUrl(url);
-        const response = await fetch(fetchUrl, {
+        const response = await fetch(url, {
             headers: { 'Accept': 'application/json' }
         });
 

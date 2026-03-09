@@ -8,8 +8,8 @@ describe('BsddApi', () => {
         expect(typeof BsddApi).toBe('object');
     });
 
-    it('should have BASE_URL pointing to bSDD API', () => {
-        expect(BsddApi.BASE_URL).toBe('https://api.bsdd.buildingsmart.org');
+    it('should have BASE_URL pointing to bSDD test API (CORS enabled)', () => {
+        expect(BsddApi.BASE_URL).toBe('https://test.bsdd.buildingsmart.org');
     });
 
     it('should have searchClasses method', () => {
@@ -58,13 +58,12 @@ describe('BsddApi', () => {
         expect(BsddApi._cache.size).toBe(0);
     });
 
-    it('should have CORS proxy configured', () => {
-        expect(BsddApi.CORS_PROXY).toContain('corsproxy.io');
+    it('should use test API endpoint with CORS support', () => {
+        expect(BsddApi.BASE_URL).toContain('test.bsdd.buildingsmart.org');
     });
 
-    it('should wrap URLs with CORS proxy', () => {
-        const proxied = BsddApi._proxyUrl('https://api.bsdd.buildingsmart.org/api/Dictionary/v1');
-        expect(proxied).toContain('corsproxy.io');
-        expect(proxied).toContain('api.bsdd.buildingsmart.org');
+    it('should build URLs directly without proxy', () => {
+        const url = BsddApi._buildSearchUrl('wall');
+        expect(url).toContain('test.bsdd.buildingsmart.org');
     });
 });
