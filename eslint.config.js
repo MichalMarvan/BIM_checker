@@ -42,6 +42,8 @@ export default [
                 IDSExcelParser: 'readonly',
                 IDSExcelGenerator: 'readonly',
                 IDSExcelTemplate: 'readonly',
+                BsddApi: 'readonly',
+                BsddAutocomplete: 'readonly',
                 // Storage functions
                 initStorageDB: 'readonly',
                 // Worker globals
