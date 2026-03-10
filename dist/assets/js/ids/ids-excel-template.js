@@ -35,7 +35,7 @@ const IDSExcelTemplate = (function() {
     function generateTemplateData() {
         return {
             title: '[Your IDS Title]',
-            author: '[Your Name]',
+            author: '[your@email.com]',
             version: '1.0',
             date: new Date().toISOString().split('T')[0],
             description: '[Description of your IDS requirements]',
@@ -110,7 +110,7 @@ const IDSExcelTemplate = (function() {
         // Info sheet
         const infoData = [
             { Field: 'title', Value: '[Your IDS Title]' },
-            { Field: 'author', Value: '[Your Name]' },
+            { Field: 'author', Value: '[your@email.com]' },
             { Field: 'version', Value: '1.0' },
             { Field: 'date', Value: new Date().toISOString().split('T')[0] },
             { Field: 'description', Value: '[Description of your IDS requirements]' },
