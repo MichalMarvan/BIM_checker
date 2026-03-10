@@ -1277,6 +1277,9 @@ window.addEventListener('languageChanged', () => {
         displayInfo();
         displaySpecifications();
     }
+    if (window.idsEditorCore && window.idsEditorCore.idsData) {
+        window.idsEditorCore.renderIDS();
+    }
 });
 
 // Event delegation for dynamically generated content
