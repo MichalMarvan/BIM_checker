@@ -136,6 +136,15 @@ const IDSExcelTemplate = (function() {
         ];
         XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(applicabilityData), 'applicability');
 
+        // Requirements sheet
+        const requirementsData = [
+            { spec_id: 'SPEC_walls', facet_type: 'property', cardinality: 'required', pset_name: 'Pset_WallCommon', property_name: 'IsExternal', property_value: '', dataType: '', classification_system: '', classification_value: '', material_value: '', attribute_name: '', attribute_value: '', uri: '' },
+            { spec_id: 'SPEC_walls', facet_type: 'property', cardinality: 'required', pset_name: 'Pset_WallCommon', property_name: 'LoadBearing', property_value: '', dataType: '', classification_system: '', classification_value: '', material_value: '', attribute_name: '', attribute_value: '', uri: '' },
+            { spec_id: 'SPEC_doors', facet_type: 'property', cardinality: 'required', pset_name: 'Pset_DoorCommon', property_name: 'FireRating', property_value: '', dataType: '', classification_system: '', classification_value: '', material_value: '', attribute_name: '', attribute_value: '', uri: '' },
+            { spec_id: 'SPEC_windows', facet_type: 'property', cardinality: 'required', pset_name: 'Pset_WindowCommon', property_name: 'ThermalTransmittance', property_value: '', dataType: '', classification_system: '', classification_value: '', material_value: '', attribute_name: '', attribute_value: '', uri: '' }
+        ];
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(requirementsData), 'requirements');
+
         // Psets lookup with Top 20
         const psetsData = generatePsetsLookup();
         XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(psetsData), 'psets_lookup');

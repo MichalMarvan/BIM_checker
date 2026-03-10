@@ -9,7 +9,7 @@ const IDSExcelParser = (function() {
     const REQUIRED_SHEETS = ['info', 'specifications'];
 
     // All recognized sheets
-    const ALL_SHEETS = ['info', 'specifications', 'applicability', 'psets_lookup', 'element_psets'];
+    const ALL_SHEETS = ['info', 'specifications', 'applicability', 'requirements', 'psets_lookup', 'element_psets'];
 
     /**
      * Parse Excel file buffer to IDS data
@@ -33,6 +33,7 @@ const IDSExcelParser = (function() {
         const infoData = _sheetToJson(workbook, 'info');
         const specificationsData = _sheetToJson(workbook, 'specifications');
         const applicabilityData = _sheetToJson(workbook, 'applicability');
+        const requirementsData = _sheetToJson(workbook, 'requirements');
         const psetsLookupData = _sheetToJson(workbook, 'psets_lookup');
         const elementPsetsData = _sheetToJson(workbook, 'element_psets');
 
@@ -43,7 +44,10 @@ const IDSExcelParser = (function() {
         // Add applicability to specifications
         _addApplicabilityToSpecs(specifications, applicabilityData, warnings);
 
-        // Add requirements to specifications
+        // Add requirements from requirements sheet (all facet types)
+        _addRequirementsFromSheet(specifications, requirementsData, warnings);
+
+        // Add requirements from legacy psets_lookup + element_psets (property-only)
         _addRequirementsToSpecs(specifications, psetsLookupData, elementPsetsData, warnings);
 
         // Build final IDS data
@@ -205,7 +209,68 @@ const IDSExcelParser = (function() {
     }
 
     /**
-     * Add requirements to specifications from psets_lookup + element_psets
+     * Add requirements from the requirements sheet (all facet types)
+     * @private
+     */
+    function _addRequirementsFromSheet(specifications, requirementsData, warnings) {
+        if (!requirementsData || requirementsData.length === 0) {
+            return;
+        }
+
+        const specMap = new Map(specifications.map(s => [s.spec_id, s]));
+
+        for (let i = 0; i < requirementsData.length; i++) {
+            const row = requirementsData[i];
+            const specId = String(row.spec_id || '').trim();
+
+            if (!specId) {
+                continue;
+            }
+
+            if (!specMap.has(specId)) {
+                warnings.push(`Row ${i + 2} in requirements: Unknown spec_id '${specId}' - skipped`);
+                continue;
+            }
+
+            const spec = specMap.get(specId);
+            const facetType = (row.facet_type || '').toLowerCase();
+            const cardinality = row.cardinality || 'required';
+
+            if (facetType === 'classification') {
+                const facet = {
+                    type: 'classification',
+                    system: row.classification_system || '',
+                    value: row.classification_value ? { type: 'simple', value: row.classification_value } : null,
+                    cardinality: cardinality
+                };
+                if (row.uri) {
+                    facet.uri = row.uri;
+                }
+                spec.requirements.push(facet);
+            } else if (facetType === 'material') {
+                const facet = {
+                    type: 'material',
+                    value: row.material_value ? { type: 'simple', value: row.material_value } : null,
+                    cardinality: cardinality
+                };
+                if (row.uri) {
+                    facet.uri = row.uri;
+                }
+                spec.requirements.push(facet);
+            } else if (facetType === 'attribute') {
+                const facet = {
+                    type: 'attribute',
+                    name: row.attribute_name || '',
+                    value: row.attribute_value ? { type: 'simple', value: row.attribute_value } : null,
+                    cardinality: cardinality
+                };
+                spec.requirements.push(facet);
+            }
+        }
+    }
+
+    /**
+     * Add requirements to specifications from psets_lookup + element_psets (legacy)
      * @private
      */
     function _addRequirementsToSpecs(specifications, psetsLookupData, elementPsetsData, warnings) {
@@ -337,6 +402,7 @@ const IDSExcelParser = (function() {
         _parseInfoSheet,
         _parseSpecificationsSheet,
         _addApplicabilityToSpecs,
+        _addRequirementsFromSheet,
         _addRequirementsToSpecs
     };
 })();

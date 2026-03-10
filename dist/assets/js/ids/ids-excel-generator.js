@@ -18,6 +18,7 @@ const IDSExcelGenerator = (function() {
         const infoData = _generateInfoSheet(idsData);
         const specificationsData = _generateSpecificationsSheet(idsData.specifications || []);
         const applicabilityData = _generateApplicabilitySheet(idsData.specifications || []);
+        const requirementsData = _generateRequirementsSheet(idsData.specifications || []);
         const psetsLookupData = _generatePsetsLookupSheet(idsData.specifications || []);
         const elementPsetsData = _generateElementPsetsSheet(idsData.specifications || []);
 
@@ -25,6 +26,7 @@ const IDSExcelGenerator = (function() {
         const infoSheet = XLSX.utils.json_to_sheet(infoData);
         const specificationsSheet = XLSX.utils.json_to_sheet(specificationsData);
         const applicabilitySheet = XLSX.utils.json_to_sheet(applicabilityData);
+        const requirementsSheet = XLSX.utils.json_to_sheet(requirementsData);
         const psetsLookupSheet = XLSX.utils.json_to_sheet(psetsLookupData);
         const elementPsetsSheet = XLSX.utils.json_to_sheet(elementPsetsData);
 
@@ -32,6 +34,7 @@ const IDSExcelGenerator = (function() {
         XLSX.utils.book_append_sheet(workbook, infoSheet, 'info');
         XLSX.utils.book_append_sheet(workbook, specificationsSheet, 'specifications');
         XLSX.utils.book_append_sheet(workbook, applicabilitySheet, 'applicability');
+        XLSX.utils.book_append_sheet(workbook, requirementsSheet, 'requirements');
         XLSX.utils.book_append_sheet(workbook, psetsLookupSheet, 'psets_lookup');
         XLSX.utils.book_append_sheet(workbook, elementPsetsSheet, 'element_psets');
 
@@ -128,6 +131,62 @@ const IDSExcelGenerator = (function() {
                 classification_system: '',
                 classification_value: '',
                 material_value: '',
+                uri: ''
+            });
+        }
+
+        return rows;
+    }
+
+    /**
+     * Generate requirements sheet data (all facet types)
+     * @private
+     */
+    function _generateRequirementsSheet(specifications) {
+        const rows = [];
+
+        for (let index = 0; index < specifications.length; index++) {
+            const spec = specifications[index];
+            const specId = spec.identifier || `SPEC_${String(index + 1).padStart(2, '0')}`;
+
+            for (const facet of (spec.requirements || [])) {
+                // Property requirements go to psets_lookup + element_psets sheets
+                if (facet.type === 'property') {
+                    continue;
+                }
+
+                const row = {
+                    spec_id: specId,
+                    facet_type: facet.type || '',
+                    cardinality: facet.cardinality || 'required'
+                };
+
+                if (facet.type === 'classification') {
+                    row.classification_system = facet.system?.value || facet.system || '';
+                    row.classification_value = facet.value?.value || '';
+                } else if (facet.type === 'material') {
+                    row.material_value = facet.value?.value || '';
+                } else if (facet.type === 'attribute') {
+                    row.attribute_name = facet.name?.value || facet.name || '';
+                    row.attribute_value = facet.value?.value || '';
+                }
+
+                row.uri = facet.uri || '';
+
+                rows.push(row);
+            }
+        }
+
+        if (rows.length === 0) {
+            rows.push({
+                spec_id: '',
+                facet_type: '',
+                cardinality: '',
+                classification_system: '',
+                classification_value: '',
+                material_value: '',
+                attribute_name: '',
+                attribute_value: '',
                 uri: ''
             });
         }
@@ -312,6 +371,7 @@ const IDSExcelGenerator = (function() {
         _generateInfoSheet,
         _generateSpecificationsSheet,
         _generateApplicabilitySheet,
+        _generateRequirementsSheet,
         _generatePsetsLookupSheet,
         _generateElementPsetsSheet
     };
