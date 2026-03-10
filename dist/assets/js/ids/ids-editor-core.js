@@ -96,8 +96,8 @@ class IDSEditorCore {
 
         console.log('New IDS data created:', this.idsData);
         this.hasUnsavedChanges = true;
-        this.renderIDS();
         this.enableEditMode();
+        this.renderIDS();
 
         // Show success message
         this.showMessage(t('editor.newIdsCreated'), 'success');
