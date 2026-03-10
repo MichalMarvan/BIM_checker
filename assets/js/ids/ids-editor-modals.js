@@ -279,10 +279,10 @@ class IDSEditorModals {
             <div class="form-group">
                 <label>${t('editor.valueRestriction')}</label>
                 <div class="restriction-types">
-                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'simpleValue')}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
-                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'pattern')}" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
-                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'enumeration')}" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
-                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'bounds')}" onclick="idsEditorModals.selectRestrictionType('bounds')">${t('editor.bounds')}</button>
+                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'simpleValue')}" data-type="simpleValue" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
+                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'pattern')}" data-type="pattern" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
+                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'enumeration')}" data-type="enumeration" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
+                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'bounds')}" data-type="bounds" onclick="idsEditorModals.selectRestrictionType('bounds')">${t('editor.bounds')}</button>
                 </div>
                 <small>${t('editor.anyValueAllowed')}</small>
             </div>
@@ -411,9 +411,9 @@ class IDSEditorModals {
             <div class="form-group">
                 <label>${t('editor.valueRestriction')}</label>
                 <div class="restriction-types">
-                    <button class="restriction-type-btn ${!data.value || data.value.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
-                    <button class="restriction-type-btn ${data.value?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
-                    <button class="restriction-type-btn ${data.value?.type === 'enumeration' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
+                    <button class="restriction-type-btn ${!data.value || data.value.type === 'simpleValue' ? 'active' : ''}" data-type="simpleValue" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
+                    <button class="restriction-type-btn ${data.value?.type === 'pattern' ? 'active' : ''}" data-type="pattern" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
+                    <button class="restriction-type-btn ${data.value?.type === 'enumeration' ? 'active' : ''}" data-type="enumeration" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
                 </div>
             </div>
 
@@ -463,8 +463,8 @@ class IDSEditorModals {
             <div class="form-group">
                 <label>${t('editor.valueRestrictionType')}</label>
                 <div class="restriction-types">
-                    <button class="restriction-type-btn ${!data.valueRestriction || data.valueRestriction.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
-                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
+                    <button class="restriction-type-btn ${!data.valueRestriction || data.valueRestriction.type === 'simpleValue' ? 'active' : ''}" data-type="simpleValue" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
+                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'pattern' ? 'active' : ''}" data-type="pattern" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
                 </div>
             </div>
 
@@ -534,9 +534,9 @@ class IDSEditorModals {
             <div class="form-group">
                 <label>${t('editor.valueRestrictionType')}</label>
                 <div class="restriction-types">
-                    <button class="restriction-type-btn ${!data.valueRestriction || data.valueRestriction.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
-                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
-                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'enumeration' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
+                    <button class="restriction-type-btn ${!data.valueRestriction || data.valueRestriction.type === 'simpleValue' ? 'active' : ''}" data-type="simpleValue" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
+                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'pattern' ? 'active' : ''}" data-type="pattern" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
+                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'enumeration' ? 'active' : ''}" data-type="enumeration" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
                 </div>
             </div>
 
@@ -702,8 +702,8 @@ class IDSEditorModals {
                     <div class="form-group">
                         <label>${t('editor.baseType')}</label>
                         <select id="boundsBase">
-                            <option value="xs:decimal" ${restriction.base === 'xs:decimal' ? 'selected' : ''}>Decimal</option>
-                            <option value="xs:integer" ${restriction.base === 'xs:integer' ? 'selected' : ''}>Integer</option>
+                            <option value="xs:decimal" ${restriction.base === 'xs:decimal' ? 'selected' : ''}>${t('editor.decimalType')}</option>
+                            <option value="xs:integer" ${restriction.base === 'xs:integer' ? 'selected' : ''}>${t('editor.integerType')}</option>
                         </select>
                     </div>
                 `;
@@ -732,7 +732,7 @@ class IDSEditorModals {
         const item = document.createElement('div');
         item.className = 'enumeration-item';
         item.innerHTML = `
-            <input type="text" placeholder="Enter value" class="enum-value">
+            <input type="text" placeholder="${t('editor.enterValue')}" class="enum-value">
             <button type="button" onclick="idsEditorModals.removeEnumValue(this)">✕</button>
         `;
         list.appendChild(item);
@@ -789,7 +789,7 @@ class IDSEditorModals {
     getEntityData() {
         const name = document.getElementById('entityName').value.trim();
         if (!name) {
-            throw new Error('Entity name is required');
+            throw new Error(t('editor.entityNameRequired'));
         }
 
         const facet = {
@@ -813,10 +813,10 @@ class IDSEditorModals {
         const baseName = document.getElementById('propertyBaseName').value.trim();
 
         if (!propertySet || !baseName) {
-            throw new Error('PropertySet and BaseName are required');
+            throw new Error(t('editor.psetBaseNameRequired'));
         }
 
-        const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
+        const restrictionType = document.querySelector('.restriction-type-btn.active')?.dataset.type || 'simpleValue';
         const value = this.getRestrictionData(restrictionType);
 
         const facet = {
@@ -850,10 +850,10 @@ class IDSEditorModals {
     getAttributeData() {
         const name = document.getElementById('attributeName').value.trim();
         if (!name) {
-            throw new Error('Attribute name is required');
+            throw new Error(t('editor.attributeNameRequired'));
         }
 
-        const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
+        const restrictionType = document.querySelector('.restriction-type-btn.active')?.dataset.type || 'simpleValue';
         const value = this.getRestrictionData(restrictionType);
 
         const facet = {
@@ -876,7 +876,7 @@ class IDSEditorModals {
      */
     getClassificationData() {
         const system = document.getElementById('classificationSystem').value.trim();
-        const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
+        const restrictionType = document.querySelector('.restriction-type-btn.active')?.dataset.type || 'simpleValue';
         const value = this.getRestrictionData(restrictionType);
 
         const facet = {
@@ -902,7 +902,7 @@ class IDSEditorModals {
      * Get material data from form
      */
     getMaterialData() {
-        const restrictionType = document.querySelector('.restriction-type-btn.active').textContent.trim();
+        const restrictionType = document.querySelector('.restriction-type-btn.active')?.dataset.type || 'simpleValue';
         const value = this.getRestrictionData(restrictionType);
 
         const facet = {
@@ -929,7 +929,7 @@ class IDSEditorModals {
     getPartOfData() {
         const entity = document.getElementById('partOfEntity').value.trim();
         if (!entity) {
-            throw new Error('Parent entity is required');
+            throw new Error(t('editor.parentEntityRequired'));
         }
 
         const facet = {
@@ -965,19 +965,19 @@ class IDSEditorModals {
     /**
      * Get restriction data based on type
      */
-    getRestrictionData(typeLabel) {
-        if (typeLabel.includes('Simple')) {
+    getRestrictionData(typeKey) {
+        if (typeKey === 'simpleValue') {
             const value = document.getElementById('restrictionValue')?.value.trim() || '';
             return { type: 'simpleValue', value };
-        } else if (typeLabel.includes('Pattern')) {
+        } else if (typeKey === 'pattern') {
             const value = document.getElementById('restrictionPattern')?.value.trim() || '';
             return { type: 'pattern', value };
-        } else if (typeLabel.includes('Enumeration')) {
+        } else if (typeKey === 'enumeration') {
             const values = Array.from(document.querySelectorAll('.enum-value'))
                 .map(input => input.value.trim())
                 .filter(v => v);
             return { type: 'enumeration', values };
-        } else if (typeLabel.includes('Bounds')) {
+        } else if (typeKey === 'bounds') {
             const minInclusive = document.getElementById('boundsMinInclusive')?.value;
             const maxInclusive = document.getElementById('boundsMaxInclusive')?.value;
             const base = document.getElementById('boundsBase')?.value || 'xs:decimal';
@@ -1136,7 +1136,7 @@ class IDSEditorModals {
 
         const ifcVersion = document.getElementById('specIfcVersion').value;
         if (!ifcVersion) {
-            alert('IFC Version is required!'); // TODO: Use translation key
+            alert(t('editor.ifcVersionRequired'));
             return;
         }
 

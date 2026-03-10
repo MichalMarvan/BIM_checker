@@ -526,7 +526,7 @@ class IDSEditorCore {
 
         // Show bSDD URI if present
         if (facet.uri) {
-            html += `<div class="bsdd-uri-display">bSDD: ${this.escapeHtml(facet.uri)}</div>`;
+            html += `<div class="bsdd-uri-display">${t('bsdd.uri')}: ${this.escapeHtml(facet.uri)}</div>`;
         }
 
         return html;
@@ -549,12 +549,12 @@ class IDSEditorCore {
             return this.escapeHtml(restriction.value || '');
         } else if (restriction.type === 'pattern' || (restriction.type === 'restriction' && restriction.pattern)) {
             const patternValue = restriction.value || restriction.pattern || '';
-            return `<code>Pattern: ${this.escapeHtml(patternValue)}</code>`;
+            return `<code>${t('editor.patternRegex')}: ${this.escapeHtml(patternValue)}</code>`;
         } else if (restriction.type === 'enumeration' || (restriction.type === 'restriction' && restriction.enumeration)) {
             const values = restriction.values || restriction.enumeration || [];
-            return `Enum: [${values.map(v => this.escapeHtml(v)).join(', ')}]`;
+            return `${t('editor.enumeration')}: [${values.map(v => this.escapeHtml(v)).join(', ')}]`;
         } else if (restriction.type === 'bounds' || (restriction.type === 'restriction' && (restriction.minInclusive || restriction.maxInclusive))) {
-            return `Bounds: ${restriction.minInclusive || '∞'} - ${restriction.maxInclusive || '∞'}`;
+            return `${t('editor.bounds')}: ${restriction.minInclusive || '∞'} - ${restriction.maxInclusive || '∞'}`;
         }
 
         // Fallback - try to extract value
@@ -983,9 +983,9 @@ class IDSEditorCore {
     downloadExcelTemplate() {
         if (typeof IDSExcelTemplate !== 'undefined') {
             IDSExcelTemplate.downloadTemplate();
-            this.showMessage(t('editor.templateDownloaded') || 'Template downloaded', 'success');
+            this.showMessage(t('editor.templateDownloaded'), 'success');
         } else {
-            this.showMessage('Excel template not available', 'error');
+            this.showMessage(t('editor.excelNotAvailable'), 'error');
         }
     }
 
@@ -1027,7 +1027,7 @@ class IDSEditorCore {
                 this.loadExcelData(result.data);
             }
         } catch (error) {
-            this.showMessage(`Import error: ${error.message}`, 'error');
+            this.showMessage(`${t('editor.saveError')} ${error.message}`, 'error');
         }
     }
 
@@ -1098,16 +1098,16 @@ class IDSEditorCore {
      */
     exportExcel() {
         if (!this.idsData) {
-            this.showMessage(t('editor.noDataToExport') || 'No data to export', 'error');
+            this.showMessage(t('editor.noDataToExport'), 'error');
             return;
         }
 
         if (typeof IDSExcelGenerator !== 'undefined') {
             const filename = (this.idsData.title || 'ids-export').replace(/[^a-zA-Z0-9]/g, '_');
             IDSExcelGenerator.download(this.idsData, filename);
-            this.showMessage(t('editor.excelExported') || 'Exported to Excel', 'success');
+            this.showMessage(t('editor.excelExported'), 'success');
         } else {
-            this.showMessage('Excel generator not available', 'error');
+            this.showMessage(t('editor.excelNotAvailable'), 'error');
         }
     }
 }
