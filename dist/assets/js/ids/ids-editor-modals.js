@@ -57,7 +57,7 @@ class IDSEditorModals {
             specOverlay.innerHTML = `
                 <div class="modal-container">
                     <div class="modal-header">
-                        <h2 id="specModalTitle">Specifikace</h2>
+                        <h2 id="specModalTitle">${t('editor.specification')}</h2>
                         <button class="modal-close" onclick="idsEditorModals.closeSpecificationModal()">&times;</button>
                     </div>
                     <div class="modal-body" id="specModalBody">
@@ -113,6 +113,7 @@ class IDSEditorModals {
                 <div class="facet-type-card" onclick="idsEditorModals.selectFacetType('partOf')">
                     <div class="facet-type-icon">🔗</div>
                     <div class="facet-type-name">PartOf</div>
+
                 </div>
             </div>
         `;
@@ -180,7 +181,7 @@ class IDSEditorModals {
      * Show Entity form
      */
     showEntityForm(data = {}) {
-        document.getElementById('modalTitle').textContent = '🏢 Entity Facet';
+        document.getElementById('modalTitle').textContent = t('editor.entityFacet');
 
         // Extract name value - data.name can be string or object {type: 'simpleValue', value: '...'}
         const nameValue = this.extractSimpleValue(data.name);
@@ -193,7 +194,7 @@ class IDSEditorModals {
 
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
-                <label>Entity Name:</label>
+                <label>${t('editor.entityNameLabel')}</label>
                 <input type="text" id="entityName" list="ifcEntityTypes" value="${nameValue}" placeholder="${t('editor.example')} IFCWALL" autocomplete="off">
                 <datalist id="ifcEntityTypes">
                     ${datalistOptions}
@@ -233,19 +234,19 @@ class IDSEditorModals {
             ? propertySets.map(pset => `<option value="${pset}">`).join('')
             : '';
 
-        document.getElementById('modalTitle').textContent = `📋 Property Facet (${this.currentIfcVersion})`;
+        document.getElementById('modalTitle').textContent = `${t('editor.propertyFacet')} (${this.currentIfcVersion})`;
         document.getElementById('modalBody').innerHTML = `
             ${this.getFacetCardinalityField(data.cardinality || 'required')}
 
             <div class="form-group">
-                <label>bSDD Dictionary Filter:</label>
+                <label>${t('bsdd.dictFilter')}:</label>
                 <div id="bsddDictFilterPropContainer"></div>
                 <input type="hidden" id="bsddDictFilterProp" value="">
-                <small>Filter bSDD search by dictionary</small>
+                <small>${t('bsdd.filterDesc')}</small>
             </div>
 
             <div class="form-group">
-                <label>PropertySet Name:</label>
+                <label>${t('editor.propertySetNameLabel')}</label>
                 <div id="propertySetContainer"></div>
                 <datalist id="ifcPropertySets">
                     ${psetDatalistOptions}
@@ -254,13 +255,13 @@ class IDSEditorModals {
             </div>
 
             <div class="form-group">
-                <label>Property Name (baseName):</label>
+                <label>${t('editor.propertyNameLabel')}</label>
                 <div id="propertyBaseNameContainer"></div>
                 <small>${t('editor.propertyName')}</small>
             </div>
 
             <div class="bsdd-uri-display" id="bsddPropertyUriDisplay" style="${this._currentBsddPropertyUri ? '' : 'display:none;'}">
-                bSDD URI: <span>${this.escapeHtml(this._currentBsddPropertyUri || '')}</span>
+                ${t('bsdd.uri')}: <span>${this.escapeHtml(this._currentBsddPropertyUri || '')}</span>
             </div>
 
             <div class="form-group">
@@ -278,10 +279,10 @@ class IDSEditorModals {
             <div class="form-group">
                 <label>${t('editor.valueRestriction')}</label>
                 <div class="restriction-types">
-                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'simpleValue')}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">Simple Value</button>
-                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'pattern')}" onclick="idsEditorModals.selectRestrictionType('pattern')">Pattern (Regex)</button>
-                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'enumeration')}" onclick="idsEditorModals.selectRestrictionType('enumeration')">Enumeration</button>
-                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'bounds')}" onclick="idsEditorModals.selectRestrictionType('bounds')">Bounds</button>
+                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'simpleValue')}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
+                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'pattern')}" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
+                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'enumeration')}" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
+                    <button class="restriction-type-btn ${this.getActiveRestrictionType(data.value, 'bounds')}" onclick="idsEditorModals.selectRestrictionType('bounds')">${t('editor.bounds')}</button>
                 </div>
                 <small>${t('editor.anyValueAllowed')}</small>
             </div>
@@ -397,22 +398,22 @@ class IDSEditorModals {
      * Show Attribute form
      */
     showAttributeForm(data = {}) {
-        document.getElementById('modalTitle').textContent = '🏷️ Attribute Facet';
+        document.getElementById('modalTitle').textContent = t('editor.attributeFacet');
         document.getElementById('modalBody').innerHTML = `
             ${this.getFacetCardinalityField(data.cardinality || 'required')}
 
             <div class="form-group">
-                <label>Attribute Name:</label>
+                <label>${t('editor.attributeNameLabel')}</label>
                 <input type="text" id="attributeName" value="${data.name || ''}" placeholder="${t('editor.example')} Name, GlobalId, Description">
                 <small>${t('editor.attributeName')}</small>
             </div>
 
             <div class="form-group">
-                <label>Value Restriction:</label>
+                <label>${t('editor.valueRestriction')}</label>
                 <div class="restriction-types">
-                    <button class="restriction-type-btn ${!data.value || data.value.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">Simple Value</button>
-                    <button class="restriction-type-btn ${data.value?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">Pattern (Regex)</button>
-                    <button class="restriction-type-btn ${data.value?.type === 'enumeration' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('enumeration')">Enumeration</button>
+                    <button class="restriction-type-btn ${!data.value || data.value.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
+                    <button class="restriction-type-btn ${data.value?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
+                    <button class="restriction-type-btn ${data.value?.type === 'enumeration' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
                 </div>
             </div>
 
@@ -432,38 +433,38 @@ class IDSEditorModals {
         const systemValue = this.extractSimpleValue(data.system);
         const valueValue = this.extractSimpleValue(data.value);
 
-        document.getElementById('modalTitle').textContent = '📚 Classification Facet';
+        document.getElementById('modalTitle').textContent = t('editor.classificationFacet');
         document.getElementById('modalBody').innerHTML = `
             ${this.getFacetCardinalityField(data.cardinality || 'required')}
 
             <div class="form-group">
-                <label>bSDD Dictionary Filter:</label>
+                <label>${t('bsdd.dictFilter')}:</label>
                 <div id="bsddDictFilterContainer"></div>
                 <input type="hidden" id="bsddDictFilter" value="">
-                <small>Filter bSDD search by dictionary</small>
+                <small>${t('bsdd.filterDesc')}</small>
             </div>
 
             <div class="form-group">
-                <label>Classification System:</label>
+                <label>${t('editor.classSystemLabel')}</label>
                 <div id="classificationSystemContainer"></div>
                 <small>${t('editor.classSystem')}</small>
             </div>
 
             <div class="bsdd-uri-display" id="bsddUriDisplay" style="${this._currentBsddUri ? '' : 'display:none;'}">
-                bSDD URI: <span>${this.escapeHtml(this._currentBsddUri || '')}</span>
+                ${t('bsdd.uri')}: <span>${this.escapeHtml(this._currentBsddUri || '')}</span>
             </div>
 
             <div class="form-group">
-                <label>Classification Value:</label>
+                <label>${t('editor.classValueLabel')}</label>
                 <input type="text" id="classificationValue" value="${this.escapeHtml(valueValue)}" placeholder="${t('editor.example')} Ss_25_10_20">
                 <small>${t('editor.classValue')}</small>
             </div>
 
             <div class="form-group">
-                <label>Value Restriction Type:</label>
+                <label>${t('editor.valueRestrictionType')}</label>
                 <div class="restriction-types">
-                    <button class="restriction-type-btn ${!data.valueRestriction || data.valueRestriction.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">Simple Value</button>
-                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">Pattern (Regex)</button>
+                    <button class="restriction-type-btn ${!data.valueRestriction || data.valueRestriction.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
+                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
                 </div>
             </div>
 
@@ -509,33 +510,33 @@ class IDSEditorModals {
 
         const valueValue = this.extractSimpleValue(data.value);
 
-        document.getElementById('modalTitle').textContent = '🧱 Material Facet';
+        document.getElementById('modalTitle').textContent = t('editor.materialFacet');
         document.getElementById('modalBody').innerHTML = `
             ${this.getFacetCardinalityField(data.cardinality || 'required')}
 
             <div class="form-group">
-                <label>bSDD Dictionary Filter:</label>
+                <label>${t('bsdd.dictFilter')}:</label>
                 <div id="bsddDictFilterMatContainer"></div>
                 <input type="hidden" id="bsddDictFilterMat" value="">
-                <small>Filter bSDD search by dictionary</small>
+                <small>${t('bsdd.filterDesc')}</small>
             </div>
 
             <div class="form-group">
-                <label>Material Value:</label>
+                <label>${t('editor.materialValueLabel')}</label>
                 <div id="materialValueContainer"></div>
                 <small>${t('editor.materialName')}</small>
             </div>
 
             <div class="bsdd-uri-display" id="bsddMaterialUriDisplay" style="${this._currentBsddMaterialUri ? '' : 'display:none;'}">
-                bSDD URI: <span>${this.escapeHtml(this._currentBsddMaterialUri || '')}</span>
+                ${t('bsdd.uri')}: <span>${this.escapeHtml(this._currentBsddMaterialUri || '')}</span>
             </div>
 
             <div class="form-group">
-                <label>Value Restriction Type:</label>
+                <label>${t('editor.valueRestrictionType')}</label>
                 <div class="restriction-types">
-                    <button class="restriction-type-btn ${!data.valueRestriction || data.valueRestriction.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">Simple Value</button>
-                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">Pattern (Regex)</button>
-                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'enumeration' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('enumeration')">Enumeration</button>
+                    <button class="restriction-type-btn ${!data.valueRestriction || data.valueRestriction.type === 'simpleValue' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('simpleValue')">${t('editor.simpleValue')}</button>
+                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'pattern' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('pattern')">${t('editor.patternRegex')}</button>
+                    <button class="restriction-type-btn ${data.valueRestriction?.type === 'enumeration' ? 'active' : ''}" onclick="idsEditorModals.selectRestrictionType('enumeration')">${t('editor.enumeration')}</button>
                 </div>
             </div>
 
@@ -571,18 +572,18 @@ class IDSEditorModals {
      * Show PartOf form
      */
     showPartOfForm(data = {}) {
-        document.getElementById('modalTitle').textContent = '🔗 PartOf Facet';
+        document.getElementById('modalTitle').textContent = t('editor.partOfFacet');
         document.getElementById('modalBody').innerHTML = `
             ${this.getFacetCardinalityField(data.cardinality || 'required')}
 
             <div class="form-group">
-                <label>Parent Entity:</label>
+                <label>${t('editor.parentEntityLabel')}</label>
                 <input type="text" id="partOfEntity" value="${data.entity || ''}" placeholder="${t('editor.example')} IFCBUILDING">
                 <small>${t('editor.parentEntity')}</small>
             </div>
 
             <div class="form-group">
-                <label>Relation Type:</label>
+                <label>${t('editor.relationTypeLabel')}</label>
                 <select id="partOfRelation">
                     <option value="">${t('editor.allRelations')}</option>
                     <option value="IFCRELAGGREGATES" ${data.relation === 'IFCRELAGGREGATES' ? 'selected' : ''}>IFCRELAGGREGATES</option>
@@ -639,15 +640,15 @@ class IDSEditorModals {
             case 'simpleValue':
                 return `
                     <div class="form-group">
-                        <label>Value:</label>
-                        <input type="text" id="restrictionValue" value="${this.escapeHtml(value)}" placeholder="Enter value">
+                        <label>${t('editor.valueLabel')}</label>
+                        <input type="text" id="restrictionValue" value="${this.escapeHtml(value)}" placeholder="${t('editor.enterValue')}">
                     </div>
                 `;
 
             case 'pattern':
                 return `
                     <div class="form-group">
-                        <label>Regex Pattern:</label>
+                        <label>${t('editor.regexPatternLabel')}</label>
                         <input type="text" id="restrictionPattern" value="${this.escapeHtml(value)}" placeholder="${t('editor.example')} ^WALL.*">
                         <small>${t('editor.regexPattern')}</small>
                     </div>
@@ -657,14 +658,14 @@ class IDSEditorModals {
                 const values = restriction.values || [];
                 let enumHtml = `
                     <div class="form-group">
-                        <label>Enumeration Values:</label>
+                        <label>${t('editor.enumerationValues')}</label>
                         <div class="enumeration-list" id="enumerationList">
                 `;
 
                 if (values.length === 0) {
                     enumHtml += `
                         <div class="enumeration-item">
-                            <input type="text" placeholder="Enter value" class="enum-value">
+                            <input type="text" placeholder="${t('editor.enterValue')}" class="enum-value">
                             <button type="button" onclick="idsEditorModals.removeEnumValue(this)">✕</button>
                         </div>
                     `;
@@ -690,16 +691,16 @@ class IDSEditorModals {
                 return `
                     <div class="bounds-inputs">
                         <div class="form-group">
-                            <label>Min Value (inclusive):</label>
+                            <label>${t('editor.minInclusive')}</label>
                             <input type="number" id="boundsMinInclusive" value="${restriction.minInclusive || ''}" step="any">
                         </div>
                         <div class="form-group">
-                            <label>Max Value (inclusive):</label>
+                            <label>${t('editor.maxInclusive')}</label>
                             <input type="number" id="boundsMaxInclusive" value="${restriction.maxInclusive || ''}" step="any">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Base Type:</label>
+                        <label>${t('editor.baseType')}</label>
                         <select id="boundsBase">
                             <option value="xs:decimal" ${restriction.base === 'xs:decimal' ? 'selected' : ''}>Decimal</option>
                             <option value="xs:integer" ${restriction.base === 'xs:integer' ? 'selected' : ''}>Integer</option>

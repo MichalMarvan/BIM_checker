@@ -257,7 +257,7 @@ class IDSEditorCore {
         // Render specifications
         html += '<div class="specifications-container">';
         html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">';
-        html += '<h3 style="margin: 0;">Specifications</h3>';
+        html += `<h3 style="margin: 0;">${t('editor.specificationsTitle')}</h3>`;
         if (this.idsData.specifications.length > 0) {
             html += '<div class="collapse-controls">';
             html += `<button class="btn btn-sm btn-secondary" onclick="idsEditorCore.collapseAll()">${t('editor.collapseAll')}</button>`;
@@ -367,33 +367,32 @@ class IDSEditorCore {
     renderInfoSection() {
         const info = this.idsData;
         let html = '<div class="info-section">';
-        html += '<h3>IDS Information</h3>';
+        html += `<h3>${t('editor.idsInformation')}</h3>`;
         html += '<div class="info-grid">';
 
         // Title je povinné, vždy zobrazit
-        html += `<div><strong>Title:</strong> ${this.escapeHtml(info.title)}</div>`;
+        html += `<div><strong>${t('editor.labelTitle')}</strong> ${this.escapeHtml(info.title)}</div>`;
 
-        // Ostatní pole zobrazit jen pokud mají hodnotu
         if (info.version) {
-            html += `<div><strong>Version:</strong> ${this.escapeHtml(info.version)}</div>`;
+            html += `<div><strong>${t('editor.labelVersion')}</strong> ${this.escapeHtml(info.version)}</div>`;
         }
         if (info.author) {
-            html += `<div><strong>Author:</strong> ${this.escapeHtml(info.author)}</div>`;
+            html += `<div><strong>${t('editor.labelAuthor')}</strong> ${this.escapeHtml(info.author)}</div>`;
         }
         if (info.date) {
-            html += `<div><strong>Date:</strong> ${this.escapeHtml(info.date)}</div>`;
+            html += `<div><strong>${t('editor.labelDate')}</strong> ${this.escapeHtml(info.date)}</div>`;
         }
         if (info.copyright) {
-            html += `<div><strong>Copyright:</strong> ${this.escapeHtml(info.copyright)}</div>`;
+            html += `<div><strong>${t('editor.labelCopyright')}</strong> ${this.escapeHtml(info.copyright)}</div>`;
         }
         if (info.description) {
-            html += `<div><strong>Description:</strong> ${this.escapeHtml(info.description)}</div>`;
+            html += `<div><strong>${t('editor.labelDescription')}</strong> ${this.escapeHtml(info.description)}</div>`;
         }
         if (info.purpose) {
-            html += `<div><strong>Purpose:</strong> ${this.escapeHtml(info.purpose)}</div>`;
+            html += `<div><strong>${t('editor.labelPurpose')}</strong> ${this.escapeHtml(info.purpose)}</div>`;
         }
         if (info.milestone) {
-            html += `<div><strong>Milestone:</strong> ${this.escapeHtml(info.milestone)}</div>`;
+            html += `<div><strong>${t('editor.labelMilestone')}</strong> ${this.escapeHtml(info.milestone)}</div>`;
         }
 
         html += '</div>';
@@ -419,7 +418,7 @@ class IDSEditorCore {
                     <span class="collapse-icon">▼</span>
                     <h4 style="margin: 0; flex: 1;">${this.escapeHtml(spec.name)}</h4>
                     <span class="ifc-version-badge" style="background: #667eea; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; margin-right: 10px;">${ifcVersion}</span>
-                    <span class="facet-count">${totalFacets} facets</span>
+                    <span class="facet-count">${totalFacets} ${t('editor.facets')}</span>
                     ${this.editMode ? `
                         <button class="edit-btn" onclick="event.stopPropagation(); idsEditorCore.editSpecification(${index})">✏️</button>
                         <button class="delete-btn" onclick="event.stopPropagation(); idsEditorCore.deleteSpecification(${index})">🗑️</button>
@@ -434,7 +433,7 @@ class IDSEditorCore {
         html += '<div class="applicability-section collapsible-section">';
         html += `<h5 class="collapsible-header" onclick="idsEditorCore.toggleSection(this)">
             <span class="collapse-icon">▼</span>
-            Applicability <span class="facet-count">(${applicabilityCount})</span>
+            ${t('editor.applicability')} <span class="facet-count">(${applicabilityCount})</span>
         </h5>`;
         html += '<div class="collapsible-content">';
         if (spec.applicability && spec.applicability.length > 0) {
@@ -455,7 +454,7 @@ class IDSEditorCore {
         html += '<div class="requirements-section collapsible-section">';
         html += `<h5 class="collapsible-header" onclick="idsEditorCore.toggleSection(this)">
             <span class="collapse-icon">▼</span>
-            Requirements <span class="facet-count">(${requirementsCount})</span>
+            ${t('editor.requirementsTitle')} <span class="facet-count">(${requirementsCount})</span>
         </h5>`;
         html += '<div class="collapsible-content">';
         if (spec.requirements && spec.requirements.length > 0) {
@@ -802,43 +801,43 @@ class IDSEditorCore {
         overlay.innerHTML = `
             <div class="modal-container">
                 <div class="modal-header">
-                    <h2>Upravit IDS Information</h2>
+                    <h2>${t('editor.editIdsInfo')}</h2>
                     <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Title: <span style="color: red;">*</span></label>
+                        <label>${t('editor.labelTitle')} <span style="color: red;">*</span></label>
                         <input type="text" id="editInfoTitle" value="${this.escapeHtml(this.idsData.title)}" required>
                         <small>${t('editor.requiredField')}</small>
                     </div>
                     <div class="form-group">
-                        <label>Version:</label>
+                        <label>${t('editor.labelVersion')}</label>
                         <input type="text" id="editInfoVersion" value="${this.escapeHtml(this.idsData.version || '')}" placeholder="${t('editor.example')} 1.0">
                     </div>
                     <div class="form-group">
-                        <label>Author:</label>
+                        <label>${t('editor.labelAuthor')}</label>
                         <input type="email" id="editInfoAuthor" value="${this.escapeHtml(this.idsData.author || '')}" placeholder="${t('editor.authorName')}">
                     </div>
                     <div class="form-group">
-                        <label>Date:</label>
+                        <label>${t('editor.labelDate')}</label>
                         <input type="date" id="editInfoDate" value="${this.idsData.date || ''}">
                     </div>
                     <div class="form-group">
-                        <label>Copyright:</label>
+                        <label>${t('editor.labelCopyright')}</label>
                         <input type="text" id="editInfoCopyright" value="${this.escapeHtml(this.idsData.copyright || '')}" placeholder="Copyright">
                     </div>
                     <div class="form-group">
-                        <label>Description:</label>
+                        <label>${t('editor.labelDescription')}</label>
                         <textarea id="editInfoDescription" rows="3">${this.escapeHtml(this.idsData.description || '')}</textarea>
                         <small>${t('editor.purposeDesc')}</small>
                     </div>
                     <div class="form-group">
-                        <label>Purpose:</label>
+                        <label>${t('editor.labelPurpose')}</label>
                         <textarea id="editInfoPurpose" rows="2">${this.escapeHtml(this.idsData.purpose || '')}</textarea>
                         <small>${t('editor.purposeUse')}</small>
                     </div>
                     <div class="form-group">
-                        <label>Milestone:</label>
+                        <label>${t('editor.labelMilestone')}</label>
                         <input type="text" id="editInfoMilestone" value="${this.escapeHtml(this.idsData.milestone || '')}" placeholder="${t('editor.example')} Design, Construction, As-Built">
                         <small>${t('editor.projectPhase')}</small>
                     </div>

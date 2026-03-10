@@ -163,17 +163,17 @@ class BsddAutocomplete {
     }
 
     showLoading() {
-        this.dropdownContent.innerHTML = '<div class="bsdd-loading">Loading...</div>';
+        this.dropdownContent.innerHTML = `<div class="bsdd-loading">${t('bsdd.loading')}</div>`;
         this.showDropdown();
     }
 
     showNoResults() {
-        this.dropdownContent.innerHTML = '<div class="bsdd-no-results">No results found</div>';
+        this.dropdownContent.innerHTML = `<div class="bsdd-no-results">${t('bsdd.noResults')}</div>`;
         this.showDropdown();
     }
 
     showError(message) {
-        this.dropdownContent.innerHTML = `<div class="bsdd-error">Connection error</div>`;
+        this.dropdownContent.innerHTML = `<div class="bsdd-error">${t('bsdd.connectionError')}</div>`;
         this.showDropdown();
     }
 
