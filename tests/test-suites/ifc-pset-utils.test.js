@@ -66,3 +66,25 @@ describe('IfcPsetUtils.addPropertyIdToPset', () => {
         expect(result).toBe("#100=IFCPROPERTYSET('g',$,'Name',$,(#42,#999));");
     });
 });
+
+describe('IfcPsetUtils.parsePropertyName', () => {
+    it('should extract name from IFCPROPERTYSINGLEVALUE', () => {
+        const line = "#200=IFCPROPERTYSINGLEVALUE('FireRating',$,IFCLABEL('EI60'),$);";
+        expect(IfcPsetUtils.parsePropertyName(line)).toBe('FireRating');
+    });
+
+    it('should extract name from IFCQUANTITYLENGTH', () => {
+        const line = "#201=IFCQUANTITYLENGTH('Width',$,$,5.0);";
+        expect(IfcPsetUtils.parsePropertyName(line)).toBe('Width');
+    });
+
+    it('should unescape doubled single quotes', () => {
+        const line = "#202=IFCPROPERTYSINGLEVALUE('O''Brien',$,IFCLABEL('value'),$);";
+        expect(IfcPsetUtils.parsePropertyName(line)).toBe("O'Brien");
+    });
+
+    it('should return null when no quoted name found', () => {
+        const line = "#203=IFCPROPERTYSINGLEVALUE($,$,$,$);";
+        expect(IfcPsetUtils.parsePropertyName(line)).toBeNull();
+    });
+});
