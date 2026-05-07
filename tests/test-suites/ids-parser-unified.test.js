@@ -179,3 +179,31 @@ describe('IDSParser.extractSpecifications', () => {
         expect(specs[0].maxOccurs).toBeUndefined();
     });
 });
+
+describe('IDSParser.parse', () => {
+    it('should parse complete IDS xmlString', () => {
+        const xml = `<?xml version="1.0"?>
+            <ids xmlns="http://standards.buildingsmart.org/IDS">
+                <info><title>Test</title></info>
+                <specifications>
+                    <specification name="S1" ifcVersion="IFC4">
+                        <applicability minOccurs="0" maxOccurs="unbounded">
+                            <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+                        </applicability>
+                        <requirements/>
+                    </specification>
+                </specifications>
+            </ids>`;
+        const result = IDSParser.parse(xml);
+        expect(result.error).toBeNull();
+        expect(result.info.title).toBe('Test');
+        expect(result.specifications.length).toBe(1);
+    });
+
+    it('should return error object on malformed XML', () => {
+        const result = IDSParser.parse('<not valid xml');
+        expect(result.error).toBeDefined();
+        expect(result.error.message).toBeDefined();
+        expect(result.specifications).toEqual([]);
+    });
+});
