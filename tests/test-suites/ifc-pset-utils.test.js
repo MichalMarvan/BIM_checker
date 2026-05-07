@@ -142,3 +142,59 @@ describe('IfcPsetUtils.findPsetOnElement', () => {
         expect(result).toBeNull();
     });
 });
+
+describe('IfcPsetUtils.decodeIfcString', () => {
+    it('should decode UTF-16 X2 sequences', () => {
+        // \X2\017D\X0\ = Ž (U+017D)
+        expect(IfcPsetUtils.decodeIfcString('S\\X2\\017D\\X0\\_test')).toBe('SŽ_test');
+    });
+
+    it('should decode Latin-1 X sequences', () => {
+        // \X\E1 = á (0xE1)
+        expect(IfcPsetUtils.decodeIfcString('F\\X\\E1ze')).toBe('Fáze');
+    });
+
+    it('should handle mixed encoding', () => {
+        expect(IfcPsetUtils.decodeIfcString('S\\X2\\017D\\X0\\_I_F\\X\\E1ze projektu')).toBe('SŽ_I_Fáze projektu');
+    });
+
+    it('should be idempotent on plain ASCII', () => {
+        expect(IfcPsetUtils.decodeIfcString('Pset_WallCommon')).toBe('Pset_WallCommon');
+    });
+
+    it('should handle null/empty', () => {
+        expect(IfcPsetUtils.decodeIfcString('')).toBe('');
+        expect(IfcPsetUtils.decodeIfcString(null)).toBe(null);
+    });
+});
+
+describe('IfcPsetUtils.parsePropertyName decodes IFC encoding', () => {
+    it('should return decoded name for UTF-16 encoded property', () => {
+        // Real IFC line with encoded "SŽ_I_Fáze projektu"
+        const line = "#95=IFCPROPERTYSINGLEVALUE('S\\X2\\017D\\X0\\_I_F\\X\\E1ze projektu',$,IFCTEXT('DSPS'),$);";
+        expect(IfcPsetUtils.parsePropertyName(line)).toBe('SŽ_I_Fáze projektu');
+    });
+});
+
+describe('IfcPsetUtils.findPsetOnElement decodes pset name', () => {
+    it('should match pset whose stored name has IFC encoding', () => {
+        const propertySetMap = new Map();
+        propertySetMap.set('100', {
+            lineIndex: 5,
+            // Encoded "SŽ_Pset" with X2 sequence
+            params: "'pset-guid',$,'S\\X2\\017D\\X0\\_Pset',$,(#200)",
+            line: "#100=IFCPROPERTYSET(...)",
+            type: 'IFCPROPERTYSET'
+        });
+        const relDefinesMap = new Map();
+        relDefinesMap.set('300', {
+            lineIndex: 8,
+            params: "'rel-guid',$,$,$,(#10),#100",
+            line: "#300=IFCRELDEFINESBYPROPERTIES(...)"
+        });
+        // User passes the DECODED name, not the encoded one
+        const result = IfcPsetUtils.findPsetOnElement('10', 'SŽ_Pset', relDefinesMap, propertySetMap);
+        expect(result).toBeDefined();
+        expect(result.id).toBe('100');
+    });
+});

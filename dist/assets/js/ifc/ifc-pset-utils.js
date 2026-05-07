@@ -5,6 +5,30 @@
 window.IfcPsetUtils = (function() {
     'use strict';
 
+    // ISO 10303-21 / IFC string encoding decoder.
+    // Handles \X\HH (Latin-1), \X2\HHHH...\X0\ (UTF-16), \X4\HHHHHHHH...\X0\ (UTF-32),
+    // and \S\X (Latin-1 supplement). Idempotent on already-decoded strings.
+    function decodeIfcString(str) {
+        if (!str) return str;
+        str = str.replace(/\\S\\(.)/g, (_, ch) => String.fromCharCode(ch.charCodeAt(0) + 128));
+        str = str.replace(/\\X2\\([0-9A-F]+)\\X0\\/gi, (_, hex) => {
+            let out = '';
+            for (let i = 0; i < hex.length; i += 4) {
+                out += String.fromCharCode(parseInt(hex.substr(i, 4), 16));
+            }
+            return out;
+        });
+        str = str.replace(/\\X4\\([0-9A-F]+)\\X0\\/gi, (_, hex) => {
+            let out = '';
+            for (let i = 0; i < hex.length; i += 8) {
+                out += String.fromCodePoint(parseInt(hex.substr(i, 8), 16));
+            }
+            return out;
+        });
+        str = str.replace(/\\X\\([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+        return str;
+    }
+
     function parsePsetHasProperties(params) {
         if (!params) return [];
         // HasProperties is the LAST tuple in the params: "...,(#1,#2,#3)"
@@ -32,7 +56,7 @@ window.IfcPsetUtils = (function() {
         const body = bodyMatch[1];
         const nameMatch = body.match(/^'((?:[^']|'')*)'/);
         if (!nameMatch) return null;
-        return nameMatch[1].replace(/''/g, "'");
+        return decodeIfcString(nameMatch[1].replace(/''/g, "'"));
     }
     function findPsetOnElement(entityId, psetName, relDefinesMap, propertySetMap) {
         // IFCRELDEFINESBYPROPERTIES params: 'guid', $, $, $, (relatedObjects...), #relatingPset
@@ -51,7 +75,7 @@ window.IfcPsetUtils = (function() {
             // Check pset name (3rd quoted string in params: 'guid', $, 'Name', ...)
             const nameMatch = pset.params.match(/'(?:[^']|'')*'\s*,\s*\$?[^,]*,\s*'((?:[^']|'')*)'/);
             if (!nameMatch) continue;
-            const foundName = nameMatch[1].replace(/''/g, "'");
+            const foundName = decodeIfcString(nameMatch[1].replace(/''/g, "'"));
             if (foundName === psetName) {
                 return { id: psetId, ...pset };
             }
@@ -59,5 +83,5 @@ window.IfcPsetUtils = (function() {
         return null;
     }
 
-    return { parsePsetHasProperties, addPropertyIdToPset, parsePropertyName, findPsetOnElement };
+    return { parsePsetHasProperties, addPropertyIdToPset, parsePropertyName, findPsetOnElement, decodeIfcString };
 })();
