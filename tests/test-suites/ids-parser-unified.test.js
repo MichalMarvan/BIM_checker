@@ -79,3 +79,63 @@ describe('IDSParser.extractValue', () => {
         expect(v.maxInclusive).toBe('100');
     });
 });
+
+describe('IDSParser.extractFacet', () => {
+    function parseSpec(xml) {
+        return new DOMParser().parseFromString(xml, 'text/xml');
+    }
+
+    it('should extract entity facet with simple name', () => {
+        const doc = parseSpec(`<applicability xmlns="x"><entity><name><simpleValue>IFCWALL</simpleValue></name></entity></applicability>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('entity'), 'entity');
+        expect(facet.type).toBe('entity');
+        expect(facet.name.type).toBe('simple');
+        expect(facet.name.value).toBe('IFCWALL');
+        expect(facet.cardinality).toBe('required');
+    });
+
+    it('should extract entity facet with predefinedType', () => {
+        const doc = parseSpec(`<applicability xmlns="x"><entity>
+            <name><simpleValue>IFCWALL</simpleValue></name>
+            <predefinedType><simpleValue>STANDARD</simpleValue></predefinedType>
+        </entity></applicability>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('entity'), 'entity');
+        expect(facet.predefinedType.value).toBe('STANDARD');
+    });
+
+    it('should extract property facet with propertySet + baseName', () => {
+        const doc = parseSpec(`<requirements xmlns="x"><property cardinality="required">
+            <propertySet><simpleValue>Pset_WallCommon</simpleValue></propertySet>
+            <baseName><simpleValue>FireRating</simpleValue></baseName>
+        </property></requirements>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('property'), 'property');
+        expect(facet.type).toBe('property');
+        expect(facet.propertySet.value).toBe('Pset_WallCommon');
+        expect(facet.baseName.value).toBe('FireRating');
+        expect(facet.cardinality).toBe('required');
+    });
+
+    it('should extract uri attribute when present', () => {
+        const doc = parseSpec(`<applicability xmlns="x"><classification uri="https://bsdd/x"><name><simpleValue>OmniClass</simpleValue></name></classification></applicability>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('classification'), 'classification');
+        expect(facet.uri).toBe('https://bsdd/x');
+    });
+});
+
+describe('IDSParser.extractFacets', () => {
+    it('should extract all facet types from a parent element', () => {
+        const xml = `<applicability xmlns="x">
+            <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+            <property><propertySet><simpleValue>Pset</simpleValue></propertySet><baseName><simpleValue>P</simpleValue></baseName></property>
+        </applicability>`;
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        const facets = IDSParser.extractFacets(doc.querySelector('applicability'));
+        expect(facets.length).toBe(2);
+        expect(facets[0].type).toBe('entity');
+        expect(facets[1].type).toBe('property');
+    });
+
+    it('should return empty array when element is null', () => {
+        expect(IDSParser.extractFacets(null)).toEqual([]);
+    });
+});

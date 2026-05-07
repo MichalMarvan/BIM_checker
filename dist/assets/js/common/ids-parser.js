@@ -34,8 +34,57 @@ window.IDSParser = (function() {
         return info;
     }
     function extractSpecifications(_xmlDoc) { return []; }
-    function extractFacets(_facetsElement) { return []; }
-    function extractFacet(_element, type) { return { type }; }
+    function extractFacets(facetsElement) {
+        if (!facetsElement) return [];
+        const facets = [];
+        const types = ['entity', 'partOf', 'classification', 'attribute', 'property', 'material'];
+        for (const type of types) {
+            const elements = facetsElement.querySelectorAll(type);
+            for (const el of elements) {
+                if (el.parentNode !== facetsElement) continue;  // direct children only
+                facets.push(extractFacet(el, type));
+            }
+        }
+        return facets;
+    }
+
+    function extractFacet(element, type) {
+        const facet = { type };
+
+        const nameElem = element.querySelector(':scope > name, :scope > baseName');
+        if (nameElem) facet.name = extractValue(nameElem);
+
+        const baseNameElem = type === 'property' ? element.querySelector(':scope > baseName') : null;
+        if (baseNameElem) facet.baseName = extractValue(baseNameElem);
+
+        const valueElem = element.querySelector(':scope > value');
+        if (valueElem) facet.value = extractValue(valueElem);
+
+        if (type === 'property') {
+            const psetElem = element.querySelector(':scope > propertySet, :scope > propertyset');
+            if (psetElem) facet.propertySet = extractValue(psetElem);
+        }
+
+        if (type === 'partOf') {
+            const relElem = element.querySelector(':scope > relation');
+            if (relElem) facet.relation = extractValue(relElem);
+        }
+
+        if (type === 'classification') {
+            const sysElem = element.querySelector(':scope > system');
+            if (sysElem) facet.system = extractValue(sysElem);
+        }
+
+        const predefElem = element.querySelector(':scope > predefinedType');
+        if (predefElem) facet.predefinedType = extractValue(predefElem);
+
+        facet.cardinality = element.getAttribute('cardinality') || 'required';
+
+        const uri = element.getAttribute('uri');
+        if (uri) facet.uri = uri;
+
+        return facet;
+    }
     function extractValue(element) {
         const simple = element.querySelector('simpleValue');
         if (simple) return { type: 'simple', value: simple.textContent.trim() };
