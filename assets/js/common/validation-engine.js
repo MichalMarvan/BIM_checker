@@ -44,8 +44,43 @@ const ValidationEngine = (function() {
         }
         if (!nameMatch) return false;
 
-        // PredefinedType (Task 15 — skip if no predefinedType on facet)
+        // PredefinedType check
+        if (facet.predefinedType) return checkPredefinedType(entity, facet.predefinedType, ctx);
         return true;
+    }
+
+    /**
+     * Check predefinedType attribute of entity against facet predefinedType
+     * @param {Object} entity
+     * @param {Object} facetPredef
+     * @param {Object} [ctx]
+     * @returns {boolean}
+     */
+    function checkPredefinedType(entity, facetPredef, ctx) {
+        if (!ctx || !ctx.getPredefinedTypeIndex) return true; // no ctx → skip
+        const idx = ctx.getPredefinedTypeIndex(entity.entity);
+        if (idx === null) return false;
+        if (!entity.params) return false;
+
+        const params = ctx.splitParams(entity.params);
+        let actual = ctx.unwrapEnumValue(params[idx]);
+
+        if (actual === 'USERDEFINED') {
+            const objIdx = ctx.getObjectTypeIndex(entity.entity);
+            if (objIdx !== null) {
+                actual = ctx.unwrapString(params[objIdx]);
+            }
+        }
+        if (actual === null) return false;
+
+        if (facetPredef.type === 'simple') return actual === facetPredef.value;
+        if (facetPredef.type === 'enumeration' && Array.isArray(facetPredef.values)) {
+            return facetPredef.values.includes(actual);
+        }
+        if (facetPredef.type === 'restriction' && facetPredef.isRegex) {
+            return new RegExp(facetPredef.pattern).test(actual);
+        }
+        return false;
     }
 
     /**
@@ -277,6 +312,7 @@ const ValidationEngine = (function() {
 
     return {
         checkEntityFacet,
+        checkPredefinedType,
         checkPropertyFacet,
         checkAttributeFacet,
         checkFacetMatch,
