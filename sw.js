@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'bim-checker-v3';
+const CACHE_VERSION = 'bim-checker-v4';
 const ASSETS_TO_CACHE = [
     './index.html',
     './favicon.svg',
@@ -45,6 +45,7 @@ const ASSETS_TO_CACHE = [
     './assets/js/ids/ids-excel-template.js',
     './assets/js/ids/ids-editor-core.js',
     './assets/js/ids/ids-editor-modals.js',
+    './assets/js/ifc/ifc-pset-utils.js',
     './assets/js/ifc/viewer-core.js',
     './assets/js/ifc/viewer-parser.js',
     './assets/js/ifc/viewer-init.js',
