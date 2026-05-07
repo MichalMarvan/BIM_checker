@@ -104,21 +104,19 @@ function handleIDSFiles(files) {
     idsFiles_filtered.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
-            try {
-                const idsData = parseIDS(e.target.result, file.name);
+            const idsData = parseIDS(e.target.result, file.name);
+            if (idsData) {
                 newIdsFiles.push({
                     fileName: file.name,
                     data: idsData
                 });
-                processed++;
+            }
+            processed++;
 
-                if (processed === idsFiles_filtered.length) {
-                    idsFiles.push(...newIdsFiles);
-                    updateIDSFileList();
-                    updateValidateButton();
-                }
-            } catch (error) {
-                showError(t('validator.error.idsLoadError') + ' ' + file.name + ': ' + error.message);
+            if (processed === idsFiles_filtered.length) {
+                idsFiles.push(...newIdsFiles);
+                updateIDSFileList();
+                updateValidateButton();
             }
         };
         reader.onerror = () => {
@@ -221,147 +219,12 @@ function showError(message) {
 
 // IDS Parsing
 function parseIDS(xmlString, fileName) {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
-
-    const parserError = xmlDoc.querySelector('parsererror');
-    if (parserError) {
-        throw new Error(t('validator.error.invalidXml'));
+    const result = IDSParser.parse(xmlString);
+    if (result.error) {
+        showError(t('validator.error.idsLoadError') + ' ' + fileName + ': ' + result.error.message);
+        return null;
     }
-
-    return {
-        info: extractIDSInfo(xmlDoc),
-        specifications: extractSpecifications(xmlDoc)
-    };
-}
-
-function extractIDSInfo(xmlDoc) {
-    const info = {};
-    const infoElement = xmlDoc.querySelector('info');
-
-    if (infoElement) {
-        info.title = infoElement.querySelector('title')?.textContent || t('validator.info.noTitle');
-        info.version = infoElement.querySelector('version')?.textContent || '';
-    }
-
-    return info;
-}
-
-function extractSpecifications(xmlDoc) {
-    const specifications = [];
-    const specElements = xmlDoc.querySelectorAll('specification');
-
-    specElements.forEach((spec, index) => {
-        const specification = {
-            name: spec.getAttribute('name') || `${t('validator.info.noSpec')} ${index + 1}`,
-            ifcVersion: spec.getAttribute('ifcVersion') || 'IFC4',
-            applicability: extractFacets(spec.querySelector('applicability')),
-            requirements: extractFacets(spec.querySelector('requirements'))
-        };
-        specifications.push(specification);
-    });
-
-    return specifications;
-}
-
-function extractFacets(facetsElement) {
-    if (!facetsElement) {
-        return [];
-    }
-
-    const facets = [];
-    const facetTypes = ['entity', 'partOf', 'classification', 'attribute', 'property', 'material'];
-
-    facetTypes.forEach(type => {
-        const elements = facetsElement.querySelectorAll(type);
-        elements.forEach(elem => {
-            facets.push(extractFacet(elem, type));
-        });
-    });
-
-    return facets;
-}
-
-function extractFacet(element, type) {
-    const facet = { type };
-
-    const nameElem = element.querySelector('name, baseName');
-    if (nameElem) {
-        facet.name = extractValue(nameElem);
-    }
-
-    const valueElem = element.querySelector('value');
-    if (valueElem) {
-        facet.value = extractValue(valueElem);
-    }
-
-    if (type === 'property') {
-        const propSetElem = element.querySelector('propertySet, propertyset');
-        if (propSetElem) {
-            facet.propertySet = extractValue(propSetElem);
-        }
-    }
-
-    if (type === 'partOf') {
-        const relationElem = element.querySelector('relation');
-        if (relationElem) {
-            facet.relation = extractValue(relationElem);
-        }
-    }
-
-    if (type === 'classification') {
-        const systemElem = element.querySelector('system');
-        if (systemElem) {
-            facet.system = extractValue(systemElem);
-        }
-    }
-
-    const predefinedElem = element.querySelector('predefinedType');
-    if (predefinedElem) {
-        facet.predefinedType = extractValue(predefinedElem);
-    }
-
-    facet.cardinality = element.getAttribute('cardinality') || 'required';
-
-    return facet;
-}
-
-function extractValue(element) {
-    const simpleValue = element.querySelector('simpleValue');
-    if (simpleValue) {
-        return { type: 'simple', value: simpleValue.textContent };
-    }
-
-    const restriction = element.querySelector('restriction');
-    if (restriction) {
-        return extractRestriction(restriction);
-    }
-
-    return { type: 'simple', value: element.textContent };
-}
-
-function extractRestriction(restriction) {
-    const result = { type: 'restriction' };
-
-    let pattern = restriction.querySelector('pattern');
-    if (!pattern) {
-        pattern = restriction.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'pattern')[0];
-    }
-    if (pattern) {
-        result.pattern = pattern.getAttribute('value') || pattern.textContent;
-        result.isRegex = true;
-    }
-
-    let enumeration = restriction.querySelectorAll('enumeration');
-    if (!enumeration.length) {
-        enumeration = restriction.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'enumeration');
-    }
-    if (enumeration.length > 0) {
-        result.type = 'enumeration';
-        result.values = Array.from(enumeration).map(e => e.getAttribute('value'));
-    }
-
-    return result;
+    return { info: result.info, specifications: result.specifications };
 }
 
 // Validation
