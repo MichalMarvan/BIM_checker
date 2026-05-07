@@ -59,7 +59,12 @@ export default [
                 ValidationOrchestrator: 'readonly',
                 WorkerPool: 'readonly',
                 ProgressPanel: 'readonly',
-                parseIFCFileAsync: 'readonly'
+                parseIFCFileAsync: 'readonly',
+                // Phase 1: unified IDS parser + IFC hierarchy + XSD validator
+                IDSParser: 'readonly',
+                IFCHierarchy: 'readonly',
+                IfcParams: 'readonly',
+                IDSXSDValidator: 'readonly'
             }
         },
         rules: {
