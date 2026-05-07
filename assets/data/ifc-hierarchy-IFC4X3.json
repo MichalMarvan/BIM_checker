@@ -1,0 +1,4387 @@
+{
+  "schemaVersion": "IFC4X3",
+  "generatedFrom": "https://standards.buildingsmart.org/IFC/RELEASE/IFC4_3/HTML/IFC4X3_ADD2.exp",
+  "generatedAt": "2026-05-07T10:41:11.252Z",
+  "classes": {
+    "IFCACTIONREQUEST": {
+      "parent": "IFCCONTROL",
+      "predefinedTypeIndex": 6,
+      "objectTypeIndex": 4
+    },
+    "IFCACTOR": {
+      "parent": "IFCOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCACTORROLE": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCACTUATOR": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCACTUATORTYPE": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCADDRESS": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCADVANCEDBREP": {
+      "parent": "IFCMANIFOLDSOLIDBREP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCADVANCEDBREPWITHVOIDS": {
+      "parent": "IFCADVANCEDBREP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCADVANCEDFACE": {
+      "parent": "IFCFACESURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAIRTERMINAL": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCAIRTERMINALBOX": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCAIRTERMINALBOXTYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCAIRTERMINALTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCAIRTOAIRHEATRECOVERY": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCAIRTOAIRHEATRECOVERYTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCALARM": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCALARMTYPE": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCALIGNMENT": {
+      "parent": "IFCLINEARPOSITIONINGELEMENT",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCALIGNMENTCANT": {
+      "parent": "IFCLINEARELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCALIGNMENTCANTSEGMENT": {
+      "parent": "IFCALIGNMENTPARAMETERSEGMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": null
+    },
+    "IFCALIGNMENTHORIZONTAL": {
+      "parent": "IFCLINEARELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCALIGNMENTHORIZONTALSEGMENT": {
+      "parent": "IFCALIGNMENTPARAMETERSEGMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": null
+    },
+    "IFCALIGNMENTPARAMETERSEGMENT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCALIGNMENTSEGMENT": {
+      "parent": "IFCLINEARELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCALIGNMENTVERTICAL": {
+      "parent": "IFCLINEARELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCALIGNMENTVERTICALSEGMENT": {
+      "parent": "IFCALIGNMENTPARAMETERSEGMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": null
+    },
+    "IFCANNOTATION": {
+      "parent": "IFCPRODUCT",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCANNOTATIONFILLAREA": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAPPLICATION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAPPLIEDVALUE": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAPPROVAL": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAPPROVALRELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCARBITRARYCLOSEDPROFILEDEF": {
+      "parent": "IFCPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCARBITRARYOPENPROFILEDEF": {
+      "parent": "IFCPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCARBITRARYPROFILEDEFWITHVOIDS": {
+      "parent": "IFCARBITRARYCLOSEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCASSET": {
+      "parent": "IFCGROUP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCASYMMETRICISHAPEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAUDIOVISUALAPPLIANCE": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCAUDIOVISUALAPPLIANCETYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCAXIS1PLACEMENT": {
+      "parent": "IFCPLACEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAXIS2PLACEMENT2D": {
+      "parent": "IFCPLACEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAXIS2PLACEMENT3D": {
+      "parent": "IFCPLACEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCAXIS2PLACEMENTLINEAR": {
+      "parent": "IFCPLACEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBSPLINECURVE": {
+      "parent": "IFCBOUNDEDCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBSPLINECURVEWITHKNOTS": {
+      "parent": "IFCBSPLINECURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBSPLINESURFACE": {
+      "parent": "IFCBOUNDEDSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBSPLINESURFACEWITHKNOTS": {
+      "parent": "IFCBSPLINESURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBEAM": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCBEAMTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCBEARING": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCBEARINGTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCBLOBTEXTURE": {
+      "parent": "IFCSURFACETEXTURE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBLOCK": {
+      "parent": "IFCCSGPRIMITIVE3D",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOILER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCBOILERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCBOOLEANCLIPPINGRESULT": {
+      "parent": "IFCBOOLEANRESULT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOOLEANRESULT": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOREHOLE": {
+      "parent": "IFCGEOTECHNICALASSEMBLY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDARYCONDITION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDARYCURVE": {
+      "parent": "IFCCOMPOSITECURVEONSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDARYEDGECONDITION": {
+      "parent": "IFCBOUNDARYCONDITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDARYFACECONDITION": {
+      "parent": "IFCBOUNDARYCONDITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDARYNODECONDITION": {
+      "parent": "IFCBOUNDARYCONDITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDARYNODECONDITIONWARPING": {
+      "parent": "IFCBOUNDARYNODECONDITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDEDCURVE": {
+      "parent": "IFCCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDEDSURFACE": {
+      "parent": "IFCSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOUNDINGBOX": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBOXEDHALFSPACE": {
+      "parent": "IFCHALFSPACESOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBRIDGE": {
+      "parent": "IFCFACILITY",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCBRIDGEPART": {
+      "parent": "IFCFACILITYPART",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCBUILDING": {
+      "parent": "IFCFACILITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBUILDINGELEMENTPART": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCBUILDINGELEMENTPARTTYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCBUILDINGELEMENTPROXY": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCBUILDINGELEMENTPROXYTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCBUILDINGSTOREY": {
+      "parent": "IFCSPATIALSTRUCTUREELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBUILDINGSYSTEM": {
+      "parent": "IFCSYSTEM",
+      "predefinedTypeIndex": 5,
+      "objectTypeIndex": 4
+    },
+    "IFCBUILTELEMENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBUILTELEMENTTYPE": {
+      "parent": "IFCELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCBUILTSYSTEM": {
+      "parent": "IFCSYSTEM",
+      "predefinedTypeIndex": 5,
+      "objectTypeIndex": 4
+    },
+    "IFCBURNER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCBURNERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCSHAPEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCABLECARRIERFITTING": {
+      "parent": "IFCFLOWFITTING",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCABLECARRIERFITTINGTYPE": {
+      "parent": "IFCFLOWFITTINGTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCABLECARRIERSEGMENT": {
+      "parent": "IFCFLOWSEGMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCABLECARRIERSEGMENTTYPE": {
+      "parent": "IFCFLOWSEGMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCABLEFITTING": {
+      "parent": "IFCFLOWFITTING",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCABLEFITTINGTYPE": {
+      "parent": "IFCFLOWFITTINGTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCABLESEGMENT": {
+      "parent": "IFCFLOWSEGMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCABLESEGMENTTYPE": {
+      "parent": "IFCFLOWSEGMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCAISSONFOUNDATION": {
+      "parent": "IFCDEEPFOUNDATION",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCAISSONFOUNDATIONTYPE": {
+      "parent": "IFCDEEPFOUNDATIONTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANPOINT": {
+      "parent": "IFCPOINT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANPOINTLIST": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANPOINTLIST2D": {
+      "parent": "IFCCARTESIANPOINTLIST",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANPOINTLIST3D": {
+      "parent": "IFCCARTESIANPOINTLIST",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANTRANSFORMATIONOPERATOR": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANTRANSFORMATIONOPERATOR2D": {
+      "parent": "IFCCARTESIANTRANSFORMATIONOPERATOR",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANTRANSFORMATIONOPERATOR2DNONUNIFORM": {
+      "parent": "IFCCARTESIANTRANSFORMATIONOPERATOR2D",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANTRANSFORMATIONOPERATOR3D": {
+      "parent": "IFCCARTESIANTRANSFORMATIONOPERATOR",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM": {
+      "parent": "IFCCARTESIANTRANSFORMATIONOPERATOR3D",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCENTERLINEPROFILEDEF": {
+      "parent": "IFCARBITRARYOPENPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCHILLER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCHILLERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCHIMNEY": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCHIMNEYTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCIRCLE": {
+      "parent": "IFCCONIC",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCIRCLEHOLLOWPROFILEDEF": {
+      "parent": "IFCCIRCLEPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCIRCLEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCIVILELEMENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCIVILELEMENTTYPE": {
+      "parent": "IFCELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCLASSIFICATION": {
+      "parent": "IFCEXTERNALINFORMATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCLASSIFICATIONREFERENCE": {
+      "parent": "IFCEXTERNALREFERENCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCLOSEDSHELL": {
+      "parent": "IFCCONNECTEDFACESET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCLOTHOID": {
+      "parent": "IFCSPIRAL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOIL": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCOILTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCOLOURRGB": {
+      "parent": "IFCCOLOURSPECIFICATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOLOURRGBLIST": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOLOURSPECIFICATION": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOLUMN": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCOLUMNTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCOMMUNICATIONSAPPLIANCE": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCOMMUNICATIONSAPPLIANCETYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCOMPLEXPROPERTY": {
+      "parent": "IFCPROPERTY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOMPLEXPROPERTYTEMPLATE": {
+      "parent": "IFCPROPERTYTEMPLATE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOMPOSITECURVE": {
+      "parent": "IFCBOUNDEDCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOMPOSITECURVEONSURFACE": {
+      "parent": "IFCCOMPOSITECURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOMPOSITECURVESEGMENT": {
+      "parent": "IFCSEGMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOMPOSITEPROFILEDEF": {
+      "parent": "IFCPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOMPRESSOR": {
+      "parent": "IFCFLOWMOVINGDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCOMPRESSORTYPE": {
+      "parent": "IFCFLOWMOVINGDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCONDENSER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCONDENSERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCONIC": {
+      "parent": "IFCCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONNECTEDFACESET": {
+      "parent": "IFCTOPOLOGICALREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONNECTIONCURVEGEOMETRY": {
+      "parent": "IFCCONNECTIONGEOMETRY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONNECTIONGEOMETRY": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONNECTIONPOINTECCENTRICITY": {
+      "parent": "IFCCONNECTIONPOINTGEOMETRY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONNECTIONPOINTGEOMETRY": {
+      "parent": "IFCCONNECTIONGEOMETRY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONNECTIONSURFACEGEOMETRY": {
+      "parent": "IFCCONNECTIONGEOMETRY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONNECTIONVOLUMEGEOMETRY": {
+      "parent": "IFCCONNECTIONGEOMETRY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONSTRAINT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONSTRUCTIONEQUIPMENTRESOURCE": {
+      "parent": "IFCCONSTRUCTIONRESOURCE",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCCONSTRUCTIONEQUIPMENTRESOURCETYPE": {
+      "parent": "IFCCONSTRUCTIONRESOURCETYPE",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": null
+    },
+    "IFCCONSTRUCTIONMATERIALRESOURCE": {
+      "parent": "IFCCONSTRUCTIONRESOURCE",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCCONSTRUCTIONMATERIALRESOURCETYPE": {
+      "parent": "IFCCONSTRUCTIONRESOURCETYPE",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": null
+    },
+    "IFCCONSTRUCTIONPRODUCTRESOURCE": {
+      "parent": "IFCCONSTRUCTIONRESOURCE",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCCONSTRUCTIONPRODUCTRESOURCETYPE": {
+      "parent": "IFCCONSTRUCTIONRESOURCETYPE",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": null
+    },
+    "IFCCONSTRUCTIONRESOURCE": {
+      "parent": "IFCRESOURCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONSTRUCTIONRESOURCETYPE": {
+      "parent": "IFCTYPERESOURCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONTEXT": {
+      "parent": "IFCOBJECTDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONTEXTDEPENDENTUNIT": {
+      "parent": "IFCNAMEDUNIT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONTROL": {
+      "parent": "IFCOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONTROLLER": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCONTROLLERTYPE": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCONVERSIONBASEDUNIT": {
+      "parent": "IFCNAMEDUNIT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONVERSIONBASEDUNITWITHOFFSET": {
+      "parent": "IFCCONVERSIONBASEDUNIT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCONVEYORSEGMENT": {
+      "parent": "IFCFLOWSEGMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCONVEYORSEGMENTTYPE": {
+      "parent": "IFCFLOWSEGMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCOOLEDBEAM": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCOOLEDBEAMTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCOOLINGTOWER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCOOLINGTOWERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCOORDINATEOPERATION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOORDINATEREFERENCESYSTEM": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOSINESPIRAL": {
+      "parent": "IFCSPIRAL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOSTITEM": {
+      "parent": "IFCCONTROL",
+      "predefinedTypeIndex": 6,
+      "objectTypeIndex": 4
+    },
+    "IFCCOSTSCHEDULE": {
+      "parent": "IFCCONTROL",
+      "predefinedTypeIndex": 6,
+      "objectTypeIndex": 4
+    },
+    "IFCCOSTVALUE": {
+      "parent": "IFCAPPLIEDVALUE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCOURSE": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCOURSETYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCOVERING": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCOVERINGTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCREWRESOURCE": {
+      "parent": "IFCCONSTRUCTIONRESOURCE",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCCREWRESOURCETYPE": {
+      "parent": "IFCCONSTRUCTIONRESOURCETYPE",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": null
+    },
+    "IFCCSGPRIMITIVE3D": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCSGSOLID": {
+      "parent": "IFCSOLIDMODEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURRENCYRELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURTAINWALL": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCCURTAINWALLTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCCURVE": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURVEBOUNDEDPLANE": {
+      "parent": "IFCBOUNDEDSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURVEBOUNDEDSURFACE": {
+      "parent": "IFCBOUNDEDSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURVESEGMENT": {
+      "parent": "IFCSEGMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURVESTYLE": {
+      "parent": "IFCPRESENTATIONSTYLE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURVESTYLEFONT": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURVESTYLEFONTANDSCALING": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCURVESTYLEFONTPATTERN": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCCYLINDRICALSURFACE": {
+      "parent": "IFCELEMENTARYSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDAMPER": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCDAMPERTYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCDEEPFOUNDATION": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDEEPFOUNDATIONTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDERIVEDPROFILEDEF": {
+      "parent": "IFCPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDERIVEDUNIT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDERIVEDUNITELEMENT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDIMENSIONALEXPONENTS": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDIRECTION": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDIRECTRIXCURVESWEPTAREASOLID": {
+      "parent": "IFCSWEPTAREASOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDIRECTRIXDERIVEDREFERENCESWEPTAREASOLID": {
+      "parent": "IFCFIXEDREFERENCESWEPTAREASOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDISCRETEACCESSORY": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCDISCRETEACCESSORYTYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONBOARD": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCDISTRIBUTIONBOARDTYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONCHAMBERELEMENT": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCDISTRIBUTIONCHAMBERELEMENTTYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONCIRCUIT": {
+      "parent": "IFCDISTRIBUTIONSYSTEM",
+      "predefinedTypeIndex": 6,
+      "objectTypeIndex": 4
+    },
+    "IFCDISTRIBUTIONCONTROLELEMENT": {
+      "parent": "IFCDISTRIBUTIONELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONCONTROLELEMENTTYPE": {
+      "parent": "IFCDISTRIBUTIONELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONELEMENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONELEMENTTYPE": {
+      "parent": "IFCELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONFLOWELEMENT": {
+      "parent": "IFCDISTRIBUTIONELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONFLOWELEMENTTYPE": {
+      "parent": "IFCDISTRIBUTIONELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDISTRIBUTIONPORT": {
+      "parent": "IFCPORT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCDISTRIBUTIONSYSTEM": {
+      "parent": "IFCSYSTEM",
+      "predefinedTypeIndex": 6,
+      "objectTypeIndex": 4
+    },
+    "IFCDOCUMENTINFORMATION": {
+      "parent": "IFCEXTERNALINFORMATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDOCUMENTINFORMATIONRELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDOCUMENTREFERENCE": {
+      "parent": "IFCEXTERNALREFERENCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDOOR": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCDOORLININGPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTYSET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDOORPANELPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTYSET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDOORTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCDRAUGHTINGPREDEFINEDCOLOUR": {
+      "parent": "IFCPREDEFINEDCOLOUR",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDRAUGHTINGPREDEFINEDCURVEFONT": {
+      "parent": "IFCPREDEFINEDCURVEFONT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCDUCTFITTING": {
+      "parent": "IFCFLOWFITTING",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCDUCTFITTINGTYPE": {
+      "parent": "IFCFLOWFITTINGTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCDUCTSEGMENT": {
+      "parent": "IFCFLOWSEGMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCDUCTSEGMENTTYPE": {
+      "parent": "IFCFLOWSEGMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCDUCTSILENCER": {
+      "parent": "IFCFLOWTREATMENTDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCDUCTSILENCERTYPE": {
+      "parent": "IFCFLOWTREATMENTDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCEARTHWORKSCUT": {
+      "parent": "IFCFEATUREELEMENTSUBTRACTION",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCEARTHWORKSELEMENT": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEARTHWORKSFILL": {
+      "parent": "IFCEARTHWORKSELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCEDGE": {
+      "parent": "IFCTOPOLOGICALREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEDGECURVE": {
+      "parent": "IFCEDGE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEDGELOOP": {
+      "parent": "IFCLOOP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCELECTRICAPPLIANCE": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCELECTRICAPPLIANCETYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCELECTRICDISTRIBUTIONBOARD": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCELECTRICDISTRIBUTIONBOARDTYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCELECTRICFLOWSTORAGEDEVICE": {
+      "parent": "IFCFLOWSTORAGEDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCELECTRICFLOWSTORAGEDEVICETYPE": {
+      "parent": "IFCFLOWSTORAGEDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCELECTRICFLOWTREATMENTDEVICE": {
+      "parent": "IFCFLOWTREATMENTDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCELECTRICFLOWTREATMENTDEVICETYPE": {
+      "parent": "IFCFLOWTREATMENTDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCELECTRICGENERATOR": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCELECTRICGENERATORTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCELECTRICMOTOR": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCELECTRICMOTORTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCELECTRICTIMECONTROL": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCELECTRICTIMECONTROLTYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCELEMENT": {
+      "parent": "IFCPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCELEMENTASSEMBLY": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCELEMENTASSEMBLYTYPE": {
+      "parent": "IFCELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCELEMENTCOMPONENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCELEMENTCOMPONENTTYPE": {
+      "parent": "IFCELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCELEMENTQUANTITY": {
+      "parent": "IFCQUANTITYSET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCELEMENTTYPE": {
+      "parent": "IFCTYPEPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCELEMENTARYSURFACE": {
+      "parent": "IFCSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCELLIPSE": {
+      "parent": "IFCCONIC",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCELLIPSEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCENERGYCONVERSIONDEVICE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCENERGYCONVERSIONDEVICETYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCENGINE": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCENGINETYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCEVAPORATIVECOOLER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCEVAPORATIVECOOLERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCEVAPORATOR": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCEVAPORATORTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCEVENT": {
+      "parent": "IFCPROCESS",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCEVENTTIME": {
+      "parent": "IFCSCHEDULINGTIME",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEVENTTYPE": {
+      "parent": "IFCTYPEPROCESS",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": null
+    },
+    "IFCEXTENDEDPROPERTIES": {
+      "parent": "IFCPROPERTYABSTRACTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTERNALINFORMATION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTERNALREFERENCE": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTERNALREFERENCERELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTERNALSPATIALELEMENT": {
+      "parent": "IFCEXTERNALSPATIALSTRUCTUREELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCEXTERNALSPATIALSTRUCTUREELEMENT": {
+      "parent": "IFCSPATIALELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTERNALLYDEFINEDHATCHSTYLE": {
+      "parent": "IFCEXTERNALREFERENCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTERNALLYDEFINEDSURFACESTYLE": {
+      "parent": "IFCEXTERNALREFERENCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTERNALLYDEFINEDTEXTFONT": {
+      "parent": "IFCEXTERNALREFERENCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTRUDEDAREASOLID": {
+      "parent": "IFCSWEPTAREASOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCEXTRUDEDAREASOLIDTAPERED": {
+      "parent": "IFCEXTRUDEDAREASOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACE": {
+      "parent": "IFCTOPOLOGICALREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACEBASEDSURFACEMODEL": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACEBOUND": {
+      "parent": "IFCTOPOLOGICALREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACEOUTERBOUND": {
+      "parent": "IFCFACEBOUND",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACESURFACE": {
+      "parent": "IFCFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACETEDBREP": {
+      "parent": "IFCMANIFOLDSOLIDBREP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACETEDBREPWITHVOIDS": {
+      "parent": "IFCFACETEDBREP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACILITY": {
+      "parent": "IFCSPATIALSTRUCTUREELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACILITYPART": {
+      "parent": "IFCSPATIALSTRUCTUREELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFACILITYPARTCOMMON": {
+      "parent": "IFCFACILITYPART",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCFAILURECONNECTIONCONDITION": {
+      "parent": "IFCSTRUCTURALCONNECTIONCONDITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFAN": {
+      "parent": "IFCFLOWMOVINGDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCFANTYPE": {
+      "parent": "IFCFLOWMOVINGDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCFASTENER": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCFASTENERTYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCFEATUREELEMENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFEATUREELEMENTADDITION": {
+      "parent": "IFCFEATUREELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFEATUREELEMENTSUBTRACTION": {
+      "parent": "IFCFEATUREELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFILLAREASTYLE": {
+      "parent": "IFCPRESENTATIONSTYLE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFILLAREASTYLEHATCHING": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFILLAREASTYLETILES": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFILTER": {
+      "parent": "IFCFLOWTREATMENTDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCFILTERTYPE": {
+      "parent": "IFCFLOWTREATMENTDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCFIRESUPPRESSIONTERMINAL": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCFIRESUPPRESSIONTERMINALTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCFIXEDREFERENCESWEPTAREASOLID": {
+      "parent": "IFCDIRECTRIXCURVESWEPTAREASOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWCONTROLLER": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWCONTROLLERTYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWFITTING": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWFITTINGTYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWINSTRUMENT": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCFLOWINSTRUMENTTYPE": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWMETER": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCFLOWMETERTYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWMOVINGDEVICE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWMOVINGDEVICETYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWSEGMENT": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWSEGMENTTYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWSTORAGEDEVICE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWSTORAGEDEVICETYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWTERMINAL": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWTERMINALTYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWTREATMENTDEVICE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFLOWTREATMENTDEVICETYPE": {
+      "parent": "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFOOTING": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCFOOTINGTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCFURNISHINGELEMENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFURNISHINGELEMENTTYPE": {
+      "parent": "IFCELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCFURNITURE": {
+      "parent": "IFCFURNISHINGELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCFURNITURETYPE": {
+      "parent": "IFCFURNISHINGELEMENTTYPE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": null
+    },
+    "IFCGEOGRAPHICCRS": {
+      "parent": "IFCCOORDINATEREFERENCESYSTEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOGRAPHICELEMENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCGEOGRAPHICELEMENTTYPE": {
+      "parent": "IFCELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCGEOMETRICCURVESET": {
+      "parent": "IFCGEOMETRICSET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOMETRICREPRESENTATIONCONTEXT": {
+      "parent": "IFCREPRESENTATIONCONTEXT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOMETRICREPRESENTATIONITEM": {
+      "parent": "IFCREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOMETRICREPRESENTATIONSUBCONTEXT": {
+      "parent": "IFCGEOMETRICREPRESENTATIONCONTEXT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOMETRICSET": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOMODEL": {
+      "parent": "IFCGEOTECHNICALASSEMBLY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOSLICE": {
+      "parent": "IFCGEOTECHNICALASSEMBLY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOTECHNICALASSEMBLY": {
+      "parent": "IFCGEOTECHNICALELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOTECHNICALELEMENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGEOTECHNICALSTRATUM": {
+      "parent": "IFCGEOTECHNICALELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCGRADIENTCURVE": {
+      "parent": "IFCCOMPOSITECURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGRID": {
+      "parent": "IFCPOSITIONINGELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGRIDAXIS": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGRIDPLACEMENT": {
+      "parent": "IFCOBJECTPLACEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCGROUP": {
+      "parent": "IFCOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCHALFSPACESOLID": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCHEATEXCHANGER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCHEATEXCHANGERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCHUMIDIFIER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCHUMIDIFIERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCISHAPEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCIMAGETEXTURE": {
+      "parent": "IFCSURFACETEXTURE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCIMPACTPROTECTIONDEVICE": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCIMPACTPROTECTIONDEVICETYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCINDEXEDCOLOURMAP": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCINDEXEDPOLYCURVE": {
+      "parent": "IFCBOUNDEDCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCINDEXEDPOLYGONALFACE": {
+      "parent": "IFCTESSELLATEDITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCINDEXEDPOLYGONALFACEWITHVOIDS": {
+      "parent": "IFCINDEXEDPOLYGONALFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCINDEXEDPOLYGONALTEXTUREMAP": {
+      "parent": "IFCINDEXEDTEXTUREMAP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCINDEXEDTEXTUREMAP": {
+      "parent": "IFCTEXTURECOORDINATE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCINDEXEDTRIANGLETEXTUREMAP": {
+      "parent": "IFCINDEXEDTEXTUREMAP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCINTERCEPTOR": {
+      "parent": "IFCFLOWTREATMENTDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCINTERCEPTORTYPE": {
+      "parent": "IFCFLOWTREATMENTDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCINTERSECTIONCURVE": {
+      "parent": "IFCSURFACECURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCINVENTORY": {
+      "parent": "IFCGROUP",
+      "predefinedTypeIndex": 5,
+      "objectTypeIndex": 4
+    },
+    "IFCIRREGULARTIMESERIES": {
+      "parent": "IFCTIMESERIES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCIRREGULARTIMESERIESVALUE": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCJUNCTIONBOX": {
+      "parent": "IFCFLOWFITTING",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCJUNCTIONBOXTYPE": {
+      "parent": "IFCFLOWFITTINGTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCKERB": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCKERBTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCLSHAPEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLABORRESOURCE": {
+      "parent": "IFCCONSTRUCTIONRESOURCE",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCLABORRESOURCETYPE": {
+      "parent": "IFCCONSTRUCTIONRESOURCETYPE",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": null
+    },
+    "IFCLAGTIME": {
+      "parent": "IFCSCHEDULINGTIME",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLAMP": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCLAMPTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCLIBRARYINFORMATION": {
+      "parent": "IFCEXTERNALINFORMATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIBRARYREFERENCE": {
+      "parent": "IFCEXTERNALREFERENCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTDISTRIBUTIONDATA": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTFIXTURE": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCLIGHTFIXTURETYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTINTENSITYDISTRIBUTION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTSOURCE": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTSOURCEAMBIENT": {
+      "parent": "IFCLIGHTSOURCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTSOURCEDIRECTIONAL": {
+      "parent": "IFCLIGHTSOURCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTSOURCEGONIOMETRIC": {
+      "parent": "IFCLIGHTSOURCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTSOURCEPOSITIONAL": {
+      "parent": "IFCLIGHTSOURCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIGHTSOURCESPOT": {
+      "parent": "IFCLIGHTSOURCEPOSITIONAL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLINE": {
+      "parent": "IFCCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLINEARELEMENT": {
+      "parent": "IFCPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLINEARPLACEMENT": {
+      "parent": "IFCOBJECTPLACEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLINEARPOSITIONINGELEMENT": {
+      "parent": "IFCPOSITIONINGELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLIQUIDTERMINAL": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCLIQUIDTERMINALTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCLOCALPLACEMENT": {
+      "parent": "IFCOBJECTPLACEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCLOOP": {
+      "parent": "IFCTOPOLOGICALREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMANIFOLDSOLIDBREP": {
+      "parent": "IFCSOLIDMODEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMAPCONVERSION": {
+      "parent": "IFCCOORDINATEOPERATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMAPCONVERSIONSCALED": {
+      "parent": "IFCMAPCONVERSION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMAPPEDITEM": {
+      "parent": "IFCREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMARINEFACILITY": {
+      "parent": "IFCFACILITY",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCMARINEPART": {
+      "parent": "IFCFACILITYPART",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCMATERIAL": {
+      "parent": "IFCMATERIALDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALCLASSIFICATIONRELATIONSHIP": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALCONSTITUENT": {
+      "parent": "IFCMATERIALDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALCONSTITUENTSET": {
+      "parent": "IFCMATERIALDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALDEFINITION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALDEFINITIONREPRESENTATION": {
+      "parent": "IFCPRODUCTREPRESENTATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALLAYER": {
+      "parent": "IFCMATERIALDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALLAYERSET": {
+      "parent": "IFCMATERIALDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALLAYERSETUSAGE": {
+      "parent": "IFCMATERIALUSAGEDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALLAYERWITHOFFSETS": {
+      "parent": "IFCMATERIALLAYER",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALLIST": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALPROFILE": {
+      "parent": "IFCMATERIALDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALPROFILESET": {
+      "parent": "IFCMATERIALDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALPROFILESETUSAGE": {
+      "parent": "IFCMATERIALUSAGEDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALPROFILESETUSAGETAPERING": {
+      "parent": "IFCMATERIALPROFILESETUSAGE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALPROFILEWITHOFFSETS": {
+      "parent": "IFCMATERIALPROFILE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALPROPERTIES": {
+      "parent": "IFCEXTENDEDPROPERTIES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALRELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMATERIALUSAGEDEFINITION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMEASUREWITHUNIT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMECHANICALFASTENER": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCMECHANICALFASTENERTYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCMEDICALDEVICE": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCMEDICALDEVICETYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCMEMBER": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCMEMBERTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCMETRIC": {
+      "parent": "IFCCONSTRAINT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMIRROREDPROFILEDEF": {
+      "parent": "IFCDERIVEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMOBILETELECOMMUNICATIONSAPPLIANCE": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCMOBILETELECOMMUNICATIONSAPPLIANCETYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCMONETARYUNIT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCMOORINGDEVICE": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCMOORINGDEVICETYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCMOTORCONNECTION": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCMOTORCONNECTIONTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCNAMEDUNIT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCNAVIGATIONELEMENT": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCNAVIGATIONELEMENTTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCOBJECT": {
+      "parent": "IFCOBJECTDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOBJECTDEFINITION": {
+      "parent": "IFCROOT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOBJECTPLACEMENT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOBJECTIVE": {
+      "parent": "IFCCONSTRAINT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOCCUPANT": {
+      "parent": "IFCACTOR",
+      "predefinedTypeIndex": 6,
+      "objectTypeIndex": 4
+    },
+    "IFCOFFSETCURVE": {
+      "parent": "IFCCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOFFSETCURVE2D": {
+      "parent": "IFCOFFSETCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOFFSETCURVE3D": {
+      "parent": "IFCOFFSETCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOFFSETCURVEBYDISTANCES": {
+      "parent": "IFCOFFSETCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOPENCROSSPROFILEDEF": {
+      "parent": "IFCPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOPENSHELL": {
+      "parent": "IFCCONNECTEDFACESET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOPENINGELEMENT": {
+      "parent": "IFCFEATUREELEMENTSUBTRACTION",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCORGANIZATION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCORGANIZATIONRELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCORIENTEDEDGE": {
+      "parent": "IFCEDGE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOUTERBOUNDARYCURVE": {
+      "parent": "IFCBOUNDARYCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCOUTLET": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCOUTLETTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCOWNERHISTORY": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPARAMETERIZEDPROFILEDEF": {
+      "parent": "IFCPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPATH": {
+      "parent": "IFCTOPOLOGICALREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPAVEMENT": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPAVEMENTTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCPCURVE": {
+      "parent": "IFCCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPERFORMANCEHISTORY": {
+      "parent": "IFCCONTROL",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCPERMEABLECOVERINGPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTYSET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPERMIT": {
+      "parent": "IFCCONTROL",
+      "predefinedTypeIndex": 6,
+      "objectTypeIndex": 4
+    },
+    "IFCPERSON": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPERSONANDORGANIZATION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPHYSICALCOMPLEXQUANTITY": {
+      "parent": "IFCPHYSICALQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPHYSICALQUANTITY": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPHYSICALSIMPLEQUANTITY": {
+      "parent": "IFCPHYSICALQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPILE": {
+      "parent": "IFCDEEPFOUNDATION",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPILETYPE": {
+      "parent": "IFCDEEPFOUNDATIONTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCPIPEFITTING": {
+      "parent": "IFCFLOWFITTING",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPIPEFITTINGTYPE": {
+      "parent": "IFCFLOWFITTINGTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCPIPESEGMENT": {
+      "parent": "IFCFLOWSEGMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPIPESEGMENTTYPE": {
+      "parent": "IFCFLOWSEGMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCPIXELTEXTURE": {
+      "parent": "IFCSURFACETEXTURE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPLACEMENT": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPLANARBOX": {
+      "parent": "IFCPLANAREXTENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPLANAREXTENT": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPLANE": {
+      "parent": "IFCELEMENTARYSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPLATE": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPLATETYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCPOINT": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOINTBYDISTANCEEXPRESSION": {
+      "parent": "IFCPOINT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOINTONCURVE": {
+      "parent": "IFCPOINT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOINTONSURFACE": {
+      "parent": "IFCPOINT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOLYLOOP": {
+      "parent": "IFCLOOP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOLYGONALBOUNDEDHALFSPACE": {
+      "parent": "IFCHALFSPACESOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOLYGONALFACESET": {
+      "parent": "IFCTESSELLATEDFACESET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOLYLINE": {
+      "parent": "IFCBOUNDEDCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOLYNOMIALCURVE": {
+      "parent": "IFCCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPORT": {
+      "parent": "IFCPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOSITIONINGELEMENT": {
+      "parent": "IFCPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPOSTALADDRESS": {
+      "parent": "IFCADDRESS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPREDEFINEDCOLOUR": {
+      "parent": "IFCPREDEFINEDITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPREDEFINEDCURVEFONT": {
+      "parent": "IFCPREDEFINEDITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPREDEFINEDITEM": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPREDEFINEDPROPERTIES": {
+      "parent": "IFCPROPERTYABSTRACTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPREDEFINEDPROPERTYSET": {
+      "parent": "IFCPROPERTYSETDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPREDEFINEDTEXTFONT": {
+      "parent": "IFCPREDEFINEDITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPRESENTATIONITEM": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPRESENTATIONLAYERASSIGNMENT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPRESENTATIONLAYERWITHSTYLE": {
+      "parent": "IFCPRESENTATIONLAYERASSIGNMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPRESENTATIONSTYLE": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROCEDURE": {
+      "parent": "IFCPROCESS",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCPROCEDURETYPE": {
+      "parent": "IFCTYPEPROCESS",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": null
+    },
+    "IFCPROCESS": {
+      "parent": "IFCOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPRODUCT": {
+      "parent": "IFCOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPRODUCTDEFINITIONSHAPE": {
+      "parent": "IFCPRODUCTREPRESENTATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPRODUCTREPRESENTATION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROFILEDEF": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROFILEPROPERTIES": {
+      "parent": "IFCEXTENDEDPROPERTIES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROJECT": {
+      "parent": "IFCCONTEXT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROJECTLIBRARY": {
+      "parent": "IFCCONTEXT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROJECTORDER": {
+      "parent": "IFCCONTROL",
+      "predefinedTypeIndex": 6,
+      "objectTypeIndex": 4
+    },
+    "IFCPROJECTEDCRS": {
+      "parent": "IFCCOORDINATEREFERENCESYSTEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROJECTIONELEMENT": {
+      "parent": "IFCFEATUREELEMENTADDITION",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPROPERTY": {
+      "parent": "IFCPROPERTYABSTRACTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYABSTRACTION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYBOUNDEDVALUE": {
+      "parent": "IFCSIMPLEPROPERTY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYDEFINITION": {
+      "parent": "IFCROOT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYDEPENDENCYRELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYENUMERATEDVALUE": {
+      "parent": "IFCSIMPLEPROPERTY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYENUMERATION": {
+      "parent": "IFCPROPERTYABSTRACTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYLISTVALUE": {
+      "parent": "IFCSIMPLEPROPERTY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYREFERENCEVALUE": {
+      "parent": "IFCSIMPLEPROPERTY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYSET": {
+      "parent": "IFCPROPERTYSETDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYSETDEFINITION": {
+      "parent": "IFCPROPERTYDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYSETTEMPLATE": {
+      "parent": "IFCPROPERTYTEMPLATEDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYSINGLEVALUE": {
+      "parent": "IFCSIMPLEPROPERTY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYTABLEVALUE": {
+      "parent": "IFCSIMPLEPROPERTY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYTEMPLATE": {
+      "parent": "IFCPROPERTYTEMPLATEDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROPERTYTEMPLATEDEFINITION": {
+      "parent": "IFCPROPERTYDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCPROTECTIVEDEVICE": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPROTECTIVEDEVICETRIPPINGUNIT": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPROTECTIVEDEVICETRIPPINGUNITTYPE": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCPROTECTIVEDEVICETYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCPUMP": {
+      "parent": "IFCFLOWMOVINGDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCPUMPTYPE": {
+      "parent": "IFCFLOWMOVINGDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCQUANTITYAREA": {
+      "parent": "IFCPHYSICALSIMPLEQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCQUANTITYCOUNT": {
+      "parent": "IFCPHYSICALSIMPLEQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCQUANTITYLENGTH": {
+      "parent": "IFCPHYSICALSIMPLEQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCQUANTITYNUMBER": {
+      "parent": "IFCPHYSICALSIMPLEQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCQUANTITYSET": {
+      "parent": "IFCPROPERTYSETDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCQUANTITYTIME": {
+      "parent": "IFCPHYSICALSIMPLEQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCQUANTITYVOLUME": {
+      "parent": "IFCPHYSICALSIMPLEQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCQUANTITYWEIGHT": {
+      "parent": "IFCPHYSICALSIMPLEQUANTITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRAIL": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCRAILTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCRAILING": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCRAILINGTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCRAILWAY": {
+      "parent": "IFCFACILITY",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCRAILWAYPART": {
+      "parent": "IFCFACILITYPART",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCRAMP": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCRAMPFLIGHT": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCRAMPFLIGHTTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCRAMPTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCRATIONALBSPLINECURVEWITHKNOTS": {
+      "parent": "IFCBSPLINECURVEWITHKNOTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRATIONALBSPLINESURFACEWITHKNOTS": {
+      "parent": "IFCBSPLINESURFACEWITHKNOTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRECTANGLEHOLLOWPROFILEDEF": {
+      "parent": "IFCRECTANGLEPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRECTANGLEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRECTANGULARPYRAMID": {
+      "parent": "IFCCSGPRIMITIVE3D",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRECTANGULARTRIMMEDSURFACE": {
+      "parent": "IFCBOUNDEDSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRECURRENCEPATTERN": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREFERENCE": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREFERENT": {
+      "parent": "IFCPOSITIONINGELEMENT",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCREGULARTIMESERIES": {
+      "parent": "IFCTIMESERIES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREINFORCEDSOIL": {
+      "parent": "IFCEARTHWORKSELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCREINFORCEMENTBARPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTIES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREINFORCEMENTDEFINITIONPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTYSET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREINFORCINGBAR": {
+      "parent": "IFCREINFORCINGELEMENT",
+      "predefinedTypeIndex": 12,
+      "objectTypeIndex": 4
+    },
+    "IFCREINFORCINGBARTYPE": {
+      "parent": "IFCREINFORCINGELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCREINFORCINGELEMENT": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREINFORCINGELEMENTTYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREINFORCINGMESH": {
+      "parent": "IFCREINFORCINGELEMENT",
+      "predefinedTypeIndex": 17,
+      "objectTypeIndex": 4
+    },
+    "IFCREINFORCINGMESHTYPE": {
+      "parent": "IFCREINFORCINGELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCRELADHERESTOELEMENT": {
+      "parent": "IFCRELDECOMPOSES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELAGGREGATES": {
+      "parent": "IFCRELDECOMPOSES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSIGNS": {
+      "parent": "IFCRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSIGNSTOACTOR": {
+      "parent": "IFCRELASSIGNS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSIGNSTOCONTROL": {
+      "parent": "IFCRELASSIGNS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSIGNSTOGROUP": {
+      "parent": "IFCRELASSIGNS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSIGNSTOGROUPBYFACTOR": {
+      "parent": "IFCRELASSIGNSTOGROUP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSIGNSTOPROCESS": {
+      "parent": "IFCRELASSIGNS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSIGNSTOPRODUCT": {
+      "parent": "IFCRELASSIGNS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSIGNSTORESOURCE": {
+      "parent": "IFCRELASSIGNS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSOCIATES": {
+      "parent": "IFCRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSOCIATESAPPROVAL": {
+      "parent": "IFCRELASSOCIATES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSOCIATESCLASSIFICATION": {
+      "parent": "IFCRELASSOCIATES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSOCIATESCONSTRAINT": {
+      "parent": "IFCRELASSOCIATES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSOCIATESDOCUMENT": {
+      "parent": "IFCRELASSOCIATES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSOCIATESLIBRARY": {
+      "parent": "IFCRELASSOCIATES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSOCIATESMATERIAL": {
+      "parent": "IFCRELASSOCIATES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELASSOCIATESPROFILEDEF": {
+      "parent": "IFCRELASSOCIATES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTS": {
+      "parent": "IFCRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTSELEMENTS": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTSPATHELEMENTS": {
+      "parent": "IFCRELCONNECTSELEMENTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTSPORTTOELEMENT": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTSPORTS": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTSSTRUCTURALACTIVITY": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTSSTRUCTURALMEMBER": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTSWITHECCENTRICITY": {
+      "parent": "IFCRELCONNECTSSTRUCTURALMEMBER",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONNECTSWITHREALIZINGELEMENTS": {
+      "parent": "IFCRELCONNECTSELEMENTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCONTAINEDINSPATIALSTRUCTURE": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCOVERSBLDGELEMENTS": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELCOVERSSPACES": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELDECLARES": {
+      "parent": "IFCRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELDECOMPOSES": {
+      "parent": "IFCRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELDEFINES": {
+      "parent": "IFCRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELDEFINESBYOBJECT": {
+      "parent": "IFCRELDEFINES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELDEFINESBYPROPERTIES": {
+      "parent": "IFCRELDEFINES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELDEFINESBYTEMPLATE": {
+      "parent": "IFCRELDEFINES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELDEFINESBYTYPE": {
+      "parent": "IFCRELDEFINES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELFILLSELEMENT": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELFLOWCONTROLELEMENTS": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELINTERFERESELEMENTS": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELNESTS": {
+      "parent": "IFCRELDECOMPOSES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELPOSITIONS": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELPROJECTSELEMENT": {
+      "parent": "IFCRELDECOMPOSES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELREFERENCEDINSPATIALSTRUCTURE": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELSEQUENCE": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELSERVICESBUILDINGS": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELSPACEBOUNDARY": {
+      "parent": "IFCRELCONNECTS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELSPACEBOUNDARY1STLEVEL": {
+      "parent": "IFCRELSPACEBOUNDARY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELSPACEBOUNDARY2NDLEVEL": {
+      "parent": "IFCRELSPACEBOUNDARY1STLEVEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELVOIDSELEMENT": {
+      "parent": "IFCRELDECOMPOSES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRELATIONSHIP": {
+      "parent": "IFCROOT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREPARAMETRISEDCOMPOSITECURVESEGMENT": {
+      "parent": "IFCCOMPOSITECURVESEGMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREPRESENTATION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREPRESENTATIONCONTEXT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREPRESENTATIONITEM": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREPRESENTATIONMAP": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRESOURCE": {
+      "parent": "IFCOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRESOURCEAPPROVALRELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRESOURCECONSTRAINTRELATIONSHIP": {
+      "parent": "IFCRESOURCELEVELRELATIONSHIP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRESOURCELEVELRELATIONSHIP": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRESOURCETIME": {
+      "parent": "IFCSCHEDULINGTIME",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREVOLVEDAREASOLID": {
+      "parent": "IFCSWEPTAREASOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCREVOLVEDAREASOLIDTAPERED": {
+      "parent": "IFCREVOLVEDAREASOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRIGHTCIRCULARCONE": {
+      "parent": "IFCCSGPRIMITIVE3D",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRIGHTCIRCULARCYLINDER": {
+      "parent": "IFCCSGPRIMITIVE3D",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCRIGIDOPERATION": {
+      "parent": "IFCCOORDINATEOPERATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCROAD": {
+      "parent": "IFCFACILITY",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCROADPART": {
+      "parent": "IFCFACILITYPART",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCROOF": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCROOFTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCROOT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCROUNDEDRECTANGLEPROFILEDEF": {
+      "parent": "IFCRECTANGLEPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSIUNIT": {
+      "parent": "IFCNAMEDUNIT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSANITARYTERMINAL": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSANITARYTERMINALTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSCHEDULINGTIME": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSEAMCURVE": {
+      "parent": "IFCSURFACECURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSECONDORDERPOLYNOMIALSPIRAL": {
+      "parent": "IFCSPIRAL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSECTIONPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTIES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSECTIONREINFORCEMENTPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTIES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSECTIONEDSOLID": {
+      "parent": "IFCSOLIDMODEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSECTIONEDSOLIDHORIZONTAL": {
+      "parent": "IFCSECTIONEDSOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSECTIONEDSPINE": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSECTIONEDSURFACE": {
+      "parent": "IFCSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSEGMENT": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSEGMENTEDREFERENCECURVE": {
+      "parent": "IFCCOMPOSITECURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSENSOR": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSENSORTYPE": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSEVENTHORDERPOLYNOMIALSPIRAL": {
+      "parent": "IFCSPIRAL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSHADINGDEVICE": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSHADINGDEVICETYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSHAPEASPECT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSHAPEMODEL": {
+      "parent": "IFCREPRESENTATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSHAPEREPRESENTATION": {
+      "parent": "IFCSHAPEMODEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSHELLBASEDSURFACEMODEL": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSIGN": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSIGNTYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSIGNAL": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSIGNALTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSIMPLEPROPERTY": {
+      "parent": "IFCPROPERTY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSIMPLEPROPERTYTEMPLATE": {
+      "parent": "IFCPROPERTYTEMPLATE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSINESPIRAL": {
+      "parent": "IFCSPIRAL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSITE": {
+      "parent": "IFCSPATIALSTRUCTUREELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSLAB": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSLABTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSLIPPAGECONNECTIONCONDITION": {
+      "parent": "IFCSTRUCTURALCONNECTIONCONDITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSOLARDEVICE": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSOLARDEVICETYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSOLIDMODEL": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSPACE": {
+      "parent": "IFCSPATIALSTRUCTUREELEMENT",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCSPACEHEATER": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSPACEHEATERTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSPACETYPE": {
+      "parent": "IFCSPATIALSTRUCTUREELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSPATIALELEMENT": {
+      "parent": "IFCPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSPATIALELEMENTTYPE": {
+      "parent": "IFCTYPEPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSPATIALSTRUCTUREELEMENT": {
+      "parent": "IFCSPATIALELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSPATIALSTRUCTUREELEMENTTYPE": {
+      "parent": "IFCSPATIALELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSPATIALZONE": {
+      "parent": "IFCSPATIALELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSPATIALZONETYPE": {
+      "parent": "IFCSPATIALELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSPHERE": {
+      "parent": "IFCCSGPRIMITIVE3D",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSPHERICALSURFACE": {
+      "parent": "IFCELEMENTARYSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSPIRAL": {
+      "parent": "IFCCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTACKTERMINAL": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSTACKTERMINALTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSTAIR": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSTAIRFLIGHT": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 12,
+      "objectTypeIndex": 4
+    },
+    "IFCSTAIRFLIGHTTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSTAIRTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALACTION": {
+      "parent": "IFCSTRUCTURALACTIVITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALACTIVITY": {
+      "parent": "IFCPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALANALYSISMODEL": {
+      "parent": "IFCSYSTEM",
+      "predefinedTypeIndex": 5,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALCONNECTION": {
+      "parent": "IFCSTRUCTURALITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALCONNECTIONCONDITION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALCURVEACTION": {
+      "parent": "IFCSTRUCTURALACTION",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALCURVECONNECTION": {
+      "parent": "IFCSTRUCTURALCONNECTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALCURVEMEMBER": {
+      "parent": "IFCSTRUCTURALMEMBER",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALCURVEMEMBERVARYING": {
+      "parent": "IFCSTRUCTURALCURVEMEMBER",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALCURVEREACTION": {
+      "parent": "IFCSTRUCTURALREACTION",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALITEM": {
+      "parent": "IFCPRODUCT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLINEARACTION": {
+      "parent": "IFCSTRUCTURALCURVEACTION",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALLOAD": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADCASE": {
+      "parent": "IFCSTRUCTURALLOADGROUP",
+      "predefinedTypeIndex": 5,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALLOADCONFIGURATION": {
+      "parent": "IFCSTRUCTURALLOAD",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADGROUP": {
+      "parent": "IFCGROUP",
+      "predefinedTypeIndex": 5,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALLOADLINEARFORCE": {
+      "parent": "IFCSTRUCTURALLOADSTATIC",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADORRESULT": {
+      "parent": "IFCSTRUCTURALLOAD",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADPLANARFORCE": {
+      "parent": "IFCSTRUCTURALLOADSTATIC",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADSINGLEDISPLACEMENT": {
+      "parent": "IFCSTRUCTURALLOADSTATIC",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADSINGLEDISPLACEMENTDISTORTION": {
+      "parent": "IFCSTRUCTURALLOADSINGLEDISPLACEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADSINGLEFORCE": {
+      "parent": "IFCSTRUCTURALLOADSTATIC",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADSINGLEFORCEWARPING": {
+      "parent": "IFCSTRUCTURALLOADSINGLEFORCE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADSTATIC": {
+      "parent": "IFCSTRUCTURALLOADORRESULT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALLOADTEMPERATURE": {
+      "parent": "IFCSTRUCTURALLOADSTATIC",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALMEMBER": {
+      "parent": "IFCSTRUCTURALITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALPLANARACTION": {
+      "parent": "IFCSTRUCTURALSURFACEACTION",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALPOINTACTION": {
+      "parent": "IFCSTRUCTURALACTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALPOINTCONNECTION": {
+      "parent": "IFCSTRUCTURALCONNECTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALPOINTREACTION": {
+      "parent": "IFCSTRUCTURALREACTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALREACTION": {
+      "parent": "IFCSTRUCTURALACTIVITY",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALRESULTGROUP": {
+      "parent": "IFCGROUP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALSURFACEACTION": {
+      "parent": "IFCSTRUCTURALACTION",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALSURFACECONNECTION": {
+      "parent": "IFCSTRUCTURALCONNECTION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTRUCTURALSURFACEMEMBER": {
+      "parent": "IFCSTRUCTURALMEMBER",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALSURFACEMEMBERVARYING": {
+      "parent": "IFCSTRUCTURALSURFACEMEMBER",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": 4
+    },
+    "IFCSTRUCTURALSURFACEREACTION": {
+      "parent": "IFCSTRUCTURALREACTION",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCSTYLEMODEL": {
+      "parent": "IFCREPRESENTATION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTYLEDITEM": {
+      "parent": "IFCREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSTYLEDREPRESENTATION": {
+      "parent": "IFCSTYLEMODEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSUBCONTRACTRESOURCE": {
+      "parent": "IFCCONSTRUCTIONRESOURCE",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCSUBCONTRACTRESOURCETYPE": {
+      "parent": "IFCCONSTRUCTIONRESOURCETYPE",
+      "predefinedTypeIndex": 11,
+      "objectTypeIndex": null
+    },
+    "IFCSUBEDGE": {
+      "parent": "IFCEDGE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACE": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACECURVE": {
+      "parent": "IFCCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACECURVESWEPTAREASOLID": {
+      "parent": "IFCDIRECTRIXCURVESWEPTAREASOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACEFEATURE": {
+      "parent": "IFCFEATUREELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSURFACEOFLINEAREXTRUSION": {
+      "parent": "IFCSWEPTSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACEOFREVOLUTION": {
+      "parent": "IFCSWEPTSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACEREINFORCEMENTAREA": {
+      "parent": "IFCSTRUCTURALLOADORRESULT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACESTYLE": {
+      "parent": "IFCPRESENTATIONSTYLE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACESTYLELIGHTING": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACESTYLEREFRACTION": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACESTYLERENDERING": {
+      "parent": "IFCSURFACESTYLESHADING",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACESTYLESHADING": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACESTYLEWITHTEXTURES": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSURFACETEXTURE": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSWEPTAREASOLID": {
+      "parent": "IFCSOLIDMODEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSWEPTDISKSOLID": {
+      "parent": "IFCSOLIDMODEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSWEPTDISKSOLIDPOLYGONAL": {
+      "parent": "IFCSWEPTDISKSOLID",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSWEPTSURFACE": {
+      "parent": "IFCSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSWITCHINGDEVICE": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSWITCHINGDEVICETYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCSYSTEM": {
+      "parent": "IFCGROUP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCSYSTEMFURNITUREELEMENT": {
+      "parent": "IFCFURNISHINGELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCSYSTEMFURNITUREELEMENTTYPE": {
+      "parent": "IFCFURNISHINGELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTSHAPEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTABLE": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTABLECOLUMN": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTABLEROW": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTANK": {
+      "parent": "IFCFLOWSTORAGEDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCTANKTYPE": {
+      "parent": "IFCFLOWSTORAGEDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTASK": {
+      "parent": "IFCPROCESS",
+      "predefinedTypeIndex": 12,
+      "objectTypeIndex": 4
+    },
+    "IFCTASKTIME": {
+      "parent": "IFCSCHEDULINGTIME",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTASKTIMERECURRING": {
+      "parent": "IFCTASKTIME",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTASKTYPE": {
+      "parent": "IFCTYPEPROCESS",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": null
+    },
+    "IFCTELECOMADDRESS": {
+      "parent": "IFCADDRESS",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTENDON": {
+      "parent": "IFCREINFORCINGELEMENT",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCTENDONANCHOR": {
+      "parent": "IFCREINFORCINGELEMENT",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCTENDONANCHORTYPE": {
+      "parent": "IFCREINFORCINGELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTENDONCONDUIT": {
+      "parent": "IFCREINFORCINGELEMENT",
+      "predefinedTypeIndex": 9,
+      "objectTypeIndex": 4
+    },
+    "IFCTENDONCONDUITTYPE": {
+      "parent": "IFCREINFORCINGELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTENDONTYPE": {
+      "parent": "IFCREINFORCINGELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTESSELLATEDFACESET": {
+      "parent": "IFCTESSELLATEDITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTESSELLATEDITEM": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTLITERAL": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTLITERALWITHEXTENT": {
+      "parent": "IFCTEXTLITERAL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTSTYLE": {
+      "parent": "IFCPRESENTATIONSTYLE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTSTYLEFONTMODEL": {
+      "parent": "IFCPREDEFINEDTEXTFONT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTSTYLEFORDEFINEDFONT": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTSTYLETEXTMODEL": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTURECOORDINATE": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTURECOORDINATEGENERATOR": {
+      "parent": "IFCTEXTURECOORDINATE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTURECOORDINATEINDICES": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTURECOORDINATEINDICESWITHVOIDS": {
+      "parent": "IFCTEXTURECOORDINATEINDICES",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTUREMAP": {
+      "parent": "IFCTEXTURECOORDINATE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTUREVERTEX": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTEXTUREVERTEXLIST": {
+      "parent": "IFCPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTHIRDORDERPOLYNOMIALSPIRAL": {
+      "parent": "IFCSPIRAL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTIMEPERIOD": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTIMESERIES": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTIMESERIESVALUE": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTOPOLOGICALREPRESENTATIONITEM": {
+      "parent": "IFCREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTOPOLOGYREPRESENTATION": {
+      "parent": "IFCSHAPEMODEL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTOROIDALSURFACE": {
+      "parent": "IFCELEMENTARYSURFACE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTRACKELEMENT": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCTRACKELEMENTTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTRANSFORMER": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCTRANSFORMERTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTRANSPORTELEMENT": {
+      "parent": "IFCTRANSPORTATIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCTRANSPORTELEMENTTYPE": {
+      "parent": "IFCTRANSPORTATIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTRANSPORTATIONDEVICE": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTRANSPORTATIONDEVICETYPE": {
+      "parent": "IFCELEMENTTYPE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTRAPEZIUMPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTRIANGULATEDFACESET": {
+      "parent": "IFCTESSELLATEDFACESET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTRIANGULATEDIRREGULARNETWORK": {
+      "parent": "IFCTRIANGULATEDFACESET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTRIMMEDCURVE": {
+      "parent": "IFCBOUNDEDCURVE",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTUBEBUNDLE": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCTUBEBUNDLETYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCTYPEOBJECT": {
+      "parent": "IFCOBJECTDEFINITION",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTYPEPROCESS": {
+      "parent": "IFCTYPEOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTYPEPRODUCT": {
+      "parent": "IFCTYPEOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCTYPERESOURCE": {
+      "parent": "IFCTYPEOBJECT",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCUSHAPEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCUNITASSIGNMENT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCUNITARYCONTROLELEMENT": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCUNITARYCONTROLELEMENTTYPE": {
+      "parent": "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCUNITARYEQUIPMENT": {
+      "parent": "IFCENERGYCONVERSIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCUNITARYEQUIPMENTTYPE": {
+      "parent": "IFCENERGYCONVERSIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCVALVE": {
+      "parent": "IFCFLOWCONTROLLER",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCVALVETYPE": {
+      "parent": "IFCFLOWCONTROLLERTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCVECTOR": {
+      "parent": "IFCGEOMETRICREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCVEHICLE": {
+      "parent": "IFCTRANSPORTATIONDEVICE",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCVEHICLETYPE": {
+      "parent": "IFCTRANSPORTATIONDEVICETYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCVERTEX": {
+      "parent": "IFCTOPOLOGICALREPRESENTATIONITEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCVERTEXLOOP": {
+      "parent": "IFCLOOP",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCVERTEXPOINT": {
+      "parent": "IFCVERTEX",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCVIBRATIONDAMPER": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCVIBRATIONDAMPERTYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCVIBRATIONISOLATOR": {
+      "parent": "IFCELEMENTCOMPONENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCVIBRATIONISOLATORTYPE": {
+      "parent": "IFCELEMENTCOMPONENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCVIRTUALELEMENT": {
+      "parent": "IFCELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCVIRTUALGRIDINTERSECTION": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCVOIDINGFEATURE": {
+      "parent": "IFCFEATUREELEMENTSUBTRACTION",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCWALL": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCWALLSTANDARDCASE": {
+      "parent": "IFCWALL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCWALLTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCWASTETERMINAL": {
+      "parent": "IFCFLOWTERMINAL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCWASTETERMINALTYPE": {
+      "parent": "IFCFLOWTERMINALTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCWELLKNOWNTEXT": {
+      "parent": null,
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCWINDOW": {
+      "parent": "IFCBUILTELEMENT",
+      "predefinedTypeIndex": 10,
+      "objectTypeIndex": 4
+    },
+    "IFCWINDOWLININGPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTYSET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCWINDOWPANELPROPERTIES": {
+      "parent": "IFCPREDEFINEDPROPERTYSET",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCWINDOWTYPE": {
+      "parent": "IFCBUILTELEMENTTYPE",
+      "predefinedTypeIndex": 7,
+      "objectTypeIndex": null
+    },
+    "IFCWORKCALENDAR": {
+      "parent": "IFCCONTROL",
+      "predefinedTypeIndex": 8,
+      "objectTypeIndex": 4
+    },
+    "IFCWORKCONTROL": {
+      "parent": "IFCCONTROL",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCWORKPLAN": {
+      "parent": "IFCWORKCONTROL",
+      "predefinedTypeIndex": 13,
+      "objectTypeIndex": 4
+    },
+    "IFCWORKSCHEDULE": {
+      "parent": "IFCWORKCONTROL",
+      "predefinedTypeIndex": 13,
+      "objectTypeIndex": 4
+    },
+    "IFCWORKTIME": {
+      "parent": "IFCSCHEDULINGTIME",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCZSHAPEPROFILEDEF": {
+      "parent": "IFCPARAMETERIZEDPROFILEDEF",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    },
+    "IFCZONE": {
+      "parent": "IFCSYSTEM",
+      "predefinedTypeIndex": null,
+      "objectTypeIndex": null
+    }
+  }
+}
