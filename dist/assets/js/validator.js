@@ -1475,6 +1475,29 @@ function exportToXLSX() {
 
 function _exportToXLSX() {
     const wb = XLSX.utils.book_new();
+    const usedSheetNames = new Set();
+    const SHEET_NAME_LIMIT = 31;
+    const SUFFIX_RESERVE = 4; // room for _99 plus margin
+
+    function uniqueSheetName(base) {
+        let name = base.length > SHEET_NAME_LIMIT ? base.slice(0, SHEET_NAME_LIMIT) : base;
+        if (!usedSheetNames.has(name)) {
+            usedSheetNames.add(name);
+            return name;
+        }
+        const truncated = base.slice(0, SHEET_NAME_LIMIT - SUFFIX_RESERVE);
+        for (let i = 1; i < 1000; i++) {
+            const suffix = `_${i}`;
+            const candidate = truncated + suffix;
+            if (!usedSheetNames.has(candidate) && candidate.length <= SHEET_NAME_LIMIT) {
+                usedSheetNames.add(candidate);
+                return candidate;
+            }
+        }
+        const fallback = `Sheet_${usedSheetNames.size + 1}`;
+        usedSheetNames.add(fallback);
+        return fallback;
+    }
 
     // Create a sheet for each IFC+IDS combination
     for (const idsResult of validationResults) {
@@ -1545,18 +1568,17 @@ function _exportToXLSX() {
             ifcName = ifcName.replace(/[:\\\/\?\*\"\<\>\|]/g, '_');
             idsName = idsName.replace(/[:\\\/\?\*\"\<\>\|]/g, '_');
 
-            // Create combined name and limit to 31 chars
+            // Compose name; truncate halves to fit then dedupe (Excel cap = 31)
             let sheetName = `${ifcName}_${idsName}`;
-            if (sheetName.length > 31) {
-                // Try to shorten intelligently
-                const maxLen = 31 - 1; // -1 for underscore
-                const halfLen = Math.floor(maxLen / 2);
+            if (sheetName.length > SHEET_NAME_LIMIT) {
+                const halfLen = Math.floor((SHEET_NAME_LIMIT - 1) / 2);
                 ifcName = ifcName.substring(0, halfLen);
-                idsName = idsName.substring(0, maxLen - halfLen);
+                idsName = idsName.substring(0, SHEET_NAME_LIMIT - 1 - halfLen);
                 sheetName = `${ifcName}_${idsName}`;
             }
+            sheetName = uniqueSheetName(sheetName);
 
-            XLSX.utils.book_append_sheet(wb, ws, sheetName, true);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
         }
     }
 
