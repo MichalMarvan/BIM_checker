@@ -22,7 +22,17 @@ window.IDSParser = (function() {
         };
     }
 
-    function extractInfo(_xmlDoc) { return {}; }
+    function extractInfo(xmlDoc) {
+        const info = {};
+        const infoEl = xmlDoc.querySelector('info');
+        if (!infoEl) return info;
+        const fields = ['title', 'copyright', 'version', 'description', 'author', 'date', 'purpose', 'milestone'];
+        for (const field of fields) {
+            const el = infoEl.querySelector(field);
+            if (el) info[field] = el.textContent.trim();
+        }
+        return info;
+    }
     function extractSpecifications(_xmlDoc) { return []; }
     function extractFacets(_facetsElement) { return []; }
     function extractFacet(_element, type) { return { type }; }
