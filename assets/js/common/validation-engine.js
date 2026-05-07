@@ -26,12 +26,14 @@ const ValidationEngine = (function() {
 
         if (facet.name.type === 'simple') {
             return entity.entity === facet.name.value;
+        } else if (facet.name.type === 'enumeration' && Array.isArray(facet.name.values)) {
+            return facet.name.values.includes(entity.entity);
         } else if (facet.name.type === 'restriction' && facet.name.isRegex) {
             const regex = getRegex(facet.name.pattern);
             return regex.test(entity.entity);
         }
 
-        return true;
+        return false;
     }
 
     /**
