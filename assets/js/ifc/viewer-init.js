@@ -968,6 +968,51 @@ function classifyModification(guid, psetName, propName, parsed) {
     return { case: 'add-prop', psetEntity: pset, entityType: pset.type };
 }
 
+/**
+ * Case B handler: append a new property entity and extend the existing pset's HasProperties tuple.
+ * Mutates parsed.maxEntityId, the in-memory pset entry, and the modifiedLines array.
+ * @param {string[]} modifiedLines
+ * @param {{ maxEntityId: number, propertySetMap: Map, propertySingleValueMap: Map }} parsed
+ * @param {{ psetEntity: object, entityType: string }} classification
+ * @param {string} propName
+ * @param {string} newValue
+ * @returns {{ newEntityLine: string, newPropId: number }}
+ */
+function addPropertyToExistingPset(modifiedLines, parsed, classification, propName, newValue) {
+    parsed.maxEntityId++;
+    const newPropId = parsed.maxEntityId;
+
+    const propLine = classification.entityType === 'IFCELEMENTQUANTITY'
+        ? createQuantity(newPropId, propName, newValue)
+        : createPropertySingleValue(newPropId, propName, newValue);
+
+    const psetEntity = classification.psetEntity;
+    const updatedPsetLine = IfcPsetUtils.addPropertyIdToPset(psetEntity.line, newPropId);
+    modifiedLines[psetEntity.lineIndex] = updatedPsetLine;
+
+    // Update in-memory pset entry so subsequent classifications on same pset see the new prop.
+    // Must update both the local psetEntity (spread copy from findPsetOnElement) AND the
+    // original entry in propertySetMap (so the next findPsetOnElement call gets updated params).
+    psetEntity.line = updatedPsetLine;
+    const newParamsMatch = updatedPsetLine.match(/^#\d+\s*=\s*[A-Z0-9_]+\((.*)\);?\s*$/i);
+    if (newParamsMatch) psetEntity.params = newParamsMatch[1];
+    const originalPsetEntry = parsed.propertySetMap.get(psetEntity.id);
+    if (originalPsetEntry) {
+        originalPsetEntry.line = updatedPsetLine;
+        if (newParamsMatch) originalPsetEntry.params = newParamsMatch[1];
+    }
+
+    // Register new property in propertySingleValueMap so classify finds it on next iteration
+    parsed.propertySingleValueMap.set(String(newPropId), {
+        lineIndex: -1,
+        params: '',
+        line: propLine,
+        type: classification.entityType === 'IFCELEMENTQUANTITY' ? 'IFCQUANTITYLENGTH' : 'IFCPROPERTYSINGLEVALUE'
+    });
+
+    return { newEntityLine: propLine, newPropId };
+}
+
 function applyModificationsToIFC(ifcContent, modifications, fileName) {
     const state = window.ViewerState;
     const parsed = parseIFCStructure(ifcContent);
@@ -997,19 +1042,22 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
             const newProperties = {};
 
             for (const [propName, newValue] of Object.entries(propModifications)) {
-                const updated = updatePropertyInIFC(
-                    modifiedLines,
-                    parsed.entityMap,
-                    parsed.propertySetMap,
-                    parsed.propertySingleValueMap,
-                    psetName,
-                    propName,
-                    newValue
-                );
+                const classification = classifyModification(guid, psetName, propName, parsed);
 
-                if (updated) {
+                if (classification.case === 'edit') {
+                    const propInfo = classification.propEntity;
+                    const newLine = updatePropertyValue(propInfo.line, newValue);
+                    if (newLine !== propInfo.line) {
+                        modifiedLines[propInfo.lineIndex] = newLine;
+                        propInfo.line = newLine;
+                    }
+                    modificationCount++;
+                } else if (classification.case === 'add-prop') {
+                    const { newEntityLine } = addPropertyToExistingPset(modifiedLines, parsed, classification, propName, newValue);
+                    newEntities.push(newEntityLine);
                     modificationCount++;
                 } else {
+                    // case 'create-pset' — accumulate for batched isolated pset creation below
                     newProperties[propName] = newValue;
                 }
             }
@@ -1209,6 +1257,13 @@ function createPropertySingleValue(id, propName, value) {
     }
 
     return `#${id}=IFCPROPERTYSINGLEVALUE('${encodedName}','Simple property set',${ifcType}(${formattedValue}),$);`;
+}
+
+function createQuantity(id, propName, value) {
+    const encodedName = encodeIFCString(propName);
+    const num = parseFloat(value);
+    const numericValue = isNaN(num) ? 0 : num;
+    return `#${id}=IFCQUANTITYLENGTH('${encodedName}',$,$,${numericValue});`;
 }
 
 function createPropertySet(id, guid, psetName, propertyIds) {

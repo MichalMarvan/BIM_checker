@@ -23,6 +23,9 @@ const SYNTHETIC_IFC_WITH_PSET = SYNTHETIC_IFC_BASE + `
 ENDSEC;
 END-ISO-10303-21;`;
 
+// =============================================================================
+// CLASSIFICATION TESTS (Task 7)
+// =============================================================================
 describe('classifyModification', () => {
     function parseHelper(ifc) {
         return window.parseIFCStructure(ifc);
@@ -53,5 +56,63 @@ describe('classifyModification', () => {
         const parsed = parseHelper(SYNTHETIC_IFC_WITH_PSET);
         const result = window.classifyModification('guid-NONEXISTENT', 'Pset_X', 'PropX', parsed);
         expect(result.case).toBe('create-pset');
+    });
+});
+
+// =============================================================================
+// CASE B: add-prop handler (Task 8)
+// =============================================================================
+describe('applyModificationsToIFC case B (add-prop)', () => {
+    function setupViewerState() {
+        window.ViewerState = {
+            allData: [
+                { guid: 'guid-A', fileName: 'test.ifc', propertySets: { 'Pset_WallCommon': { FireRating: 'EI60', LoadBearing: 'TRUE' } } },
+                { guid: 'guid-B', fileName: 'test.ifc', propertySets: {} }
+            ]
+        };
+    }
+
+    it('case B: adds new property entity AND extends existing pset HasProperties', () => {
+        setupViewerState();
+        const modifications = {
+            'guid-A': {
+                'Pset_WallCommon': {
+                    'IsExternal': 'TRUE'
+                }
+            }
+        };
+        const result = window.applyModificationsToIFC(SYNTHETIC_IFC_WITH_PSET, modifications, 'test.ifc');
+
+        // New property entity created
+        expect(result.includes("IFCPROPERTYSINGLEVALUE('IsExternal'")).toBe(true);
+        // Only ONE pset with this guid (not duplicated)
+        const psetMatches = result.match(/IFCPROPERTYSET\('pset-guid-A'/g);
+        expect(psetMatches.length).toBe(1);
+        // The original pset now has THREE prop refs (#200, #201, #newId)
+        const psetLine = result.split('\n').find(l => l.includes("IFCPROPERTYSET('pset-guid-A'"));
+        const tupleMatch = psetLine.match(/\(([^()]+)\)\s*\)\s*;/);
+        expect(tupleMatch).toBeTruthy();
+        const ids = tupleMatch[1].split(',').map(s => s.trim());
+        expect(ids.length).toBe(3);
+        expect(ids).toContain('#200');
+        expect(ids).toContain('#201');
+    });
+
+    it('case B multi-prop: 2 new properties end up in same pset HasProperties', () => {
+        setupViewerState();
+        const modifications = {
+            'guid-A': {
+                'Pset_WallCommon': {
+                    'IsExternal': 'TRUE',
+                    'AcousticRating': '50dB'
+                }
+            }
+        };
+        const result = window.applyModificationsToIFC(SYNTHETIC_IFC_WITH_PSET, modifications, 'test.ifc');
+
+        const psetLine = result.split('\n').find(l => l.includes("IFCPROPERTYSET('pset-guid-A'"));
+        const tupleMatch = psetLine.match(/\(([^()]+)\)\s*\)\s*;/);
+        const ids = tupleMatch[1].split(',').map(s => s.trim());
+        expect(ids.length).toBe(4);  // #200, #201 + 2 new
     });
 });
