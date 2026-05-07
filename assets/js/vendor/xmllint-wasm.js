@@ -155,7 +155,7 @@ function validateXML(options) {
 			reject(err);
 		}
 
-		worker = new Worker(new URL('./xmllint-browser.mjs', import.meta.url), { type: 'module' });
+		worker = new Worker(new URL('./xmllint-browser.js', import.meta.url), { type: 'module' });
 
 		var addEventListener = worker.addEventListener.bind(worker);
 

@@ -6,7 +6,7 @@
  * URL sources used:
  *   IFC2X3: https://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/EXPRESS/IFC2X3_TC1.exp
  *   IFC4:   https://standards.buildingsmart.org/IFC/RELEASE/IFC4/ADD2/EXPRESS/IFC4_ADD2.exp
- *   IFC4X3: https://standards.buildingsmart.org/IFC/RELEASE/IFC4_3/HTML/IFC4X3_ADD2.exp
+ *   IFC4X3_ADD2: https://standards.buildingsmart.org/IFC/RELEASE/IFC4_3/HTML/IFC4X3_ADD2.exp
  */
 const fs = require('fs');
 const https = require('https');
@@ -15,7 +15,7 @@ const path = require('path');
 const SCHEMA_URLS = {
     'IFC2X3': 'https://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/EXPRESS/IFC2X3_TC1.exp',
     'IFC4':   'https://standards.buildingsmart.org/IFC/RELEASE/IFC4/ADD2/EXPRESS/IFC4_ADD2.exp',
-    'IFC4X3': 'https://standards.buildingsmart.org/IFC/RELEASE/IFC4_3/HTML/IFC4X3_ADD2.exp'
+    'IFC4X3_ADD2': 'https://standards.buildingsmart.org/IFC/RELEASE/IFC4_3/HTML/IFC4X3_ADD2.exp'
 };
 
 function fetchUrl(url) {
