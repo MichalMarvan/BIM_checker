@@ -171,3 +171,71 @@ describe('applyModificationsToIFC case C (create-pset)', () => {
         expect(/IFCRELDEFINESBYPROPERTIES\([^)]+,\(#11\)/.test(result)).toBe(true);
     });
 });
+
+// =============================================================================
+// ROUNDTRIP (Task 10)
+// =============================================================================
+describe('applyModificationsToIFC roundtrip', () => {
+    it('case B export → re-parse: new property visible inside existing pset', () => {
+        window.ViewerState = {
+            allData: [
+                { guid: 'guid-A', fileName: 'test.ifc', propertySets: { 'Pset_WallCommon': { FireRating: 'EI60', LoadBearing: 'TRUE' } } }
+            ]
+        };
+        const modifications = {
+            'guid-A': {
+                'Pset_WallCommon': {
+                    'IsExternal': 'TRUE'
+                }
+            }
+        };
+        const exported = window.applyModificationsToIFC(SYNTHETIC_IFC_WITH_PSET, modifications, 'test.ifc');
+        const reparsed = window.parseIFCStructure(exported);
+        // Original pset #100 should now have 3 HasProperties IDs
+        const pset100 = reparsed.propertySetMap.get('100');
+        expect(pset100).toBeDefined();
+        const propIds = IfcPsetUtils.parsePsetHasProperties(pset100.params);
+        expect(propIds.length).toBe(3);
+        // One of the new prop IDs resolves to a property named 'IsExternal'
+        const newPropIds = propIds.filter(id => !['#200', '#201'].includes(id));
+        expect(newPropIds.length).toBe(1);
+        const newProp = reparsed.propertySingleValueMap.get(newPropIds[0].replace('#', ''));
+        expect(newProp).toBeDefined();
+        expect(IfcPsetUtils.parsePropertyName(newProp.line)).toBe('IsExternal');
+    });
+});
+
+// =============================================================================
+// QTO PRESERVATION (Task 10)
+// =============================================================================
+describe('applyModificationsToIFC qto preservation', () => {
+    const SYNTHETIC_IFC_WITH_QTO = SYNTHETIC_IFC_BASE + `
+#10=IFCWALL('guid-A',$,'Wall_001',$,$,$,$,$,$);
+#100=IFCELEMENTQUANTITY('qto-guid',$,'BaseQuantities',$,$,(#200));
+#200=IFCQUANTITYLENGTH('Length',$,$,5.0);
+#300=IFCRELDEFINESBYPROPERTIES('rel-guid',$,$,$,(#10),#100);
+ENDSEC;
+END-ISO-10303-21;`;
+
+    it('case B on qto: adds IFCQUANTITYLENGTH to IFCELEMENTQUANTITY', () => {
+        window.ViewerState = {
+            allData: [
+                { guid: 'guid-A', fileName: 'test.ifc', propertySets: { 'BaseQuantities': { Length: '5.0' } } }
+            ]
+        };
+        const modifications = {
+            'guid-A': {
+                'BaseQuantities': {
+                    'Width': '3.5'
+                }
+            }
+        };
+        const result = window.applyModificationsToIFC(SYNTHETIC_IFC_WITH_QTO, modifications, 'test.ifc');
+        // New entity is IFCQUANTITYLENGTH, NOT IFCPROPERTYSINGLEVALUE
+        expect(result.includes("IFCQUANTITYLENGTH('Width'")).toBe(true);
+        expect(result.includes("IFCPROPERTYSINGLEVALUE('Width'")).toBe(false);
+        // Still ONE IFCELEMENTQUANTITY entity (extended in place, not duplicated)
+        const qtoCount = (result.match(/IFCELEMENTQUANTITY\(/g) || []).length;
+        expect(qtoCount).toBe(1);
+    });
+});
