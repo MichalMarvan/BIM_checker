@@ -17,23 +17,35 @@ const ValidationEngine = (function() {
      * Check if entity matches entity facet
      * @param {Object} entity
      * @param {Object} facet
+     * @param {Object} [ctx] - optional context with isSubtypeOf, getPredefinedTypeIndex, etc.
      * @returns {boolean}
      */
-    function checkEntityFacet(entity, facet) {
+    function checkEntityFacet(entity, facet, ctx) {
         if (!facet.name) {
             return true;
         }
 
-        if (facet.name.type === 'simple') {
-            return entity.entity === facet.name.value;
-        } else if (facet.name.type === 'enumeration' && Array.isArray(facet.name.values)) {
-            return facet.name.values.includes(entity.entity);
-        } else if (facet.name.type === 'restriction' && facet.name.isRegex) {
-            const regex = getRegex(facet.name.pattern);
-            return regex.test(entity.entity);
+        // Regex pattern: explicit match only, no inheritance
+        if (facet.name.type === 'restriction' && facet.name.isRegex) {
+            return new RegExp(facet.name.pattern).test(entity.entity);
         }
 
-        return false;
+        // Collect target classes (simple → [value], enumeration → values)
+        let targets = null;
+        if (facet.name.type === 'simple') targets = [facet.name.value];
+        else if (facet.name.type === 'enumeration' && Array.isArray(facet.name.values)) targets = facet.name.values;
+        if (!targets) return false;
+
+        // Match by exact or subtype-of
+        let nameMatch = false;
+        for (const target of targets) {
+            if (ctx && ctx.isSubtypeOf && ctx.isSubtypeOf(entity.entity, target)) { nameMatch = true; break; }
+            if (entity.entity === target) { nameMatch = true; break; }
+        }
+        if (!nameMatch) return false;
+
+        // PredefinedType (Task 15 — skip if no predefinedType on facet)
+        return true;
     }
 
     /**
