@@ -36,8 +36,47 @@ window.IDSParser = (function() {
     function extractSpecifications(_xmlDoc) { return []; }
     function extractFacets(_facetsElement) { return []; }
     function extractFacet(_element, type) { return { type }; }
-    function extractValue(_element) { return null; }
-    function extractRestriction(_restriction) { return { type: 'restriction' }; }
+    function extractValue(element) {
+        const simple = element.querySelector('simpleValue');
+        if (simple) return { type: 'simple', value: simple.textContent.trim() };
+
+        let restriction = element.querySelector('restriction');
+        if (!restriction) {
+            restriction = element.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'restriction')[0];
+        }
+        if (restriction) return extractRestriction(restriction);
+
+        return { type: 'simple', value: element.textContent.trim() };
+    }
+
+    function extractRestriction(restriction) {
+        const result = { type: 'restriction' };
+        const ns = 'http://www.w3.org/2001/XMLSchema';
+        const findChildren = (name) => {
+            let nodes = restriction.querySelectorAll(name);
+            if (!nodes.length) nodes = restriction.getElementsByTagNameNS(ns, name);
+            return Array.from(nodes);
+        };
+
+        const patterns = findChildren('pattern');
+        if (patterns.length) {
+            result.pattern = patterns[0].getAttribute('value') || patterns[0].textContent.trim();
+            result.isRegex = true;
+        }
+
+        const enums = findChildren('enumeration');
+        if (enums.length) {
+            result.type = 'enumeration';
+            result.values = enums.map(e => e.getAttribute('value'));
+        }
+
+        for (const tag of ['minInclusive', 'maxInclusive', 'minExclusive', 'maxExclusive', 'minLength', 'maxLength', 'length']) {
+            const els = findChildren(tag);
+            if (els.length) result[tag] = els[0].getAttribute('value') || els[0].textContent.trim();
+        }
+
+        return result;
+    }
 
     return {
         parse, parseDocument,

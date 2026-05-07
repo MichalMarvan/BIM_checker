@@ -32,3 +32,50 @@ describe('IDSParser.extractInfo', () => {
         expect(info.title).toBeUndefined();
     });
 });
+
+describe('IDSParser.extractValue', () => {
+    function parseValue(xml) {
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        return IDSParser.extractValue(doc.documentElement);
+    }
+
+    it('should extract simpleValue', () => {
+        const v = parseValue('<value xmlns="x"><simpleValue>IFCWALL</simpleValue></value>');
+        expect(v.type).toBe('simple');
+        expect(v.value).toBe('IFCWALL');
+    });
+
+    it('should extract xs:enumeration restriction', () => {
+        const v = parseValue(`<value xmlns="x" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:restriction base="xs:string">
+                <xs:enumeration value="A"/>
+                <xs:enumeration value="B"/>
+            </xs:restriction>
+        </value>`);
+        expect(v.type).toBe('enumeration');
+        expect(v.values).toEqual(['A', 'B']);
+    });
+
+    it('should extract xs:pattern restriction with isRegex', () => {
+        const v = parseValue(`<value xmlns="x" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:restriction base="xs:string">
+                <xs:pattern value="^IFC.*"/>
+            </xs:restriction>
+        </value>`);
+        expect(v.type).toBe('restriction');
+        expect(v.pattern).toBe('^IFC.*');
+        expect(v.isRegex).toBe(true);
+    });
+
+    it('should extract xs:minInclusive/maxInclusive bounds', () => {
+        const v = parseValue(`<value xmlns="x" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:restriction base="xs:double">
+                <xs:minInclusive value="0"/>
+                <xs:maxInclusive value="100"/>
+            </xs:restriction>
+        </value>`);
+        expect(v.type).toBe('restriction');
+        expect(v.minInclusive).toBe('0');
+        expect(v.maxInclusive).toBe('100');
+    });
+});
