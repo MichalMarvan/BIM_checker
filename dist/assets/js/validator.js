@@ -2630,7 +2630,7 @@ async function validateAll() {
 
             const idsResult = {
                 idsFileName: group.idsFile.name,
-                idsTitle: idsData.title || group.idsFile.name,
+                idsTitle: idsData.info.title || group.idsFile.name,
                 ifcResults: []
             };
 
