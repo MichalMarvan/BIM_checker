@@ -107,15 +107,17 @@ function extractSpecifications(xmlDoc) {
     const specElements = xmlDoc.querySelectorAll('specification');
 
     specElements.forEach((spec, index) => {
+        const applicabilityElem = spec.querySelector('applicability');
         const specification = {
             name: spec.getAttribute('name') || `${t('parser.info.noSpec')} ${index + 1}`,
             ifcVersion: spec.getAttribute('ifcVersion') || t('parser.info.unspecified'),
-            // minOccurs: spec.getAttribute('minOccurs'), // Not allowed on <specification>
-            // maxOccurs: spec.getAttribute('maxOccurs'), // Not allowed on <specification>
+            // minOccurs/maxOccurs live on <applicability> per IDS 1.0 XSD, not <specification>
+            minOccurs: applicabilityElem?.getAttribute('minOccurs') ?? undefined,
+            maxOccurs: applicabilityElem?.getAttribute('maxOccurs') ?? undefined,
             identifier: spec.getAttribute('identifier') || '',
             description: spec.getAttribute('description') || '',
             instructions: spec.getAttribute('instructions') || '',
-            applicability: extractFacets(spec.querySelector('applicability')),
+            applicability: extractFacets(applicabilityElem),
             requirements: extractFacets(spec.querySelector('requirements'))
         };
         specifications.push(specification);

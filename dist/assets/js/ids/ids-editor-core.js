@@ -681,6 +681,8 @@ class IDSEditorCore {
                 name: specData.name,
                 ifcVersion: specData.ifcVersion,
                 description: specData.description,
+                minOccurs: specData.minOccurs,
+                maxOccurs: specData.maxOccurs,
                 applicability: [],
                 requirements: []
             };
@@ -701,6 +703,8 @@ class IDSEditorCore {
             spec.name = specData.name;
             spec.ifcVersion = specData.ifcVersion;
             spec.description = specData.description;
+            spec.minOccurs = specData.minOccurs;
+            spec.maxOccurs = specData.maxOccurs;
             this.hasUnsavedChanges = true;
             this.renderIDS();
         });

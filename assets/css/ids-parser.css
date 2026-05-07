@@ -197,9 +197,15 @@
     padding: 4px 8px;
     border-radius: 4px;
     display: inline-block;
+    vertical-align: top;
     margin-top: 4px;
     color: var(--text-primary);
     font-weight: 600;
+}
+
+.facet-value:has(.restriction-list) {
+    display: block;
+    margin-top: 0.25rem;
 }
 
 /* Regex Pattern */

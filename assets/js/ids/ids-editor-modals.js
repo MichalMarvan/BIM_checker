@@ -1057,7 +1057,15 @@ class IDSEditorModals {
                 <small>${t('editor.ifcVersionDesc')}</small>
             </div>
 
-
+            <div class="form-group">
+                <label>${t('editor.specCardinality')}</label>
+                <select id="specCardinality">
+                    <option value="required" ${currentCardinality === 'required' ? 'selected' : ''}>${t('cardinality.required')}</option>
+                    <option value="optional" ${currentCardinality === 'optional' ? 'selected' : ''}>${t('cardinality.optional')}</option>
+                    <option value="prohibited" ${currentCardinality === 'prohibited' ? 'selected' : ''}>${t('cardinality.prohibited')}</option>
+                </select>
+                <small>${t('editor.specCardinalityDesc')}</small>
+            </div>
 
             <div class="form-group">
                 <label>${t('editor.descriptionOptional')}</label>
@@ -1140,10 +1148,19 @@ class IDSEditorModals {
             return;
         }
 
+        const cardinality = document.getElementById('specCardinality')?.value || 'required';
+        const occurs = {
+            required:   { minOccurs: '1', maxOccurs: 'unbounded' },
+            optional:   { minOccurs: '0', maxOccurs: 'unbounded' },
+            prohibited: { minOccurs: '0', maxOccurs: '0' }
+        }[cardinality];
+
         const specData = {
             name: name,
             ifcVersion: ifcVersion,
-            description: document.getElementById('specDescription').value.trim()
+            description: document.getElementById('specDescription').value.trim(),
+            minOccurs: occurs.minOccurs,
+            maxOccurs: occurs.maxOccurs
         };
 
         if (this.currentSpecCallback) {
