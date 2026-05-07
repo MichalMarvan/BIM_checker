@@ -1556,7 +1556,7 @@ function _exportToXLSX() {
                 sheetName = `${ifcName}_${idsName}`;
             }
 
-            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName, true);
         }
     }
 
