@@ -496,6 +496,14 @@ function formatFacets(facets, isRequirements = false) {
 function formatValue(value) {
     if (value.type === 'simple') {
         return escapeHtml(value.value);
+    } else if (value.type === 'enumeration') {
+        const values = value.values || [];
+        let result = `${escapeHtml(t('parser.restriction.options'))} <ul class="restriction-list">`;
+        values.forEach(v => {
+            result += `<li>${escapeHtml(v)}</li>`;
+        });
+        result += '</ul>';
+        return result;
     } else if (value.type === 'restriction') {
         let result = '';
         if (value.isRegex && value.pattern) {
