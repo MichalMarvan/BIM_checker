@@ -938,6 +938,36 @@ function parseIFCStructure(ifcContent) {
     return { lines, entityMap, propertySetMap, propertySingleValueMap, relDefinesMap, guidToEntityId, maxEntityId };
 }
 
+/**
+ * Classify a single modification record into one of three cases:
+ *   'edit'        — element has pset and property  → in-place value update
+ *   'add-prop'    — element has pset, no property  → add new property to existing pset
+ *   'create-pset' — element has no pset by name    → create isolated pset
+ * @param {string} guid
+ * @param {string} psetName
+ * @param {string} propName
+ * @param {{ guidToEntityId: Map, relDefinesMap: Map, propertySetMap: Map, propertySingleValueMap: Map }} parsed
+ * @returns {{ case: string, propEntity?: object, psetEntity?: object, entityType?: string, propId?: string }}
+ */
+function classifyModification(guid, psetName, propName, parsed) {
+    const entityId = parsed.guidToEntityId.get(guid);
+    if (!entityId) return { case: 'create-pset' };
+
+    const pset = IfcPsetUtils.findPsetOnElement(entityId, psetName, parsed.relDefinesMap, parsed.propertySetMap);
+    if (!pset) return { case: 'create-pset' };
+
+    const propIds = IfcPsetUtils.parsePsetHasProperties(pset.params);
+    for (const propIdRef of propIds) {
+        const propId = propIdRef.replace(/^#/, '');
+        const prop = parsed.propertySingleValueMap.get(propId);
+        if (!prop) continue;
+        if (IfcPsetUtils.parsePropertyName(prop.line) === propName) {
+            return { case: 'edit', propEntity: prop, propId, psetEntity: pset, entityType: pset.type };
+        }
+    }
+    return { case: 'add-prop', psetEntity: pset, entityType: pset.type };
+}
+
 function applyModificationsToIFC(ifcContent, modifications, fileName) {
     const state = window.ViewerState;
     const parsed = parseIFCStructure(ifcContent);
@@ -1869,3 +1899,8 @@ window.addEventListener('languageChanged', () => {
         window.applyFiltersAndRender();
     }
 });
+
+// Expose pure functions for testing and external use
+window.parseIFCStructure = parseIFCStructure;
+window.classifyModification = classifyModification;
+window.applyModificationsToIFC = applyModificationsToIFC;
