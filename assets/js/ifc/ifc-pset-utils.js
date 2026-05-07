@@ -34,7 +34,30 @@ window.IfcPsetUtils = (function() {
         if (!nameMatch) return null;
         return nameMatch[1].replace(/''/g, "'");
     }
-    function findPsetOnElement(_entityId, _psetName, _relDefinesMap, _propertySetMap) { return null; }
+    function findPsetOnElement(entityId, psetName, relDefinesMap, propertySetMap) {
+        // IFCRELDEFINESBYPROPERTIES params: 'guid', $, $, $, (relatedObjects...), #relatingPset
+        // Iterate rels, find ones whose RelatedObjects contains entityId
+        for (const [_relId, relInfo] of relDefinesMap) {
+            if (!relInfo.params) continue;
+            // Match all "(...)" then extract IDs
+            // Last #N reference outside the tuple is the pset ID
+            const tupleMatch = relInfo.params.match(/\(([^()]*)\)\s*,\s*(#\d+)\s*$/);
+            if (!tupleMatch) continue;
+            const objIds = tupleMatch[1].split(',').map(s => s.trim().replace(/^#/, '')).filter(s => s.length);
+            if (!objIds.includes(String(entityId))) continue;
+            const psetId = tupleMatch[2].replace(/^#/, '');
+            const pset = propertySetMap.get(psetId);
+            if (!pset) continue;
+            // Check pset name (3rd quoted string in params: 'guid', $, 'Name', ...)
+            const nameMatch = pset.params.match(/'(?:[^']|'')*'\s*,\s*\$?[^,]*,\s*'((?:[^']|'')*)'/);
+            if (!nameMatch) continue;
+            const foundName = nameMatch[1].replace(/''/g, "'");
+            if (foundName === psetName) {
+                return { id: psetId, ...pset };
+            }
+        }
+        return null;
+    }
 
     return { parsePsetHasProperties, addPropertyIdToPset, parsePropertyName, findPsetOnElement };
 })();

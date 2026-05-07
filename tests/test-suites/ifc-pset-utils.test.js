@@ -88,3 +88,57 @@ describe('IfcPsetUtils.parsePropertyName', () => {
         expect(IfcPsetUtils.parsePropertyName(line)).toBeNull();
     });
 });
+
+describe('IfcPsetUtils.findPsetOnElement', () => {
+    function makeMaps() {
+        // element #10 is linked via rel #300 to pset #100 (Pset_WallCommon)
+        // element #11 is linked via rel #301 to pset #101 (Pset_Custom)
+        const propertySetMap = new Map();
+        propertySetMap.set('100', { lineIndex: 5, params: "'pset-guid',$,'Pset_WallCommon',$,(#200,#201)", line: "#100=IFCPROPERTYSET(...)", type: 'IFCPROPERTYSET' });
+        propertySetMap.set('101', { lineIndex: 6, params: "'pset-guid2',$,'Pset_Custom',$,(#202)", line: "#101=IFCPROPERTYSET(...)", type: 'IFCPROPERTYSET' });
+
+        const relDefinesMap = new Map();
+        relDefinesMap.set('300', { lineIndex: 8, params: "'rel-guid',$,$,$,(#10),#100", line: "#300=IFCRELDEFINESBYPROPERTIES(...)" });
+        relDefinesMap.set('301', { lineIndex: 9, params: "'rel-guid2',$,$,$,(#11),#101", line: "#301=IFCRELDEFINESBYPROPERTIES(...)" });
+
+        return { propertySetMap, relDefinesMap };
+    }
+
+    it('should find existing pset on element', () => {
+        const { propertySetMap, relDefinesMap } = makeMaps();
+        const result = IfcPsetUtils.findPsetOnElement('10', 'Pset_WallCommon', relDefinesMap, propertySetMap);
+        expect(result).toBeDefined();
+        expect(result.id).toBe('100');
+        expect(result.type).toBe('IFCPROPERTYSET');
+    });
+
+    it('should return null when element has no rel', () => {
+        const { propertySetMap, relDefinesMap } = makeMaps();
+        const result = IfcPsetUtils.findPsetOnElement('99', 'Pset_WallCommon', relDefinesMap, propertySetMap);
+        expect(result).toBeNull();
+    });
+
+    it('should return null when rel exists but pset name differs', () => {
+        const { propertySetMap, relDefinesMap } = makeMaps();
+        const result = IfcPsetUtils.findPsetOnElement('10', 'Pset_Different', relDefinesMap, propertySetMap);
+        expect(result).toBeNull();
+    });
+
+    it('should match shared pset (multi-element rel)', () => {
+        const propertySetMap = new Map();
+        propertySetMap.set('100', { lineIndex: 5, params: "'pset-guid',$,'Pset_Shared',$,(#200)", line: "#100=IFCPROPERTYSET(...)", type: 'IFCPROPERTYSET' });
+        const relDefinesMap = new Map();
+        relDefinesMap.set('300', { lineIndex: 8, params: "'rel-guid',$,$,$,(#10,#11,#12),#100", line: "#300=IFCRELDEFINESBYPROPERTIES(...)" });
+        const result = IfcPsetUtils.findPsetOnElement('11', 'Pset_Shared', relDefinesMap, propertySetMap);
+        expect(result).toBeDefined();
+        expect(result.id).toBe('100');
+    });
+
+    it('should ignore rel pointing to non-existent pset', () => {
+        const propertySetMap = new Map();
+        const relDefinesMap = new Map();
+        relDefinesMap.set('300', { lineIndex: 8, params: "'rel-guid',$,$,$,(#10),#999", line: "..." });
+        const result = IfcPsetUtils.findPsetOnElement('10', 'Pset_X', relDefinesMap, propertySetMap);
+        expect(result).toBeNull();
+    });
+});
