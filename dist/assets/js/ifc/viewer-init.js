@@ -7,25 +7,25 @@
 // UPLOAD AREA SETUP
 // =======================
 
-const uploadArea = document.getElementById('uploadArea');
-const fileInput = document.getElementById('fileInput');
+const viewerUploadArea = document.getElementById('uploadArea');
+const viewerFileInput = document.getElementById('fileInput');
 
-uploadArea.addEventListener('click', () => fileInput.click());
-uploadArea.addEventListener('dragover', (e) => {
+viewerUploadArea.addEventListener('click', () => viewerFileInput.click());
+viewerUploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
-    uploadArea.style.borderColor = '#764ba2';
+    viewerUploadArea.style.borderColor = '#764ba2';
 });
-uploadArea.addEventListener('dragleave', () => {
-    uploadArea.style.borderColor = '#667eea';
+viewerUploadArea.addEventListener('dragleave', () => {
+    viewerUploadArea.style.borderColor = '#667eea';
 });
-uploadArea.addEventListener('drop', (e) => {
+viewerUploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
-    uploadArea.style.borderColor = '#667eea';
+    viewerUploadArea.style.borderColor = '#667eea';
     if (e.dataTransfer.files.length > 0) {
         window.handleFiles(Array.from(e.dataTransfer.files));
     }
 });
-fileInput.addEventListener('change', (e) => {
+viewerFileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
         window.handleFiles(Array.from(e.target.files));
     }
@@ -883,11 +883,14 @@ async function exportModifiedIFC(fileInfo) {
     }
 }
 
-function applyModificationsToIFC(ifcContent, modifications, fileName) {
-    const state = window.ViewerState;
+/**
+ * Parse IFC content into entity lookup maps for use by applyModificationsToIFC.
+ * @param {string} ifcContent - Raw IFC file content
+ * @returns {{ lines: string[], entityMap: Map, propertySetMap: Map, propertySingleValueMap: Map,
+ *             relDefinesMap: Map, guidToEntityId: Map, maxEntityId: number }}
+ */
+function parseIFCStructure(ifcContent) {
     const lines = ifcContent.split('\n');
-    const modifiedLines = [...lines];
-
     const entityMap = new Map();
     const propertySetMap = new Map();
     const propertySingleValueMap = new Map();
@@ -932,6 +935,15 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
         }
     });
 
+    return { lines, entityMap, propertySetMap, propertySingleValueMap, relDefinesMap, guidToEntityId, maxEntityId };
+}
+
+function applyModificationsToIFC(ifcContent, modifications, fileName) {
+    const state = window.ViewerState;
+    const parsed = parseIFCStructure(ifcContent);
+    const modifiedLines = [...parsed.lines];
+    let { maxEntityId } = parsed;
+
     let modificationCount = 0;
     let createdCount = 0;
     const newEntities = [];
@@ -942,7 +954,7 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
             continue;
         }
 
-        const entityId = guidToEntityId.get(guid);
+        const entityId = parsed.guidToEntityId.get(guid);
         if (!entityId) {
             continue;
         }
@@ -957,9 +969,9 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
             for (const [propName, newValue] of Object.entries(propModifications)) {
                 const updated = updatePropertyInIFC(
                     modifiedLines,
-                    entityMap,
-                    propertySetMap,
-                    propertySingleValueMap,
+                    parsed.entityMap,
+                    parsed.propertySetMap,
+                    parsed.propertySingleValueMap,
                     psetName,
                     propName,
                     newValue
