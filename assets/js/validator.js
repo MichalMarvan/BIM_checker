@@ -1788,6 +1788,41 @@ function renderValidationGroups() {
 
             fileItem.appendChild(fileIcon);
             fileItem.appendChild(fileName);
+
+            // XSD badge + collapsible error list
+            if (group.idsFile.xsdResult && !group.idsFile.xsdResult.valid) {
+                const errCount = group.idsFile.xsdResult.errors.length;
+                const badge = document.createElement('span');
+                badge.className = 'xsd-file-badge';
+                badge.textContent = t('xsd.validator.fileBadge').replace('{n}', errCount);
+                fileItem.appendChild(badge);
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'xsd-file-detail-toggle';
+                toggleBtn.dataset.groupIdx = index;
+                toggleBtn.textContent = '[' + t('xsd.banner.toggleShow') + ']';
+                fileItem.appendChild(toggleBtn);
+
+                const detailList = document.createElement('ul');
+                detailList.className = 'xsd-file-detail-list';
+                detailList.dataset.xsdGroupIdx = index;
+                detailList.hidden = true;
+                detailList.innerHTML = group.idsFile.xsdResult.errors.map(e =>
+                    `<li><strong>${e.line ? 'Řádek ' + e.line + ': ' : ''}</strong>${escapeHtml(e.message)}</li>`
+                ).join('');
+                fileItem.appendChild(detailList);
+
+                toggleBtn.addEventListener('click', () => {
+                    if (detailList.hidden) {
+                        detailList.hidden = false;
+                        toggleBtn.textContent = '[' + t('xsd.banner.toggleHide') + ']';
+                    } else {
+                        detailList.hidden = true;
+                        toggleBtn.textContent = '[' + t('xsd.banner.toggleShow') + ']';
+                    }
+                });
+            }
+
             idsFilesList.appendChild(fileItem);
         } else {
             const noFileP = document.createElement('p');
@@ -1922,6 +1957,9 @@ async function handleIdsDrop(files, groupIndex) {
 
     renderValidationGroups();
     updateValidateButton();
+
+    // Async XSD validation (non-blocking)
+    validateIDSFileXSD(groupIndex);
 
     // Dispatch event for wizard
     window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
@@ -2552,6 +2590,9 @@ async function confirmIdsSelection() {
             renderValidationGroups();
             updateValidateButton();
 
+            // Async XSD validation (non-blocking)
+            validateIDSFileXSD(currentGroupIndex);
+
             // Dispatch event for wizard
             window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
         };
@@ -2879,6 +2920,43 @@ window.selectIdsFile = selectIdsFile;
         console.error('Failed to pre-load storage metadata:', e);
     }
 })();
+
+// ===== XSD VALIDATION (per-file + summary banner) =====
+
+async function validateIDSFileXSD(groupIndex) {
+    const group = validationGroups[groupIndex];
+    if (!group || !group.idsFile || typeof window.IDSXSDValidator === 'undefined') return;
+    try {
+        const result = await IDSXSDValidator.validate(group.idsFile.content);
+        group.idsFile.xsdResult = result;
+    } catch (e) {
+        console.warn('XSD validation failed for', group.idsFile.name, e);
+        group.idsFile.xsdResult = null;
+    }
+    renderValidationGroups();
+    updateXSDSummaryBanner();
+}
+
+function updateXSDSummaryBanner() {
+    const banner = document.getElementById('xsdSummaryBanner');
+    const text   = document.getElementById('xsdSummaryText');
+    if (!banner || !text) return;
+
+    const allIds = validationGroups
+        .filter(g => g.idsFile && g.idsFile.xsdResult !== undefined)
+        .map(g => g.idsFile);
+    const badCount   = allIds.filter(f => f.xsdResult && !f.xsdResult.valid).length;
+    const totalCount = allIds.length;
+
+    if (badCount === 0) {
+        banner.style.display = 'none';
+    } else {
+        text.textContent = t('xsd.validator.summaryBanner')
+            .replace('{badCount}', badCount)
+            .replace('{totalCount}', totalCount);
+        banner.style.display = 'block';
+    }
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {

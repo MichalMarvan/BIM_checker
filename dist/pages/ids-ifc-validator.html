@@ -102,6 +102,14 @@
                     <button class="btn btn-success" onclick="addValidationGroup()" data-i18n="validator.addGroup">➕ Přidat validační skupinu</button>
                 </div>
 
+                <!-- XSD Summary Banner -->
+                <div id="xsdSummaryBanner" class="xsd-banner" style="display:none">
+                    <div class="xsd-banner-summary">
+                        <span class="xsd-banner-icon">⚠️</span>
+                        <span class="xsd-banner-text" id="xsdSummaryText"></span>
+                    </div>
+                </div>
+
                 <div id="validationGroups">
                     <!-- Validační skupiny se zde vygenerují dynamicky -->
                 </div>
@@ -244,6 +252,7 @@
     <script src="../assets/js/common/ids-parser.js"></script>
     <script src="../assets/js/common/ifc-hierarchy.js"></script>
     <script src="../assets/js/common/ifc-params.js"></script>
+    <script src="../assets/js/common/ids-xsd-validator.js"></script>
     <script src="../assets/js/validator.js"></script>
     <!-- Update Checker for desktop app -->
     <script type="module" src="../assets/js/common/update-checker.js"></script>
