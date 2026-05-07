@@ -1460,6 +1460,20 @@ function clearFilters() {
 
 // Export to XLSX
 function exportToXLSX() {
+    if (!validationResults || validationResults.length === 0) {
+        ErrorHandler.warning(t('validator.export.noResults'));
+        return;
+    }
+
+    try {
+        return _exportToXLSX();
+    } catch (err) {
+        console.error('XLSX export failed:', err);
+        ErrorHandler.error(t('validator.export.failed') + ' ' + (err && err.message ? err.message : err));
+    }
+}
+
+function _exportToXLSX() {
     const wb = XLSX.utils.book_new();
 
     // Create a sheet for each IFC+IDS combination
