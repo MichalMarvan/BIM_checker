@@ -295,7 +295,7 @@ class ValidationOrchestrator {
                 if (this.aborted) break;
 
                 const spec = specifications[i];
-                const result = ValidationEngine.validateBatch(entities, spec);
+                const result = await ValidationEngine.validateBatch(entities, spec);
 
                 if (result.entityResults.length > 0) {
                     results.push(result);

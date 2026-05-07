@@ -95,7 +95,7 @@ describe('Validation Engine', () => {
     });
 
     describe('Batch Validation', () => {
-        it('should validate multiple entities', () => {
+        it('should validate multiple entities', async () => {
             const entities = [mockEntity, { ...mockEntity, guid: 'different' }];
             const spec = {
                 name: 'Test Spec',
@@ -103,11 +103,11 @@ describe('Validation Engine', () => {
                 requirements: []
             };
 
-            const results = ValidationEngine.validateBatch(entities, spec);
+            const results = await ValidationEngine.validateBatch(entities, spec);
             expect(results.entityResults.length).toBe(2);
         });
 
-        it('should filter by applicability', () => {
+        it('should filter by applicability', async () => {
             const entities = [
                 mockEntity,
                 { ...mockEntity, entity: 'IFCDOOR', guid: 'door-guid' }
@@ -118,11 +118,11 @@ describe('Validation Engine', () => {
                 requirements: []
             };
 
-            const results = ValidationEngine.validateBatch(entities, spec);
+            const results = await ValidationEngine.validateBatch(entities, spec);
             expect(results.entityResults.length).toBe(1);
         });
 
-        it('should count pass and fail', () => {
+        it('should count pass and fail', async () => {
             const entities = [mockEntity];
             const spec = {
                 name: 'Test Spec',
@@ -136,7 +136,7 @@ describe('Validation Engine', () => {
                 ]
             };
 
-            const results = ValidationEngine.validateBatch(entities, spec);
+            const results = await ValidationEngine.validateBatch(entities, spec);
             expect(results.passCount).toBe(1);
             expect(results.failCount).toBe(0);
         });

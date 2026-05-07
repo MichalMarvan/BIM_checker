@@ -205,11 +205,12 @@ const ValidationEngine = (function() {
      * Check if entity matches a facet (applicability)
      * @param {Object} entity
      * @param {Object} facet
+     * @param {Object} [ctx]
      * @returns {boolean}
      */
-    function checkFacetMatch(entity, facet) {
+    function checkFacetMatch(entity, facet, ctx) {
         if (facet.type === 'entity') {
-            return checkEntityFacet(entity, facet);
+            return checkEntityFacet(entity, facet, ctx);
         } else if (facet.type === 'property') {
             return checkPropertyFacet(entity, facet, true);
         } else if (facet.type === 'attribute') {
@@ -222,16 +223,17 @@ const ValidationEngine = (function() {
      * Filter entities by applicability
      * @param {Array} entities
      * @param {Array} applicability
+     * @param {Object} [ctx]
      * @returns {Array}
      */
-    function filterByApplicability(entities, applicability) {
+    function filterByApplicability(entities, applicability, ctx) {
         if (!applicability || applicability.length === 0) {
             return entities;
         }
 
         return entities.filter(entity => {
             for (const facet of applicability) {
-                if (!checkFacetMatch(entity, facet)) {
+                if (!checkFacetMatch(entity, facet, ctx)) {
                     return false;
                 }
             }
@@ -282,9 +284,23 @@ const ValidationEngine = (function() {
      * Validate a batch of entities against a specification
      * @param {Array} entities
      * @param {Object} spec
-     * @returns {Object}
+     * @returns {Promise<Object>}
      */
-    function validateBatch(entities, spec) {
+    async function validateBatch(entities, spec) {
+        const ifcVersion = spec.ifcVersion || 'IFC4';
+        if (typeof window !== 'undefined' && window.IFCHierarchy) {
+            await window.IFCHierarchy.load(ifcVersion);
+        }
+        const ctx = (typeof window !== 'undefined' && window.IFCHierarchy && window.IfcParams) ? {
+            ifcVersion,
+            isSubtypeOf: (c, a) => window.IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
+            getPredefinedTypeIndex: (cls) => window.IFCHierarchy.getPredefinedTypeIndex(ifcVersion, cls),
+            getObjectTypeIndex: (cls) => window.IFCHierarchy.getObjectTypeIndex(ifcVersion, cls),
+            splitParams: window.IfcParams.splitIfcParams,
+            unwrapEnumValue: window.IfcParams.unwrapEnumValue,
+            unwrapString: window.IfcParams.unwrapString
+        } : null;
+
         const result = {
             specification: spec.name,
             status: 'pass',
@@ -293,7 +309,7 @@ const ValidationEngine = (function() {
             entityResults: []
         };
 
-        const applicableEntities = filterByApplicability(entities, spec.applicability);
+        const applicableEntities = filterByApplicability(entities, spec.applicability, ctx);
 
         for (const entity of applicableEntities) {
             const entityResult = validateEntity(entity, spec.requirements || [], spec.name);

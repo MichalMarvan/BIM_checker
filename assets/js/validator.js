@@ -669,6 +669,17 @@ function validateEntitiesAgainstIDS(entities, specifications) {
     const results = [];
 
     for (const spec of specifications) {
+        const ifcVersion = spec.ifcVersion || 'IFC4';
+        const ctx = (typeof IFCHierarchy !== 'undefined' && typeof IfcParams !== 'undefined') ? {
+            ifcVersion,
+            isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
+            getPredefinedTypeIndex: (cls) => IFCHierarchy.getPredefinedTypeIndex(ifcVersion, cls),
+            getObjectTypeIndex: (cls) => IFCHierarchy.getObjectTypeIndex(ifcVersion, cls),
+            splitParams: IfcParams.splitIfcParams,
+            unwrapEnumValue: IfcParams.unwrapEnumValue,
+            unwrapString: IfcParams.unwrapString
+        } : null;
+
         const specResult = {
             specification: spec.name,
             status: 'pass',
@@ -678,7 +689,7 @@ function validateEntitiesAgainstIDS(entities, specifications) {
         };
 
         // Find applicable entities
-        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability);
+        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability, ctx);
 
         // Validate each applicable entity against requirements
         for (const entity of applicableEntities) {
@@ -708,6 +719,20 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
     const CHUNK_SIZE = 50; // Process 50 entities at a time
 
     for (const spec of specifications) {
+        const ifcVersion = spec.ifcVersion || 'IFC4';
+        if (typeof IFCHierarchy !== 'undefined') {
+            await IFCHierarchy.load(ifcVersion);
+        }
+        const ctx = (typeof IFCHierarchy !== 'undefined' && typeof IfcParams !== 'undefined') ? {
+            ifcVersion,
+            isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
+            getPredefinedTypeIndex: (cls) => IFCHierarchy.getPredefinedTypeIndex(ifcVersion, cls),
+            getObjectTypeIndex: (cls) => IFCHierarchy.getObjectTypeIndex(ifcVersion, cls),
+            splitParams: IfcParams.splitIfcParams,
+            unwrapEnumValue: IfcParams.unwrapEnumValue,
+            unwrapString: IfcParams.unwrapString
+        } : null;
+
         const specResult = {
             specification: spec.name,
             status: 'pass',
@@ -717,7 +742,7 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
         };
 
         // Find applicable entities
-        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability);
+        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability, ctx);
 
         // Validate entities in chunks
         for (let i = 0; i < applicableEntities.length; i += CHUNK_SIZE) {
@@ -750,14 +775,14 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
     return results;
 }
 
-function filterEntitiesByApplicability(entities, applicability) {
+function filterEntitiesByApplicability(entities, applicability, ctx) {
     if (!applicability || applicability.length === 0) {
         return entities;
     }
 
     return entities.filter(entity => {
         for (const facet of applicability) {
-            if (!checkFacetMatch(entity, facet)) {
+            if (!checkFacetMatch(entity, facet, ctx)) {
                 return false;
             }
         }
@@ -788,9 +813,9 @@ function validateEntityAgainstRequirements(entity, requirements, specName) {
     return result;
 }
 
-function checkFacetMatch(entity, facet) {
+function checkFacetMatch(entity, facet, ctx) {
     if (facet.type === 'entity') {
-        return checkEntityFacet(entity, facet);
+        return ValidationEngine.checkEntityFacet(entity, facet, ctx);
     } else if (facet.type === 'property') {
         return checkPropertyFacet(entity, facet, true);
     } else if (facet.type === 'attribute') {
@@ -824,21 +849,8 @@ function checkRequirementFacet(entity, facet) {
     return validation;
 }
 
-function checkEntityFacet(entity, facet) {
-    if (!facet.name) {
-        return true;
-    }
-
-    if (facet.name.type === 'simple') {
-        return entity.entity === facet.name.value;
-    } else if (facet.name.type === 'enumeration' && Array.isArray(facet.name.values)) {
-        return facet.name.values.includes(entity.entity);
-    } else if (facet.name.type === 'restriction' && facet.name.isRegex) {
-        const regex = RegexCache.get(facet.name.pattern);
-        return regex.test(entity.entity);
-    }
-
-    return false;
+function checkEntityFacet(entity, facet, ctx) {
+    return ValidationEngine.checkEntityFacet(entity, facet, ctx);
 }
 
 function checkPropertyFacet(entity, facet, isApplicability) {
@@ -2709,7 +2721,7 @@ async function validateAll() {
                         await new Promise(resolve => setTimeout(resolve, 0));
                     }
 
-                    const result = ValidationEngine.validateBatch(entities, spec);
+                    const result = await ValidationEngine.validateBatch(entities, spec);
 
                     // Update progress
                     if (progressPanel) {
