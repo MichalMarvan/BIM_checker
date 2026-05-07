@@ -33,7 +33,26 @@ window.IDSParser = (function() {
         }
         return info;
     }
-    function extractSpecifications(_xmlDoc) { return []; }
+    function extractSpecifications(xmlDoc) {
+        const result = [];
+        const specEls = xmlDoc.querySelectorAll('specification');
+        specEls.forEach((spec, index) => {
+            const applicabilityEl = spec.querySelector(':scope > applicability');
+            const requirementsEl = spec.querySelector(':scope > requirements');
+            result.push({
+                name: spec.getAttribute('name') || `Specification ${index + 1}`,
+                ifcVersion: spec.getAttribute('ifcVersion') || '',
+                identifier: spec.getAttribute('identifier') || '',
+                description: spec.getAttribute('description') || '',
+                instructions: spec.getAttribute('instructions') || '',
+                minOccurs: applicabilityEl?.getAttribute('minOccurs') ?? undefined,
+                maxOccurs: applicabilityEl?.getAttribute('maxOccurs') ?? undefined,
+                applicability: extractFacets(applicabilityEl),
+                requirements: extractFacets(requirementsEl)
+            });
+        });
+        return result;
+    }
     function extractFacets(facetsElement) {
         if (!facetsElement) return [];
         const facets = [];

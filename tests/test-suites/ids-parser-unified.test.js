@@ -139,3 +139,43 @@ describe('IDSParser.extractFacets', () => {
         expect(IDSParser.extractFacets(null)).toEqual([]);
     });
 });
+
+describe('IDSParser.extractSpecifications', () => {
+    it('should extract spec attributes + applicability minOccurs/maxOccurs', () => {
+        const xml = `<?xml version="1.0"?>
+            <ids xmlns="x">
+                <specifications>
+                    <specification name="Walls" ifcVersion="IFC4" identifier="W-001" description="Wall checks">
+                        <applicability minOccurs="0" maxOccurs="unbounded">
+                            <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+                        </applicability>
+                        <requirements>
+                            <property><propertySet><simpleValue>Pset</simpleValue></propertySet><baseName><simpleValue>P</simpleValue></baseName></property>
+                        </requirements>
+                    </specification>
+                </specifications>
+            </ids>`;
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        const specs = IDSParser.extractSpecifications(doc);
+        expect(specs.length).toBe(1);
+        expect(specs[0].name).toBe('Walls');
+        expect(specs[0].ifcVersion).toBe('IFC4');
+        expect(specs[0].identifier).toBe('W-001');
+        expect(specs[0].description).toBe('Wall checks');
+        expect(specs[0].minOccurs).toBe('0');
+        expect(specs[0].maxOccurs).toBe('unbounded');
+        expect(specs[0].applicability.length).toBe(1);
+        expect(specs[0].requirements.length).toBe(1);
+    });
+
+    it('should default minOccurs/maxOccurs to undefined when absent', () => {
+        const xml = `<?xml version="1.0"?>
+            <ids xmlns="x"><specifications><specification name="X" ifcVersion="IFC4">
+                <applicability/><requirements/>
+            </specification></specifications></ids>`;
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        const specs = IDSParser.extractSpecifications(doc);
+        expect(specs[0].minOccurs).toBeUndefined();
+        expect(specs[0].maxOccurs).toBeUndefined();
+    });
+});
