@@ -29,7 +29,7 @@ window.IDSParser = (function() {
         const fields = ['title', 'copyright', 'version', 'description', 'author', 'date', 'purpose', 'milestone'];
         for (const field of fields) {
             const el = infoEl.querySelector(field);
-            if (el) info[field] = el.textContent.trim();
+            info[field] = el ? el.textContent.trim() : '';
         }
         return info;
     }
