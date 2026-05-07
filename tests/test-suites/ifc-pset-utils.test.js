@@ -34,3 +34,35 @@ describe('IfcPsetUtils.parsePsetHasProperties', () => {
         expect(IfcPsetUtils.parsePsetHasProperties(params)).toEqual([]);
     });
 });
+
+describe('IfcPsetUtils.addPropertyIdToPset', () => {
+    it('should add ID to non-empty tuple', () => {
+        const line = "#100=IFCPROPERTYSET('g',$,'Name',$,(#1,#2));";
+        const result = IfcPsetUtils.addPropertyIdToPset(line, 999);
+        expect(result).toBe("#100=IFCPROPERTYSET('g',$,'Name',$,(#1,#2,#999));");
+    });
+
+    it('should add ID to empty tuple', () => {
+        const line = "#100=IFCPROPERTYSET('g',$,'Name',$,());";
+        const result = IfcPsetUtils.addPropertyIdToPset(line, 999);
+        expect(result).toBe("#100=IFCPROPERTYSET('g',$,'Name',$,(#999));");
+    });
+
+    it('should preserve trailing whitespace', () => {
+        const line = "#100=IFCPROPERTYSET('g',$,'Name',$,(#1));   ";
+        const result = IfcPsetUtils.addPropertyIdToPset(line, 999);
+        expect(result).toBe("#100=IFCPROPERTYSET('g',$,'Name',$,(#1,#999));   ");
+    });
+
+    it('should return line unchanged when no tuple found', () => {
+        const line = "#100=IFCPROPERTYSET('g',$,'Name',$);";
+        const result = IfcPsetUtils.addPropertyIdToPset(line, 999);
+        expect(result).toBe(line);
+    });
+
+    it('should work with single-property tuple', () => {
+        const line = "#100=IFCPROPERTYSET('g',$,'Name',$,(#42));";
+        const result = IfcPsetUtils.addPropertyIdToPset(line, 999);
+        expect(result).toBe("#100=IFCPROPERTYSET('g',$,'Name',$,(#42,#999));");
+    });
+});

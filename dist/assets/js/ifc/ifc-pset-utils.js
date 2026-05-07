@@ -14,7 +14,16 @@ window.IfcPsetUtils = (function() {
         if (!inside.trim()) return [];
         return inside.split(',').map(s => s.trim()).filter(s => s.length > 0);
     }
-    function addPropertyIdToPset(_line, _newPropId) { return _line; }
+    function addPropertyIdToPset(line, newPropId) {
+        // Find the HasProperties tuple: the last "(...)" whose content is ONLY #refs, digits, commas, spaces.
+        // This avoids matching the outer entity parentheses which contain string literals.
+        const match = line.match(/^(.*\()([#\d,\s]*)((?:\)[^()]*)+)$/);
+        if (!match) return line;
+        const [, prefix, inside, suffix] = match;
+        const trimmed = inside.trim();
+        const newInside = trimmed.length === 0 ? `#${newPropId}` : `${inside},#${newPropId}`;
+        return prefix + newInside + suffix;
+    }
     function parsePropertyName(_line) { return null; }
     function findPsetOnElement(_entityId, _psetName, _relDefinesMap, _propertySetMap) { return null; }
 
