@@ -504,3 +504,29 @@ async function parseCompleteIFC(content) {
         entityCount: entities.length
     };
 }
+
+describe('Integration: subtype matching against real IFC', () => {
+    it('IDS with simpleValue IFCWALL should match IFCWALLSTANDARDCASE entities', async () => {
+        await IFCHierarchy.load('IFC4');
+        const facet = { type: 'entity', name: { type: 'simple', value: 'IFCWALL' } };
+        const ctx = {
+            ifcVersion: 'IFC4',
+            isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf('IFC4', c, a)
+        };
+        const entity = { entity: 'IFCWALLSTANDARDCASE' };
+        expect(ValidationEngine.checkEntityFacet(entity, facet, ctx)).toBe(true);
+    });
+
+    it('IDS with abstract IFCBUILDINGELEMENT should match all subtypes', async () => {
+        await IFCHierarchy.load('IFC4');
+        // IFC4 ADD2 uses IFCBUILDINGELEMENT (not IFCBUILTELEMENT) as the parent class
+        const facet = { type: 'entity', name: { type: 'simple', value: 'IFCBUILDINGELEMENT' } };
+        const ctx = {
+            ifcVersion: 'IFC4',
+            isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf('IFC4', c, a)
+        };
+        for (const cls of ['IFCWALL', 'IFCSLAB', 'IFCDOOR', 'IFCWINDOW', 'IFCBEAM']) {
+            expect(ValidationEngine.checkEntityFacet({ entity: cls }, facet, ctx)).toBe(true);
+        }
+    });
+});

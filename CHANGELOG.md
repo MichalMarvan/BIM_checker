@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-08
+
+### Added
+- Unified IDS parser (`common/ids-parser.js`) — single source of truth shared by Parser/Visualizer and Validator pages.
+- Full IFC class hierarchy support: applicability with `IFCWALL` now correctly matches subtypes (`IFCWALLSTANDARDCASE` etc.).
+- `PredefinedType` matching in entity facets, including `USERDEFINED` → `ObjectType` fallback.
+- XSD validation against official IDS 1.0 schema using xmllint-wasm. Banner on import, modal on export, fully offline (PWA-cached).
+- Generated IFC class hierarchy data for IFC2X3 / IFC4 / IFC4X3 (`assets/data/ifc-hierarchy-*.json`).
+- Generator script `scripts/generate-ifc-hierarchy.cjs` for refreshing hierarchy data when buildingSMART releases new IFC versions.
+
+### Fixed
+- Validator no longer silently treats unrecognized entity facet shapes as "match all" (now defaults to "no match").
+- Spec cardinality (REQ/OPT/PROH badge) now correctly reflects `<applicability minOccurs/maxOccurs>` in source IDS.
+
+### Internal
+- ~50 new test cases (305 → 350).
+- `validator.js` shed ~276 lines of duplicate parser code.
+- Worker pool, validation orchestrator, and inline validation paths all updated to async signature for hierarchy preload.
+
 ## [Unreleased]
 
 ### Changed

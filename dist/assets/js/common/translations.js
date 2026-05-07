@@ -800,6 +800,20 @@ const translations = {
         'wizard.help.validator.faq3.a': 'PASS = entita splňuje všechny požadavky, FAIL = některý požadavek není splněn.',
         'wizard.help.validator.faq4.q': 'Jak exportovat výsledky?',
         'wizard.help.validator.faq4.a': 'Použijte tlačítko Export XLSX pro stažení kompletního reportu.',
+
+        // === XSD VALIDATION ===
+        'xsd.banner.errors': 'Soubor má {n} chyb proti IDS 1.0 schématu',
+        'xsd.banner.singleError': 'Soubor má 1 chybu proti IDS 1.0 schématu',
+        'xsd.banner.toggleShow': 'Zobrazit detaily ▾',
+        'xsd.banner.toggleHide': 'Skrýt detaily ▴',
+        'xsd.banner.line': 'Řádek {n}:',
+        'xsd.export.title': 'IDS má chyby proti schématu',
+        'xsd.export.intro': 'Soubor obsahuje {n} chyb proti oficiálnímu IDS 1.0 schématu:',
+        'xsd.export.warning': 'Můžeš pokračovat se stažením, ale soubor nebude validní podle IDS 1.0.',
+        'xsd.export.cancel': 'Zrušit',
+        'xsd.export.proceed': 'Stáhnout přesto',
+        'xsd.validator.fileBadge': '{n} chyb v schématu',
+        'xsd.validator.summaryBanner': '{badCount} z {totalCount} IDS souborů má chyby proti schématu',
     },
 
     en: {
@@ -1598,6 +1612,20 @@ const translations = {
         'wizard.help.validator.faq3.a': 'PASS = entity meets all requirements, FAIL = some requirement is not met.',
         'wizard.help.validator.faq4.q': 'How to export results?',
         'wizard.help.validator.faq4.a': 'Use the Export XLSX button to download a complete report.',
+
+        // === XSD VALIDATION ===
+        'xsd.banner.errors': 'File has {n} errors against the IDS 1.0 schema',
+        'xsd.banner.singleError': 'File has 1 error against the IDS 1.0 schema',
+        'xsd.banner.toggleShow': 'Show details ▾',
+        'xsd.banner.toggleHide': 'Hide details ▴',
+        'xsd.banner.line': 'Line {n}:',
+        'xsd.export.title': 'IDS has schema errors',
+        'xsd.export.intro': 'File contains {n} errors against the official IDS 1.0 schema:',
+        'xsd.export.warning': 'You can proceed with download, but the file will not be valid per IDS 1.0.',
+        'xsd.export.cancel': 'Cancel',
+        'xsd.export.proceed': 'Download anyway',
+        'xsd.validator.fileBadge': '{n} schema errors',
+        'xsd.validator.summaryBanner': '{badCount} of {totalCount} IDS files have schema errors',
     }
 };
 

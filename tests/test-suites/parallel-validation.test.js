@@ -4,7 +4,7 @@
 
 describe('Parallel Validation Integration', () => {
 
-    it('should validate entities using ValidationEngine', () => {
+    it('should validate entities using ValidationEngine', async () => {
         const entities = [
             {
                 guid: 'test-guid-1',
@@ -23,7 +23,7 @@ describe('Parallel Validation Integration', () => {
             requirements: []
         };
 
-        const result = ValidationEngine.validateBatch(entities, spec);
+        const result = await ValidationEngine.validateBatch(entities, spec);
 
         expect(result.specification).toBe('Wall Check');
         expect(result.entityResults.length).toBe(1);
@@ -68,7 +68,7 @@ describe('Parallel Validation Integration', () => {
         expect(typeof ProgressPanel).toBe('function');
     });
 
-    it('should validate complex entity with properties', () => {
+    it('should validate complex entity with properties', async () => {
         const entity = {
             guid: 'test-guid',
             entity: 'IFCWALL',
@@ -99,7 +99,7 @@ describe('Parallel Validation Integration', () => {
             ]
         };
 
-        const result = ValidationEngine.validateBatch([entity], spec);
+        const result = await ValidationEngine.validateBatch([entity], spec);
 
         expect(result.entityResults.length).toBe(1);
         expect(result.entityResults[0].status).toBe('pass');

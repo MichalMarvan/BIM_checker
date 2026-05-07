@@ -405,3 +405,39 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* XSD Validation Banner */
+.xsd-banner {
+    background: var(--warning-light, #fef3c7);
+    border-left: 4px solid var(--warning, #f59e0b);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+.xsd-banner-summary { display: flex; align-items: center; gap: 12px; }
+.xsd-banner-toggle {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--warning-dark, #92400e);
+    cursor: pointer;
+    font-weight: 600;
+}
+.xsd-banner-details {
+    margin-top: 8px;
+    padding-left: 28px;
+    font-size: 0.9em;
+    list-style: disc;
+}
+.xsd-banner-details li { margin-bottom: 4px; }
+.xsd-banner-details a {
+    color: var(--warning-dark, #92400e);
+    cursor: pointer;
+    text-decoration: underline;
+}
+.xml-line-highlight {
+    background: #fef08a;
+    transition: background 3s ease-out;
+}
+.xsd-error-list { margin: 12px 0; padding-left: 24px; }
+.xsd-error-list li { margin-bottom: 6px; line-height: 1.5; }

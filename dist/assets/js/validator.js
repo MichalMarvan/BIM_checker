@@ -104,21 +104,19 @@ function handleIDSFiles(files) {
     idsFiles_filtered.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
-            try {
-                const idsData = parseIDS(e.target.result, file.name);
+            const idsData = parseIDS(e.target.result, file.name);
+            if (idsData) {
                 newIdsFiles.push({
                     fileName: file.name,
                     data: idsData
                 });
-                processed++;
+            }
+            processed++;
 
-                if (processed === idsFiles_filtered.length) {
-                    idsFiles.push(...newIdsFiles);
-                    updateIDSFileList();
-                    updateValidateButton();
-                }
-            } catch (error) {
-                showError(t('validator.error.idsLoadError') + ' ' + file.name + ': ' + error.message);
+            if (processed === idsFiles_filtered.length) {
+                idsFiles.push(...newIdsFiles);
+                updateIDSFileList();
+                updateValidateButton();
             }
         };
         reader.onerror = () => {
@@ -221,147 +219,12 @@ function showError(message) {
 
 // IDS Parsing
 function parseIDS(xmlString, fileName) {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
-
-    const parserError = xmlDoc.querySelector('parsererror');
-    if (parserError) {
-        throw new Error(t('validator.error.invalidXml'));
+    const result = IDSParser.parse(xmlString);
+    if (result.error) {
+        showError(t('validator.error.idsLoadError') + ' ' + fileName + ': ' + result.error.message);
+        return null;
     }
-
-    return {
-        info: extractIDSInfo(xmlDoc),
-        specifications: extractSpecifications(xmlDoc)
-    };
-}
-
-function extractIDSInfo(xmlDoc) {
-    const info = {};
-    const infoElement = xmlDoc.querySelector('info');
-
-    if (infoElement) {
-        info.title = infoElement.querySelector('title')?.textContent || t('validator.info.noTitle');
-        info.version = infoElement.querySelector('version')?.textContent || '';
-    }
-
-    return info;
-}
-
-function extractSpecifications(xmlDoc) {
-    const specifications = [];
-    const specElements = xmlDoc.querySelectorAll('specification');
-
-    specElements.forEach((spec, index) => {
-        const specification = {
-            name: spec.getAttribute('name') || `${t('validator.info.noSpec')} ${index + 1}`,
-            ifcVersion: spec.getAttribute('ifcVersion') || 'IFC4',
-            applicability: extractFacets(spec.querySelector('applicability')),
-            requirements: extractFacets(spec.querySelector('requirements'))
-        };
-        specifications.push(specification);
-    });
-
-    return specifications;
-}
-
-function extractFacets(facetsElement) {
-    if (!facetsElement) {
-        return [];
-    }
-
-    const facets = [];
-    const facetTypes = ['entity', 'partOf', 'classification', 'attribute', 'property', 'material'];
-
-    facetTypes.forEach(type => {
-        const elements = facetsElement.querySelectorAll(type);
-        elements.forEach(elem => {
-            facets.push(extractFacet(elem, type));
-        });
-    });
-
-    return facets;
-}
-
-function extractFacet(element, type) {
-    const facet = { type };
-
-    const nameElem = element.querySelector('name, baseName');
-    if (nameElem) {
-        facet.name = extractValue(nameElem);
-    }
-
-    const valueElem = element.querySelector('value');
-    if (valueElem) {
-        facet.value = extractValue(valueElem);
-    }
-
-    if (type === 'property') {
-        const propSetElem = element.querySelector('propertySet, propertyset');
-        if (propSetElem) {
-            facet.propertySet = extractValue(propSetElem);
-        }
-    }
-
-    if (type === 'partOf') {
-        const relationElem = element.querySelector('relation');
-        if (relationElem) {
-            facet.relation = extractValue(relationElem);
-        }
-    }
-
-    if (type === 'classification') {
-        const systemElem = element.querySelector('system');
-        if (systemElem) {
-            facet.system = extractValue(systemElem);
-        }
-    }
-
-    const predefinedElem = element.querySelector('predefinedType');
-    if (predefinedElem) {
-        facet.predefinedType = extractValue(predefinedElem);
-    }
-
-    facet.cardinality = element.getAttribute('cardinality') || 'required';
-
-    return facet;
-}
-
-function extractValue(element) {
-    const simpleValue = element.querySelector('simpleValue');
-    if (simpleValue) {
-        return { type: 'simple', value: simpleValue.textContent };
-    }
-
-    const restriction = element.querySelector('restriction');
-    if (restriction) {
-        return extractRestriction(restriction);
-    }
-
-    return { type: 'simple', value: element.textContent };
-}
-
-function extractRestriction(restriction) {
-    const result = { type: 'restriction' };
-
-    let pattern = restriction.querySelector('pattern');
-    if (!pattern) {
-        pattern = restriction.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'pattern')[0];
-    }
-    if (pattern) {
-        result.pattern = pattern.getAttribute('value') || pattern.textContent;
-        result.isRegex = true;
-    }
-
-    let enumeration = restriction.querySelectorAll('enumeration');
-    if (!enumeration.length) {
-        enumeration = restriction.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'enumeration');
-    }
-    if (enumeration.length > 0) {
-        result.type = 'enumeration';
-        result.values = Array.from(enumeration).map(e => e.getAttribute('value'));
-    }
-
-    return result;
+    return { info: result.info, specifications: result.specifications };
 }
 
 // Validation
@@ -806,6 +669,17 @@ function validateEntitiesAgainstIDS(entities, specifications) {
     const results = [];
 
     for (const spec of specifications) {
+        const ifcVersion = spec.ifcVersion || 'IFC4';
+        const ctx = (typeof IFCHierarchy !== 'undefined' && typeof IfcParams !== 'undefined') ? {
+            ifcVersion,
+            isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
+            getPredefinedTypeIndex: (cls) => IFCHierarchy.getPredefinedTypeIndex(ifcVersion, cls),
+            getObjectTypeIndex: (cls) => IFCHierarchy.getObjectTypeIndex(ifcVersion, cls),
+            splitParams: IfcParams.splitIfcParams,
+            unwrapEnumValue: IfcParams.unwrapEnumValue,
+            unwrapString: IfcParams.unwrapString
+        } : null;
+
         const specResult = {
             specification: spec.name,
             status: 'pass',
@@ -815,7 +689,7 @@ function validateEntitiesAgainstIDS(entities, specifications) {
         };
 
         // Find applicable entities
-        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability);
+        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability, ctx);
 
         // Validate each applicable entity against requirements
         for (const entity of applicableEntities) {
@@ -845,6 +719,20 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
     const CHUNK_SIZE = 50; // Process 50 entities at a time
 
     for (const spec of specifications) {
+        const ifcVersion = spec.ifcVersion || 'IFC4';
+        if (typeof IFCHierarchy !== 'undefined') {
+            await IFCHierarchy.load(ifcVersion);
+        }
+        const ctx = (typeof IFCHierarchy !== 'undefined' && typeof IfcParams !== 'undefined') ? {
+            ifcVersion,
+            isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
+            getPredefinedTypeIndex: (cls) => IFCHierarchy.getPredefinedTypeIndex(ifcVersion, cls),
+            getObjectTypeIndex: (cls) => IFCHierarchy.getObjectTypeIndex(ifcVersion, cls),
+            splitParams: IfcParams.splitIfcParams,
+            unwrapEnumValue: IfcParams.unwrapEnumValue,
+            unwrapString: IfcParams.unwrapString
+        } : null;
+
         const specResult = {
             specification: spec.name,
             status: 'pass',
@@ -854,7 +742,7 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
         };
 
         // Find applicable entities
-        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability);
+        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability, ctx);
 
         // Validate entities in chunks
         for (let i = 0; i < applicableEntities.length; i += CHUNK_SIZE) {
@@ -887,14 +775,14 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
     return results;
 }
 
-function filterEntitiesByApplicability(entities, applicability) {
+function filterEntitiesByApplicability(entities, applicability, ctx) {
     if (!applicability || applicability.length === 0) {
         return entities;
     }
 
     return entities.filter(entity => {
         for (const facet of applicability) {
-            if (!checkFacetMatch(entity, facet)) {
+            if (!checkFacetMatch(entity, facet, ctx)) {
                 return false;
             }
         }
@@ -925,9 +813,9 @@ function validateEntityAgainstRequirements(entity, requirements, specName) {
     return result;
 }
 
-function checkFacetMatch(entity, facet) {
+function checkFacetMatch(entity, facet, ctx) {
     if (facet.type === 'entity') {
-        return checkEntityFacet(entity, facet);
+        return ValidationEngine.checkEntityFacet(entity, facet, ctx);
     } else if (facet.type === 'property') {
         return checkPropertyFacet(entity, facet, true);
     } else if (facet.type === 'attribute') {
@@ -961,21 +849,8 @@ function checkRequirementFacet(entity, facet) {
     return validation;
 }
 
-function checkEntityFacet(entity, facet) {
-    if (!facet.name) {
-        return true;
-    }
-
-    if (facet.name.type === 'simple') {
-        return entity.entity === facet.name.value;
-    } else if (facet.name.type === 'enumeration' && Array.isArray(facet.name.values)) {
-        return facet.name.values.includes(entity.entity);
-    } else if (facet.name.type === 'restriction' && facet.name.isRegex) {
-        const regex = RegexCache.get(facet.name.pattern);
-        return regex.test(entity.entity);
-    }
-
-    return false;
+function checkEntityFacet(entity, facet, ctx) {
+    return ValidationEngine.checkEntityFacet(entity, facet, ctx);
 }
 
 function checkPropertyFacet(entity, facet, isApplicability) {
@@ -987,7 +862,8 @@ function checkPropertyFacet(entity, facet, isApplicability) {
     };
 
     const psetName = facet.propertySet?.value || facet.propertySet?.type === 'simple' && facet.propertySet.value;
-    const propName = facet.name?.value || facet.name?.type === 'simple' && facet.name.value;
+    const propName = facet.baseName?.value || (facet.baseName?.type === 'simple' && facet.baseName.value)
+        || facet.name?.value || facet.name?.type === 'simple' && facet.name.value;
 
     if (!psetName || !propName) {
         validation.message = i18n.t('validator.specIncomplete');
@@ -1913,6 +1789,41 @@ function renderValidationGroups() {
 
             fileItem.appendChild(fileIcon);
             fileItem.appendChild(fileName);
+
+            // XSD badge + collapsible error list
+            if (group.idsFile.xsdResult && !group.idsFile.xsdResult.valid) {
+                const errCount = group.idsFile.xsdResult.errors.length;
+                const badge = document.createElement('span');
+                badge.className = 'xsd-file-badge';
+                badge.textContent = t('xsd.validator.fileBadge').replace('{n}', errCount);
+                fileItem.appendChild(badge);
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'xsd-file-detail-toggle';
+                toggleBtn.dataset.groupIdx = index;
+                toggleBtn.textContent = '[' + t('xsd.banner.toggleShow') + ']';
+                fileItem.appendChild(toggleBtn);
+
+                const detailList = document.createElement('ul');
+                detailList.className = 'xsd-file-detail-list';
+                detailList.dataset.xsdGroupIdx = index;
+                detailList.hidden = true;
+                detailList.innerHTML = group.idsFile.xsdResult.errors.map(e =>
+                    `<li><strong>${e.line ? 'Řádek ' + e.line + ': ' : ''}</strong>${escapeHtml(e.message)}</li>`
+                ).join('');
+                fileItem.appendChild(detailList);
+
+                toggleBtn.addEventListener('click', () => {
+                    if (detailList.hidden) {
+                        detailList.hidden = false;
+                        toggleBtn.textContent = '[' + t('xsd.banner.toggleHide') + ']';
+                    } else {
+                        detailList.hidden = true;
+                        toggleBtn.textContent = '[' + t('xsd.banner.toggleShow') + ']';
+                    }
+                });
+            }
+
             idsFilesList.appendChild(fileItem);
         } else {
             const noFileP = document.createElement('p');
@@ -2047,6 +1958,9 @@ async function handleIdsDrop(files, groupIndex) {
 
     renderValidationGroups();
     updateValidateButton();
+
+    // Async XSD validation (non-blocking)
+    validateIDSFileXSD(groupIndex);
 
     // Dispatch event for wizard
     window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
@@ -2677,6 +2591,9 @@ async function confirmIdsSelection() {
             renderValidationGroups();
             updateValidateButton();
 
+            // Async XSD validation (non-blocking)
+            validateIDSFileXSD(currentGroupIndex);
+
             // Dispatch event for wizard
             window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
         };
@@ -2767,7 +2684,7 @@ async function validateAll() {
 
             const idsResult = {
                 idsFileName: group.idsFile.name,
-                idsTitle: idsData.title || group.idsFile.name,
+                idsTitle: idsData.info.title || group.idsFile.name,
                 ifcResults: []
             };
 
@@ -2846,7 +2763,7 @@ async function validateAll() {
                         await new Promise(resolve => setTimeout(resolve, 0));
                     }
 
-                    const result = ValidationEngine.validateBatch(entities, spec);
+                    const result = await ValidationEngine.validateBatch(entities, spec);
 
                     // Update progress
                     if (progressPanel) {
@@ -3004,6 +2921,43 @@ window.selectIdsFile = selectIdsFile;
         console.error('Failed to pre-load storage metadata:', e);
     }
 })();
+
+// ===== XSD VALIDATION (per-file + summary banner) =====
+
+async function validateIDSFileXSD(groupIndex) {
+    const group = validationGroups[groupIndex];
+    if (!group || !group.idsFile || typeof window.IDSXSDValidator === 'undefined') return;
+    try {
+        const result = await IDSXSDValidator.validate(group.idsFile.content);
+        group.idsFile.xsdResult = result;
+    } catch (e) {
+        console.warn('XSD validation failed for', group.idsFile.name, e);
+        group.idsFile.xsdResult = null;
+    }
+    renderValidationGroups();
+    updateXSDSummaryBanner();
+}
+
+function updateXSDSummaryBanner() {
+    const banner = document.getElementById('xsdSummaryBanner');
+    const text   = document.getElementById('xsdSummaryText');
+    if (!banner || !text) return;
+
+    const allIds = validationGroups
+        .filter(g => g.idsFile && g.idsFile.xsdResult !== undefined)
+        .map(g => g.idsFile);
+    const badCount   = allIds.filter(f => f.xsdResult && !f.xsdResult.valid).length;
+    const totalCount = allIds.length;
+
+    if (badCount === 0) {
+        banner.style.display = 'none';
+    } else {
+        text.textContent = t('xsd.validator.summaryBanner')
+            .replace('{badCount}', badCount)
+            .replace('{totalCount}', totalCount);
+        banner.style.display = 'block';
+    }
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {

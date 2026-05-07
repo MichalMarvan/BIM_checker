@@ -13,10 +13,10 @@ if (typeof importScripts === 'function') {
 self.onmessage = function(e) {
     const { taskId, type, data } = e.data;
 
-    try {
+    const dispatch = async () => {
         switch (type) {
             case 'VALIDATE_BATCH':
-                handleValidateBatch(taskId, data);
+                await handleValidateBatch(taskId, data);
                 break;
 
             case 'VALIDATE_SPEC':
@@ -34,22 +34,24 @@ self.onmessage = function(e) {
                     error: `Unknown task type: ${type}`
                 });
         }
-    } catch (error) {
+    };
+
+    dispatch().catch(error => {
         self.postMessage({
             taskId,
             type: 'ERROR',
             error: error.message
         });
-    }
+    });
 };
 
 /**
  * Validate a batch of entities against a specification
  */
-function handleValidateBatch(taskId, data) {
+async function handleValidateBatch(taskId, data) {
     const { entities, spec, startIndex = 0 } = data;
 
-    const result = ValidationEngine.validateBatch(entities, spec);
+    const result = await ValidationEngine.validateBatch(entities, spec);
 
     // Add index offset for progress tracking
     result.startIndex = startIndex;

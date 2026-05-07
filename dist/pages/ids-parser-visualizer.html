@@ -111,6 +111,16 @@
                     <h2 style="margin: 0;" data-i18n="parser.specifications">📋 IDS Specifikace</h2>
                 </div>
 
+                <!-- XSD Validation Banner -->
+                <div id="xsdValidationBanner" class="xsd-banner" style="display:none">
+                    <div class="xsd-banner-summary">
+                        <span class="xsd-banner-icon">⚠️</span>
+                        <span class="xsd-banner-text" id="xsdBannerText"></span>
+                        <button type="button" class="xsd-banner-toggle" id="xsdBannerToggle"></button>
+                    </div>
+                    <ul class="xsd-banner-details" id="xsdBannerDetails" hidden></ul>
+                </div>
+
                 <div class="tabs">
                     <button class="tab active" onclick="switchTab('visual')" data-i18n="parser.tabVisual">📊 Vizuální zobrazení</button>
                     <button class="tab" onclick="switchTab('tree')" data-i18n="parser.tabTree">🌳 Stromová struktura</button>
@@ -184,6 +194,25 @@
         </div>
     </footer>
 
+    <!-- XSD Export Modal -->
+    <div id="xsdExportModal" class="modal-overlay" style="display:none">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="xsdExportTitle"></h2>
+                <button type="button" class="modal-close" id="xsdExportClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="xsdExportIntro"></p>
+                <ul class="xsd-error-list" id="xsdExportErrors"></ul>
+                <p id="xsdExportWarning" style="margin-top: 1rem; color: var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="xsdExportCancel"></button>
+                <button type="button" class="btn btn-primary" id="xsdExportProceed"></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Storage Picker Modal -->
     <div id="idsStorageModal" class="modal-overlay">
         <div class="modal-container">
@@ -225,6 +254,10 @@
     <script src="../assets/js/ids/ids-excel-parser.js"></script>
     <script src="../assets/js/ids/ids-excel-generator.js"></script>
     <script src="../assets/js/ids/ids-excel-template.js"></script>
+    <script src="../assets/js/common/ids-parser.js"></script>
+    <script src="../assets/js/common/ifc-hierarchy.js"></script>
+    <script src="../assets/js/common/ifc-params.js"></script>
+    <script src="../assets/js/common/ids-xsd-validator.js"></script>
     <script src="../assets/js/parser.js"></script>
     <!-- Update Checker for desktop app -->
     <script type="module" src="../assets/js/common/update-checker.js"></script>

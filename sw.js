@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'bim-checker-v2';
+const CACHE_VERSION = 'bim-checker-v3';
 const ASSETS_TO_CACHE = [
     './index.html',
     './favicon.svg',
@@ -53,6 +53,17 @@ const ASSETS_TO_CACHE = [
     './assets/js/workers/worker-pool.js',
     './assets/js/workers/validation.worker.js',
     './assets/js/vendor/xlsx.full.min.js',
+    './assets/js/vendor/xmllint-wasm.js',
+    './assets/js/vendor/xmllint-browser.js',
+    './assets/js/vendor/xmllint.wasm',
+    './assets/data/ids-1.0.xsd',
+    './assets/data/ifc-hierarchy-IFC2X3.json',
+    './assets/data/ifc-hierarchy-IFC4.json',
+    './assets/data/ifc-hierarchy-IFC4X3_ADD2.json',
+    './assets/js/common/ids-parser.js',
+    './assets/js/common/ifc-hierarchy.js',
+    './assets/js/common/ifc-params.js',
+    './assets/js/common/ids-xsd-validator.js',
     './assets/icons/pwa/icon-128x128.png',
     './assets/icons/pwa/icon-256x256.png',
     './assets/icons/pwa/icon-512x512.png'

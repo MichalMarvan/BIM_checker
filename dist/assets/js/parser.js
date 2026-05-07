@@ -57,22 +57,21 @@ function handleFile(file) {
 }
 
 function parseIDS(xmlString) {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+    const xmlDoc = new DOMParser().parseFromString(xmlString, 'text/xml');
 
     // Kontrola chyb parsování
-    const parserError = xmlDoc.querySelector('parsererror');
-    if (parserError) {
+    if (xmlDoc.querySelector('parsererror')) {
         showError(t('parser.error.invalidXml'));
         return;
     }
 
-    // Zpracování IDS dat
+    // Zpracování IDS dat pomocí IDSParser
+    const parsed = IDSParser.parseDocument(xmlDoc);
     currentIDSData = {
         xml: xmlString,
         doc: xmlDoc,
-        info: extractInfo(xmlDoc),
-        specifications: extractSpecifications(xmlDoc)
+        info: parsed.info,
+        specifications: parsed.specifications
     };
 
     // Zobrazení vizualizace
@@ -82,221 +81,71 @@ function parseIDS(xmlString) {
         visualizationSection.style.display = 'block';
         hideError();
     }
+
+    // Async XSD validation (non-blocking)
+    runXSDValidation(xmlString);
 }
 
-function extractInfo(xmlDoc) {
-    const info = {};
-    const infoElement = xmlDoc.querySelector('info');
-
-    if (infoElement) {
-        info.title = infoElement.querySelector('title')?.textContent || t('parser.info.noTitle');
-        info.copyright = infoElement.querySelector('copyright')?.textContent || '';
-        info.version = infoElement.querySelector('version')?.textContent || '';
-        info.description = infoElement.querySelector('description')?.textContent || '';
-        info.author = infoElement.querySelector('author')?.textContent || '';
-        info.date = infoElement.querySelector('date')?.textContent || '';
-        info.purpose = infoElement.querySelector('purpose')?.textContent || '';
-        info.milestone = infoElement.querySelector('milestone')?.textContent || '';
+async function runXSDValidation(xmlString) {
+    const banner = document.getElementById('xsdValidationBanner');
+    if (!banner || typeof window.IDSXSDValidator === 'undefined') return;
+    banner.style.display = 'none';
+    try {
+        const result = await IDSXSDValidator.validate(xmlString);
+        if (!result.valid) {
+            showXSDBanner(result.errors);
+        }
+    } catch (e) {
+        console.warn('XSD validation skipped:', e);
     }
-
-    return info;
 }
 
-function extractSpecifications(xmlDoc) {
-    const specifications = [];
-    const specElements = xmlDoc.querySelectorAll('specification');
+function showXSDBanner(errors) {
+    const banner  = document.getElementById('xsdValidationBanner');
+    const text    = document.getElementById('xsdBannerText');
+    const toggle  = document.getElementById('xsdBannerToggle');
+    const details = document.getElementById('xsdBannerDetails');
+    if (!banner) return;
 
-    specElements.forEach((spec, index) => {
-        const applicabilityElem = spec.querySelector('applicability');
-        const specification = {
-            name: spec.getAttribute('name') || `${t('parser.info.noSpec')} ${index + 1}`,
-            ifcVersion: spec.getAttribute('ifcVersion') || t('parser.info.unspecified'),
-            // minOccurs/maxOccurs live on <applicability> per IDS 1.0 XSD, not <specification>
-            minOccurs: applicabilityElem?.getAttribute('minOccurs') ?? undefined,
-            maxOccurs: applicabilityElem?.getAttribute('maxOccurs') ?? undefined,
-            identifier: spec.getAttribute('identifier') || '',
-            description: spec.getAttribute('description') || '',
-            instructions: spec.getAttribute('instructions') || '',
-            applicability: extractFacets(applicabilityElem),
-            requirements: extractFacets(spec.querySelector('requirements'))
-        };
-        specifications.push(specification);
-    });
+    const n = errors.length;
+    text.textContent = n === 1
+        ? t('xsd.banner.singleError')
+        : t('xsd.banner.errors').replace('{n}', n);
 
-    return specifications;
-}
+    toggle.textContent = t('xsd.banner.toggleShow');
+    details.innerHTML = errors.map(err => {
+        const lineLabel = err.line !== null
+            ? `<a data-line="${err.line}">${t('xsd.banner.line').replace('{n}', err.line)}</a> `
+            : '';
+        return `<li>${lineLabel}${escapeHtml(err.message)}</li>`;
+    }).join('');
+    banner.style.display = 'block';
 
-function extractFacets(facetsElement) {
-    if (!facetsElement) {
-        return [];
-    }
+    toggle.onclick = () => {
+        if (details.hasAttribute('hidden')) {
+            details.removeAttribute('hidden');
+            toggle.textContent = t('xsd.banner.toggleHide');
+        } else {
+            details.setAttribute('hidden', '');
+            toggle.textContent = t('xsd.banner.toggleShow');
+        }
+    };
 
-    const facets = [];
-    const facetTypes = ['entity', 'partOf', 'classification', 'attribute', 'property', 'material'];
-
-    facetTypes.forEach(type => {
-        const elements = facetsElement.querySelectorAll(type);
-        elements.forEach(elem => {
-            facets.push(extractFacet(elem, type));
+    // Click on line link → switch to Raw XML tab and scroll to line
+    details.querySelectorAll('a[data-line]').forEach(a => {
+        a.addEventListener('click', () => {
+            const line = a.getAttribute('data-line');
+            switchTab('raw');
+            requestAnimationFrame(() => {
+                const target = document.getElementById('xml-line-' + line);
+                if (target) {
+                    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    target.classList.add('xml-line-highlight');
+                    setTimeout(() => target.classList.remove('xml-line-highlight'), 3000);
+                }
+            });
         });
     });
-
-    return facets;
-}
-
-function extractFacet(element, type) {
-    const facet = { type };
-
-    // Extrakce různých částí facetu
-    const nameElem = element.querySelector('name');
-    const baseNameElem = element.querySelector('baseName');
-
-    if (type === 'property') {
-        if (baseNameElem) {
-            facet.baseName = extractValue(baseNameElem);
-        }
-    } else {
-        if (nameElem) {
-            facet.name = extractValue(nameElem);
-        }
-    }
-
-    const valueElem = element.querySelector('value');
-    if (valueElem) {
-        facet.value = extractValue(valueElem);
-    }
-
-    // Pro property - propertySet
-    if (type === 'property') {
-        const propSetElem = element.querySelector('propertySet, propertyset');
-        if (propSetElem) {
-            facet.propertySet = extractValue(propSetElem);
-        }
-    }
-
-    // Pro partOf - relation
-    if (type === 'partOf') {
-        const relationElem = element.querySelector('relation');
-        if (relationElem) {
-            facet.relation = extractValue(relationElem);
-        }
-    }
-
-    // Pro classification - system
-    if (type === 'classification') {
-        const systemElem = element.querySelector('system');
-        if (systemElem) {
-            facet.system = extractValue(systemElem);
-        }
-    }
-
-    // Predefined type
-    const predefinedElem = element.querySelector('predefinedType');
-    if (predefinedElem) {
-        facet.predefinedType = extractValue(predefinedElem);
-    }
-
-    // Cardinality
-    facet.cardinality = element.getAttribute('cardinality') || 'required';
-
-    // bSDD URI
-    const uri = element.getAttribute('uri');
-    if (uri) {
-        facet.uri = uri;
-    }
-
-                // minOccurs/maxOccurs are not allowed on individual facets by XSD
-                // const minOccurs = element.getAttribute('minOccurs');
-                // const maxOccurs = element.getAttribute('maxOccurs');
-                // if (minOccurs) {
-                //     facet.minOccurs = minOccurs;
-                // }
-                // if (maxOccurs) {
-                //     facet.maxOccurs = maxOccurs;
-                // }
-    return facet;
-}
-
-function extractValue(element) {
-    // Simple value
-    const simpleValue = element.querySelector('simpleValue');
-    if (simpleValue) {
-        return { type: 'simple', value: simpleValue.textContent };
-    }
-
-    // Direct xs:restriction (your IDS format)
-    if (element.querySelector('restriction')) {
-        const restriction = element.querySelector('restriction');
-        return extractRestriction(restriction);
-    }
-
-    // Check if element itself is xs:restriction
-    const nsRestriction = element.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'restriction')[0];
-    if (nsRestriction) {
-        return extractRestriction(nsRestriction);
-    }
-
-    return { type: 'simple', value: element.textContent };
-}
-
-function extractRestriction(restriction) {
-    const result = { type: 'restriction' };
-
-    // Pattern (regex) - check both namespaces
-    let pattern = restriction.querySelector('pattern');
-    if (!pattern) {
-        pattern = restriction.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'pattern')[0];
-    }
-    if (pattern) {
-        // Get value from attribute (your format) or text content
-        result.pattern = pattern.getAttribute('value') || pattern.textContent;
-        result.isRegex = true;
-    }
-
-    let enumeration = restriction.querySelectorAll('enumeration'); // Look for xs:enumeration
-    if (!enumeration.length) {
-        enumeration = restriction.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'enumeration');
-    }
-    if (enumeration.length > 0) {
-        result.type = 'enumeration'; // Explicitly set type for clarity
-        result.values = Array.from(enumeration).map(enumElem => enumElem.getAttribute('value'));
-    }
-
-    // Bounds (numeric ranges)
-    const minInclusive = restriction.querySelector('minInclusive');
-    const maxInclusive = restriction.querySelector('maxInclusive');
-    const minExclusive = restriction.querySelector('minExclusive');
-    const maxExclusive = restriction.querySelector('maxExclusive');
-
-    if (minInclusive) {
-        result.minInclusive = minInclusive.textContent;
-    }
-    if (maxInclusive) {
-        result.maxInclusive = maxInclusive.textContent;
-    }
-    if (minExclusive) {
-        result.minExclusive = minExclusive.textContent;
-    }
-    if (maxExclusive) {
-        result.maxExclusive = maxExclusive.textContent;
-    }
-
-    // Length restrictions
-    const minLength = restriction.querySelector('minLength');
-    const maxLength = restriction.querySelector('maxLength');
-    const length = restriction.querySelector('length');
-
-    if (minLength) {
-        result.minLength = minLength.textContent;
-    }
-    if (maxLength) {
-        result.maxLength = maxLength.textContent;
-    }
-    if (length) {
-        result.length = length.textContent;
-    }
-
-    return result;
 }
 
 function displayIDS() {
@@ -777,7 +626,13 @@ function toggleTreeNode(nodeId) {
 
 function displayRawXML() {
     const rawXML = document.getElementById('rawXML');
-    rawXML.textContent = formatXML(currentIDSData.xml);
+    const formatted = formatXML(currentIDSData.xml);
+    const lines = formatted.split('\r\n').length > 1
+        ? formatted.split('\r\n')
+        : formatted.split('\n');
+    rawXML.innerHTML = lines.map((line, idx) =>
+        `<span id="xml-line-${idx + 1}">${escapeHtml(line)}</span>`
+    ).join('\n');
 }
 
 function formatXML(xml) {
@@ -815,8 +670,13 @@ function switchTab(tabName) {
         content.classList.remove('active');
     });
 
-    // Aktivace vybraného tabu
-    event.target.classList.add('active');
+    // Aktivace vybraného tabu - podpora volání z kódu i z onclicku
+    const tabBtn = document.querySelector(`.tab[onclick*="'${tabName}'"]`);
+    if (tabBtn) {
+        tabBtn.classList.add('active');
+    } else if (typeof event !== 'undefined' && event && event.target) {
+        event.target.classList.add('active');
+    }
     document.getElementById(tabName + 'Tab').classList.add('active');
 }
 
@@ -1001,12 +861,90 @@ function loadSampleIDS() {
     parseIDS(sampleXML);
 }
 
+// ===== XSD EXPORT MODAL =====
+
+function showXSDExportModal(errors) {
+    return new Promise((resolve) => {
+        const modal   = document.getElementById('xsdExportModal');
+        if (!modal) { resolve(true); return; }
+
+        document.getElementById('xsdExportTitle').textContent   = t('xsd.export.title');
+        document.getElementById('xsdExportIntro').textContent   = t('xsd.export.intro').replace('{n}', errors.length);
+        document.getElementById('xsdExportWarning').textContent = t('xsd.export.warning');
+        document.getElementById('xsdExportCancel').textContent  = t('xsd.export.cancel');
+        document.getElementById('xsdExportProceed').textContent = t('xsd.export.proceed');
+        document.getElementById('xsdExportErrors').innerHTML = errors.map(e =>
+            `<li><strong>${e.line ? t('xsd.banner.line').replace('{n}', e.line) + ' ' : ''}</strong>${escapeHtml(e.message)}</li>`
+        ).join('');
+
+        modal.style.display = 'flex';
+
+        const cleanup = (proceed) => {
+            modal.style.display = 'none';
+            document.getElementById('xsdExportCancel').onclick  = null;
+            document.getElementById('xsdExportClose').onclick   = null;
+            document.getElementById('xsdExportProceed').onclick = null;
+            resolve(proceed);
+        };
+
+        document.getElementById('xsdExportCancel').onclick  = () => cleanup(false);
+        document.getElementById('xsdExportClose').onclick   = () => cleanup(false);
+        document.getElementById('xsdExportProceed').onclick = () => cleanup(true);
+    });
+}
+
+function performDownload(xmlString, filename) {
+    const blob = new Blob([xmlString], { type: 'application/xml' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+async function attemptDownloadIDS(xmlString, filename) {
+    if (typeof window.IDSXSDValidator === 'undefined') {
+        performDownload(xmlString, filename);
+        return;
+    }
+    try {
+        const result = await IDSXSDValidator.validate(xmlString);
+        if (result.valid) {
+            performDownload(xmlString, filename);
+            return;
+        }
+        const proceed = await showXSDExportModal(result.errors);
+        if (proceed) performDownload(xmlString, filename);
+    } catch (e) {
+        console.warn('XSD validation failed, proceeding with download:', e);
+        performDownload(xmlString, filename);
+    }
+}
+
 // Initialize IDS Editor
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing IDS Editor...');
     if (typeof idsEditorCore !== 'undefined') {
         idsEditorCore.initialize();
         console.log('IDS Editor initialized');
+
+        // Intercept IDS download to show XSD modal when invalid
+        const originalDownloadIDS = idsEditorCore.downloadIDS.bind(idsEditorCore);
+        idsEditorCore.downloadIDS = async function() {
+            if (!this.idsData) {
+                originalDownloadIDS();
+                return;
+            }
+            const filename = (this.idsData.title || 'specification')
+                .replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.ids';
+            const xmlString = this.xmlGenerator.generateIDS(this.idsData);
+            await attemptDownloadIDS(xmlString, filename);
+            this.hasUnsavedChanges = false;
+            this.showMessage(t('editor.idsDownloaded'), 'success');
+        };
     } else {
         console.error('idsEditorCore not found!');
     }

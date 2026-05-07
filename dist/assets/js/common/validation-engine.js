@@ -17,22 +17,69 @@ const ValidationEngine = (function() {
      * Check if entity matches entity facet
      * @param {Object} entity
      * @param {Object} facet
+     * @param {Object} [ctx] - optional context with isSubtypeOf, getPredefinedTypeIndex, etc.
      * @returns {boolean}
      */
-    function checkEntityFacet(entity, facet) {
+    function checkEntityFacet(entity, facet, ctx) {
         if (!facet.name) {
             return true;
         }
 
-        if (facet.name.type === 'simple') {
-            return entity.entity === facet.name.value;
-        } else if (facet.name.type === 'enumeration' && Array.isArray(facet.name.values)) {
-            return facet.name.values.includes(entity.entity);
-        } else if (facet.name.type === 'restriction' && facet.name.isRegex) {
-            const regex = getRegex(facet.name.pattern);
-            return regex.test(entity.entity);
+        // Regex pattern: explicit match only, no inheritance
+        if (facet.name.type === 'restriction' && facet.name.isRegex) {
+            return new RegExp(facet.name.pattern).test(entity.entity);
         }
 
+        // Collect target classes (simple → [value], enumeration → values)
+        let targets = null;
+        if (facet.name.type === 'simple') targets = [facet.name.value];
+        else if (facet.name.type === 'enumeration' && Array.isArray(facet.name.values)) targets = facet.name.values;
+        if (!targets) return false;
+
+        // Match by exact or subtype-of
+        let nameMatch = false;
+        for (const target of targets) {
+            if (ctx && ctx.isSubtypeOf && ctx.isSubtypeOf(entity.entity, target)) { nameMatch = true; break; }
+            if (entity.entity === target) { nameMatch = true; break; }
+        }
+        if (!nameMatch) return false;
+
+        // PredefinedType check
+        if (facet.predefinedType) return checkPredefinedType(entity, facet.predefinedType, ctx);
+        return true;
+    }
+
+    /**
+     * Check predefinedType attribute of entity against facet predefinedType
+     * @param {Object} entity
+     * @param {Object} facetPredef
+     * @param {Object} [ctx]
+     * @returns {boolean}
+     */
+    function checkPredefinedType(entity, facetPredef, ctx) {
+        if (!ctx || !ctx.getPredefinedTypeIndex) return true; // no ctx → skip
+        const idx = ctx.getPredefinedTypeIndex(entity.entity);
+        if (idx === null) return false;
+        if (!entity.params) return false;
+
+        const params = ctx.splitParams(entity.params);
+        let actual = ctx.unwrapEnumValue(params[idx]);
+
+        if (actual === 'USERDEFINED') {
+            const objIdx = ctx.getObjectTypeIndex(entity.entity);
+            if (objIdx !== null) {
+                actual = ctx.unwrapString(params[objIdx]);
+            }
+        }
+        if (actual === null) return false;
+
+        if (facetPredef.type === 'simple') return actual === facetPredef.value;
+        if (facetPredef.type === 'enumeration' && Array.isArray(facetPredef.values)) {
+            return facetPredef.values.includes(actual);
+        }
+        if (facetPredef.type === 'restriction' && facetPredef.isRegex) {
+            return new RegExp(facetPredef.pattern).test(actual);
+        }
         return false;
     }
 
@@ -52,7 +99,8 @@ const ValidationEngine = (function() {
         };
 
         const psetName = facet.propertySet?.value || (facet.propertySet?.type === 'simple' && facet.propertySet.value);
-        const propName = facet.name?.value || (facet.name?.type === 'simple' && facet.name.value);
+        const propName = facet.baseName?.value || (facet.baseName?.type === 'simple' && facet.baseName.value)
+            || facet.name?.value || (facet.name?.type === 'simple' && facet.name.value);
 
         if (!psetName || !propName) {
             validation.message = 'Incomplete specification';
@@ -158,11 +206,12 @@ const ValidationEngine = (function() {
      * Check if entity matches a facet (applicability)
      * @param {Object} entity
      * @param {Object} facet
+     * @param {Object} [ctx]
      * @returns {boolean}
      */
-    function checkFacetMatch(entity, facet) {
+    function checkFacetMatch(entity, facet, ctx) {
         if (facet.type === 'entity') {
-            return checkEntityFacet(entity, facet);
+            return checkEntityFacet(entity, facet, ctx);
         } else if (facet.type === 'property') {
             return checkPropertyFacet(entity, facet, true);
         } else if (facet.type === 'attribute') {
@@ -175,16 +224,17 @@ const ValidationEngine = (function() {
      * Filter entities by applicability
      * @param {Array} entities
      * @param {Array} applicability
+     * @param {Object} [ctx]
      * @returns {Array}
      */
-    function filterByApplicability(entities, applicability) {
+    function filterByApplicability(entities, applicability, ctx) {
         if (!applicability || applicability.length === 0) {
             return entities;
         }
 
         return entities.filter(entity => {
             for (const facet of applicability) {
-                if (!checkFacetMatch(entity, facet)) {
+                if (!checkFacetMatch(entity, facet, ctx)) {
                     return false;
                 }
             }
@@ -235,9 +285,23 @@ const ValidationEngine = (function() {
      * Validate a batch of entities against a specification
      * @param {Array} entities
      * @param {Object} spec
-     * @returns {Object}
+     * @returns {Promise<Object>}
      */
-    function validateBatch(entities, spec) {
+    async function validateBatch(entities, spec) {
+        const ifcVersion = spec.ifcVersion || 'IFC4';
+        if (typeof window !== 'undefined' && window.IFCHierarchy) {
+            await window.IFCHierarchy.load(ifcVersion);
+        }
+        const ctx = (typeof window !== 'undefined' && window.IFCHierarchy && window.IfcParams) ? {
+            ifcVersion,
+            isSubtypeOf: (c, a) => window.IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
+            getPredefinedTypeIndex: (cls) => window.IFCHierarchy.getPredefinedTypeIndex(ifcVersion, cls),
+            getObjectTypeIndex: (cls) => window.IFCHierarchy.getObjectTypeIndex(ifcVersion, cls),
+            splitParams: window.IfcParams.splitIfcParams,
+            unwrapEnumValue: window.IfcParams.unwrapEnumValue,
+            unwrapString: window.IfcParams.unwrapString
+        } : null;
+
         const result = {
             specification: spec.name,
             status: 'pass',
@@ -246,7 +310,7 @@ const ValidationEngine = (function() {
             entityResults: []
         };
 
-        const applicableEntities = filterByApplicability(entities, spec.applicability);
+        const applicableEntities = filterByApplicability(entities, spec.applicability, ctx);
 
         for (const entity of applicableEntities) {
             const entityResult = validateEntity(entity, spec.requirements || [], spec.name);
@@ -265,6 +329,7 @@ const ValidationEngine = (function() {
 
     return {
         checkEntityFacet,
+        checkPredefinedType,
         checkPropertyFacet,
         checkAttributeFacet,
         checkFacetMatch,
