@@ -111,6 +111,16 @@
                     <h2 style="margin: 0;" data-i18n="parser.specifications">📋 IDS Specifikace</h2>
                 </div>
 
+                <!-- XSD Validation Banner -->
+                <div id="xsdValidationBanner" class="xsd-banner" style="display:none">
+                    <div class="xsd-banner-summary">
+                        <span class="xsd-banner-icon">⚠️</span>
+                        <span class="xsd-banner-text" id="xsdBannerText"></span>
+                        <button type="button" class="xsd-banner-toggle" id="xsdBannerToggle"></button>
+                    </div>
+                    <ul class="xsd-banner-details" id="xsdBannerDetails" hidden></ul>
+                </div>
+
                 <div class="tabs">
                     <button class="tab active" onclick="switchTab('visual')" data-i18n="parser.tabVisual">📊 Vizuální zobrazení</button>
                     <button class="tab" onclick="switchTab('tree')" data-i18n="parser.tabTree">🌳 Stromová struktura</button>
@@ -228,6 +238,7 @@
     <script src="../assets/js/common/ids-parser.js"></script>
     <script src="../assets/js/common/ifc-hierarchy.js"></script>
     <script src="../assets/js/common/ifc-params.js"></script>
+    <script src="../assets/js/common/ids-xsd-validator.js"></script>
     <script src="../assets/js/parser.js"></script>
     <!-- Update Checker for desktop app -->
     <script type="module" src="../assets/js/common/update-checker.js"></script>

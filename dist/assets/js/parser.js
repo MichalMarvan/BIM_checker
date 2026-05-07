@@ -81,6 +81,71 @@ function parseIDS(xmlString) {
         visualizationSection.style.display = 'block';
         hideError();
     }
+
+    // Async XSD validation (non-blocking)
+    runXSDValidation(xmlString);
+}
+
+async function runXSDValidation(xmlString) {
+    const banner = document.getElementById('xsdValidationBanner');
+    if (!banner || typeof window.IDSXSDValidator === 'undefined') return;
+    banner.style.display = 'none';
+    try {
+        const result = await IDSXSDValidator.validate(xmlString);
+        if (!result.valid) {
+            showXSDBanner(result.errors);
+        }
+    } catch (e) {
+        console.warn('XSD validation skipped:', e);
+    }
+}
+
+function showXSDBanner(errors) {
+    const banner  = document.getElementById('xsdValidationBanner');
+    const text    = document.getElementById('xsdBannerText');
+    const toggle  = document.getElementById('xsdBannerToggle');
+    const details = document.getElementById('xsdBannerDetails');
+    if (!banner) return;
+
+    const n = errors.length;
+    text.textContent = n === 1
+        ? t('xsd.banner.singleError')
+        : t('xsd.banner.errors').replace('{n}', n);
+
+    toggle.textContent = t('xsd.banner.toggleShow');
+    details.innerHTML = errors.map(err => {
+        const lineLabel = err.line !== null
+            ? `<a data-line="${err.line}">${t('xsd.banner.line').replace('{n}', err.line)}</a> `
+            : '';
+        return `<li>${lineLabel}${escapeHtml(err.message)}</li>`;
+    }).join('');
+    banner.style.display = 'block';
+
+    toggle.onclick = () => {
+        if (details.hasAttribute('hidden')) {
+            details.removeAttribute('hidden');
+            toggle.textContent = t('xsd.banner.toggleHide');
+        } else {
+            details.setAttribute('hidden', '');
+            toggle.textContent = t('xsd.banner.toggleShow');
+        }
+    };
+
+    // Click on line link → switch to Raw XML tab and scroll to line
+    details.querySelectorAll('a[data-line]').forEach(a => {
+        a.addEventListener('click', () => {
+            const line = a.getAttribute('data-line');
+            switchTab('raw');
+            requestAnimationFrame(() => {
+                const target = document.getElementById('xml-line-' + line);
+                if (target) {
+                    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    target.classList.add('xml-line-highlight');
+                    setTimeout(() => target.classList.remove('xml-line-highlight'), 3000);
+                }
+            });
+        });
+    });
 }
 
 function displayIDS() {
@@ -561,7 +626,13 @@ function toggleTreeNode(nodeId) {
 
 function displayRawXML() {
     const rawXML = document.getElementById('rawXML');
-    rawXML.textContent = formatXML(currentIDSData.xml);
+    const formatted = formatXML(currentIDSData.xml);
+    const lines = formatted.split('\r\n').length > 1
+        ? formatted.split('\r\n')
+        : formatted.split('\n');
+    rawXML.innerHTML = lines.map((line, idx) =>
+        `<span id="xml-line-${idx + 1}">${escapeHtml(line)}</span>`
+    ).join('\n');
 }
 
 function formatXML(xml) {
@@ -599,8 +670,13 @@ function switchTab(tabName) {
         content.classList.remove('active');
     });
 
-    // Aktivace vybraného tabu
-    event.target.classList.add('active');
+    // Aktivace vybraného tabu - podpora volání z kódu i z onclicku
+    const tabBtn = document.querySelector(`.tab[onclick*="'${tabName}'"]`);
+    if (tabBtn) {
+        tabBtn.classList.add('active');
+    } else if (typeof event !== 'undefined' && event && event.target) {
+        event.target.classList.add('active');
+    }
     document.getElementById(tabName + 'Tab').classList.add('active');
 }
 
