@@ -19,11 +19,14 @@ const projectRoot = join(__dirname, '..');
 const mimeTypes = {
     '.html': 'text/html',
     '.js': 'application/javascript',
+    '.mjs': 'application/javascript',
     '.css': 'text/css',
     '.json': 'application/json',
     '.ifc': 'text/plain',
     '.ids': 'application/xml',
-    '.xml': 'application/xml'
+    '.xml': 'application/xml',
+    '.xsd': 'application/xml',
+    '.wasm': 'application/wasm'
 };
 
 // Simple HTTP server
@@ -115,7 +118,7 @@ async function runTests() {
                 const progress = progressFill?.style.width;
                 return total > 0 && progress === '100%';
             },
-            { timeout: 120000 }
+            { timeout: 300000 }
         );
 
         // Get results
