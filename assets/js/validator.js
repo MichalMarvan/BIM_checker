@@ -1499,6 +1499,30 @@ function _exportToXLSX() {
         return fallback;
     }
 
+    // Truncate to maxLen, keeping head + ~ + tail so version-bearing suffixes survive
+    function smartTruncate(s, maxLen) {
+        if (s.length <= maxLen) return s;
+        if (maxLen < 5) return s.slice(0, maxLen);
+        const headLen = Math.min(5, Math.floor(maxLen / 3));
+        const tailLen = maxLen - headLen - 1; // 1 char for separator
+        return s.slice(0, headLen) + '~' + s.slice(-tailLen);
+    }
+
+    // Compose IFC + "_" + IDS within 31-char limit. Prefer giving the longer name
+    // smart truncation (head~tail) so distinguishing suffixes like _IFC4X3_ADD2 survive.
+    function composeSheetName(ifcName, idsName) {
+        const full = `${ifcName}_${idsName}`;
+        if (full.length <= SHEET_NAME_LIMIT) return full;
+        const budget = SHEET_NAME_LIMIT - 1; // 1 char for the "_" separator
+        if (ifcName.length <= 15) {
+            return ifcName + '_' + smartTruncate(idsName, budget - ifcName.length);
+        }
+        if (idsName.length <= 15) {
+            return smartTruncate(ifcName, budget - idsName.length) + '_' + idsName;
+        }
+        return smartTruncate(ifcName, 15) + '_' + smartTruncate(idsName, budget - 15);
+    }
+
     // Create a sheet for each IFC+IDS combination
     for (const idsResult of validationResults) {
         for (const ifcResult of idsResult.ifcResults) {
@@ -1568,15 +1592,7 @@ function _exportToXLSX() {
             ifcName = ifcName.replace(/[:\\\/\?\*\"\<\>\|]/g, '_');
             idsName = idsName.replace(/[:\\\/\?\*\"\<\>\|]/g, '_');
 
-            // Compose name; truncate halves to fit then dedupe (Excel cap = 31)
-            let sheetName = `${ifcName}_${idsName}`;
-            if (sheetName.length > SHEET_NAME_LIMIT) {
-                const halfLen = Math.floor((SHEET_NAME_LIMIT - 1) / 2);
-                ifcName = ifcName.substring(0, halfLen);
-                idsName = idsName.substring(0, SHEET_NAME_LIMIT - 1 - halfLen);
-                sheetName = `${ifcName}_${idsName}`;
-            }
-            sheetName = uniqueSheetName(sheetName);
+            const sheetName = uniqueSheetName(composeSheetName(ifcName, idsName));
 
             XLSX.utils.book_append_sheet(wb, ws, sheetName);
         }
