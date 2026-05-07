@@ -99,7 +99,8 @@ const ValidationEngine = (function() {
         };
 
         const psetName = facet.propertySet?.value || (facet.propertySet?.type === 'simple' && facet.propertySet.value);
-        const propName = facet.name?.value || (facet.name?.type === 'simple' && facet.name.value);
+        const propName = facet.baseName?.value || (facet.baseName?.type === 'simple' && facet.baseName.value)
+            || facet.name?.value || (facet.name?.type === 'simple' && facet.name.value);
 
         if (!psetName || !propName) {
             validation.message = 'Incomplete specification';

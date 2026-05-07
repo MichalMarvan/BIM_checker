@@ -862,7 +862,8 @@ function checkPropertyFacet(entity, facet, isApplicability) {
     };
 
     const psetName = facet.propertySet?.value || facet.propertySet?.type === 'simple' && facet.propertySet.value;
-    const propName = facet.name?.value || facet.name?.type === 'simple' && facet.name.value;
+    const propName = facet.baseName?.value || (facet.baseName?.type === 'simple' && facet.baseName.value)
+        || facet.name?.value || facet.name?.type === 'simple' && facet.name.value;
 
     if (!psetName || !propName) {
         validation.message = i18n.t('validator.specIncomplete');
