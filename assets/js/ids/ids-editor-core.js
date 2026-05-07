@@ -136,6 +136,8 @@ class IDSEditorCore {
                     identifier: spec.identifier || '',
                     description: spec.description || '',
                     instructions: spec.instructions || '',
+                    minOccurs: spec.minOccurs,
+                    maxOccurs: spec.maxOccurs,
                     applicability: this.convertFacets(spec.applicability),
                     requirements: this.convertFacets(spec.requirements)
                 };
