@@ -194,6 +194,25 @@
         </div>
     </footer>
 
+    <!-- XSD Export Modal -->
+    <div id="xsdExportModal" class="modal-overlay" style="display:none">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="xsdExportTitle"></h2>
+                <button type="button" class="modal-close" id="xsdExportClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="xsdExportIntro"></p>
+                <ul class="xsd-error-list" id="xsdExportErrors"></ul>
+                <p id="xsdExportWarning" style="margin-top: 1rem; color: var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="xsdExportCancel"></button>
+                <button type="button" class="btn btn-primary" id="xsdExportProceed"></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Storage Picker Modal -->
     <div id="idsStorageModal" class="modal-overlay">
         <div class="modal-container">

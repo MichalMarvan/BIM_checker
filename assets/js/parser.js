@@ -861,12 +861,90 @@ function loadSampleIDS() {
     parseIDS(sampleXML);
 }
 
+// ===== XSD EXPORT MODAL =====
+
+function showXSDExportModal(errors) {
+    return new Promise((resolve) => {
+        const modal   = document.getElementById('xsdExportModal');
+        if (!modal) { resolve(true); return; }
+
+        document.getElementById('xsdExportTitle').textContent   = t('xsd.export.title');
+        document.getElementById('xsdExportIntro').textContent   = t('xsd.export.intro').replace('{n}', errors.length);
+        document.getElementById('xsdExportWarning').textContent = t('xsd.export.warning');
+        document.getElementById('xsdExportCancel').textContent  = t('xsd.export.cancel');
+        document.getElementById('xsdExportProceed').textContent = t('xsd.export.proceed');
+        document.getElementById('xsdExportErrors').innerHTML = errors.map(e =>
+            `<li><strong>${e.line ? t('xsd.banner.line').replace('{n}', e.line) + ' ' : ''}</strong>${escapeHtml(e.message)}</li>`
+        ).join('');
+
+        modal.style.display = 'flex';
+
+        const cleanup = (proceed) => {
+            modal.style.display = 'none';
+            document.getElementById('xsdExportCancel').onclick  = null;
+            document.getElementById('xsdExportClose').onclick   = null;
+            document.getElementById('xsdExportProceed').onclick = null;
+            resolve(proceed);
+        };
+
+        document.getElementById('xsdExportCancel').onclick  = () => cleanup(false);
+        document.getElementById('xsdExportClose').onclick   = () => cleanup(false);
+        document.getElementById('xsdExportProceed').onclick = () => cleanup(true);
+    });
+}
+
+function performDownload(xmlString, filename) {
+    const blob = new Blob([xmlString], { type: 'application/xml' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+async function attemptDownloadIDS(xmlString, filename) {
+    if (typeof window.IDSXSDValidator === 'undefined') {
+        performDownload(xmlString, filename);
+        return;
+    }
+    try {
+        const result = await IDSXSDValidator.validate(xmlString);
+        if (result.valid) {
+            performDownload(xmlString, filename);
+            return;
+        }
+        const proceed = await showXSDExportModal(result.errors);
+        if (proceed) performDownload(xmlString, filename);
+    } catch (e) {
+        console.warn('XSD validation failed, proceeding with download:', e);
+        performDownload(xmlString, filename);
+    }
+}
+
 // Initialize IDS Editor
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing IDS Editor...');
     if (typeof idsEditorCore !== 'undefined') {
         idsEditorCore.initialize();
         console.log('IDS Editor initialized');
+
+        // Intercept IDS download to show XSD modal when invalid
+        const originalDownloadIDS = idsEditorCore.downloadIDS.bind(idsEditorCore);
+        idsEditorCore.downloadIDS = async function() {
+            if (!this.idsData) {
+                originalDownloadIDS();
+                return;
+            }
+            const filename = (this.idsData.title || 'specification')
+                .replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.ids';
+            const xmlString = this.xmlGenerator.generateIDS(this.idsData);
+            await attemptDownloadIDS(xmlString, filename);
+            this.hasUnsavedChanges = false;
+            this.showMessage(t('editor.idsDownloaded'), 'success');
+        };
     } else {
         console.error('idsEditorCore not found!');
     }
