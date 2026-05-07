@@ -80,18 +80,16 @@ const ValidationEngine = (function() {
                     validation.details = `Expected "${facet.value.value}", got "${propValue}"`;
                     return isApplicability ? false : validation;
                 }
-            } else if (facet.value.type === 'restriction') {
-                if (facet.value.options) {
-                    if (!facet.value.options.includes(String(propValue))) {
-                        validation.details = `Value "${propValue}" not in allowed options`;
-                        return isApplicability ? false : validation;
-                    }
-                } else if (facet.value.isRegex) {
-                    const regex = getRegex(facet.value.pattern);
-                    if (!regex.test(String(propValue))) {
-                        validation.details = `Value "${propValue}" doesn't match pattern`;
-                        return isApplicability ? false : validation;
-                    }
+            } else if (facet.value.type === 'enumeration' && Array.isArray(facet.value.values)) {
+                if (!facet.value.values.includes(String(propValue))) {
+                    validation.details = `Value "${propValue}" not in allowed options`;
+                    return isApplicability ? false : validation;
+                }
+            } else if (facet.value.type === 'restriction' && facet.value.isRegex) {
+                const regex = getRegex(facet.value.pattern);
+                if (!regex.test(String(propValue))) {
+                    validation.details = `Value "${propValue}" doesn't match pattern`;
+                    return isApplicability ? false : validation;
                 }
             }
         }
@@ -135,6 +133,11 @@ const ValidationEngine = (function() {
             if (facet.value.type === 'simple') {
                 if (String(attrValue) !== String(facet.value.value)) {
                     validation.details = `Expected "${facet.value.value}", got "${attrValue}"`;
+                    return isApplicability ? false : validation;
+                }
+            } else if (facet.value.type === 'enumeration' && Array.isArray(facet.value.values)) {
+                if (!facet.value.values.includes(String(attrValue))) {
+                    validation.details = `Value "${attrValue}" not in allowed options`;
                     return isApplicability ? false : validation;
                 }
             } else if (facet.value.type === 'restriction' && facet.value.isRegex) {

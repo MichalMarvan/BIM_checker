@@ -352,9 +352,13 @@ function extractRestriction(restriction) {
         result.isRegex = true;
     }
 
-    const options = restriction.querySelectorAll('option');
-    if (options.length > 0) {
-        result.options = Array.from(options).map(opt => opt.textContent);
+    let enumeration = restriction.querySelectorAll('enumeration');
+    if (!enumeration.length) {
+        enumeration = restriction.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'enumeration');
+    }
+    if (enumeration.length > 0) {
+        result.type = 'enumeration';
+        result.values = Array.from(enumeration).map(e => e.getAttribute('value'));
     }
 
     return result;
@@ -1011,13 +1015,13 @@ function checkPropertyFacet(entity, facet, isApplicability) {
                 validation.details = i18n.t('validator.expectedValue', { expected: facet.value.value, actual: propValue });
                 return isApplicability ? false : validation;
             }
+        } else if (facet.value.type === 'enumeration' && Array.isArray(facet.value.values)) {
+            if (!facet.value.values.includes(String(propValue))) {
+                validation.details = i18n.t('validator.valueNotInOptions', { value: propValue, options: facet.value.values.join(', ') });
+                return isApplicability ? false : validation;
+            }
         } else if (facet.value.type === 'restriction') {
-            if (facet.value.options) {
-                if (!facet.value.options.includes(String(propValue))) {
-                    validation.details = i18n.t('validator.valueNotInOptions', { value: propValue, options: facet.value.options.join(', ') });
-                    return isApplicability ? false : validation;
-                }
-            } else if (facet.value.isRegex) {
+            if (facet.value.isRegex) {
                 const regex = RegexCache.get(facet.value.pattern);
                 if (!regex.test(String(propValue))) {
                     validation.details = i18n.t('validator.valueNoMatch', { value: propValue, pattern: facet.value.pattern });
@@ -1059,6 +1063,11 @@ function checkAttributeFacet(entity, facet, isApplicability) {
         if (facet.value.type === 'simple') {
             if (String(attrValue) !== String(facet.value.value)) {
                 validation.details = i18n.t('validator.expectedValue', { expected: facet.value.value, actual: attrValue });
+                return isApplicability ? false : validation;
+            }
+        } else if (facet.value.type === 'enumeration' && Array.isArray(facet.value.values)) {
+            if (!facet.value.values.includes(String(attrValue))) {
+                validation.details = i18n.t('validator.valueNotInOptions', { value: attrValue, options: facet.value.values.join(', ') });
                 return isApplicability ? false : validation;
             }
         } else if (facet.value.type === 'restriction' && facet.value.isRegex) {
