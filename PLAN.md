@@ -40,6 +40,14 @@
   - Bannér při importu, modální dialog před exportem, plně offline (PWA)
 - [x] +50 nových testů (305 → 350)
 
+### IFC Viewer — edit correctness (Phase 2, 2026-05-08)
+- [x] Refaktor `applyModificationsToIFC` na tři jasně oddělené case (A edit / B add-prop / C create-pset)
+- [x] Nová `IfcPsetUtils` knihovna (parsePsetHasProperties, addPropertyIdToPset, parsePropertyName, findPsetOnElement)
+- [x] Případ B (přidat property do existujícího psetu na elementu) korektně rozšíří pset entitu místo vytvoření paralelního
+- [x] Případ C izoluje nový pset (žádné sdílení s existujícím stejnojmenným)
+- [x] Qto edit zachovává `IFCELEMENTQUANTITY` / `IFCQUANTITY*` entity types
+- [x] +30 nových testů (350 → 380)
+
 ---
 
 ## K dokončení (TODO)
