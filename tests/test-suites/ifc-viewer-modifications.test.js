@@ -116,3 +116,58 @@ describe('applyModificationsToIFC case B (add-prop)', () => {
         expect(ids.length).toBe(4);  // #200, #201 + 2 new
     });
 });
+
+// =============================================================================
+// CASE A: in-place edit regression (Task 9)
+// =============================================================================
+describe('applyModificationsToIFC case A (edit)', () => {
+    it('case A: in-place value update, no new pset entities', () => {
+        window.ViewerState = {
+            allData: [
+                { guid: 'guid-A', fileName: 'test.ifc', propertySets: { 'Pset_WallCommon': { FireRating: 'EI60', LoadBearing: 'TRUE' } } }
+            ]
+        };
+        const modifications = {
+            'guid-A': {
+                'Pset_WallCommon': {
+                    'FireRating': 'EI120'
+                }
+            }
+        };
+        const result = window.applyModificationsToIFC(SYNTHETIC_IFC_WITH_PSET, modifications, 'test.ifc');
+        // Updated value present
+        expect(result.includes("IFCLABEL('EI120')")).toBe(true);
+        // Old value gone
+        expect(result.includes("IFCLABEL('EI60')")).toBe(false);
+        // No duplicate pset entities
+        const psetCount = (result.match(/IFCPROPERTYSET\(/g) || []).length;
+        expect(psetCount).toBe(1);
+    });
+});
+
+// =============================================================================
+// CASE C: create-pset regression (Task 9)
+// =============================================================================
+describe('applyModificationsToIFC case C (create-pset)', () => {
+    it('case C: creates new isolated pset + property + rel for element with no pset', () => {
+        window.ViewerState = {
+            allData: [
+                { guid: 'guid-A', fileName: 'test.ifc', propertySets: {} },
+                { guid: 'guid-B', fileName: 'test.ifc', propertySets: {} }
+            ]
+        };
+        const modifications = {
+            'guid-B': {
+                'Pset_WallCommon': {
+                    'FireRating': 'EI60'
+                }
+            }
+        };
+        const result = window.applyModificationsToIFC(SYNTHETIC_IFC_WITH_PSET, modifications, 'test.ifc');
+        // Two IFCPROPERTYSET entities: original (#100) + new isolated one for guid-B
+        const psetCount = (result.match(/IFCPROPERTYSET\(/g) || []).length;
+        expect(psetCount).toBe(2);
+        // New rel references #11 (guid-B's entity ID)
+        expect(/IFCRELDEFINESBYPROPERTIES\([^)]+,\(#11\)/.test(result)).toBe(true);
+    });
+});
