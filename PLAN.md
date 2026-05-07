@@ -31,25 +31,35 @@
 - [x] Překlad tooltipů na všech stránkách
 - [x] Re-render editoru při přepnutí jazyka
 
+### IDS validace correctness (Phase 1, 2026-05-08)
+- [x] Sjednocení dvou paralelních IDS parserů do `assets/js/common/ids-parser.js`
+- [x] IFC class hierarchy data + lazy-loaded `IFCHierarchy` modul (IFC2X3 / IFC4 / IFC4X3)
+- [x] Subtype-aware applicability matching (`IFCWALL` chytí i `IFCWALLSTANDARDCASE` přes dědičnost)
+- [x] PredefinedType matching včetně USERDEFINED + ObjectType fallback
+- [x] XSD validace proti IDS 1.0 schématu přes xmllint-wasm
+  - Bannér při importu, modální dialog před exportem, plně offline (PWA)
+- [x] +50 nových testů (305 → 350)
+
 ---
 
 ## K dokončení (TODO)
 
 ### Vysoká priorita
 
-- [ ] **XSD validace** – Validovat IDS soubory proti oficiálnímu buildingSMART schématu
-  - Ověřit strukturu XML před exportem
-  - Zobrazit chyby uživateli s konkrétní pozicí v XML
-
-- [ ] **Registrace domény u buildingSMART** – Zaregistrovat `checkthebim.com` pro přímý CORS přístup k bSDD API
-  - Formulář: https://share.hsforms.com/1RtgbtGyIQpCd7Cdwt2l67A2wx5h
-  - Odstraní závislost na Cloudflare proxy
+- [x] **Registrace domény u buildingSMART** – `checkthebim.com` přidán na CORS whitelist (potvrzeno Erik Baars, duben 2026), proxy odstraněn
 
 - [ ] **Komprese souborů v IndexedDB** – gzip/fflate komprese IFC/IDS před uložením
   - 60-80% úspora místa
   - Rychlejší IndexedDB operace
 
 ### Střední priorita
+
+- [ ] **Bug report z aplikace** – Tlačítko v horní liště pro nahlášení chyby
+  - Ikona/tlačítko v navigační liště (např. 🐛 nebo „Nahlásit chybu" / „Report bug")
+  - Modál s formulářem: popis chyby, kroky k reprodukci, volitelně screenshot
+  - Automaticky přiložit: verzi aplikace, prohlížeč, jazyk UI
+  - Kam posílat: Google Form (odpovědi do Google Sheets, notifikace na mail)
+  - Správa: sledovat v Google Sheets, případně přidat sloupec pro stav (nový/řeším/vyřešeno)
 
 - [ ] **IDS šablony** – Předdefinované specifikace pro běžné use cases
   - Šablona pro požární bezpečnost
