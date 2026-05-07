@@ -70,11 +70,13 @@ window.IDSParser = (function() {
     function extractFacet(element, type) {
         const facet = { type };
 
-        const nameElem = element.querySelector(':scope > name, :scope > baseName');
-        if (nameElem) facet.name = extractValue(nameElem);
-
-        const baseNameElem = type === 'property' ? element.querySelector(':scope > baseName') : null;
-        if (baseNameElem) facet.baseName = extractValue(baseNameElem);
+        if (type === 'property') {
+            const baseNameElem = element.querySelector(':scope > baseName');
+            if (baseNameElem) facet.baseName = extractValue(baseNameElem);
+        } else {
+            const nameElem = element.querySelector(':scope > name');
+            if (nameElem) facet.name = extractValue(nameElem);
+        }
 
         const valueElem = element.querySelector(':scope > value');
         if (valueElem) facet.value = extractValue(valueElem);
@@ -121,9 +123,15 @@ window.IDSParser = (function() {
         const result = { type: 'restriction' };
         const ns = 'http://www.w3.org/2001/XMLSchema';
         const findChildren = (name) => {
-            let nodes = restriction.querySelectorAll(name);
-            if (!nodes.length) nodes = restriction.getElementsByTagNameNS(ns, name);
-            return Array.from(nodes);
+            // Direct-child match against any namespace
+            const direct = Array.from(restriction.children).filter(el => {
+                if (el.localName === name) return true;
+                // Fallback for older DOM impls without localName
+                const tag = el.tagName || '';
+                return tag === name || tag.endsWith(':' + name);
+            });
+            if (direct.length) return direct;
+            return Array.from(restriction.getElementsByTagNameNS(ns, name));
         };
 
         const patterns = findChildren('pattern');

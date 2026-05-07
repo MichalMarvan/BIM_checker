@@ -1,7 +1,10 @@
 describe('IDSParser', () => {
     it('should expose IDSParser namespace globally', () => {
         expect(typeof window.IDSParser).toBe('object');
-        expect(typeof window.IDSParser.parse).toBe('function');
+        const expected = ['parse', 'parseDocument', 'extractInfo', 'extractSpecifications', 'extractFacets', 'extractFacet', 'extractValue', 'extractRestriction'];
+        for (const fn of expected) {
+            expect(typeof window.IDSParser[fn]).toBe('function');
+        }
     });
 });
 
@@ -120,6 +123,17 @@ describe('IDSParser.extractFacet', () => {
         const facet = IDSParser.extractFacet(doc.querySelector('classification'), 'classification');
         expect(facet.uri).toBe('https://bsdd/x');
     });
+
+    it('should NOT set facet.name for property facets (only baseName)', () => {
+        const xml = `<requirements xmlns="x"><property>
+            <propertySet><simpleValue>Pset</simpleValue></propertySet>
+            <baseName><simpleValue>FireRating</simpleValue></baseName>
+        </property></requirements>`;
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        const facet = IDSParser.extractFacet(doc.querySelector('property'), 'property');
+        expect(facet.baseName.value).toBe('FireRating');
+        expect(facet.name).toBeUndefined();
+    });
 });
 
 describe('IDSParser.extractFacets', () => {
@@ -205,5 +219,63 @@ describe('IDSParser.parse', () => {
         expect(result.error).toBeDefined();
         expect(result.error.message).toBeDefined();
         expect(result.specifications).toEqual([]);
+    });
+});
+
+describe('IDSParser.extractFacet other types', () => {
+    function parseDoc(xml) {
+        return new DOMParser().parseFromString(xml, 'text/xml');
+    }
+
+    it('should extract attribute facet with name + value', () => {
+        const doc = parseDoc(`<requirements xmlns="x">
+            <attribute><name><simpleValue>Tag</simpleValue></name><value><simpleValue>SR-001</simpleValue></value></attribute>
+        </requirements>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('attribute'), 'attribute');
+        expect(facet.type).toBe('attribute');
+        expect(facet.name.value).toBe('Tag');
+        expect(facet.value.value).toBe('SR-001');
+    });
+
+    it('should extract material facet with value', () => {
+        const doc = parseDoc(`<requirements xmlns="x">
+            <material><value><simpleValue>Concrete</simpleValue></value></material>
+        </requirements>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('material'), 'material');
+        expect(facet.type).toBe('material');
+        expect(facet.value.value).toBe('Concrete');
+    });
+
+    it('should extract partOf facet with relation', () => {
+        const doc = parseDoc(`<applicability xmlns="x">
+            <partOf relation="IFCRELAGGREGATES"><name><simpleValue>IFCBUILDING</simpleValue></name></partOf>
+        </applicability>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('partOf'), 'partOf');
+        expect(facet.type).toBe('partOf');
+        expect(facet.name.value).toBe('IFCBUILDING');
+    });
+
+    it('should extract partOf facet with relation child element', () => {
+        const doc = parseDoc(`<applicability xmlns="x">
+            <partOf>
+                <name><simpleValue>IFCBUILDING</simpleValue></name>
+                <relation><simpleValue>IFCRELAGGREGATES</simpleValue></relation>
+            </partOf>
+        </applicability>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('partOf'), 'partOf');
+        expect(facet.relation.value).toBe('IFCRELAGGREGATES');
+    });
+
+    it('should extract classification facet with system', () => {
+        const doc = parseDoc(`<requirements xmlns="x">
+            <classification>
+                <name><simpleValue>OmniClass-23-13-22</simpleValue></name>
+                <system><simpleValue>OmniClass</simpleValue></system>
+            </classification>
+        </requirements>`);
+        const facet = IDSParser.extractFacet(doc.querySelector('classification'), 'classification');
+        expect(facet.type).toBe('classification');
+        expect(facet.name.value).toBe('OmniClass-23-13-22');
+        expect(facet.system.value).toBe('OmniClass');
     });
 });
