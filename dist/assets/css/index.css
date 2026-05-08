@@ -302,7 +302,13 @@ body {
 .navbar-actions {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: 0.25rem;
+}
+
+/* Visual separator between help cluster (bug/tour/help) and settings cluster (lang/install/theme).
+   The language-switcher is the first item of the settings group. */
+.navbar-actions > .language-switcher {
+    margin-left: 0.75rem;
 }
 
 /* Page title in navbar for subpages - centered */
