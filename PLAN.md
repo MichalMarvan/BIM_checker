@@ -48,6 +48,15 @@
 - [x] Qto edit zachovává `IFCELEMENTQUANTITY` / `IFCQUANTITY*` entity types
 - [x] +30 nových testů (350 → 380)
 
+### In-app bug report (Phase 5, 2026-05-08)
+- [x] Tlačítko 🐛 v navbaru všech 4 stránek
+- [x] Modal s formulářem (název, popis, kroky k reprodukci)
+- [x] Auto-attached metadata: app version, user agent, page path, language, timestamp, last 5 console errors
+- [x] Cloudflare Pages Function `/api/bug-report` s origin check + rate limit (5/h, 20/d per IP) přes KV
+- [x] GitHub Issues integrace (labels: bug-report, user-submitted, lang:cs|en)
+- [x] Failsafe link na ruční GitHub issue creation
+- [x] +17 nových testů
+
 ---
 
 ## K dokončení (TODO)
@@ -61,13 +70,6 @@
   - Rychlejší IndexedDB operace
 
 ### Střední priorita
-
-- [ ] **Bug report z aplikace** – Tlačítko v horní liště pro nahlášení chyby
-  - Ikona/tlačítko v navigační liště (např. 🐛 nebo „Nahlásit chybu" / „Report bug")
-  - Modál s formulářem: popis chyby, kroky k reprodukci, volitelně screenshot
-  - Automaticky přiložit: verzi aplikace, prohlížeč, jazyk UI
-  - Kam posílat: Google Form (odpovědi do Google Sheets, notifikace na mail)
-  - Správa: sledovat v Google Sheets, případně přidat sloupec pro stav (nový/řeším/vyřešeno)
 
 - [ ] **IDS šablony** – Předdefinované specifikace pro běžné use cases
   - Šablona pro požární bezpečnost

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-05-08
+
+### Added
+- In-app bug report — bug button in navbar of all 4 pages opens a modal that creates a GitHub issue via Cloudflare Pages Function.
+- Auto-attached metadata: app version, user agent, page path, language, timestamp, last 5 console errors.
+- `ErrorHandler` ring buffer (5 entries) fed by `window.error` and `unhandledrejection` listeners.
+- Anonymous reporting (no email/name field), no screenshot in v1, fallback link to manual GitHub issue when worker fails.
+
 ## [0.2.1] — 2026-05-08
 
 ### Fixed
