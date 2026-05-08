@@ -65,6 +65,14 @@
 - [x] Očekávaná úspora: 60–80 % místa v IndexedDB pro typické IFC
 - [x] +21 nových testů
 
+### IFC parser Web Worker (Phase 4, 2026-05-08)
+- [x] Sjednocený `IFCParserCore` modul (sync pure parser, dual-context export)
+- [x] Worker rewrite: 213 řádků → ~30 (thin PARSE wrapper)
+- [x] Validator dispatchuje IFC parsing přes `WorkerPool` (4 paralelní workery)
+- [x] Graceful fallback na main-thread, pokud worker init/parse selže
+- [x] UI 60 FPS i během parsing — main thread je free
+- [x] +19 nových testů (snapshot kompatibilita + worker integration)
+
 ---
 
 ## K dokončení (TODO)
@@ -86,10 +94,6 @@
 - [ ] **Lazy loading s cache** – Načítat obsah souborů až když je potřeba
   - LRU cache s konfigurovatelným limitem
   - Rychlejší start aplikace s mnoha soubory
-
-- [ ] **Web Workers pro IFC parsing** – Parsování velkých IFC souborů v background threadu
-  - UI zůstane responzivní
-  - Využití více jader CPU
 
 ### Nízká priorita
 

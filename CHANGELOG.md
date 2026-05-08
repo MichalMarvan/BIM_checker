@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4] — 2026-05-08
+
+### Added
+- IFC parser Web Worker pool — IFC content parsing now runs across up to 4 worker threads in parallel. UI thread stays at 60 FPS during parsing of multi-MB IFC files.
+- `IFCParserCore` shared module — single source of truth for IFC parsing, called identically from worker and main-thread fallback.
+
+### Changed
+- `assets/js/validator.js parseIFCFileAsync` dispatches to WorkerPool when available; gracefully falls back to main-thread sync parsing when Worker API unavailable or worker init fails.
+- `assets/js/workers/ifc-parser.worker.js` rewritten from 213 lines to ~30 — single PARSE message type, delegates to IFCParserCore.
+
+### Internal
+- Migrated 7 parsing helpers (extractGUID, extractName, decodeIFCString, splitParams, parsePropertySet, parseProperty, parseRelDefines) from validator.js to ifc-parser-core.js.
+- 19 new tests (10 unit + 3 backward-compat snapshot + 6 worker integration).
+
 ## [0.2.3] — 2026-05-08
 
 ### Added
