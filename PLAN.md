@@ -73,6 +73,12 @@
 - [x] UI 60 FPS i během parsing — main thread je free
 - [x] +19 nových testů (snapshot kompatibilita + worker integration)
 
+### CLS hotfix (2026-05-08)
+- [x] Validator empty-state přesunut z JS do statického HTML — eliminuje 0.19 layout shift na DOMContentLoaded
+- [x] `pwaInstallBtn` rezervuje slot v navbaru přes `visibility: hidden` místo `display: none` — eliminuje 0.04 navbar wrap shift
+- [x] CLS validatoru: 0.226 → 0.000 (Good); homepage 0.037 → 0.000; parser 0.040 → 0.003
+- [x] `tests/cls-debug.js` — Puppeteer diagnostika pro budoucí CLS regrese
+
 ---
 
 ## K dokončení (TODO)

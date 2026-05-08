@@ -418,6 +418,12 @@ body {
     transform: scale(1.05);
 }
 
+/* Reserve layout slot before install prompt is available (avoids CLS) */
+.pwa-install-btn--unavailable {
+    visibility: hidden;
+    pointer-events: none;
+}
+
 /* Hero Section */
 .hero {
     position: relative;

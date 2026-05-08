@@ -1337,25 +1337,32 @@ function renderValidationGroups() {
     const container = document.getElementById('validationGroups');
 
     if (validationGroups.length === 0) {
-        container.innerHTML = '';
-        const emptyDiv = document.createElement('div');
-        emptyDiv.style.cssText = 'text-align: center; padding: 60px; color: #a0aec0;';
+        // Empty state is rendered statically in HTML on initial load to avoid CLS.
+        // Reinsert it if the user deleted the last group.
+        if (!container.querySelector('.vg-empty-state')) {
+            container.innerHTML = '';
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'vg-empty-state';
+            emptyDiv.style.cssText = 'text-align: center; padding: 60px; color: #a0aec0;';
 
-        const iconDiv = document.createElement('div');
-        iconDiv.style.cssText = 'font-size: 4em; margin-bottom: 20px;';
-        iconDiv.textContent = '📋';
+            const iconDiv = document.createElement('div');
+            iconDiv.style.cssText = 'font-size: 4em; margin-bottom: 20px;';
+            iconDiv.textContent = '📋';
 
-        const h3 = document.createElement('h3');
-        h3.style.color = '#6c757d';
-        h3.textContent = t('validator.group.noGroups');
+            const h3 = document.createElement('h3');
+            h3.style.color = '#6c757d';
+            h3.setAttribute('data-i18n', 'validator.group.noGroups');
+            h3.textContent = t('validator.group.noGroups');
 
-        const p = document.createElement('p');
-        p.textContent = t('validator.group.clickToAdd');
+            const p = document.createElement('p');
+            p.setAttribute('data-i18n', 'validator.group.clickToAdd');
+            p.textContent = t('validator.group.clickToAdd');
 
-        emptyDiv.appendChild(iconDiv);
-        emptyDiv.appendChild(h3);
-        emptyDiv.appendChild(p);
-        container.appendChild(emptyDiv);
+            emptyDiv.appendChild(iconDiv);
+            emptyDiv.appendChild(h3);
+            emptyDiv.appendChild(p);
+            container.appendChild(emptyDiv);
+        }
         return;
     }
 

@@ -14,12 +14,14 @@
         });
     }
 
+    const UNAVAILABLE_CLASS = 'pwa-install-btn--unavailable';
+
     // Listen for install prompt
     window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
         if (installBtn) {
-            installBtn.style.display = '';
+            installBtn.classList.remove(UNAVAILABLE_CLASS);
         }
     });
 
@@ -30,7 +32,7 @@
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then(function(result) {
                 if (result.outcome === 'accepted') {
-                    installBtn.style.display = 'none';
+                    installBtn.classList.add(UNAVAILABLE_CLASS);
                 }
                 deferredPrompt = null;
             });
@@ -40,7 +42,7 @@
     // Hide button if already installed
     window.addEventListener('appinstalled', function() {
         if (installBtn) {
-            installBtn.style.display = 'none';
+            installBtn.classList.add(UNAVAILABLE_CLASS);
         }
         deferredPrompt = null;
     });
