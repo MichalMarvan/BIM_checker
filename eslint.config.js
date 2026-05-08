@@ -71,7 +71,9 @@ export default [
                 classifyModification: 'readonly',
                 applyModificationsToIFC: 'readonly',
                 // Phase 5: in-app bug report
-                BugReport: 'readonly'
+                BugReport: 'readonly',
+                // Phase 3a: gzip compression
+                Compression: 'readonly'
             }
         },
         rules: {
