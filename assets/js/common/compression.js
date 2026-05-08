@@ -11,7 +11,11 @@ window.Compression = (function() {
             && typeof DecompressionStream !== 'undefined';
     }
 
-    function isGzipped(_bytes) { return false; }
+    function isGzipped(bytes) {
+        if (!bytes) return false;
+        const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
+        return view.length >= 2 && view[0] === 0x1f && view[1] === 0x8b;
+    }
     async function compress(_text) { throw new Error('not implemented'); }
     async function decompress(_bytes) { throw new Error('not implemented'); }
 
