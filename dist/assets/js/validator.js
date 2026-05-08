@@ -14,6 +14,33 @@ let idsFiles = [];
 let validationResults = null;
 const allEntities = [];
 
+let _ifcParserPool = null;
+let _ifcParserPoolInitialized = false;
+
+function _getIfcParserPool() {
+    if (_ifcParserPoolInitialized) return _ifcParserPool;
+    _ifcParserPoolInitialized = true;
+
+    if (typeof Worker === 'undefined' || typeof WorkerPool === 'undefined') {
+        return null;
+    }
+
+    try {
+        const scripts = document.querySelectorAll('script[src*="validator.js"]');
+        const validatorSrc = scripts.length ? scripts[0].src : '';
+        const baseUrl = validatorSrc.substring(0, validatorSrc.lastIndexOf('/'));
+        const workerScript = `${baseUrl}/workers/ifc-parser.worker.js`;
+        _ifcParserPool = new WorkerPool({
+            workerScript,
+            size: Math.min(4, navigator.hardwareConcurrency || 4)
+        });
+    } catch (e) {
+        console.warn('IFC parser worker pool init failed, falling back to main thread:', e);
+        _ifcParserPool = null;
+    }
+    return _ifcParserPool;
+}
+
 // Progress panel globals
 let progressPanel = null;
 let validationAborted = false;
@@ -316,9 +343,16 @@ function readFileAsText(file) {
     });
 }
 
-// IFC Parsing — delegates to IFCParserCore (single source of truth)
+// IFC Parsing — dispatches to WorkerPool if available, falls back to main thread
 async function parseIFCFileAsync(content, fileName) {
-    // Yield to UI thread first to keep frame budget
+    const pool = _getIfcParserPool();
+    if (pool) {
+        try {
+            return await pool.submit('PARSE', { content, fileName });
+        } catch (e) {
+            console.warn('Worker parse failed, falling back to main thread:', e);
+        }
+    }
     await new Promise(resolve => setTimeout(resolve, 0));
     return IFCParserCore.parseIFCContent(content, fileName);
 }
