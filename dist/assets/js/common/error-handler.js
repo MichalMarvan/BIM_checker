@@ -231,7 +231,39 @@ class ErrorHandler {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    static _errorBuffer = [];
+    static MAX_BUFFERED_ERRORS = 5;
+    static _listenersInstalled = false;
+
+    static recordError(message) {
+        const stamp = new Date().toISOString();
+        ErrorHandler._errorBuffer.push(`[${stamp}] ${message}`);
+        if (ErrorHandler._errorBuffer.length > ErrorHandler.MAX_BUFFERED_ERRORS) {
+            ErrorHandler._errorBuffer.shift();
+        }
+    }
+
+    static getRecentErrors() {
+        return [...ErrorHandler._errorBuffer];
+    }
+
+    static _installGlobalListeners() {
+        if (ErrorHandler._listenersInstalled) return;
+        ErrorHandler._listenersInstalled = true;
+
+        window.addEventListener('error', (e) => {
+            const loc = e.filename ? ` at ${e.filename}:${e.lineno}:${e.colno}` : '';
+            ErrorHandler.recordError(`${e.message || 'Unknown error'}${loc}`);
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            const reason = (e.reason && e.reason.message) ? e.reason.message : String(e.reason);
+            ErrorHandler.recordError(`Unhandled rejection: ${reason}`);
+        });
+    }
 }
 
 // Make globally accessible
 window.ErrorHandler = ErrorHandler;
+ErrorHandler._installGlobalListeners();
