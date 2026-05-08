@@ -1029,32 +1029,89 @@ body {
 .bug-report-intro {
     color: var(--text-secondary, #6c757d);
     font-size: 0.9em;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+    padding: 12px 14px;
+    background: var(--gray-50, #f9fafb);
+    border-left: 4px solid var(--primary-color, #667eea);
+    border-radius: 4px;
+}
+
+#bugReportModal .form-group {
+    margin-bottom: 1.25rem;
+}
+
+#bugReportModal .form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: var(--text-primary, #1f2937);
+    font-size: 0.95em;
+}
+
+#bugReportModal input[type="text"],
+#bugReportModal textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-primary, var(--gray-200, #e5e7eb));
+    border-radius: 8px;
+    font-size: 0.95em;
+    font-family: inherit;
+    background: var(--bg-primary, white);
+    color: var(--text-primary, #1f2937);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+}
+
+#bugReportModal input[type="text"]:focus,
+#bugReportModal textarea:focus {
+    outline: none;
+    border-color: var(--primary-color, #667eea);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+#bugReportModal textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
     line-height: 1.5;
 }
 
 .bug-report-metadata {
     margin-top: 1rem;
-    background: var(--bg-secondary, #f8f9fa);
-    border-radius: 6px;
-    padding: 8px 12px;
+    background: var(--gray-50, #f9fafb);
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: 8px;
+    padding: 10px 14px;
     font-size: 0.85em;
 }
 .bug-report-metadata summary {
     cursor: pointer;
     user-select: none;
-    color: var(--text-secondary, #6c757d);
+    color: var(--gray-600, #4b5563);
+    font-weight: 500;
+    padding: 4px 0;
+}
+.bug-report-metadata summary:hover {
+    color: var(--primary-color, #667eea);
+}
+.bug-report-metadata[open] summary {
+    margin-bottom: 8px;
+    color: var(--text-primary, #1f2937);
 }
 .bug-report-metadata pre {
-    margin-top: 8px;
+    margin: 0;
     background: var(--bg-primary, white);
-    padding: 8px;
-    border-radius: 4px;
+    padding: 12px;
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: 6px;
     overflow-x: auto;
     font-family: 'Courier New', monospace;
-    font-size: 0.85em;
+    font-size: 0.8em;
     max-height: 200px;
     overflow-y: auto;
+    line-height: 1.4;
+    color: var(--gray-700, #374151);
 }
 
 .bug-report-error,

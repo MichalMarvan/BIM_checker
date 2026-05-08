@@ -142,6 +142,8 @@ window.BugReport = (function() {
     }
 
     function _resetModalState() {
+        // Re-apply translations on every open so language switch is reflected
+        _applyTranslations();
         document.getElementById('bugReportTitle').value = '';
         document.getElementById('bugReportDesc').value = '';
         document.getElementById('bugReportSteps').value = '';
