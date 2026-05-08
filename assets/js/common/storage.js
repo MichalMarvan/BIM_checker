@@ -287,9 +287,10 @@ class StorageManager {
             this.metadata.folders[folderId].files.push(id);
         }
 
-        // Save file content separately in IndexedDB (huge performance win!)
+        // Save file content separately in IndexedDB, gzipped via Compression module
         const contentKey = `${this.storageKey}_file_${id}`;
-        await this.idb.set(contentKey, file.content).catch(err =>
+        const compressed = await Compression.compress(file.content);
+        await this.idb.set(contentKey, compressed).catch(err =>
             console.error('Failed to save file content:', err)
         );
 
@@ -404,10 +405,11 @@ class StorageManager {
     }
 
     async getFileContent(fileId) {
-        // Load file content from separate IndexedDB entry
+        // Load file content from separate IndexedDB entry, decompress transparently
         const contentKey = `${this.storageKey}_file_${fileId}`;
-        const content = await this.idb.get(contentKey);
-        return content || null;
+        const stored = await this.idb.get(contentKey);
+        if (stored == null) return null;
+        return await Compression.decompress(stored);
     }
 
     async getFileWithContent(fileId) {

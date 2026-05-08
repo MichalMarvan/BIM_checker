@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] — 2026-05-08
+
+### Added
+- `Compression` module — gzip-encode IFC/IDS file content in IndexedDB via native CompressionStream API. Typical 60–80% storage savings for text-based IFC files.
+- Transparent compression in storage layer — `BIMStorage.saveFile` and `getFileContent` API unchanged for consumers.
+- Backward compatibility via gzip magic-byte detection — legacy uncompressed files remain readable; lazy migration on next save.
+- 21 new tests covering compression roundtrip, magic-byte detection, and storage integration.
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 

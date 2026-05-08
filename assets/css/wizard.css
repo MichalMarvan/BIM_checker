@@ -590,7 +590,6 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    margin-right: 0.5rem;
 }
 
 .wizard-header-btn:hover {

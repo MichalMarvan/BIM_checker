@@ -1013,7 +1013,6 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    margin-right: 0.5rem;
     padding: 0;
 }
 .bug-report-btn:hover {

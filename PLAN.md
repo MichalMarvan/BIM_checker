@@ -57,6 +57,14 @@
 - [x] Failsafe link na ruční GitHub issue creation
 - [x] +17 nových testů
 
+### IndexedDB compression (Phase 3a, 2026-05-08)
+- [x] `Compression` modul nad native CompressionStream API (gzip)
+- [x] Transparent compression v `StorageManager.addFile` + `getFileContent`
+- [x] Backward compat přes magic-byte detection — legacy nezkomprimované soubory čitelné
+- [x] Lazy migrace — staré soubory se zkomprimují při dalším save
+- [x] Očekávaná úspora: 60–80 % místa v IndexedDB pro typické IFC
+- [x] +21 nových testů
+
 ---
 
 ## K dokončení (TODO)
@@ -64,10 +72,6 @@
 ### Vysoká priorita
 
 - [x] **Registrace domény u buildingSMART** – `checkthebim.com` přidán na CORS whitelist (potvrzeno Erik Baars, duben 2026), proxy odstraněn
-
-- [ ] **Komprese souborů v IndexedDB** – gzip/fflate komprese IFC/IDS před uložením
-  - 60-80% úspora místa
-  - Rychlejší IndexedDB operace
 
 ### Střední priorita
 

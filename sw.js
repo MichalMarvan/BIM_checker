@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'bim-checker-v7';
+const CACHE_VERSION = 'bim-checker-v10';
 const ASSETS_TO_CACHE = [
     './index.html',
     './favicon.svg',
@@ -35,6 +35,7 @@ const ASSETS_TO_CACHE = [
     './assets/js/common/wizard-steps.js',
     './assets/js/common/update-checker.js',
     './assets/js/common/bug-report.js',
+    './assets/js/common/compression.js',
     './assets/js/common/pwa.js',
     './assets/js/index.js',
     './assets/js/parser.js',
