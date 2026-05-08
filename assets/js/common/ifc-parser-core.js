@@ -176,9 +176,67 @@
         };
     }
 
-    function parseIFCContent(_content, _fileName) {
-        // Stub — implemented in Task 3
-        return [];
+    function parseIFCContent(content, fileName) {
+        const lines = content.split('\n');
+        const entityMap = new Map();
+        const propertySetMap = new Map();
+        const relDefinesMap = new Map();
+
+        // Phase 1: collect entities
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line || !line.startsWith('#')) continue;
+            const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);?\s*$/i);
+            if (!match) continue;
+            const [, id, entityType, params] = match;
+            entityMap.set(id, { id, type: entityType, params });
+        }
+
+        // Phase 2: parse property sets + rel defines
+        for (const [id, entity] of entityMap.entries()) {
+            if (entity.type === 'IFCPROPERTYSET') {
+                propertySetMap.set(id, parsePropertySet(entity.params, entityMap));
+            } else if (entity.type === 'IFCRELDEFINESBYPROPERTIES') {
+                relDefinesMap.set(id, parseRelDefines(entity.params));
+            }
+        }
+
+        // Phase 3: inverted index for fast pset lookup
+        const propertySetIndex = global.PropertySetIndex.build(relDefinesMap);
+
+        // Phase 4: build entity list
+        const entities = [];
+        for (const [id, entity] of entityMap.entries()) {
+            if (!entity.type.startsWith('IFC')) continue;
+            if (entity.type.includes('REL') || entity.type.includes('PROPERTY')) continue;
+            if (!entity.params.includes("'")) continue;
+
+            const guid = extractGUID(entity.params);
+            const name = extractName(entity.params);
+            if (!guid) continue;
+
+            const propertySets = {};
+            const psetIds = global.PropertySetIndex.getPropertySetIds(propertySetIndex, id);
+            for (const psetId of psetIds) {
+                if (propertySetMap.has(psetId)) {
+                    const pset = propertySetMap.get(psetId);
+                    if (pset && pset.name) {
+                        propertySets[pset.name] = pset.properties;
+                    }
+                }
+            }
+
+            entities.push({
+                guid,
+                entity: entity.type,
+                name: name || '-',
+                propertySets,
+                fileName,
+                attributes: { Name: name || '-', GlobalId: guid }
+            });
+        }
+
+        return entities;
     }
 
     global.IFCParserCore = {
