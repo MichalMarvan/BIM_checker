@@ -408,7 +408,7 @@ class StorageManager {
         // Load file content from separate IndexedDB entry, decompress transparently
         const contentKey = `${this.storageKey}_file_${fileId}`;
         const stored = await this.idb.get(contentKey);
-        if (stored == null) return null;
+        if (stored === null || stored === undefined) return null;
         return await Compression.decompress(stored);
     }
 

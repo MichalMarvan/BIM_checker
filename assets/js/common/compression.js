@@ -32,7 +32,7 @@ window.Compression = (function() {
     }
 
     async function decompress(bytes) {
-        if (bytes == null) return '';
+        if (bytes === null || bytes === undefined) return '';
         if (typeof bytes === 'string') return bytes;
 
         const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
