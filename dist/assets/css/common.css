@@ -1002,21 +1002,24 @@ body {
 /* ===== Bug report button + modal ===== */
 
 .bug-report-btn {
-    background: transparent;
-    border: 1px solid var(--border-primary, rgba(255,255,255,0.2));
-    border-radius: 8px;
-    padding: 8px;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-lg, 12px);
+    border: none;
+    background: var(--gray-100, #f3f4f6);
+    color: var(--gray-700, #374151);
     cursor: pointer;
-    color: var(--text-primary, currentColor);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    transition: all 0.2s ease;
+    margin-right: 0.5rem;
+    padding: 0;
 }
 .bug-report-btn:hover {
-    background: var(--bg-secondary, rgba(255,255,255,0.1));
-    color: var(--primary-color, #667eea);
-    border-color: var(--primary-color, #667eea);
+    background: var(--gray-200, #e5e7eb);
+    color: #ef4444;
+    transform: translateY(-1px);
 }
 .bug-report-btn svg {
     width: 20px;
