@@ -302,7 +302,7 @@ body {
 .navbar-actions {
     display: flex;
     align-items: center;
-    gap: var(--spacing-lg);
+    gap: var(--spacing-sm);
 }
 
 /* Page title in navbar for subpages - centered */
