@@ -51,6 +51,19 @@
             <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
             <h1 class="page-title" data-i18n="validator.title">IDS-IFC Validátor</h1>
             <div class="navbar-actions">
+                <!-- Bug Report Button -->
+                <button class="bug-report-btn" id="bugReportBtn" title="Nahlásit chybu" data-i18n-title="bugReport.tooltip" aria-label="Report bug">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="8" y="6" width="8" height="14" rx="4"/>
+                        <path d="M19 7l-3 2"/>
+                        <path d="M5 7l3 2"/>
+                        <path d="M19 13h-3"/>
+                        <path d="M5 13h3"/>
+                        <path d="M19 19l-3-2"/>
+                        <path d="M5 19l3-2"/>
+                        <path d="M12 6V4a3 3 0 0 0-6 0"/>
+                    </svg>
+                </button>
                 <!-- Wizard Tour Button -->
                 <button class="wizard-header-btn" id="wizard-tour-btn" title="Spustit průvodce" data-i18n-title="tooltip.startTour">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -242,6 +255,7 @@
     <script src="../assets/js/common/translations.js"></script>
     <script src="../assets/js/common/i18n.js"></script>
     <script src="../assets/js/common/error-handler.js"></script>
+    <script src="../assets/js/common/bug-report.js"></script>
     <script src="../assets/js/common/storage.js"></script>
     <script src="../assets/js/common/theme.js"></script>
     <script src="../assets/js/common/regex-cache.js"></script>
@@ -283,5 +297,12 @@
     </script>
     <!-- PWA -->
     <script src="../assets/js/common/pwa.js"></script>
+    <script>
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => BugReport.init());
+        } else {
+            BugReport.init();
+        }
+    </script>
 </body>
 </html>
