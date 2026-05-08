@@ -21,5 +21,3 @@ self.onmessage = function(e) {
         self.postMessage({ taskId, error: err.message || String(err) });
     }
 };
-
-self.postMessage({ type: 'READY' });

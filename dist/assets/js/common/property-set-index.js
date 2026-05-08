@@ -50,7 +50,9 @@ const PropertySetIndex = (function() {
     };
 })();
 
-// Export for browser
+// Export for browser and worker contexts
 if (typeof window !== 'undefined') {
     window.PropertySetIndex = PropertySetIndex;
+} else if (typeof self !== 'undefined') {
+    self.PropertySetIndex = PropertySetIndex;
 }
