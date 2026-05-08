@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5] — 2026-05-08
+
+### Fixed
+- Cumulative Layout Shift on validator page reduced from 0.226 (Poor) to 0.000 (Good). Empty-state markup now rendered statically in HTML instead of injected from JS at DOMContentLoaded.
+- PWA install button reserves its navbar slot via `visibility: hidden` instead of `display: none`, so the navbar no longer reflows by ~43 px when `beforeinstallprompt` fires.
+
+### Added
+- `tests/cls-debug.js` — Puppeteer-based CLS diagnostic that captures `layout-shift` PerformanceObserver entries with source elements and DOM mutations near each shift. Useful for catching CLS regressions.
+
 ## [0.2.4] — 2026-05-08
 
 ### Added
