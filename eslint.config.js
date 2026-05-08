@@ -69,7 +69,9 @@ export default [
                 IfcPsetUtils: 'readonly',
                 parseIFCStructure: 'readonly',
                 classifyModification: 'readonly',
-                applyModificationsToIFC: 'readonly'
+                applyModificationsToIFC: 'readonly',
+                // Phase 5: in-app bug report
+                BugReport: 'readonly'
             }
         },
         rules: {
