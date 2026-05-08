@@ -344,6 +344,67 @@
     <script src="../assets/js/common/ifc-stream-parser.js"></script>
     <script src="../assets/js/common/performance-monitor.js"></script>
     <script src="../assets/js/ifc/viewer-parser.js"></script>
+    <script src="../assets/js/ifc/ifc-pset-utils.js"></script>
+    <!-- Stubs for viewer-init.js DOM elements and globals needed for unit testing -->
+    <script>
+    (function() {
+        // Create hidden stub elements for all IDs referenced at top level of viewer-init.js
+        var ids = [
+            'uploadArea','fileInput','columnManagerBtn','columnManager','applyColumnsBtn',
+            'selectAllBtn','deselectAllColumnsBtn','searchInput','entityFilter','fileFilter',
+            'clearFiltersBtn','exportBtn','firstPageBtn','prevPageBtn','nextPageBtn',
+            'lastPageBtn','goToPageBtn','pageInput','pageSizeSelect','pageSizeSelectTop',
+            'toggleEditModeBtn','editPanel','selectAllVisibleBtn','selectAllPagesBtn',
+            'deselectAllBtn','bulkEditBtn','bulkEditCount','bulkEditModal','bulkPsetName',
+            'bulkPropName','bulkValue','addPsetBtn','addPsetCount','addPsetModal',
+            'newPsetName','newPropertyName','newPropName','newPropValue','currentValuesList',
+            'currentValuesSection','renamePsetBtn','renamePsetCount','renamePsetModal',
+            'oldPsetName','newPsetNameRename','renamePropertyBtn','renamePropertyCount',
+            'renamePropertyModal','renamePropPsetName','oldPropertyName','newPropName',
+            'exportIfcBtn','loadFromStorageBtn','storagePickerModal','storageFileTree',
+            'selectedFilesCount','tableContainer','loading','spatialTreePanel',
+            'spatialTreeContent','spatialTreeOverlay','toggleSpatialTreeBtn','closeSpatialTreeBtn'
+        ];
+        ids.forEach(function(id) {
+            if (!document.getElementById(id)) {
+                var el = document.createElement('div');
+                el.id = id;
+                el.style.display = 'none';
+                document.body.appendChild(el);
+            }
+        });
+        // Replace div stubs with select elements where needed
+        ['pageSizeSelect','pageSizeSelectTop','entityFilter','fileFilter','bulkPsetName',
+         'bulkPropName','renamePropPsetName'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el && el.tagName !== 'SELECT') {
+                var sel = document.createElement('select');
+                sel.id = id;
+                sel.style.display = 'none';
+                el.parentNode.replaceChild(sel, el);
+            }
+        });
+        // Stub ViewerState for viewer-init.js top-level access
+        window.ViewerState = {
+            allData: [], filteredData: [], loadedFiles: [], modifications: {},
+            editMode: false, selectedEntities: new Set(), psetOrder: [],
+            propertySetGroups: {}, visiblePsets: {}, searchTerm: '',
+            entityFilterValue: '', fileFilterValue: '', sortColumn: null,
+            currentPage: 1, totalPages: 1, pageSize: 50
+        };
+        // Stub all viewer-core.js functions used by viewer-init.js
+        window.initIFCCache = function() { return Promise.resolve(); };
+        window.getIFCContent = function() { return Promise.resolve(null); };
+        window.storeIFCContent = function() { return Promise.resolve(); };
+        window.escapeHtml = function(s) { return String(s); };
+        window.handleFiles = function() {};
+        // Stub ErrorHandler
+        window.ErrorHandler = {
+            error: function() {}, warning: function() {}, success: function() {}, info: function() {}
+        };
+    })();
+    </script>
+    <script src="../assets/js/ifc/viewer-init.js"></script>
     <script src="../assets/js/vendor/xlsx.full.min.js"></script>
     <script src="../assets/js/ids/ids-excel-parser.js"></script>
     <script src="../assets/js/ids/ids-excel-generator.js"></script>
@@ -382,6 +443,8 @@
     <script src="test-suites/xsd-validator.test.js"></script>
     <script src="test-suites/xsd-validator-lazy.test.js"></script>
     <script src="test-suites/integration-real-files.test.js"></script>
+    <script src="test-suites/ifc-pset-utils.test.js"></script>
+    <script src="test-suites/ifc-viewer-modifications.test.js"></script>
     <script src="test-runner-ui.js"></script>
     
     <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">

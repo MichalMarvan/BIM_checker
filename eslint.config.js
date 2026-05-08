@@ -64,7 +64,12 @@ export default [
                 IDSParser: 'readonly',
                 IFCHierarchy: 'readonly',
                 IfcParams: 'readonly',
-                IDSXSDValidator: 'readonly'
+                IDSXSDValidator: 'readonly',
+                // Phase 2: IFC viewer editing correctness
+                IfcPsetUtils: 'readonly',
+                parseIFCStructure: 'readonly',
+                classifyModification: 'readonly',
+                applyModificationsToIFC: 'readonly'
             }
         },
         rules: {

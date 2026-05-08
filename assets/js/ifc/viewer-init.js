@@ -7,25 +7,25 @@
 // UPLOAD AREA SETUP
 // =======================
 
-const uploadArea = document.getElementById('uploadArea');
-const fileInput = document.getElementById('fileInput');
+const viewerUploadArea = document.getElementById('uploadArea');
+const viewerFileInput = document.getElementById('fileInput');
 
-uploadArea.addEventListener('click', () => fileInput.click());
-uploadArea.addEventListener('dragover', (e) => {
+viewerUploadArea.addEventListener('click', () => viewerFileInput.click());
+viewerUploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
-    uploadArea.style.borderColor = '#764ba2';
+    viewerUploadArea.style.borderColor = '#764ba2';
 });
-uploadArea.addEventListener('dragleave', () => {
-    uploadArea.style.borderColor = '#667eea';
+viewerUploadArea.addEventListener('dragleave', () => {
+    viewerUploadArea.style.borderColor = '#667eea';
 });
-uploadArea.addEventListener('drop', (e) => {
+viewerUploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
-    uploadArea.style.borderColor = '#667eea';
+    viewerUploadArea.style.borderColor = '#667eea';
     if (e.dataTransfer.files.length > 0) {
         window.handleFiles(Array.from(e.dataTransfer.files));
     }
 });
-fileInput.addEventListener('change', (e) => {
+viewerFileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
         window.handleFiles(Array.from(e.target.files));
     }
@@ -883,11 +883,14 @@ async function exportModifiedIFC(fileInfo) {
     }
 }
 
-function applyModificationsToIFC(ifcContent, modifications, fileName) {
-    const state = window.ViewerState;
+/**
+ * Parse IFC content into entity lookup maps for use by applyModificationsToIFC.
+ * @param {string} ifcContent - Raw IFC file content
+ * @returns {{ lines: string[], entityMap: Map, propertySetMap: Map, propertySingleValueMap: Map,
+ *             relDefinesMap: Map, guidToEntityId: Map, maxEntityId: number }}
+ */
+function parseIFCStructure(ifcContent) {
     const lines = ifcContent.split('\n');
-    const modifiedLines = [...lines];
-
     const entityMap = new Map();
     const propertySetMap = new Map();
     const propertySingleValueMap = new Map();
@@ -932,6 +935,90 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
         }
     });
 
+    return { lines, entityMap, propertySetMap, propertySingleValueMap, relDefinesMap, guidToEntityId, maxEntityId };
+}
+
+/**
+ * Classify a single modification record into one of three cases:
+ *   'edit'        — element has pset and property  → in-place value update
+ *   'add-prop'    — element has pset, no property  → add new property to existing pset
+ *   'create-pset' — element has no pset by name    → create isolated pset
+ * @param {string} guid
+ * @param {string} psetName
+ * @param {string} propName
+ * @param {{ guidToEntityId: Map, relDefinesMap: Map, propertySetMap: Map, propertySingleValueMap: Map }} parsed
+ * @returns {{ case: string, propEntity?: object, psetEntity?: object, entityType?: string, propId?: string }}
+ */
+function classifyModification(guid, psetName, propName, parsed) {
+    const entityId = parsed.guidToEntityId.get(guid);
+    if (!entityId) return { case: 'create-pset' };
+
+    const pset = IfcPsetUtils.findPsetOnElement(entityId, psetName, parsed.relDefinesMap, parsed.propertySetMap);
+    if (!pset) return { case: 'create-pset' };
+
+    const propIds = IfcPsetUtils.parsePsetHasProperties(pset.params);
+    for (const propIdRef of propIds) {
+        const propId = propIdRef.replace(/^#/, '');
+        const prop = parsed.propertySingleValueMap.get(propId);
+        if (!prop) continue;
+        if (IfcPsetUtils.parsePropertyName(prop.line) === propName) {
+            return { case: 'edit', propEntity: prop, propId, psetEntity: pset, entityType: pset.type };
+        }
+    }
+    return { case: 'add-prop', psetEntity: pset, entityType: pset.type };
+}
+
+/**
+ * Case B handler: append a new property entity and extend the existing pset's HasProperties tuple.
+ * Mutates parsed.maxEntityId, the in-memory pset entry, and the modifiedLines array.
+ * @param {string[]} modifiedLines
+ * @param {{ maxEntityId: number, propertySetMap: Map, propertySingleValueMap: Map }} parsed
+ * @param {{ psetEntity: object, entityType: string }} classification
+ * @param {string} propName
+ * @param {string} newValue
+ * @returns {{ newEntityLine: string, newPropId: number }}
+ */
+function addPropertyToExistingPset(modifiedLines, parsed, classification, propName, newValue) {
+    parsed.maxEntityId++;
+    const newPropId = parsed.maxEntityId;
+
+    const propLine = classification.entityType === 'IFCELEMENTQUANTITY'
+        ? createQuantity(newPropId, propName, newValue)
+        : createPropertySingleValue(newPropId, propName, newValue);
+
+    const psetEntity = classification.psetEntity;
+    const updatedPsetLine = IfcPsetUtils.addPropertyIdToPset(psetEntity.line, newPropId);
+    modifiedLines[psetEntity.lineIndex] = updatedPsetLine;
+
+    // Update in-memory pset entry so subsequent classifications on same pset see the new prop.
+    // Must update both the local psetEntity (spread copy from findPsetOnElement) AND the
+    // original entry in propertySetMap (so the next findPsetOnElement call gets updated params).
+    psetEntity.line = updatedPsetLine;
+    const newParamsMatch = updatedPsetLine.match(/^#\d+\s*=\s*[A-Z0-9_]+\((.*)\);?\s*$/i);
+    if (newParamsMatch) psetEntity.params = newParamsMatch[1];
+    const originalPsetEntry = parsed.propertySetMap.get(psetEntity.id);
+    if (originalPsetEntry) {
+        originalPsetEntry.line = updatedPsetLine;
+        if (newParamsMatch) originalPsetEntry.params = newParamsMatch[1];
+    }
+
+    // Register new property in propertySingleValueMap so classify finds it on next iteration
+    parsed.propertySingleValueMap.set(String(newPropId), {
+        lineIndex: -1,
+        params: '',
+        line: propLine,
+        type: classification.entityType === 'IFCELEMENTQUANTITY' ? 'IFCQUANTITYLENGTH' : 'IFCPROPERTYSINGLEVALUE'
+    });
+
+    return { newEntityLine: propLine, newPropId };
+}
+
+function applyModificationsToIFC(ifcContent, modifications, fileName) {
+    const state = window.ViewerState;
+    const parsed = parseIFCStructure(ifcContent);
+    const modifiedLines = [...parsed.lines];
+    let { maxEntityId } = parsed;
+
     let modificationCount = 0;
     let createdCount = 0;
     const newEntities = [];
@@ -942,7 +1029,7 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
             continue;
         }
 
-        const entityId = guidToEntityId.get(guid);
+        const entityId = parsed.guidToEntityId.get(guid);
         if (!entityId) {
             continue;
         }
@@ -955,19 +1042,22 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
             const newProperties = {};
 
             for (const [propName, newValue] of Object.entries(propModifications)) {
-                const updated = updatePropertyInIFC(
-                    modifiedLines,
-                    entityMap,
-                    propertySetMap,
-                    propertySingleValueMap,
-                    psetName,
-                    propName,
-                    newValue
-                );
+                const classification = classifyModification(guid, psetName, propName, parsed);
 
-                if (updated) {
+                if (classification.case === 'edit') {
+                    const propInfo = classification.propEntity;
+                    const newLine = updatePropertyValue(propInfo.line, newValue);
+                    if (newLine !== propInfo.line) {
+                        modifiedLines[propInfo.lineIndex] = newLine;
+                        propInfo.line = newLine;
+                    }
+                    modificationCount++;
+                } else if (classification.case === 'add-prop') {
+                    const { newEntityLine } = addPropertyToExistingPset(modifiedLines, parsed, classification, propName, newValue);
+                    newEntities.push(newEntityLine);
                     modificationCount++;
                 } else {
+                    // case 'create-pset' — accumulate for batched isolated pset creation below
                     newProperties[propName] = newValue;
                 }
             }
@@ -1167,6 +1257,13 @@ function createPropertySingleValue(id, propName, value) {
     }
 
     return `#${id}=IFCPROPERTYSINGLEVALUE('${encodedName}','Simple property set',${ifcType}(${formattedValue}),$);`;
+}
+
+function createQuantity(id, propName, value) {
+    const encodedName = encodeIFCString(propName);
+    const num = parseFloat(value);
+    const numericValue = isNaN(num) ? 0 : num;
+    return `#${id}=IFCQUANTITYLENGTH('${encodedName}',$,$,${numericValue});`;
 }
 
 function createPropertySet(id, guid, psetName, propertyIds) {
@@ -1857,3 +1954,8 @@ window.addEventListener('languageChanged', () => {
         window.applyFiltersAndRender();
     }
 });
+
+// Expose pure functions for testing and external use
+window.parseIFCStructure = parseIFCStructure;
+window.classifyModification = classifyModification;
+window.applyModificationsToIFC = applyModificationsToIFC;
