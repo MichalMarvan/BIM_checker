@@ -244,3 +244,42 @@ describe('Storage Module', () => {
         expect(file2.size).toBe(14);
     });
 });
+
+describe('Storage compression integration', () => {
+    beforeEach(async () => {
+        await BIMStorage.init();
+    });
+
+    it('saveFile + getFileContent roundtrip preserves content exactly', async () => {
+        const original = `ISO-10303-21;\nDATA;\n#1=IFCPROJECT('guid');\nENDSEC;\nEND-ISO-10303-21;\n`;
+        const file = { name: 'roundtrip-test.ifc', size: original.length, content: original };
+        const id = await BIMStorage.saveFile('ifc', file);
+        const stored = await BIMStorage.getFile('ifc', 'roundtrip-test.ifc');
+        expect(stored).toBeDefined();
+        const content = await BIMStorage.getFileContent('ifc', stored.id);
+        expect(content).toBe(original);
+        await BIMStorage.deleteFile('ifc', stored.id);
+    });
+
+    it('saveFile actually stores gzipped bytes (not plaintext)', async () => {
+        const original = 'A'.repeat(2000);
+        const file = { name: 'compressed-test.ifc', size: original.length, content: original };
+        const id = await BIMStorage.saveFile('ifc', file);
+        const raw = await BIMStorage.ifcStorage.idb.get(`ifc_files_file_${id}`);
+        expect(raw instanceof Uint8Array).toBe(true);
+        expect(raw[0]).toBe(0x1f);
+        expect(raw[1]).toBe(0x8b);
+        expect(raw.length < 100).toBe(true);
+        await BIMStorage.deleteFile('ifc', id);
+    });
+
+    it('legacy uncompressed string content remains readable', async () => {
+        const legacyContent = 'Legacy plain text from before compression rollout';
+        const file = { name: 'legacy-test.ifc', size: legacyContent.length, content: 'placeholder' };
+        const id = await BIMStorage.saveFile('ifc', file);
+        await BIMStorage.ifcStorage.idb.set(`ifc_files_file_${id}`, legacyContent);
+        const content = await BIMStorage.getFileContent('ifc', id);
+        expect(content).toBe(legacyContent);
+        await BIMStorage.deleteFile('ifc', id);
+    });
+});
