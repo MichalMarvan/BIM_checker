@@ -73,7 +73,9 @@ export default [
                 // Phase 5: in-app bug report
                 BugReport: 'readonly',
                 // Phase 3a: gzip compression
-                Compression: 'readonly'
+                Compression: 'readonly',
+                // Phase 4: IFC parser worker
+                IFCParserCore: 'readonly'
             }
         },
         rules: {
