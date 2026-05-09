@@ -20,7 +20,7 @@
     let _disabled = false;
 
     function _safeParse(raw, fallback) {
-        if (raw == null) return fallback;
+        if (raw === null || raw === undefined) return fallback;
         try {
             return JSON.parse(raw);
         } catch (e) {
