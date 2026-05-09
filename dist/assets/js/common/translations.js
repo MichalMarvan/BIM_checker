@@ -816,10 +816,10 @@ const translations = {
         'xsd.validator.summaryBanner': '{badCount} z {totalCount} IDS souborů má chyby proti schématu',
 
         // Phase 6: validation presets
-        'presets.title': '📁 Presety',
+        'presets.title': 'Presety',
         'presets.placeholder': '— Vyberte preset —',
         'presets.load': '📂 Načíst',
-        'presets.saveAs': '💾 Uložit jako',
+        'presets.saveAs': 'Uložit jako',
         'presets.delete': '🗑️ Smazat',
         'presets.empty': 'Není co uložit',
         'presets.saveModal.title': 'Uložit preset',
@@ -1673,10 +1673,10 @@ const translations = {
         'xsd.validator.summaryBanner': '{badCount} of {totalCount} IDS files have schema errors',
 
         // Phase 6: validation presets
-        'presets.title': '📁 Presets',
+        'presets.title': 'Presets',
         'presets.placeholder': '— Select preset —',
         'presets.load': '📂 Load',
-        'presets.saveAs': '💾 Save as',
+        'presets.saveAs': 'Save as',
         'presets.delete': '🗑️ Delete',
         'presets.empty': 'Nothing to save',
         'presets.saveModal.title': 'Save preset',
