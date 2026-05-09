@@ -58,13 +58,91 @@ function _genId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Public API — implemented in subsequent tasks
-export async function listAgents() { return []; }
-export async function getAgent() { return null; }
-export async function saveAgent() { return null; }
-export async function deleteAgent() { return false; }
-export async function setFavorite() {}
-export async function listFavorites() { return []; }
+// Agents CRUD
+export async function listAgents() {
+    return (await _get(KEY_AGENTS)) || [];
+}
+
+export async function getAgent(id) {
+    const list = await listAgents();
+    return list.find(a => a.id === id) || null;
+}
+
+export async function saveAgent(data) {
+    const name = String(data.name || '').trim();
+    if (name.length === 0) throw new Error('Agent name required');
+
+    const list = await listAgents();
+    const now = Date.now();
+
+    if (data.id) {
+        const idx = list.findIndex(a => a.id === data.id);
+        if (idx === -1) throw new Error('Agent not found');
+        const merged = {
+            ...list[idx],
+            ...data,
+            name,
+            updatedAt: now
+        };
+        list[idx] = merged;
+        await _put(KEY_AGENTS, list);
+        return merged.id;
+    }
+
+    const id = _genId();
+    const agent = {
+        id,
+        name,
+        icon: data.icon || '🤖',
+        provider: data.provider || 'google',
+        baseUrl: data.baseUrl || '',
+        apiKey: data.apiKey || '',
+        model: data.model || '',
+        systemPrompt: data.systemPrompt || '',
+        temperature: typeof data.temperature === 'number' ? data.temperature : 0.7,
+        isFavorite: data.isFavorite !== false,
+        favoriteOrder: typeof data.favoriteOrder === 'number' ? data.favoriteOrder : list.length,
+        createdAt: now,
+        updatedAt: now
+    };
+    list.push(agent);
+    await _put(KEY_AGENTS, list);
+    return id;
+}
+
+export async function deleteAgent(id) {
+    const list = await listAgents();
+    const idx = list.findIndex(a => a.id === id);
+    if (idx === -1) return false;
+    list.splice(idx, 1);
+    await _put(KEY_AGENTS, list);
+    // Cascading delete: threads + messages (listThreads is still a stub in this task — returns [])
+    const threads = await listThreads(id);
+    for (const t of threads) {
+        await _delete(KEY_MSGS_PFX + t.id);
+    }
+    const allThreads = (await _get(KEY_THREADS)) || [];
+    const remaining = allThreads.filter(t => t.agentId !== id);
+    await _put(KEY_THREADS, remaining);
+    return true;
+}
+
+export async function setFavorite(id, isFavorite, order) {
+    const list = await listAgents();
+    const agent = list.find(a => a.id === id);
+    if (!agent) return;
+    agent.isFavorite = !!isFavorite;
+    if (typeof order === 'number') agent.favoriteOrder = order;
+    agent.updatedAt = Date.now();
+    await _put(KEY_AGENTS, list);
+}
+
+export async function listFavorites() {
+    const all = await listAgents();
+    return all
+        .filter(a => a.isFavorite)
+        .sort((a, b) => (a.favoriteOrder || 0) - (b.favoriteOrder || 0));
+}
 
 export async function getSettings() { return _defaultSettings(); }
 export async function updateSettings() {}
