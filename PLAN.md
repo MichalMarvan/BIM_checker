@@ -79,6 +79,14 @@
 - [x] CLS validatoru: 0.226 → 0.000 (Good); homepage 0.037 → 0.000; parser 0.040 → 0.003
 - [x] `tests/cls-debug.js` — Puppeteer diagnostika pro budoucí CLS regrese
 
+### Validation Presety (Phase 6, 2026-05-09)
+- [x] `ValidationPresets` modul (localStorage CRUD + debounced last-session)
+- [x] Pojmenované presety: save / load / delete + překryv konfirmace
+- [x] Auto-restore last session na DOMContentLoaded (s CLS mitigací přes minHeight)
+- [x] Reference podle jména souboru (verzování zadarmo via BIMStorage dedup)
+- [x] Missing-file pily se ⚠️ markrem; auto-resolve při dodání souboru
+- [x] +32 unit testů + 5 integračních testů
+
 ---
 
 ## K dokončení (TODO)
