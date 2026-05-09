@@ -51,9 +51,36 @@
 
     window.ValidationPresets = {
         // Public API surface — implemented in subsequent tasks
-        list() { return _readPresets(); },
+        list() {
+            const arr = _readPresets();
+            return Array.isArray(arr) ? arr : [];
+        },
         get() { return null; },
-        save() { return null; },
+        save(name, presetGroups) {
+            const trimmed = String(name || '').trim();
+            if (trimmed.length === 0) {
+                throw new Error('Preset name is required');
+            }
+            const presets = this.list();
+            const existing = presets.find(p => p.name === trimmed);
+            const now = Date.now();
+            if (existing) {
+                existing.groups = presetGroups || [];
+                existing.updatedAt = now;
+                _writePresets(presets);
+                return existing.id;
+            }
+            const id = `${now}-${Math.random().toString(36).slice(2, 8)}`;
+            presets.push({
+                id,
+                name: trimmed,
+                createdAt: now,
+                updatedAt: now,
+                groups: presetGroups || []
+            });
+            _writePresets(presets);
+            return id;
+        },
         delete() { return false; },
         saveLastSession() {},
         loadLastSession() { return null; },
