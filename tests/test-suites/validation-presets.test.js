@@ -159,6 +159,62 @@ describe('ValidationPresets.saveLastSession + loadLastSession', () => {
     });
 });
 
+describe('ValidationPresets.toPresetGroups', () => {
+    it('extracts only filenames from in-memory groups (no content/id)', () => {
+        const groups = [{
+            id: 12345,
+            ifcFiles: [
+                { id: 'file_1', name: 'building.ifc', size: 100, content: 'huge string' },
+                { id: 'file_2', name: 'site.ifc',     size: 200, content: 'other huge string' }
+            ],
+            idsFile: { id: 'file_3', name: 'spec.ids', size: 50, content: '<xml/>' },
+            missingIfcNames: [],
+            missingIdsName: null
+        }];
+        const out = ValidationPresets.toPresetGroups(groups);
+        expect(out.length).toBe(1);
+        expect(out[0].ifcFileNames.join(',')).toBe('building.ifc,site.ifc');
+        expect(out[0].idsFileName).toBe('spec.ids');
+        // None of the content/id fields leak through
+        expect(JSON.stringify(out).indexOf('huge string')).toBe(-1);
+        expect(JSON.stringify(out).indexOf('file_1')).toBe(-1);
+    });
+
+    it('merges missingIfcNames + ifcFiles names into ifcFileNames', () => {
+        const groups = [{
+            id: 1,
+            ifcFiles: [{ id: 'f1', name: 'a.ifc', size: 1, content: '' }],
+            idsFile: null,
+            missingIfcNames: ['b.ifc', 'c.ifc'],
+            missingIdsName: null
+        }];
+        const out = ValidationPresets.toPresetGroups(groups);
+        expect(out[0].ifcFileNames.sort().join(',')).toBe('a.ifc,b.ifc,c.ifc');
+    });
+
+    it('uses missingIdsName when idsFile is null', () => {
+        const groups = [{
+            id: 1, ifcFiles: [], idsFile: null,
+            missingIfcNames: [], missingIdsName: 'lost.ids'
+        }];
+        const out = ValidationPresets.toPresetGroups(groups);
+        expect(out[0].idsFileName).toBe('lost.ids');
+    });
+
+    it('idsFileName is null when both idsFile and missingIdsName are absent', () => {
+        const groups = [{ id: 1, ifcFiles: [], idsFile: null, missingIfcNames: [], missingIdsName: null }];
+        const out = ValidationPresets.toPresetGroups(groups);
+        expect(out[0].idsFileName).toBe(null);
+    });
+
+    it('handles legacy in-memory groups without missingIfcNames/missingIdsName fields', () => {
+        const groups = [{ id: 1, ifcFiles: [], idsFile: null }];
+        const out = ValidationPresets.toPresetGroups(groups);
+        expect(out[0].ifcFileNames.length).toBe(0);
+        expect(out[0].idsFileName).toBe(null);
+    });
+});
+
 describe('ValidationPresets — bootstrap', () => {
     beforeEach(() => {
         localStorage.removeItem('bim_validation_presets');

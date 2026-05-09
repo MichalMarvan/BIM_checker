@@ -125,7 +125,15 @@
                 _lastSessionPending = null;
             }
         },
-        toPresetGroups() { return []; },
+        toPresetGroups(validationGroups) {
+            return (validationGroups || []).map(g => ({
+                ifcFileNames: [
+                    ...(g.ifcFiles || []).map(f => f.name),
+                    ...(g.missingIfcNames || [])
+                ],
+                idsFileName: g.idsFile ? g.idsFile.name : (g.missingIdsName || null)
+            }));
+        },
         async fromPresetGroups() { return []; }
     };
 })();
