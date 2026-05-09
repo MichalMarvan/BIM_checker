@@ -107,7 +107,7 @@
 
 ### Střední priorita
 
-- [ ] **AI chat-heads UI** – Minimalizované chaty se zobrazí jako kruhová kolečka (avatar agenta + krátký popisek nastavený v settings) stackovaná nad hlavním 🤖 launcherem. Style á la Facebook Messenger chat heads. Umožní paralelní konverzace s více agenty s rychlým přepínáním.
+- [ ] **AI chat-heads UI** (Phase 9, **až po Phase 8 tools**) – Minimalizované chaty se zobrazí jako kruhová kolečka (avatar agenta + krátký popisek nastavený v settings) stackovaná nad hlavním 🤖 launcherem. Style á la Facebook Messenger chat heads. Umožní paralelní konverzace s více agenty s rychlým přepínáním.
 
 - [ ] **IDS šablony** – Předdefinované specifikace pro běžné use cases
   - Šablona pro požární bezpečnost
