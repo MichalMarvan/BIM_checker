@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'bim-checker-v14';
+const CACHE_VERSION = 'bim-checker-v15';
 const ASSETS_TO_CACHE = [
     './index.html',
     './favicon.svg',
@@ -71,7 +71,19 @@ const ASSETS_TO_CACHE = [
     './assets/js/common/ids-xsd-validator.js',
     './assets/icons/pwa/icon-128x128.png',
     './assets/icons/pwa/icon-256x256.png',
-    './assets/icons/pwa/icon-512x512.png'
+    './assets/icons/pwa/icon-512x512.png',
+    './assets/js/ai/providers.js',
+    './assets/js/ai/ai-client.js',
+    './assets/js/ai/agent-manager.js',
+    './assets/js/ai/tool-defs.js',
+    './assets/js/ai/tool-executor.js',
+    './assets/js/ai/chat-storage.js',
+    './assets/js/ai-ui/init.js',
+    './assets/js/ai-ui/chat-launcher.js',
+    './assets/js/ai-ui/settings-modal.js',
+    './assets/js/ai-ui/chat-panel.js',
+    './assets/js/ai-ui/chat-i18n-helpers.js',
+    './assets/css/ai-chat.css'
 ];
 
 // Install - cache assets individually (don't fail on single missing file)
