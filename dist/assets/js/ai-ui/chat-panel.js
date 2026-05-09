@@ -53,11 +53,15 @@ function _injectPanel() {
     _panel.innerHTML = `
         <div class="chat-panel__header" id="chatHeader">
             <span class="chat-panel__header__title" id="chatHeaderTitle"></span>
-            <button class="chat-panel__header__btn" id="chatToggleThreads" title="${t('ai.chat.toggleThreadsBtn')}">📋</button>
-            <button class="chat-panel__header__btn chat-panel__header__minimize" id="chatMinimizeBtn" title="${t('ai.chat.minimizeBtn') || 'Minimalizovat'}">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14"/></svg>
+            <button class="chat-panel__header__btn" id="chatToggleThreads" title="${t('ai.chat.toggleThreadsBtn')}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
             </button>
-            <button class="chat-panel__header__btn" id="chatCloseBtn" title="${t('ai.chat.closeBtn')}">✕</button>
+            <button class="chat-panel__header__btn chat-panel__header__minimize" id="chatMinimizeBtn" title="${t('ai.chat.minimizeBtn') || 'Minimalizovat'}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="chat-panel__header__btn" id="chatCloseBtn" title="${t('ai.chat.closeBtn')}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+            </button>
         </div>
         <div class="chat-panel__body">
             <aside class="chat-panel__threads" id="chatThreadsSidebar"></aside>
