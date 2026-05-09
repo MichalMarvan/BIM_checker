@@ -55,7 +55,9 @@
             const arr = _readPresets();
             return Array.isArray(arr) ? arr : [];
         },
-        get() { return null; },
+        get(id) {
+            return this.list().find(p => p.id === id) || null;
+        },
         save(name, presetGroups) {
             const trimmed = String(name || '').trim();
             if (trimmed.length === 0) {
@@ -81,7 +83,14 @@
             _writePresets(presets);
             return id;
         },
-        delete() { return false; },
+        delete(id) {
+            const presets = this.list();
+            const idx = presets.findIndex(p => p.id === id);
+            if (idx === -1) return false;
+            presets.splice(idx, 1);
+            _writePresets(presets);
+            return true;
+        },
         saveLastSession() {},
         loadLastSession() { return null; },
         flushLastSession() {},
