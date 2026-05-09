@@ -324,6 +324,7 @@
     border: 1px solid var(--border-primary, #d1d5db);
     border-radius: 8px;
     background: var(--bg-primary, #fff);
+    color: var(--text-primary, #1f2937);
     resize: none;
     min-height: 38px;
     max-height: 120px;
