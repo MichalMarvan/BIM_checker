@@ -1314,7 +1314,9 @@ function addValidationGroup() {
     validationGroups.push({
         id: Date.now(),
         ifcFiles: [],
-        idsFile: null
+        idsFile: null,
+        missingIfcNames: [],
+        missingIdsName: null
     });
     renderValidationGroups();
     updateValidateButton();
@@ -1552,6 +1554,43 @@ function renderValidationGroups() {
 
     // Add drop zone event listeners
     setupDropZones();
+
+    if (typeof ValidationPresets !== 'undefined') {
+        ValidationPresets.saveLastSession(ValidationPresets.toPresetGroups(validationGroups));
+    }
+}
+
+function _repopulatePresetSelect() {
+    const select = document.getElementById('presetSelect');
+    if (!select) return;
+    const previous = select.value;
+    const presets = ValidationPresets.list().sort((a, b) => b.updatedAt - a.updatedAt);
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.setAttribute('data-i18n', 'presets.placeholder');
+    placeholder.textContent = t('presets.placeholder');
+    select.appendChild(placeholder);
+    for (const p of presets) {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        select.appendChild(opt);
+    }
+    if (previous && presets.some(p => p.id === previous)) {
+        select.value = previous;
+    }
+    _updatePresetButtonState();
+}
+
+function _updatePresetButtonState() {
+    const select = document.getElementById('presetSelect');
+    const loadBtn = document.getElementById('loadPresetBtn');
+    const deleteBtn = document.getElementById('deletePresetBtn');
+    if (!select || !loadBtn || !deleteBtn) return;
+    const hasSelection = select.value !== '';
+    loadBtn.disabled = !hasSelection;
+    deleteBtn.disabled = !hasSelection;
 }
 
 // Setup drop zone event listeners
@@ -2668,6 +2707,19 @@ function updateXSDSummaryBanner() {
 document.addEventListener('DOMContentLoaded', () => {
     renderValidationGroups();
     updateValidateButton();
+
+    // Phase 6: presets panel
+    _repopulatePresetSelect();
+    const select = document.getElementById('presetSelect');
+    if (select) {
+        select.addEventListener('change', _updatePresetButtonState);
+    }
+});
+
+window.addEventListener('beforeunload', () => {
+    if (typeof ValidationPresets !== 'undefined') {
+        ValidationPresets.flushLastSession();
+    }
 });
 
 // Re-render content when language changes
