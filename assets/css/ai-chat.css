@@ -85,6 +85,11 @@
 }
 
 /* --- Settings modal extends existing .modal-overlay --- */
+/* Show when active. Subpages also define .modal-overlay.active in their
+   stylesheets, but the homepage only loads common.css which defines
+   .modal-overlay.show. This rule ensures the AI settings modal works on
+   every page that loads ai-chat.css. */
+.ai-settings-modal.active { display: flex; }
 .ai-settings-modal .modal-container { max-width: 720px; }
 .ai-settings-modal__agents { display: flex; flex-direction: column; gap: 12px; }
 .ai-settings-modal__agent-row {
