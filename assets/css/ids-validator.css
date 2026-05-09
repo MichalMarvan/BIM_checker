@@ -648,7 +648,7 @@
    =========================================== */
 .presets-panel {
     background: var(--bg-secondary, #f8f9fa);
-    border: 1px solid var(--border-primary, #e5e7eb);
+    border: 1.5px solid var(--primary-light, #818cf8);
     border-radius: 8px;
     padding: 16px;
     margin-bottom: 24px;
