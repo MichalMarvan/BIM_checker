@@ -2827,11 +2827,8 @@ function updateXSDSummaryBanner() {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    renderValidationGroups();
-    updateValidateButton();
-
-    // Phase 6: presets panel
+document.addEventListener('DOMContentLoaded', async () => {
+    // Phase 6: presets panel wiring (synchronous)
     _repopulatePresetSelect();
     const select = document.getElementById('presetSelect');
     if (select) {
@@ -2842,6 +2839,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loadBtn) loadBtn.addEventListener('click', _onLoadPresetClick);
         const deleteBtn = document.getElementById('deletePresetBtn');
         if (deleteBtn) deleteBtn.addEventListener('click', _onDeletePresetClick);
+    }
+
+    // Initial render shows static empty-state (zero CLS)
+    renderValidationGroups();
+    updateValidateButton();
+
+    // Phase 6: auto-restore last session (async)
+    if (typeof ValidationPresets !== 'undefined') {
+        const last = ValidationPresets.loadLastSession();
+        if (last && Array.isArray(last.groups) && last.groups.length > 0) {
+            // Reserve approximate vertical space to avoid CLS during hydration
+            const groupsContainer = document.getElementById('validationGroups');
+            if (groupsContainer) {
+                const reservedHeight = Math.min(160 * last.groups.length, window.innerHeight * 0.6);
+                groupsContainer.style.minHeight = `${Math.round(reservedHeight)}px`;
+            }
+            try {
+                const hydrated = await ValidationPresets.fromPresetGroups(last.groups);
+                validationGroups.length = 0;
+                for (const g of hydrated) validationGroups.push(g);
+                renderValidationGroups();
+                updateValidateButton();
+            } catch (e) {
+                console.warn('[validator] last-session hydration failed:', e);
+            } finally {
+                if (groupsContainer) groupsContainer.style.minHeight = '';
+            }
+        }
     }
 });
 
