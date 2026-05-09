@@ -303,6 +303,8 @@ body {
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    position: relative;
+    z-index: 1;
 }
 
 /* Visual separator between help cluster (bug/tour/help) and settings cluster (lang/install/theme).
