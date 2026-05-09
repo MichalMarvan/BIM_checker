@@ -2670,6 +2670,45 @@ function _confirmSavePreset() {
     ErrorHandler.success(t('presets.saved').replace('{name}', name));
 }
 
+async function _onLoadPresetClick() {
+    const select = document.getElementById('presetSelect');
+    if (!select || !select.value) return;
+    const preset = ValidationPresets.get(select.value);
+    if (!preset) return;
+    if (validationGroups.length > 0) {
+        const msg = t('presets.loadConfirm').replace('{name}', preset.name);
+        if (!confirm(msg)) return;
+    }
+    const hydrated = await ValidationPresets.fromPresetGroups(preset.groups);
+    validationGroups.length = 0;
+    for (const g of hydrated) validationGroups.push(g);
+    renderValidationGroups();
+    updateValidateButton();
+    const hasMissing = hydrated.some(g =>
+        (g.missingIfcNames && g.missingIfcNames.length > 0) || g.missingIdsName);
+    const key = hasMissing ? 'presets.loadedWithMissing' : 'presets.loaded';
+    if (hasMissing) {
+        ErrorHandler.warning(t(key).replace('{name}', preset.name));
+    } else {
+        ErrorHandler.success(t(key).replace('{name}', preset.name));
+    }
+}
+
+function _onDeletePresetClick() {
+    const select = document.getElementById('presetSelect');
+    if (!select || !select.value) return;
+    const preset = ValidationPresets.get(select.value);
+    if (!preset) return;
+    const msg = t('presets.deleteConfirm').replace('{name}', preset.name);
+    if (!confirm(msg)) return;
+    const name = preset.name;
+    ValidationPresets.delete(preset.id);
+    _repopulatePresetSelect();
+    select.value = '';
+    _updatePresetButtonState();
+    ErrorHandler.success(t('presets.deleted').replace('{name}', name));
+}
+
 // Make functions globally accessible for onclick handlers
 window.addValidationGroup = addValidationGroup;
 window.deleteValidationGroup = deleteValidationGroup;
@@ -2799,6 +2838,10 @@ document.addEventListener('DOMContentLoaded', () => {
         select.addEventListener('change', _updatePresetButtonState);
         const saveBtn = document.getElementById('savePresetBtn');
         if (saveBtn) saveBtn.addEventListener('click', _openSavePresetModal);
+        const loadBtn = document.getElementById('loadPresetBtn');
+        if (loadBtn) loadBtn.addEventListener('click', _onLoadPresetClick);
+        const deleteBtn = document.getElementById('deletePresetBtn');
+        if (deleteBtn) deleteBtn.addEventListener('click', _onDeletePresetClick);
     }
 });
 
