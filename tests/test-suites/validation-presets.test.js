@@ -302,3 +302,41 @@ describe('ValidationPresets — bootstrap', () => {
         expect(ValidationPresets.list().length).toBe(0);
     });
 });
+
+describe('ValidationPresets robustness', () => {
+    beforeEach(() => {
+        localStorage.removeItem('bim_validation_presets');
+        localStorage.removeItem('bim_validation_last_session');
+    });
+
+    it('list() returns [] when bim_validation_presets contains corrupted JSON', () => {
+        localStorage.setItem('bim_validation_presets', 'this is not json {{{');
+        expect(ValidationPresets.list().length).toBe(0);
+    });
+
+    it('loadLastSession() returns null when last-session is corrupted JSON', () => {
+        localStorage.setItem('bim_validation_last_session', '<<<broken>>>');
+        expect(ValidationPresets.loadLastSession()).toBe(null);
+    });
+
+    it('save() returns the new id even when localStorage.setItem throws QuotaExceededError', () => {
+        const original = localStorage.setItem.bind(localStorage);
+        let thrown = false;
+        localStorage.setItem = function (k, v) {
+            if (k === 'bim_validation_presets') {
+                const err = new Error('Quota exceeded');
+                err.name = 'QuotaExceededError';
+                thrown = true;
+                throw err;
+            }
+            return original(k, v);
+        };
+        try {
+            const id = ValidationPresets.save('Quota test', []);
+            expect(typeof id).toBe('string');  // function still returns id even if persistence failed
+            expect(thrown).toBe(true);
+        } finally {
+            localStorage.setItem = original;
+        }
+    });
+});
