@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] — 2026-05-09
+
+### Added
+- AI chat infrastructure — settings UI for managing AI agents, bottom-right launcher with popover, right-side chat panel with persisted threads. 5 OpenAI-compatible providers (Ollama, Google AI, OpenAI, OpenRouter, Custom). Streaming responses via SSE.
+- IndexedDB schema extension for AI: `ai_agents`, `ai_settings`, `ai_threads`, `ai_messages_<threadId>` keys in existing `bim_checker_storage` DB.
+- 57 new CZ + EN i18n keys under `ai.*` namespace.
+
+### Changed
+- Three pages (validator, parser, viewer) gain a navbar settings icon and a bottom-right launcher button. Settings modal and chat panel are lazy-injected on first open.
+
+### Internal
+- New `assets/js/ai/` (logic) and `assets/js/ai-ui/` (UI) module trees.
+- 46 new tests added across Tasks 1-14 (storage, agent-manager, ai-client, ui-integration, i18n). Final test count: 527.
+- Tools (function calling) intentionally out of scope — framework wired with empty `tool-defs` and stub `tool-executor` so Phase 8+ can add BIM_checker-specific tools incrementally.
+
 ## [0.2.6] — 2026-05-09
 
 ### Added

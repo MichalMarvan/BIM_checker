@@ -87,6 +87,16 @@
 - [x] Missing-file pily se ⚠️ markrem; auto-resolve při dodání souboru
 - [x] +32 unit testů + 5 integračních testů
 
+### AI chat infrastructure (Phase 7, 2026-05-09)
+- [x] `chat-storage.js` modul — agents + threads + messages + settings v IndexedDB
+- [x] 5 OpenAI-compatible provideři: Ollama (lokální), Google AI, OpenAI, OpenRouter, Custom
+- [x] Streaming chat completion přes Server-Sent Events
+- [x] Right-side chat panel s threads sidebarem + bottom-right kruhový launcher s popoverem oblíbených agentů
+- [x] Settings modal s agent CRUD (provider, model, system prompt, temperature)
+- [x] CZ + EN i18n (57 nových klíčů)
+- [x] Mimo scope: tools / function calling (Phase 8+), 3D viewer integrace (Phase 9+)
+- [x] +43 unit + integračních testů (518 → 527)
+
 ---
 
 ## K dokončení (TODO)
