@@ -2587,6 +2587,89 @@ async function validateAll() {
     }
 }
 
+// ===== SAVE PRESET MODAL =====
+
+function _ensureSavePresetModal() {
+    if (document.getElementById('savePresetModal')) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+        <div id="savePresetModal" class="modal-overlay">
+            <div class="modal-container" style="max-width: 420px;">
+                <div class="modal-header">
+                    <h2 data-i18n="presets.saveModal.title">Uložit preset</h2>
+                    <button class="modal-close" id="savePresetModalClose">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="savePresetNameInput" maxlength="80"
+                           class="filter-input" style="width:100%; padding:10px 12px; font-size:1em;"
+                           data-i18n-placeholder="presets.saveModal.namePlaceholder">
+                    <div id="savePresetError" style="color: var(--danger,#dc2626); font-size: 0.9em; margin-top: 8px; display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="savePresetCancel" data-i18n="presets.saveModal.cancel">Zrušit</button>
+                    <button class="btn btn-primary" id="savePresetConfirm" data-i18n="presets.saveModal.save">Uložit</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(wrapper.firstElementChild);
+    if (typeof i18n !== 'undefined' && typeof i18n.translateElement === 'function') {
+        i18n.translateElement(document.getElementById('savePresetModal'));
+    }
+    const modal = document.getElementById('savePresetModal');
+    const input = document.getElementById('savePresetNameInput');
+    const errEl = document.getElementById('savePresetError');
+    const close = () => modal.classList.remove('active');
+    document.getElementById('savePresetModalClose').addEventListener('click', close);
+    document.getElementById('savePresetCancel').addEventListener('click', close);
+    modal.addEventListener('click', (e) => { if (e.target.id === 'savePresetModal') close(); });
+    document.getElementById('savePresetConfirm').addEventListener('click', _confirmSavePreset);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') _confirmSavePreset();
+        else if (e.key === 'Escape') close();
+        errEl.style.display = 'none';
+    });
+}
+
+function _openSavePresetModal() {
+    if (validationGroups.length === 0) {
+        ErrorHandler.warning(t('presets.empty'));
+        return;
+    }
+    _ensureSavePresetModal();
+    const modal = document.getElementById('savePresetModal');
+    const input = document.getElementById('savePresetNameInput');
+    const errEl = document.getElementById('savePresetError');
+    errEl.style.display = 'none';
+    const select = document.getElementById('presetSelect');
+    const currentPreset = select && select.value ? ValidationPresets.get(select.value) : null;
+    input.value = currentPreset ? currentPreset.name : '';
+    modal.classList.add('active');
+    setTimeout(() => input.focus(), 50);
+}
+
+function _confirmSavePreset() {
+    const input = document.getElementById('savePresetNameInput');
+    const errEl = document.getElementById('savePresetError');
+    const name = input.value.trim();
+    if (name.length === 0) {
+        errEl.textContent = t('presets.saveModal.namePlaceholder');
+        errEl.style.display = 'block';
+        return;
+    }
+    const existing = ValidationPresets.list().find(p => p.name === name);
+    if (existing) {
+        const msg = t('presets.saveModal.overwriteConfirm').replace('{name}', name);
+        if (!confirm(msg)) return;
+    }
+    const id = ValidationPresets.save(name, ValidationPresets.toPresetGroups(validationGroups));
+    document.getElementById('savePresetModal').classList.remove('active');
+    _repopulatePresetSelect();
+    const select = document.getElementById('presetSelect');
+    if (select) { select.value = id; _updatePresetButtonState(); }
+    ErrorHandler.success(t('presets.saved').replace('{name}', name));
+}
+
 // Make functions globally accessible for onclick handlers
 window.addValidationGroup = addValidationGroup;
 window.deleteValidationGroup = deleteValidationGroup;
@@ -2714,6 +2797,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const select = document.getElementById('presetSelect');
     if (select) {
         select.addEventListener('change', _updatePresetButtonState);
+        const saveBtn = document.getElementById('savePresetBtn');
+        if (saveBtn) saveBtn.addEventListener('click', _openSavePresetModal);
     }
 });
 
