@@ -2714,18 +2714,23 @@ async function _onLoadPresetClick() {
         const msg = t('presets.loadConfirm').replace('{name}', preset.name);
         if (!confirm(msg)) return;
     }
-    const hydrated = await ValidationPresets.fromPresetGroups(preset.groups);
-    validationGroups.length = 0;
-    for (const g of hydrated) validationGroups.push(g);
-    renderValidationGroups();
-    updateValidateButton();
-    const hasMissing = hydrated.some(g =>
-        (g.missingIfcNames && g.missingIfcNames.length > 0) || g.missingIdsName);
-    const key = hasMissing ? 'presets.loadedWithMissing' : 'presets.loaded';
-    if (hasMissing) {
-        ErrorHandler.warning(t(key).replace('{name}', preset.name));
-    } else {
-        ErrorHandler.success(t(key).replace('{name}', preset.name));
+    try {
+        const hydrated = await ValidationPresets.fromPresetGroups(preset.groups);
+        validationGroups.length = 0;
+        for (const g of hydrated) validationGroups.push(g);
+        renderValidationGroups();
+        updateValidateButton();
+        const hasMissing = hydrated.some(g =>
+            (g.missingIfcNames && g.missingIfcNames.length > 0) || g.missingIdsName);
+        const key = hasMissing ? 'presets.loadedWithMissing' : 'presets.loaded';
+        if (hasMissing) {
+            ErrorHandler.warning(t(key).replace('{name}', preset.name));
+        } else {
+            ErrorHandler.success(t(key).replace('{name}', preset.name));
+        }
+    } catch (e) {
+        console.warn('[validator] preset load failed:', e);
+        ErrorHandler.error(t('presets.quotaExceeded') || 'Failed to load preset');
     }
 }
 
