@@ -88,8 +88,7 @@
             const idx = presets.findIndex(p => p.id === id);
             if (idx === -1) return false;
             presets.splice(idx, 1);
-            _writePresets(presets);
-            return true;
+            return _writePresets(presets);
         },
         saveLastSession() {},
         loadLastSession() { return null; },
