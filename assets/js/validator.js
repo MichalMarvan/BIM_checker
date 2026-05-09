@@ -2627,7 +2627,7 @@ function _ensureSavePresetModal() {
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') _confirmSavePreset();
         else if (e.key === 'Escape') close();
-        errEl.style.display = 'none';
+        else errEl.style.display = 'none';
     });
 }
 
