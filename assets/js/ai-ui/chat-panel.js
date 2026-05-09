@@ -21,13 +21,29 @@ export async function openForAgent(agentId) {
     await _refreshThreadsSidebar();
     await _refreshMessages();
     _panel.classList.add('is-open');
+    _panel.classList.remove('is-minimized');
+    _hideLauncher(true);
     await storage.updateSettings({ chatPanelOpen: true, lastActiveAgentId: agentId });
 }
 
 export function close() {
-    if (_panel) _panel.classList.remove('is-open');
+    if (_panel) {
+        _panel.classList.remove('is-open');
+        _panel.classList.remove('is-minimized');
+    }
+    _hideLauncher(false);
     if (_state.abort) _state.abort.abort();
     storage.updateSettings({ chatPanelOpen: false });
+}
+
+function _hideLauncher(hide) {
+    const launcher = document.getElementById('chatLauncher');
+    if (launcher) launcher.style.display = hide ? 'none' : '';
+}
+
+function _toggleMinimize() {
+    if (!_panel) return;
+    _panel.classList.toggle('is-minimized');
 }
 
 function _injectPanel() {
@@ -35,9 +51,12 @@ function _injectPanel() {
     _panel.id = 'aiChatPanel';
     _panel.className = 'chat-panel';
     _panel.innerHTML = `
-        <div class="chat-panel__header">
+        <div class="chat-panel__header" id="chatHeader">
             <span class="chat-panel__header__title" id="chatHeaderTitle"></span>
-            <button class="chat-panel__header__btn" id="chatToggleThreads" title="${t('ai.chat.toggleThreadsBtn')}">↔</button>
+            <button class="chat-panel__header__btn" id="chatToggleThreads" title="${t('ai.chat.toggleThreadsBtn')}">📋</button>
+            <button class="chat-panel__header__btn chat-panel__header__minimize" id="chatMinimizeBtn" title="${t('ai.chat.minimizeBtn') || 'Minimalizovat'}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14"/></svg>
+            </button>
             <button class="chat-panel__header__btn" id="chatCloseBtn" title="${t('ai.chat.closeBtn')}">✕</button>
         </div>
         <div class="chat-panel__body">
@@ -50,8 +69,13 @@ function _injectPanel() {
         </div>`;
     document.body.appendChild(_panel);
 
-    _panel.querySelector('#chatCloseBtn').addEventListener('click', close);
-    _panel.querySelector('#chatToggleThreads').addEventListener('click', _toggleThreadsSidebar);
+    _panel.querySelector('#chatCloseBtn').addEventListener('click', (e) => { e.stopPropagation(); close(); });
+    _panel.querySelector('#chatMinimizeBtn').addEventListener('click', (e) => { e.stopPropagation(); _toggleMinimize(); });
+    _panel.querySelector('#chatToggleThreads').addEventListener('click', (e) => { e.stopPropagation(); _toggleThreadsSidebar(); });
+    // Click on header (excluding buttons) toggles minimize
+    _panel.querySelector('#chatHeader').addEventListener('click', () => {
+        if (_panel.classList.contains('is-minimized')) _toggleMinimize();
+    });
     _panel.querySelector('#chatSendBtn').addEventListener('click', _send);
     const input = _panel.querySelector('#chatInput');
     input.addEventListener('keydown', (e) => {
@@ -76,8 +100,8 @@ function _autoGrowInput() {
 
 async function _toggleThreadsSidebar() {
     const sidebar = _panel.querySelector('#chatThreadsSidebar');
-    sidebar.classList.toggle('is-collapsed');
-    await storage.updateSettings({ threadsSidebarOpen: !sidebar.classList.contains('is-collapsed') });
+    sidebar.classList.toggle('is-expanded');
+    await storage.updateSettings({ threadsSidebarOpen: sidebar.classList.contains('is-expanded') });
 }
 
 async function _refreshHeader() {

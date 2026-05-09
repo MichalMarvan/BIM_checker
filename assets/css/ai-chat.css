@@ -165,20 +165,37 @@
 .agent-form__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 
 /* --- Chat panel --- */
+/* Messenger-style floating chat: 340x480 in bottom-right, above launcher.
+   Launcher button (bottom: 24, height 56) → chat sits at bottom: 96 with 16px gap. */
 .chat-panel {
     position: fixed;
-    top: 60px;
-    right: 0;
-    bottom: 0;
-    width: 480px;
+    bottom: 96px;
+    right: 24px;
+    top: auto;
+    width: 340px;
+    height: 480px;
+    max-height: calc(100vh - 120px);
     background: var(--bg-primary, #fff);
-    border-left: 1px solid var(--border-primary, #e5e7eb);
-    box-shadow: -4px 0 16px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    overflow: hidden;
     display: none;
     flex-direction: column;
     z-index: 9050;
+    transition: height 0.2s ease;
 }
 .chat-panel.is-open { display: flex; }
+
+/* Minimized: shows only the header, body + input collapse out of flow */
+.chat-panel.is-minimized {
+    height: auto;
+    max-height: none;
+}
+.chat-panel.is-minimized .chat-panel__body,
+.chat-panel.is-minimized .chat-panel__input { display: none; }
+.chat-panel.is-minimized .chat-panel__header { cursor: pointer; }
+.chat-panel.is-minimized .chat-panel__header__minimize svg { transform: rotate(180deg); }
 .chat-panel__header {
     display: flex;
     align-items: center;
@@ -199,16 +216,23 @@
 
 .chat-panel__body { flex: 1; display: flex; overflow: hidden; }
 
+/* Threads sidebar: collapsed by default for compact messenger style.
+   User toggles via the threads button in header. */
 .chat-panel__threads {
-    width: 200px;
+    width: 0;
+    padding: 0;
     border-right: 1px solid var(--border-primary, #e5e7eb);
     overflow-y: auto;
-    padding: 8px;
     background: var(--bg-secondary, #fafbfc);
     flex: 0 0 auto;
+    overflow: hidden;
     transition: width 0.2s ease, padding 0.2s ease;
 }
-.chat-panel__threads.is-collapsed { width: 0; padding: 0; overflow: hidden; }
+.chat-panel__threads.is-expanded {
+    width: 140px;
+    padding: 8px;
+    overflow-y: auto;
+}
 .chat-panel__threads__heading {
     font-size: 0.8em;
     font-weight: 600;
@@ -319,11 +343,18 @@
 
 /* --- Responsive --- */
 @media (max-width: 1023px) {
-    .chat-panel { width: 100%; }
     .ai-settings-modal .modal-container { max-width: 90%; }
 }
 @media (max-width: 767px) {
-    .chat-panel__threads { width: 160px; }
+    /* Mobile: chat takes near-full screen, anchored to bottom edge */
+    .chat-panel {
+        bottom: 80px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+        height: calc(100vh - 100px);
+    }
+    .chat-panel__threads.is-expanded { width: 120px; }
     .chat-launcher-popover {
         bottom: 0;
         right: 0;
