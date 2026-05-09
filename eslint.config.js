@@ -77,7 +77,14 @@ export default [
                 // Phase 4: IFC parser worker
                 IFCParserCore: 'readonly',
                 // Phase 6: validation presets
-                ValidationPresets: 'readonly'
+                ValidationPresets: 'readonly',
+                // Phase 7: AI chat
+                AIClient: 'readonly',
+                ChatStorage: 'readonly',
+                AgentManager: 'readonly',
+                ChatLauncher: 'readonly',
+                ChatPanel: 'readonly',
+                SettingsModal: 'readonly'
             }
         },
         rules: {
