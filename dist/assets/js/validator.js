@@ -1424,7 +1424,7 @@ function renderValidationGroups() {
         ifcFilesList.className = 'selected-files-list';
         ifcFilesList.id = `ifc-files-${index}`;
 
-        if (group.ifcFiles.length === 0) {
+        if (group.ifcFiles.length === 0 && (!group.missingIfcNames || group.missingIfcNames.length === 0)) {
             const noFilesP = document.createElement('p');
             noFilesP.style.cssText = 'color: #a0aec0; text-align: center; padding: 20px;';
             noFilesP.textContent = t('validator.group.noFiles');
@@ -1445,6 +1445,17 @@ function renderValidationGroups() {
                 fileItem.appendChild(fileIcon);
                 fileItem.appendChild(fileName);
                 ifcFilesList.appendChild(fileItem);
+            });
+            // Phase 6: render missing-file pills
+            (group.missingIfcNames || []).forEach(name => {
+                const pill = document.createElement('div');
+                pill.className = 'file-item file-pill--missing';
+                pill.textContent = name;
+                const note = document.createElement('span');
+                note.className = 'file-pill__missing-note';
+                note.textContent = t('presets.fileMissing');
+                pill.appendChild(note);
+                ifcFilesList.appendChild(pill);
             });
         }
 
@@ -1532,6 +1543,15 @@ function renderValidationGroups() {
             }
 
             idsFilesList.appendChild(fileItem);
+        } else if (group.missingIdsName) {
+            const pill = document.createElement('div');
+            pill.className = 'file-item file-pill--missing';
+            pill.textContent = group.missingIdsName;
+            const note = document.createElement('span');
+            note.className = 'file-pill__missing-note';
+            note.textContent = t('presets.fileMissing');
+            pill.appendChild(note);
+            idsFilesList.appendChild(pill);
         } else {
             const noFileP = document.createElement('p');
             noFileP.style.cssText = 'color: #a0aec0; text-align: center; padding: 20px;';
@@ -1664,6 +1684,9 @@ async function handleIfcDrop(files, groupIndex) {
             size: file.size,
             content: content
         });
+        if (group.missingIfcNames && group.missingIfcNames.includes(file.name)) {
+            group.missingIfcNames = group.missingIfcNames.filter(n => n !== file.name);
+        }
     }
 
     renderValidationGroups();
@@ -1700,6 +1723,9 @@ async function handleIdsDrop(files, groupIndex) {
         size: file.size,
         content: content
     };
+    if (group.missingIdsName === file.name) {
+        group.missingIdsName = null;
+    }
 
     renderValidationGroups();
     updateValidateButton();
@@ -2047,7 +2073,12 @@ async function confirmIfcSelection() {
                 }
             }
 
-            validationGroups[currentGroupIndex].ifcFiles = files;
+            const targetGroup = validationGroups[currentGroupIndex];
+            targetGroup.ifcFiles = files;
+            if (targetGroup.missingIfcNames && targetGroup.missingIfcNames.length > 0) {
+                const newNames = new Set(files.map(f => f.name));
+                targetGroup.missingIfcNames = targetGroup.missingIfcNames.filter(n => !newNames.has(n));
+            }
             closeIfcStorageModal();
             renderValidationGroups();
             updateValidateButton();
@@ -2328,10 +2359,14 @@ async function confirmIdsSelection() {
                 return;
             }
 
-            validationGroups[currentGroupIndex].idsFile = {
+            const group = validationGroups[currentGroupIndex];
+            group.idsFile = {
                 ...fileMetadata,
                 content: fileContent
             };
+            if (group.missingIdsName && group.idsFile && group.missingIdsName === group.idsFile.name) {
+                group.missingIdsName = null;
+            }
             closeIdsStorageModal();
             renderValidationGroups();
             updateValidateButton();
