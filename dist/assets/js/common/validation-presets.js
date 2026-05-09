@@ -134,6 +134,49 @@
                 idsFileName: g.idsFile ? g.idsFile.name : (g.missingIdsName || null)
             }));
         },
-        async fromPresetGroups() { return []; }
+        async fromPresetGroups(presetGroups) {
+            if (typeof BIMStorage === 'undefined') return [];
+            await BIMStorage.init();
+            const result = [];
+            for (const pg of (presetGroups || [])) {
+                const ifcFiles = [];
+                const missingIfcNames = [];
+                for (const name of (pg.ifcFileNames || [])) {
+                    try {
+                        const meta = await BIMStorage.getFile('ifc', name);
+                        if (meta) {
+                            const content = await BIMStorage.getFileContent('ifc', meta.id);
+                            ifcFiles.push({ id: meta.id, name: meta.name, size: meta.size, content });
+                        } else {
+                            missingIfcNames.push(name);
+                        }
+                    } catch (e) {
+                        console.warn('[ValidationPresets] hydration failed for', name, e);
+                        missingIfcNames.push(name);
+                    }
+                }
+                let idsFile = null, missingIdsName = null;
+                if (pg.idsFileName) {
+                    try {
+                        const meta = await BIMStorage.getFile('ids', pg.idsFileName);
+                        if (meta) {
+                            const content = await BIMStorage.getFileContent('ids', meta.id);
+                            idsFile = { id: meta.id, name: meta.name, size: meta.size, content };
+                        } else {
+                            missingIdsName = pg.idsFileName;
+                        }
+                    } catch (e) {
+                        console.warn('[ValidationPresets] hydration failed for', pg.idsFileName, e);
+                        missingIdsName = pg.idsFileName;
+                    }
+                }
+                result.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000000),
+                    ifcFiles, idsFile,
+                    missingIfcNames, missingIdsName
+                });
+            }
+            return result;
+        }
     };
 })();

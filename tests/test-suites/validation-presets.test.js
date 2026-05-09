@@ -215,6 +215,73 @@ describe('ValidationPresets.toPresetGroups', () => {
     });
 });
 
+describe('ValidationPresets.fromPresetGroups (BIMStorage hydration)', () => {
+    async function clearStorage() {
+        await BIMStorage.init();
+        const ifcFiles = await BIMStorage.getFiles('ifc');
+        for (const f of ifcFiles) await BIMStorage.ifcStorage.deleteFile(f.id);
+        const idsFiles = await BIMStorage.getFiles('ids');
+        for (const f of idsFiles) await BIMStorage.idsStorage.deleteFile(f.id);
+    }
+
+    function makeFile(name, content) {
+        return { name, content, size: content.length, type: 'text/plain' };
+    }
+
+    beforeEach(async () => {
+        await clearStorage();
+    });
+
+    it('resolves an existing IFC file with content from BIMStorage', async () => {
+        await BIMStorage.saveFile('ifc', makeFile('alpha.ifc', 'IFC-CONTENT-1'));
+        const result = await ValidationPresets.fromPresetGroups([
+            { ifcFileNames: ['alpha.ifc'], idsFileName: null }
+        ]);
+        expect(result.length).toBe(1);
+        expect(result[0].ifcFiles.length).toBe(1);
+        expect(result[0].ifcFiles[0].name).toBe('alpha.ifc');
+        expect(result[0].ifcFiles[0].content).toBe('IFC-CONTENT-1');
+        expect(result[0].missingIfcNames.length).toBe(0);
+    });
+
+    it('records missing names when filenames are not in BIMStorage', async () => {
+        const result = await ValidationPresets.fromPresetGroups([
+            { ifcFileNames: ['nope.ifc'], idsFileName: 'gone.ids' }
+        ]);
+        expect(result[0].ifcFiles.length).toBe(0);
+        expect(result[0].missingIfcNames.join(',')).toBe('nope.ifc');
+        expect(result[0].idsFile).toBe(null);
+        expect(result[0].missingIdsName).toBe('gone.ids');
+    });
+
+    it('mixes resolved and missing in the same group', async () => {
+        await BIMStorage.saveFile('ifc', makeFile('present.ifc', 'OK'));
+        const result = await ValidationPresets.fromPresetGroups([
+            { ifcFileNames: ['present.ifc', 'absent.ifc'], idsFileName: null }
+        ]);
+        expect(result[0].ifcFiles.length).toBe(1);
+        expect(result[0].ifcFiles[0].name).toBe('present.ifc');
+        expect(result[0].missingIfcNames.length).toBe(1);
+        expect(result[0].missingIfcNames[0]).toBe('absent.ifc');
+    });
+
+    it('every returned group has a non-zero in-memory id', async () => {
+        const result = await ValidationPresets.fromPresetGroups([
+            { ifcFileNames: [], idsFileName: null },
+            { ifcFileNames: [], idsFileName: null }
+        ]);
+        expect(typeof result[0].id).toBe('number');
+        expect(typeof result[1].id).toBe('number');
+        expect(result[0].id !== result[1].id).toBe(true);
+    });
+
+    it('returns [] for empty input', async () => {
+        const result = await ValidationPresets.fromPresetGroups([]);
+        expect(Array.isArray(result)).toBe(true);
+        expect(result.length).toBe(0);
+    });
+});
+
 describe('ValidationPresets — bootstrap', () => {
     beforeEach(() => {
         localStorage.removeItem('bim_validation_presets');
