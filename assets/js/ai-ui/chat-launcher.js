@@ -105,7 +105,7 @@ async function _rerenderPopover() {
         const item = document.createElement('div');
         item.className = 'chat-launcher-popover__item';
         item.innerHTML = `
-            <span class="chat-launcher-popover__item__icon">${agent.icon || '🤖'}</span>
+            <span class="chat-launcher-popover__item__icon">${escapeHtml(agent.icon || '🤖')}</span>
             <span>${escapeHtml(agent.name)}</span>`;
         item.addEventListener('click', () => {
             _close();

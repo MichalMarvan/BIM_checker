@@ -222,6 +222,13 @@ async function _send() {
 
         await storage.appendMessage(_state.threadId, { role: 'assistant', content: finalContent });
     } catch (err) {
+        if (err?.name === 'AbortError') {
+            thinkingDiv.remove();
+            return;
+        }
+        // Restore user input so they can retry
+        input.value = text;
+        _autoGrowInput();
         thinkingDiv.classList.remove('chat-panel__msg--thinking');
         thinkingDiv.classList.add('chat-panel__msg--assistant');
         thinkingDiv.textContent = `[Error] ${err.message || err}`;
