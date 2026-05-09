@@ -144,18 +144,96 @@ export async function listFavorites() {
         .sort((a, b) => (a.favoriteOrder || 0) - (b.favoriteOrder || 0));
 }
 
-export async function getSettings() { return _defaultSettings(); }
-export async function updateSettings() {}
+export async function getSettings() {
+    const stored = await _get(KEY_SETTINGS);
+    return { ..._defaultSettings(), ...(stored || {}) };
+}
 
-export async function listThreads() { return []; }
-export async function getThread() { return null; }
-export async function createThread() { return null; }
-export async function deleteThread() { return false; }
-export async function updateThreadTitle() {}
+export async function updateSettings(partial) {
+    const current = await getSettings();
+    await _put(KEY_SETTINGS, { ...current, ...partial });
+}
 
-export async function listMessages() { return []; }
-export async function appendMessage() {}
-export async function clearThread() {}
+export async function listThreads(agentId) {
+    const all = (await _get(KEY_THREADS)) || [];
+    return all
+        .filter(t => t.agentId === agentId)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export async function getThread(id) {
+    const all = (await _get(KEY_THREADS)) || [];
+    return all.find(t => t.id === id) || null;
+}
+
+export async function createThread(agentId, firstMessage) {
+    const all = (await _get(KEY_THREADS)) || [];
+    const id = _genId();
+    const now = Date.now();
+    const title = String(firstMessage || '(prázdná konverzace)').slice(0, 60);
+    const thread = {
+        id,
+        agentId,
+        title,
+        createdAt: now,
+        updatedAt: now,
+        messageCount: 0
+    };
+    all.push(thread);
+    await _put(KEY_THREADS, all);
+    if (firstMessage) {
+        await appendMessage(id, { role: 'user', content: firstMessage, timestamp: now });
+    }
+    return id;
+}
+
+export async function deleteThread(id) {
+    const all = (await _get(KEY_THREADS)) || [];
+    const idx = all.findIndex(t => t.id === id);
+    if (idx === -1) return false;
+    all.splice(idx, 1);
+    await _put(KEY_THREADS, all);
+    await _delete(KEY_MSGS_PFX + id);
+    return true;
+}
+
+export async function updateThreadTitle(id, title) {
+    const all = (await _get(KEY_THREADS)) || [];
+    const t = all.find(x => x.id === id);
+    if (!t) return;
+    t.title = String(title).slice(0, 60);
+    t.updatedAt = Date.now();
+    await _put(KEY_THREADS, all);
+}
+
+export async function listMessages(threadId) {
+    return (await _get(KEY_MSGS_PFX + threadId)) || [];
+}
+
+export async function appendMessage(threadId, message) {
+    const msgs = await listMessages(threadId);
+    const stamped = { timestamp: Date.now(), ...message };
+    msgs.push(stamped);
+    await _put(KEY_MSGS_PFX + threadId, msgs);
+    // Update thread.updatedAt + messageCount
+    const all = (await _get(KEY_THREADS)) || [];
+    const t = all.find(x => x.id === threadId);
+    if (t) {
+        t.updatedAt = stamped.timestamp;
+        t.messageCount = msgs.length;
+        await _put(KEY_THREADS, all);
+    }
+}
+
+export async function clearThread(threadId) {
+    await _delete(KEY_MSGS_PFX + threadId);
+    const all = (await _get(KEY_THREADS)) || [];
+    const t = all.find(x => x.id === threadId);
+    if (t) {
+        t.messageCount = 0;
+        await _put(KEY_THREADS, all);
+    }
+}
 
 function _defaultSettings() {
     return {

@@ -93,3 +93,108 @@ describe('chat-storage agents', () => {
         expect(favs[1].name).toBe('A');
     });
 });
+
+describe('chat-storage settings', () => {
+    let storage;
+    beforeEach(async () => {
+        storage = await import('../../assets/js/ai/chat-storage.js');
+        await storage._internals._delete(storage._internals.KEY_SETTINGS);
+    });
+
+    it('getSettings returns defaults when empty', async () => {
+        const s = await storage.getSettings();
+        expect(s.lastActiveAgentId).toBe(null);
+        expect(s.chatPanelOpen).toBe(false);
+        expect(s.threadsSidebarOpen).toBe(true);
+    });
+
+    it('updateSettings merges partial updates', async () => {
+        await storage.updateSettings({ chatPanelOpen: true });
+        const s1 = await storage.getSettings();
+        expect(s1.chatPanelOpen).toBe(true);
+        expect(s1.threadsSidebarOpen).toBe(true);
+        await storage.updateSettings({ threadsSidebarOpen: false });
+        const s2 = await storage.getSettings();
+        expect(s2.chatPanelOpen).toBe(true);
+        expect(s2.threadsSidebarOpen).toBe(false);
+    });
+});
+
+describe('chat-storage threads', () => {
+    let storage;
+    beforeEach(async () => {
+        storage = await import('../../assets/js/ai/chat-storage.js');
+        await storage._internals._delete(storage._internals.KEY_AGENTS);
+        await storage._internals._delete(storage._internals.KEY_THREADS);
+    });
+
+    it('createThread creates thread + first user message', async () => {
+        const agentId = await storage.saveAgent({ name: 'A', provider: 'google' });
+        const tid = await storage.createThread(agentId, 'Hello world');
+        expect(typeof tid).toBe('string');
+        const thread = await storage.getThread(tid);
+        expect(thread.agentId).toBe(agentId);
+        expect(thread.title).toBe('Hello world');
+        expect(thread.messageCount).toBe(1);
+        const msgs = await storage.listMessages(tid);
+        expect(msgs.length).toBe(1);
+        expect(msgs[0].role).toBe('user');
+        expect(msgs[0].content).toBe('Hello world');
+    });
+
+    it('createThread truncates long titles to 60 chars', async () => {
+        const agentId = await storage.saveAgent({ name: 'A', provider: 'google' });
+        const longMsg = 'x'.repeat(200);
+        const tid = await storage.createThread(agentId, longMsg);
+        const thread = await storage.getThread(tid);
+        expect(thread.title.length <= 60).toBe(true);
+    });
+
+    it('listThreads filters by agentId, sorted by updatedAt desc', async () => {
+        const a1 = await storage.saveAgent({ name: 'A1', provider: 'google' });
+        const a2 = await storage.saveAgent({ name: 'A2', provider: 'google' });
+        const t1 = await storage.createThread(a1, 'msg1');
+        await new Promise(r => setTimeout(r, 5));
+        const t2 = await storage.createThread(a2, 'msg2');
+        await new Promise(r => setTimeout(r, 5));
+        const t3 = await storage.createThread(a1, 'msg3');
+        const a1Threads = await storage.listThreads(a1);
+        expect(a1Threads.length).toBe(2);
+        expect(a1Threads[0].id).toBe(t3);
+        expect(a1Threads[1].id).toBe(t1);
+    });
+
+    it('appendMessage updates thread.updatedAt + messageCount', async () => {
+        const agentId = await storage.saveAgent({ name: 'A', provider: 'google' });
+        const tid = await storage.createThread(agentId, 'first');
+        const before = (await storage.getThread(tid)).updatedAt;
+        await new Promise(r => setTimeout(r, 5));
+        await storage.appendMessage(tid, { role: 'assistant', content: 'hi' });
+        const after = await storage.getThread(tid);
+        expect(after.updatedAt > before).toBe(true);
+        expect(after.messageCount).toBe(2);
+        const msgs = await storage.listMessages(tid);
+        expect(msgs.length).toBe(2);
+        expect(msgs[1].role).toBe('assistant');
+    });
+
+    it('deleteThread removes thread metadata + messages', async () => {
+        const agentId = await storage.saveAgent({ name: 'A', provider: 'google' });
+        const tid = await storage.createThread(agentId, 'msg');
+        await storage.appendMessage(tid, { role: 'assistant', content: 'reply' });
+        const ok = await storage.deleteThread(tid);
+        expect(ok).toBe(true);
+        expect(await storage.getThread(tid)).toBe(null);
+        const msgs = await storage.listMessages(tid);
+        expect(msgs.length).toBe(0);
+    });
+
+    it('deleteAgent cascades to delete threads + messages', async () => {
+        const agentId = await storage.saveAgent({ name: 'A', provider: 'google' });
+        const tid = await storage.createThread(agentId, 'msg');
+        await storage.appendMessage(tid, { role: 'assistant', content: 'reply' });
+        await storage.deleteAgent(agentId);
+        expect(await storage.getThread(tid)).toBe(null);
+        expect((await storage.listMessages(tid)).length).toBe(0);
+    });
+});
