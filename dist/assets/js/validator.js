@@ -1314,7 +1314,9 @@ function addValidationGroup() {
     validationGroups.push({
         id: Date.now(),
         ifcFiles: [],
-        idsFile: null
+        idsFile: null,
+        missingIfcNames: [],
+        missingIdsName: null
     });
     renderValidationGroups();
     updateValidateButton();
@@ -1422,7 +1424,7 @@ function renderValidationGroups() {
         ifcFilesList.className = 'selected-files-list';
         ifcFilesList.id = `ifc-files-${index}`;
 
-        if (group.ifcFiles.length === 0) {
+        if (group.ifcFiles.length === 0 && (!group.missingIfcNames || group.missingIfcNames.length === 0)) {
             const noFilesP = document.createElement('p');
             noFilesP.style.cssText = 'color: #a0aec0; text-align: center; padding: 20px;';
             noFilesP.textContent = t('validator.group.noFiles');
@@ -1443,6 +1445,17 @@ function renderValidationGroups() {
                 fileItem.appendChild(fileIcon);
                 fileItem.appendChild(fileName);
                 ifcFilesList.appendChild(fileItem);
+            });
+            // Phase 6: render missing-file pills
+            (group.missingIfcNames || []).forEach(name => {
+                const pill = document.createElement('div');
+                pill.className = 'file-item file-pill--missing';
+                pill.textContent = name;
+                const note = document.createElement('span');
+                note.className = 'file-pill__missing-note';
+                note.textContent = t('presets.fileMissing');
+                pill.appendChild(note);
+                ifcFilesList.appendChild(pill);
             });
         }
 
@@ -1530,6 +1543,15 @@ function renderValidationGroups() {
             }
 
             idsFilesList.appendChild(fileItem);
+        } else if (group.missingIdsName) {
+            const pill = document.createElement('div');
+            pill.className = 'file-item file-pill--missing';
+            pill.textContent = group.missingIdsName;
+            const note = document.createElement('span');
+            note.className = 'file-pill__missing-note';
+            note.textContent = t('presets.fileMissing');
+            pill.appendChild(note);
+            idsFilesList.appendChild(pill);
         } else {
             const noFileP = document.createElement('p');
             noFileP.style.cssText = 'color: #a0aec0; text-align: center; padding: 20px;';
@@ -1552,6 +1574,44 @@ function renderValidationGroups() {
 
     // Add drop zone event listeners
     setupDropZones();
+
+    if (typeof ValidationPresets !== 'undefined') {
+        ValidationPresets.saveLastSession(ValidationPresets.toPresetGroups(validationGroups));
+    }
+}
+
+function _repopulatePresetSelect() {
+    if (typeof ValidationPresets === 'undefined') return;
+    const select = document.getElementById('presetSelect');
+    if (!select) return;
+    const previous = select.value;
+    const presets = ValidationPresets.list().sort((a, b) => b.updatedAt - a.updatedAt);
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.setAttribute('data-i18n', 'presets.placeholder');
+    placeholder.textContent = t('presets.placeholder');
+    select.appendChild(placeholder);
+    for (const p of presets) {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        select.appendChild(opt);
+    }
+    if (previous && presets.some(p => p.id === previous)) {
+        select.value = previous;
+    }
+    _updatePresetButtonState();
+}
+
+function _updatePresetButtonState() {
+    const select = document.getElementById('presetSelect');
+    const loadBtn = document.getElementById('loadPresetBtn');
+    const deleteBtn = document.getElementById('deletePresetBtn');
+    if (!select || !loadBtn || !deleteBtn) return;
+    const hasSelection = select.value !== '';
+    loadBtn.disabled = !hasSelection;
+    deleteBtn.disabled = !hasSelection;
 }
 
 // Setup drop zone event listeners
@@ -1624,6 +1684,9 @@ async function handleIfcDrop(files, groupIndex) {
             size: file.size,
             content: content
         });
+        if (group.missingIfcNames && group.missingIfcNames.includes(file.name)) {
+            group.missingIfcNames = group.missingIfcNames.filter(n => n !== file.name);
+        }
     }
 
     renderValidationGroups();
@@ -1660,6 +1723,9 @@ async function handleIdsDrop(files, groupIndex) {
         size: file.size,
         content: content
     };
+    if (group.missingIdsName === file.name) {
+        group.missingIdsName = null;
+    }
 
     renderValidationGroups();
     updateValidateButton();
@@ -2007,7 +2073,12 @@ async function confirmIfcSelection() {
                 }
             }
 
-            validationGroups[currentGroupIndex].ifcFiles = files;
+            const targetGroup = validationGroups[currentGroupIndex];
+            targetGroup.ifcFiles = files;
+            if (targetGroup.missingIfcNames && targetGroup.missingIfcNames.length > 0) {
+                const newNames = new Set(files.map(f => f.name));
+                targetGroup.missingIfcNames = targetGroup.missingIfcNames.filter(n => !newNames.has(n));
+            }
             closeIfcStorageModal();
             renderValidationGroups();
             updateValidateButton();
@@ -2288,10 +2359,14 @@ async function confirmIdsSelection() {
                 return;
             }
 
-            validationGroups[currentGroupIndex].idsFile = {
+            const group = validationGroups[currentGroupIndex];
+            group.idsFile = {
                 ...fileMetadata,
                 content: fileContent
             };
+            if (group.missingIdsName && group.idsFile && group.missingIdsName === group.idsFile.name) {
+                group.missingIdsName = null;
+            }
             closeIdsStorageModal();
             renderValidationGroups();
             updateValidateButton();
@@ -2547,6 +2622,133 @@ async function validateAll() {
     }
 }
 
+// ===== SAVE PRESET MODAL =====
+
+function _ensureSavePresetModal() {
+    if (document.getElementById('savePresetModal')) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+        <div id="savePresetModal" class="modal-overlay">
+            <div class="modal-container" style="max-width: 420px;">
+                <div class="modal-header">
+                    <h2 data-i18n="presets.saveModal.title">Uložit preset</h2>
+                    <button class="modal-close" id="savePresetModalClose">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="savePresetNameInput" maxlength="80"
+                           class="filter-input" style="width:100%; padding:10px 12px; font-size:1em;"
+                           data-i18n-placeholder="presets.saveModal.namePlaceholder">
+                    <div id="savePresetError" style="color: var(--danger,#dc2626); font-size: 0.9em; margin-top: 8px; display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="savePresetCancel" data-i18n="presets.saveModal.cancel">Zrušit</button>
+                    <button class="btn btn-primary" id="savePresetConfirm" data-i18n="presets.saveModal.save">Uložit</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(wrapper.firstElementChild);
+    if (typeof i18n !== 'undefined' && typeof i18n.translateElement === 'function') {
+        i18n.translateElement(document.getElementById('savePresetModal'));
+    }
+    const modal = document.getElementById('savePresetModal');
+    const input = document.getElementById('savePresetNameInput');
+    const errEl = document.getElementById('savePresetError');
+    const close = () => modal.classList.remove('active');
+    document.getElementById('savePresetModalClose').addEventListener('click', close);
+    document.getElementById('savePresetCancel').addEventListener('click', close);
+    modal.addEventListener('click', (e) => { if (e.target.id === 'savePresetModal') close(); });
+    document.getElementById('savePresetConfirm').addEventListener('click', _confirmSavePreset);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') _confirmSavePreset();
+        else if (e.key === 'Escape') close();
+        else errEl.style.display = 'none';
+    });
+}
+
+function _openSavePresetModal() {
+    if (validationGroups.length === 0) {
+        ErrorHandler.warning(t('presets.empty'));
+        return;
+    }
+    _ensureSavePresetModal();
+    const modal = document.getElementById('savePresetModal');
+    const input = document.getElementById('savePresetNameInput');
+    const errEl = document.getElementById('savePresetError');
+    errEl.style.display = 'none';
+    const select = document.getElementById('presetSelect');
+    const currentPreset = select && select.value ? ValidationPresets.get(select.value) : null;
+    input.value = currentPreset ? currentPreset.name : '';
+    modal.classList.add('active');
+    setTimeout(() => input.focus(), 50);
+}
+
+function _confirmSavePreset() {
+    const input = document.getElementById('savePresetNameInput');
+    const errEl = document.getElementById('savePresetError');
+    const name = input.value.trim();
+    if (name.length === 0) {
+        errEl.textContent = t('presets.saveModal.namePlaceholder');
+        errEl.style.display = 'block';
+        return;
+    }
+    const existing = ValidationPresets.list().find(p => p.name === name);
+    if (existing) {
+        const msg = t('presets.saveModal.overwriteConfirm').replace('{name}', name);
+        if (!confirm(msg)) return;
+    }
+    const id = ValidationPresets.save(name, ValidationPresets.toPresetGroups(validationGroups));
+    document.getElementById('savePresetModal').classList.remove('active');
+    _repopulatePresetSelect();
+    const select = document.getElementById('presetSelect');
+    if (select) { select.value = id; _updatePresetButtonState(); }
+    ErrorHandler.success(t('presets.saved').replace('{name}', name));
+}
+
+async function _onLoadPresetClick() {
+    const select = document.getElementById('presetSelect');
+    if (!select || !select.value) return;
+    const preset = ValidationPresets.get(select.value);
+    if (!preset) return;
+    if (validationGroups.length > 0) {
+        const msg = t('presets.loadConfirm').replace('{name}', preset.name);
+        if (!confirm(msg)) return;
+    }
+    try {
+        const hydrated = await ValidationPresets.fromPresetGroups(preset.groups);
+        validationGroups.length = 0;
+        for (const g of hydrated) validationGroups.push(g);
+        renderValidationGroups();
+        updateValidateButton();
+        const hasMissing = hydrated.some(g =>
+            (g.missingIfcNames && g.missingIfcNames.length > 0) || g.missingIdsName);
+        const key = hasMissing ? 'presets.loadedWithMissing' : 'presets.loaded';
+        if (hasMissing) {
+            ErrorHandler.warning(t(key).replace('{name}', preset.name));
+        } else {
+            ErrorHandler.success(t(key).replace('{name}', preset.name));
+        }
+    } catch (e) {
+        console.warn('[validator] preset load failed:', e);
+        ErrorHandler.error(t('presets.quotaExceeded') || 'Failed to load preset');
+    }
+}
+
+function _onDeletePresetClick() {
+    const select = document.getElementById('presetSelect');
+    if (!select || !select.value) return;
+    const preset = ValidationPresets.get(select.value);
+    if (!preset) return;
+    const msg = t('presets.deleteConfirm').replace('{name}', preset.name);
+    if (!confirm(msg)) return;
+    const name = preset.name;
+    ValidationPresets.delete(preset.id);
+    _repopulatePresetSelect();
+    select.value = '';
+    _updatePresetButtonState();
+    ErrorHandler.success(t('presets.deleted').replace('{name}', name));
+}
+
 // Make functions globally accessible for onclick handlers
 window.addValidationGroup = addValidationGroup;
 window.deleteValidationGroup = deleteValidationGroup;
@@ -2665,9 +2867,53 @@ function updateXSDSummaryBanner() {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Phase 6: presets panel wiring (synchronous)
+    _repopulatePresetSelect();
+    const select = document.getElementById('presetSelect');
+    if (select) {
+        select.addEventListener('change', _updatePresetButtonState);
+        const saveBtn = document.getElementById('savePresetBtn');
+        if (saveBtn) saveBtn.addEventListener('click', _openSavePresetModal);
+        const loadBtn = document.getElementById('loadPresetBtn');
+        if (loadBtn) loadBtn.addEventListener('click', _onLoadPresetClick);
+        const deleteBtn = document.getElementById('deletePresetBtn');
+        if (deleteBtn) deleteBtn.addEventListener('click', _onDeletePresetClick);
+    }
+
+    // Initial render shows static empty-state (zero CLS)
     renderValidationGroups();
     updateValidateButton();
+
+    // Phase 6: auto-restore last session (async)
+    if (typeof ValidationPresets !== 'undefined') {
+        const last = ValidationPresets.loadLastSession();
+        if (last && Array.isArray(last.groups) && last.groups.length > 0) {
+            // Reserve approximate vertical space to avoid CLS during hydration
+            const groupsContainer = document.getElementById('validationGroups');
+            if (groupsContainer) {
+                const reservedHeight = Math.min(160 * last.groups.length, window.innerHeight * 0.6);
+                groupsContainer.style.minHeight = `${Math.round(reservedHeight)}px`;
+            }
+            try {
+                const hydrated = await ValidationPresets.fromPresetGroups(last.groups);
+                validationGroups.length = 0;
+                for (const g of hydrated) validationGroups.push(g);
+                renderValidationGroups();
+                updateValidateButton();
+            } catch (e) {
+                console.warn('[validator] last-session hydration failed:', e);
+            } finally {
+                if (groupsContainer) groupsContainer.style.minHeight = '';
+            }
+        }
+    }
+});
+
+window.addEventListener('beforeunload', () => {
+    if (typeof ValidationPresets !== 'undefined') {
+        ValidationPresets.flushLastSession();
+    }
 });
 
 // Re-render content when language changes

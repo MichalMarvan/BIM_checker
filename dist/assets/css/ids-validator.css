@@ -642,3 +642,65 @@
     list-style: disc;
     color: var(--text-secondary, #555);
 }
+
+/* ===========================================
+   Phase 6: Presets panel + missing-file pill
+   =========================================== */
+.presets-panel {
+    background: var(--bg-secondary, #f8f9fa);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.presets-panel__header {
+    margin-bottom: 12px;
+}
+
+.presets-panel__title {
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    font-size: 1em;
+}
+
+.presets-panel__controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.presets-panel__select {
+    flex: 1 1 200px;
+    min-width: 160px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-primary, #d1d5db);
+    border-radius: 4px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #1f2937);
+    font-size: 0.95em;
+}
+
+.presets-panel__controls .btn {
+    flex: 0 0 auto;
+}
+
+/* Missing file pill — shown when a preset references a file no longer in storage */
+.file-pill--missing {
+    border: 1px dashed var(--warning, #f59e0b) !important;
+    background: rgba(245, 158, 11, 0.08) !important;
+    color: var(--warning, #f59e0b) !important;
+    font-style: italic;
+    opacity: 0.85;
+}
+
+.file-pill--missing::before {
+    content: '⚠️ ';
+}
+
+.file-pill__missing-note {
+    margin-left: 6px;
+    font-size: 0.85em;
+    color: var(--text-tertiary, #6b7280);
+}

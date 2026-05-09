@@ -124,6 +124,21 @@
                     </div>
                 </div>
 
+                <!-- Phase 6: Validation presets panel -->
+                <div class="presets-panel" id="presetsPanel">
+                    <div class="presets-panel__header">
+                        <span class="presets-panel__title" data-i18n="presets.title">📁 Presety</span>
+                    </div>
+                    <div class="presets-panel__controls">
+                        <select id="presetSelect" class="presets-panel__select">
+                            <option value="" data-i18n="presets.placeholder">— Vyberte preset —</option>
+                        </select>
+                        <button id="loadPresetBtn" class="btn btn-secondary" disabled data-i18n="presets.load">📂 Načíst</button>
+                        <button id="savePresetBtn" class="btn btn-primary" data-i18n="presets.saveAs">💾 Uložit jako</button>
+                        <button id="deletePresetBtn" class="btn btn-danger" disabled data-i18n="presets.delete">🗑️ Smazat</button>
+                    </div>
+                </div>
+
                 <div id="validationGroups">
                     <div class="vg-empty-state" style="text-align: center; padding: 60px; color: #a0aec0;">
                         <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
@@ -266,6 +281,7 @@
     <script src="../assets/js/common/regex-cache.js"></script>
     <script src="../assets/js/common/property-set-index.js"></script>
     <script src="../assets/js/common/ifc-parser-core.js"></script>
+    <script src="../assets/js/common/validation-presets.js"></script>
     <script src="../assets/js/workers/worker-pool.js"></script>
     <script src="../assets/js/common/validation-engine.js"></script>
     <script src="../assets/js/common/validation-orchestrator.js"></script>

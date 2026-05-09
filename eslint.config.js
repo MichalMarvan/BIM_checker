@@ -75,7 +75,9 @@ export default [
                 // Phase 3a: gzip compression
                 Compression: 'readonly',
                 // Phase 4: IFC parser worker
-                IFCParserCore: 'readonly'
+                IFCParserCore: 'readonly',
+                // Phase 6: validation presets
+                ValidationPresets: 'readonly'
             }
         },
         rules: {

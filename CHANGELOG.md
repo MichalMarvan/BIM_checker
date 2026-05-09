@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.6] — 2026-05-09
+
+### Added
+- Validation presets — validator now persists group configurations as named presets in localStorage. Save/Load/Delete UI in a new panel above validation groups; presets reference files by name so newer file versions are picked up automatically.
+- Auto-restore last session — opening the validator restores the most recent group configuration from a debounced last-session slot. CLS impact mitigated via reserved `min-height` during async hydration.
+- Missing-file indicator — when a preset references a file that's no longer in IndexedDB storage, the group renders a dashed warning pill. Re-uploading the file (drop or storage picker) resolves the slot automatically.
+
+### Changed
+- `assets/js/common/validation-presets.js` (new) — singleton owning preset CRUD, debounced last-session save (500 ms), and BIMStorage-backed hydration.
+- In-memory validation group shape extended with `missingIfcNames` and `missingIdsName` fields. Groups created via "Přidat skupinu" initialise these to empty; no regression for existing flows.
+
+### Internal
+- 37 new tests (32 unit + 5 integration). Total suite at 481 tests.
+
 ## [0.2.5] — 2026-05-08
 
 ### Fixed
