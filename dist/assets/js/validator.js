@@ -1561,6 +1561,7 @@ function renderValidationGroups() {
 }
 
 function _repopulatePresetSelect() {
+    if (typeof ValidationPresets === 'undefined') return;
     const select = document.getElementById('presetSelect');
     if (!select) return;
     const previous = select.value;
