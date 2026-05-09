@@ -90,9 +90,41 @@
             presets.splice(idx, 1);
             return _writePresets(presets);
         },
-        saveLastSession() {},
-        loadLastSession() { return null; },
-        flushLastSession() {},
+        saveLastSession(groups) {
+            _lastSessionPending = {
+                groups: Array.isArray(groups) ? groups : [],
+                savedAt: Date.now()
+            };
+            if (_lastSessionTimer) clearTimeout(_lastSessionTimer);
+            _lastSessionTimer = setTimeout(() => {
+                try {
+                    localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(_lastSessionPending));
+                } catch (e) {
+                    if (e && e.name !== 'QuotaExceededError') _disabled = true;
+                }
+                _lastSessionTimer = null;
+                _lastSessionPending = null;
+            }, DEBOUNCE_MS);
+        },
+
+        loadLastSession() {
+            return _safeParse(localStorage.getItem(LAST_SESSION_KEY), null);
+        },
+
+        flushLastSession() {
+            if (_lastSessionTimer) {
+                clearTimeout(_lastSessionTimer);
+                _lastSessionTimer = null;
+            }
+            if (_lastSessionPending) {
+                try {
+                    localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(_lastSessionPending));
+                } catch (e) {
+                    if (e && e.name !== 'QuotaExceededError') _disabled = true;
+                }
+                _lastSessionPending = null;
+            }
+        },
         toPresetGroups() { return []; },
         async fromPresetGroups() { return []; }
     };

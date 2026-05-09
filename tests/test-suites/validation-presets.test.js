@@ -107,6 +107,58 @@ describe('ValidationPresets.delete', () => {
     });
 });
 
+describe('ValidationPresets.saveLastSession + loadLastSession', () => {
+    beforeEach(() => {
+        localStorage.removeItem('bim_validation_last_session');
+    });
+
+    it('loadLastSession() returns null when nothing has been saved', () => {
+        expect(ValidationPresets.loadLastSession()).toBe(null);
+    });
+
+    it('flushLastSession() persists the most recent saveLastSession() call', () => {
+        const groups = [{ ifcFileNames: ['a.ifc'], idsFileName: 'spec.ids' }];
+        ValidationPresets.saveLastSession(groups);
+        ValidationPresets.flushLastSession();
+        const loaded = ValidationPresets.loadLastSession();
+        expect(loaded !== null).toBe(true);
+        expect(loaded.groups[0].ifcFileNames[0]).toBe('a.ifc');
+        expect(typeof loaded.savedAt).toBe('number');
+    });
+
+    it('saveLastSession() debounces — multiple calls coalesce', async () => {
+        ValidationPresets.saveLastSession([{ ifcFileNames: ['a.ifc'], idsFileName: null }]);
+        ValidationPresets.saveLastSession([{ ifcFileNames: ['b.ifc'], idsFileName: null }]);
+        ValidationPresets.saveLastSession([{ ifcFileNames: ['c.ifc'], idsFileName: null }]);
+        // Before debounce settles, last-session is unwritten
+        expect(localStorage.getItem('bim_validation_last_session')).toBe(null);
+        // Wait past debounce window
+        await new Promise(r => setTimeout(r, 600));
+        const loaded = ValidationPresets.loadLastSession();
+        expect(loaded.groups[0].ifcFileNames[0]).toBe('c.ifc');
+    });
+
+    it('flushLastSession() with no pending data is a no-op', () => {
+        // Should not throw
+        ValidationPresets.flushLastSession();
+        expect(ValidationPresets.loadLastSession()).toBe(null);
+    });
+
+    it('flushLastSession() cancels the pending debounce', async () => {
+        ValidationPresets.saveLastSession([{ ifcFileNames: ['x.ifc'], idsFileName: null }]);
+        ValidationPresets.flushLastSession();
+        // Mutate again, do NOT flush
+        ValidationPresets.saveLastSession([{ ifcFileNames: ['y.ifc'], idsFileName: null }]);
+        // Immediately after the second call, value is still 'x.ifc' (flushed earlier)
+        const immediate = ValidationPresets.loadLastSession();
+        expect(immediate.groups[0].ifcFileNames[0]).toBe('x.ifc');
+        // After debounce, becomes 'y.ifc'
+        await new Promise(r => setTimeout(r, 600));
+        const eventual = ValidationPresets.loadLastSession();
+        expect(eventual.groups[0].ifcFileNames[0]).toBe('y.ifc');
+    });
+});
+
 describe('ValidationPresets — bootstrap', () => {
     beforeEach(() => {
         localStorage.removeItem('bim_validation_presets');
