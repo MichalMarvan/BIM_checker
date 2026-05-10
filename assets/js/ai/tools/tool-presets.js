@@ -1,6 +1,7 @@
 import * as helpers from './_helpers.js';
 
 function _resolvePresetId(args) {
+    if (typeof window.ValidationPresets === 'undefined') throw new Error('ValidationPresets not available');
     if (args && args.id) return { id: args.id };
     if (args && args.name) {
         const matches = window.ValidationPresets.list().filter(p => p.name.trim() === args.name.trim());

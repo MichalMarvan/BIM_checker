@@ -1,7 +1,8 @@
 /**
  * Tool definitions for AI function calling.
- * 32 tools spanning storage, validator workflow, IDS specs,
- * IFC content queries, UI navigation, settings, and agent management.
+ * 44 tools spanning storage, validator workflow, IDS specs,
+ * IFC content queries, UI navigation, settings, agent management,
+ * folder/file ops, presets, and toast notifications.
  */
 
 export const TOOL_DEFINITIONS = [
