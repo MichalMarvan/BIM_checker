@@ -21,6 +21,7 @@ export async function init() {
     _state.openAgentId = settings.chatPanelOpen ? settings.lastActiveAgentId : null;
     _state.inited = true;
     await _validateAgainstStorage();
+    await _refreshAgentCache();
     _render();
 }
 
@@ -52,6 +53,7 @@ export async function addHead({ agentId, threadId }) {
     }
     _state.heads.unshift({ agentId, threadId: threadId || null, hasUnread: false });
     await _persist();
+    await _refreshAgentCache();
     _render();
 }
 
@@ -104,4 +106,68 @@ export function _resetForTest() {
     _container = null;
 }
 
-function _render() { /* implemented in Task 2 */ }
+function _render() {
+    if (!_container) return;
+    _container.innerHTML = '';
+    const visible = _state.heads.slice(0, MAX_VISIBLE);
+    const overflow = _state.heads.slice(MAX_VISIBLE);
+    for (const head of visible) {
+        const btn = document.createElement('button');
+        btn.className = 'chat-head';
+        if (head.hasUnread) btn.classList.add('chat-head--unread');
+        if (head.agentId === _state.openAgentId) btn.classList.add('chat-head--open');
+        btn.dataset.agentId = head.agentId;
+        btn.dataset.threadId = head.threadId || '';
+        btn.innerHTML = `
+            <span class="chat-head__circle">${_iconFor(head.agentId)}</span>
+            <span class="chat-head__label">${_escapeHtml(_labelFor(head.agentId))}</span>`;
+        btn.addEventListener('click', () => _onHeadClick(head.agentId));
+        _container.appendChild(btn);
+    }
+    if (overflow.length > 0) {
+        const pill = document.createElement('button');
+        pill.className = 'chat-heads-overflow';
+        pill.dataset.count = String(overflow.length);
+        pill.textContent = `+${overflow.length}`;
+        pill.addEventListener('click', () => _onOverflowClick(overflow));
+        _container.appendChild(pill);
+    }
+}
+
+function _iconFor(agentId) {
+    const cached = _agentCache.get(agentId);
+    return cached?.icon || '🤖';
+}
+
+function _labelFor(agentId) {
+    const cached = _agentCache.get(agentId);
+    if (!cached) return '…';
+    const name = String(cached.name || '').trim();
+    return name.length > 16 ? name.slice(0, 15) + '…' : name;
+}
+
+function _escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+}
+
+const _agentCache = new Map();
+
+async function _refreshAgentCache() {
+    _agentCache.clear();
+    for (const h of _state.heads) {
+        try {
+            const a = await storage.getAgent(h.agentId);
+            if (a) _agentCache.set(h.agentId, { name: a.name, icon: a.icon || '🤖' });
+        } catch (e) { /* skip */ }
+    }
+}
+
+function _onHeadClick(agentId) {
+    window.dispatchEvent(new CustomEvent('chatHeads:openHead', { detail: { agentId } }));
+}
+
+function _onOverflowClick(overflow) {
+    window.dispatchEvent(new CustomEvent('chatHeads:overflowOpen', { detail: { heads: overflow } }));
+}

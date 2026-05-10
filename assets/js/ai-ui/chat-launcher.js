@@ -18,6 +18,16 @@ export async function init() {
     _injectPopover();
     document.addEventListener('click', _onDocClick);
     onLanguageChange(_rerenderPopover);
+    let stack = document.getElementById('chatHeadsStack');
+    if (!stack) {
+        stack = document.createElement('div');
+        stack.id = 'chatHeadsStack';
+        stack.className = 'chat-heads-stack';
+        document.body.appendChild(stack);
+    }
+    const chatHeads = await import('./chat-heads.js');
+    chatHeads.setContainer(stack);
+    await chatHeads.init();
 }
 
 function _injectButton() {
