@@ -121,7 +121,7 @@ function _render() {
         btn.innerHTML = `
             <span class="chat-head__circle">${_escapeHtml(_iconFor(head.agentId))}</span>
             <span class="chat-head__label">${_escapeHtml(_labelFor(head.agentId))}</span>`;
-        btn.addEventListener('click', () => _onHeadClick(head.agentId));
+        btn.addEventListener('click', () => _onHeadClick(head.agentId, head.threadId));
         _container.appendChild(btn);
     }
     if (overflow.length > 0) {
@@ -164,8 +164,8 @@ async function _refreshAgentCache() {
     }
 }
 
-function _onHeadClick(agentId) {
-    window.dispatchEvent(new CustomEvent('chatHeads:openHead', { detail: { agentId } }));
+function _onHeadClick(agentId, threadId) {
+    window.dispatchEvent(new CustomEvent('chatHeads:openHead', { detail: { agentId, threadId } }));
 }
 
 function _onOverflowClick(overflow) {
@@ -184,7 +184,7 @@ function _onOverflowClick(overflow) {
             <span>${_escapeHtml(cached?.name || '…')}</span>`;
         item.addEventListener('click', () => {
             popover.remove();
-            window.dispatchEvent(new CustomEvent('chatHeads:openHead', { detail: { agentId: head.agentId } }));
+            window.dispatchEvent(new CustomEvent('chatHeads:openHead', { detail: { agentId: head.agentId, threadId: head.threadId } }));
         });
         popover.appendChild(item);
     }

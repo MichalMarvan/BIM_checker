@@ -53,7 +53,7 @@ async function init() {
 
     window.addEventListener('chatHeads:openHead', async (e) => {
         const m = await getChatPanel();
-        await m.openForAgent(e.detail.agentId);
+        await m.openForAgent(e.detail.agentId, e.detail.threadId);
     });
 
     // When agents change, the launcher's popover re-renders next time it opens

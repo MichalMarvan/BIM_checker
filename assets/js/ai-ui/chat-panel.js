@@ -15,11 +15,15 @@ import * as chatHeads from './chat-heads.js';
 let _panel = null;
 const _state = { agentId: null, threadId: null, busy: false, abort: null };
 
-export async function openForAgent(agentId) {
+export async function openForAgent(agentId, threadId) {
     if (!_panel) _injectPanel();
     _state.agentId = agentId;
     window.__bimAiActiveAgentId = agentId;
     _state.threadId = null;
+    if (threadId) {
+        const thread = await storage.getThread(threadId);
+        if (thread && thread.agentId === agentId) _state.threadId = threadId;
+    }
     await _refreshHeader();
     await _refreshThreadsSidebar();
     await _refreshMessages();
@@ -28,7 +32,7 @@ export async function openForAgent(agentId) {
     _hideLauncher(true);
     chatHeads.setOpenHead(agentId);
     await chatHeads.clearUnread(agentId);
-    await storage.updateSettings({ chatPanelOpen: true, lastActiveAgentId: agentId, lastActiveThreadId: null });
+    await storage.updateSettings({ chatPanelOpen: true, lastActiveAgentId: agentId, lastActiveThreadId: _state.threadId });
 }
 
 export async function restoreLastSession() {
