@@ -70,8 +70,42 @@ describe('tools/tool-storage', () => {
         expect(result.error).toBe('not_found');
     });
 
-    it('register() adds list_storage_files + delete_file_from_storage to executor REGISTRY', async () => {
+    it('register() adds list_storage_files + list_storage_folders + delete_file_from_storage to executor REGISTRY', async () => {
         storageTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(2);
+        expect(executor._registrySizeForTest()).toBe(3);
+    });
+
+    it('list_storage_folders returns array with folder shape', async () => {
+        const result = await storageTools.list_storage_folders({ type: 'ifc' });
+        expect(Array.isArray(result)).toBe(true);
+        // root folder should always be present with stable name 'root'
+        expect(result.length >= 1).toBe(true);
+        const root = result.find(f => f.name === 'root');
+        expect(root !== undefined).toBe(true);
+        expect(typeof root.fileCount).toBe('number');
+        expect(Array.isArray(root.files)).toBe(true);
+    });
+
+    it('list_storage_folders shows files in root after upload', async () => {
+        await window.BIMStorage.saveFile('ifc', makeFile('folder-test.ifc', 'IFC'));
+        const result = await storageTools.list_storage_folders({ type: 'ifc' });
+        const root = result.find(f => f.name === 'root');
+        expect(root !== undefined).toBe(true);
+        expect(root.fileCount).toBe(1);
+        expect(root.files[0]).toBe('folder-test.ifc');
+    });
+
+    it('list_storage_files with folder filter returns empty when no match', async () => {
+        await window.BIMStorage.saveFile('ifc', makeFile('x.ifc', 'IFC'));
+        const result = await storageTools.list_storage_files({ type: 'ifc', folder: 'nonexistent-xyz' });
+        expect(Array.isArray(result)).toBe(true);
+        expect(result.length).toBe(0);
+    });
+
+    it('list_storage_files with folder=root returns all root files', async () => {
+        await window.BIMStorage.saveFile('ifc', makeFile('root1.ifc', 'IFC'));
+        await window.BIMStorage.saveFile('ifc', makeFile('root2.ifc', 'IFC'));
+        const result = await storageTools.list_storage_files({ type: 'ifc', folder: 'root' });
+        expect(result.length).toBe(2);
     });
 });

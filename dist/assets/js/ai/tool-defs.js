@@ -1,6 +1,6 @@
 /**
  * Tool definitions for AI function calling.
- * 15 tools spanning storage, validator workflow, IDS specs,
+ * 16 tools spanning storage, validator workflow, IDS specs,
  * IFC content queries, and UI navigation.
  */
 
@@ -9,11 +9,26 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_storage_files',
-            description: 'Vypíše všechny soubory v IndexedDB úložišti pro daný typ.',
+            description: 'Vypíše všechny soubory v IndexedDB úložišti pro daný typ. Volitelně lze filtrovat podle složky (substring match cesty). Bez `folder` vrátí všechny soubory.',
             parameters: {
                 type: 'object',
                 properties: {
-                    type: { type: 'string', enum: ['ifc', 'ids'], description: 'Typ souborů' }
+                    type: { type: 'string', enum: ['ifc', 'ids'], description: 'Typ souborů' },
+                    folder: { type: 'string', description: 'Volitelný filtr — jméno nebo část cesty složky. Vrátí soubory ze složky a všech podsložek.' }
+                },
+                required: ['type']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'list_storage_folders',
+            description: 'Vrátí seznam složek v úložišti spolu s jejich přímými soubory. Použij když uživatel mluví o složce a chceš vědět, které soubory v ní jsou.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] }
                 },
                 required: ['type']
             }
