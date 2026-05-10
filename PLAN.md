@@ -109,6 +109,15 @@
 
 Branch: phase-8-ai-tools
 
+## Phase 9a: User config + agents ✅
+- [x] 13 tools (settings 8, agents 5)
+- [x] Active-agent global (`window.__bimAiActiveAgentId`) prevents self-modification
+- [x] Agent CRUD: list/create/update/delete with `cannot_modify_active` and `last_agent` guards
+- [x] PWA programmatic API (`window.PWA.canInstall/prompt`)
+- [x] ~28 new tests (587 → 615)
+
+Branch: phase-9a-user-config-agents
+
 ---
 
 ## K dokončení (TODO)

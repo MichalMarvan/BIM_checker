@@ -9,6 +9,8 @@ import * as validatorTools from './tools/tool-validator.js';
 import * as idsTools from './tools/tool-ids.js';
 import * as ifcTools from './tools/tool-ifc.js';
 import * as uiTools from './tools/tool-ui.js';
+import * as settingsTools from './tools/tool-settings.js';
+import * as agentTools from './tools/tool-agents.js';
 
 const REGISTRY = {};
 
@@ -22,6 +24,8 @@ function _bootstrap() {
     idsTools.register(_registerTool);
     ifcTools.register(_registerTool);
     uiTools.register(_registerTool);
+    settingsTools.register(_registerTool);
+    agentTools.register(_registerTool);
 }
 
 _bootstrap();
