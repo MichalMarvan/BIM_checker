@@ -142,10 +142,15 @@ describe('tools/tool-validator (write)', () => {
         }
     });
 
-    it('run_validation returns wrong_page when not on validator', async () => {
+    it('run_validation sets autorun flag and returns navigating when not on validator', async () => {
         helpers._setCurrentPageForTest('parser');
+        // Clean up before test
+        try { localStorage.removeItem('bim_validator_autorun'); } catch (e) {}
         const result = await validatorTools.run_validation({});
-        expect(result.error).toBe('wrong_page');
+        expect(result.navigating).toBe(true);
+        expect(localStorage.getItem('bim_validator_autorun')).toBe('1');
+        // Clean up after test (before 150ms setTimeout fires)
+        try { localStorage.removeItem('bim_validator_autorun'); } catch (e) {}
     });
 
     it('run_validation returns started when on validator with validateAll defined', async () => {

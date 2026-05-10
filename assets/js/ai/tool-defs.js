@@ -75,7 +75,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'run_validation',
-            description: 'Spustí validaci všech skupin. Funguje pouze na stránce Validator.',
+            description: 'Spustí validaci. Pokud nejsi na Validator stránce, sám tam přepne a po obnovení automaticky spustí validaci (chat panel se zavře). Před voláním se ujisti, že existují validační skupiny (volej add_validation_group).',
             parameters: { type: 'object', properties: {} }
         }
     },

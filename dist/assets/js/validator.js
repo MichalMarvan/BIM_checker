@@ -2909,6 +2909,15 @@ async function _applyLastSession() {
     } finally {
         if (groupsContainer) groupsContainer.style.minHeight = '';
     }
+    // Phase 8 hotfix: AI tool can request auto-run via flag
+    try {
+        if (localStorage.getItem('bim_validator_autorun') === '1') {
+            localStorage.removeItem('bim_validator_autorun');
+            if (validationGroups.length > 0 && typeof validateAll === 'function') {
+                await validateAll();
+            }
+        }
+    } catch (e) { /* ignore */ }
 }
 
 // Phase 8: respond to AI tool mutations of last-session preset

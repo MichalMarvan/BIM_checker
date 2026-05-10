@@ -76,14 +76,20 @@ export async function delete_validation_group(args) {
 
 export async function run_validation() {
     if (helpers.getCurrentPageId() !== 'validator') {
+        try { localStorage.setItem('bim_validator_autorun', '1'); } catch (e) {}
+        const targetUrl = (location.pathname.includes('/pages/'))
+            ? './ids-ifc-validator.html'
+            : './pages/ids-ifc-validator.html';
+        // Defer navigation so the tool result reaches the LLM/UI before reload
+        setTimeout(() => { window.location.href = targetUrl; }, 150);
         return {
-            error: 'wrong_page',
-            message: 'Pro spuštění validace navigujte na Validator (zavolejte navigate_to_page).'
+            navigating: true,
+            message: 'Přepínám na Validator a spouštím validaci. Chat panel se po obnovení stránky zavře, ale výsledky uvidíš v UI.'
         };
     }
     if (typeof window.validateAll !== 'function') return { error: 'validator_not_ready' };
     window.validateAll();
-    return { started: true, message: 'Validace spuštěna. Výsledky uvidíte v panelu.' };
+    return { started: true, message: 'Validace spuštěna. Výsledky uvidíš v panelu.' };
 }
 
 export function register(registerFn) {

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'bim-checker-v19';
+const CACHE_VERSION = 'bim-checker-v20';
 const ASSETS_TO_CACHE = [
     './index.html',
     './favicon.svg',
