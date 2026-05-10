@@ -205,12 +205,6 @@ async function _refreshMessages() {
     const main = _panel.querySelector('#chatMessages');
     main.innerHTML = '';
 
-    // Phase 7 banner — tools disabled
-    const banner = document.createElement('div');
-    banner.className = 'chat-panel__tools-banner';
-    banner.textContent = t('ai.chat.toolsDisabled');
-    main.appendChild(banner);
-
     if (!_state.threadId) {
         const empty = document.createElement('div');
         empty.style.cssText = 'text-align: center; color: var(--text-tertiary); padding: 24px;';
@@ -293,12 +287,15 @@ async function _send() {
             _panel.querySelector('#chatMessages').appendChild(thinkingDiv);
 
             let streamed = '';
+            const filteredTools = (agent.enabledTools && Array.isArray(agent.enabledTools))
+                ? TOOL_DEFINITIONS.filter(toolDef => agent.enabledTools.includes(toolDef.function.name))
+                : TOOL_DEFINITIONS;
             const result = await chatCompletion(
                 getEffectiveEndpoint(agent),
                 agent.apiKey,
                 agent.model,
                 messages,
-                TOOL_DEFINITIONS,
+                filteredTools,
                 {
                     temperature: agent.temperature,
                     signal: _state.abort.signal,

@@ -7,6 +7,8 @@ import * as storage from '../ai/chat-storage.js';
 import { PROVIDERS } from '../ai/providers.js';
 import { fetchModels } from '../ai/ai-client.js';
 import { t, onLanguageChange } from './chat-i18n-helpers.js';
+import { TOOL_CATEGORIES, TOTAL_TOOLS } from '../ai/tool-catalog.js';
+import { AGENT_PRESETS, getPreset } from '../ai/agent-presets.js';
 
 let _modal = null;
 const _state = { view: 'list', editingId: null, modelsCache: {} };
@@ -106,6 +108,15 @@ async function _renderFormView(agentId) {
 
     body.innerHTML = `
         <form class="agent-form" id="agentForm">
+            ${!agentId ? `
+            <div class="agent-form__row agent-form__preset-row">
+                <label>${t('ai.agent.startFromPreset')}</label>
+                <select id="agentPresetSelect">
+                    <option value="">${t('ai.agent.noPreset')}</option>
+                    ${AGENT_PRESETS.map(p => `<option value="${p.id}">${escapeHtml(p.icon + ' ' + p.name)}</option>`).join('')}
+                </select>
+            </div>
+            ` : ''}
             <div class="agent-form__row">
                 <label>${t('ai.agent.iconLabel')}</label>
                 <input type="text" id="agentIcon" maxlength="4" value="${escapeAttr(agent.icon || '🤖')}" style="width:80px;">
@@ -147,6 +158,15 @@ async function _renderFormView(agentId) {
                 <textarea id="agentSystemPrompt" placeholder="${escapeAttr(t('ai.agent.systemPromptPlaceholder'))}">${escapeHtml(agent.systemPrompt || '')}</textarea>
             </div>
             <div class="agent-form__row">
+                <label>${t('ai.agent.enabledToolsLabel')}</label>
+                <div class="agent-form__tool-picker" id="agentToolPicker"></div>
+                <div class="agent-form__tool-picker-actions">
+                    <button type="button" id="toolPickerSelectAll" class="agent-form__tool-picker-action">${t('ai.agent.selectAllTools')}</button>
+                    <button type="button" id="toolPickerSelectNone" class="agent-form__tool-picker-action">${t('ai.agent.selectNoTools')}</button>
+                    <span class="agent-form__tool-counter" id="toolPickerCounter">${TOTAL_TOOLS} / ${TOTAL_TOOLS}</span>
+                </div>
+            </div>
+            <div class="agent-form__row">
                 <label>
                     <input type="checkbox" id="agentFav"${agent.isFavorite ? ' checked' : ''}>
                     ${t('ai.agent.favoriteToggle')}
@@ -167,6 +187,19 @@ async function _renderFormView(agentId) {
         e.preventDefault();
         _saveFromForm();
     });
+    _renderToolPicker(agent ? agent.enabledTools : null);
+
+    const presetSelect = _modal.querySelector('#agentPresetSelect');
+    if (presetSelect) {
+        presetSelect.addEventListener('change', (e) => {
+            const preset = getPreset(e.target.value);
+            if (!preset) return;
+            _modal.querySelector('#agentName').value = preset.name;
+            _modal.querySelector('#agentIcon').value = preset.icon;
+            _modal.querySelector('#agentSystemPrompt').value = preset.systemPrompt;
+            _renderToolPicker(preset.enabledTools);
+        });
+    }
 }
 
 async function _loadModelsIntoForm() {
@@ -222,6 +255,7 @@ async function _saveFromForm() {
         }
         return;
     }
+    data.enabledTools = _collectEnabledTools();
     try {
         await storage.saveAgent(data);
         if (typeof ErrorHandler !== 'undefined') {
@@ -252,6 +286,96 @@ function _newAgentDefaults() {
         icon: '🤖', name: '', provider: 'google', baseUrl: '', apiKey: '',
         model: '', systemPrompt: '', temperature: 0.7, isFavorite: true
     };
+}
+
+function _renderToolPicker(enabledTools) {
+    const container = _modal.querySelector('#agentToolPicker');
+    if (!container) return;
+    const allNames = TOOL_CATEGORIES.flatMap(c => c.tools.map(tool => tool.name));
+    const enabledSet = (enabledTools === null || enabledTools === undefined)
+        ? new Set(allNames)
+        : new Set(enabledTools);
+
+    container.innerHTML = '';
+    for (const cat of TOOL_CATEGORIES) {
+        const details = document.createElement('details');
+        details.className = 'tool-picker-category';
+        details.dataset.catId = cat.id;
+        const enabledInCat = cat.tools.filter(tool => enabledSet.has(tool.name)).length;
+        details.innerHTML = `
+            <summary>
+                <span class="category-icon">${cat.icon}</span>
+                <span class="category-label">${escapeHtml(t(cat.labelKey))}</span>
+                <span class="category-count">${enabledInCat}/${cat.tools.length}</span>
+                <button type="button" class="category-toggle-all" data-cat="${cat.id}">${escapeHtml(t('ai.agent.categoryToggleAll'))}</button>
+            </summary>
+            <ul class="tool-picker-tool-list">
+                ${cat.tools.map(toolDef => `
+                    <li>
+                        <label>
+                            <input type="checkbox" data-tool="${toolDef.name}" ${enabledSet.has(toolDef.name) ? 'checked' : ''}>
+                            <span class="tool-name">${escapeHtml(toolDef.name)}</span>
+                            <span class="tool-label">${escapeHtml(t(toolDef.labelKey))}</span>
+                        </label>
+                    </li>
+                `).join('')}
+            </ul>`;
+        container.appendChild(details);
+    }
+    _updateToolPickerCounter();
+    _attachToolPickerListeners();
+}
+
+function _attachToolPickerListeners() {
+    const container = _modal.querySelector('#agentToolPicker');
+    container.querySelectorAll('input[type="checkbox"][data-tool]').forEach(cb => {
+        cb.addEventListener('change', () => _updateToolPickerCounter());
+    });
+    container.querySelectorAll('.category-toggle-all').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const catId = btn.dataset.cat;
+            const details = container.querySelector(`details[data-cat-id="${catId}"]`);
+            const cbs = details.querySelectorAll('input[type="checkbox"][data-tool]');
+            const allChecked = Array.from(cbs).every(cb => cb.checked);
+            cbs.forEach(cb => { cb.checked = !allChecked; });
+            _updateToolPickerCounter();
+        });
+    });
+    _modal.querySelector('#toolPickerSelectAll').addEventListener('click', () => {
+        container.querySelectorAll('input[type="checkbox"][data-tool]').forEach(cb => { cb.checked = true; });
+        _updateToolPickerCounter();
+    });
+    _modal.querySelector('#toolPickerSelectNone').addEventListener('click', () => {
+        container.querySelectorAll('input[type="checkbox"][data-tool]').forEach(cb => { cb.checked = false; });
+        _updateToolPickerCounter();
+    });
+}
+
+function _updateToolPickerCounter() {
+    const container = _modal.querySelector('#agentToolPicker');
+    if (!container) return;
+    const total = TOTAL_TOOLS;
+    const enabled = container.querySelectorAll('input[type="checkbox"][data-tool]:checked').length;
+    const counter = _modal.querySelector('#toolPickerCounter');
+    if (counter) counter.textContent = `${enabled} / ${total}`;
+    container.querySelectorAll('details.tool-picker-category').forEach(details => {
+        const catId = details.dataset.catId;
+        const cat = TOOL_CATEGORIES.find(c => c.id === catId);
+        const enabledInCat = Array.from(details.querySelectorAll('input[type="checkbox"][data-tool]:checked')).length;
+        const countSpan = details.querySelector('.category-count');
+        if (countSpan) countSpan.textContent = `${enabledInCat}/${cat.tools.length}`;
+    });
+}
+
+function _collectEnabledTools() {
+    const container = _modal.querySelector('#agentToolPicker');
+    if (!container) return null;
+    const checked = Array.from(container.querySelectorAll('input[type="checkbox"][data-tool]:checked'))
+        .map(cb => cb.dataset.tool);
+    if (checked.length === TOTAL_TOOLS) return null;
+    return checked;
 }
 
 function escapeHtml(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }

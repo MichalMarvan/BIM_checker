@@ -100,6 +100,7 @@ export async function saveAgent(data) {
         model: data.model || '',
         systemPrompt: data.systemPrompt || '',
         temperature: typeof data.temperature === 'number' ? data.temperature : 0.7,
+        enabledTools: data.enabledTools || null,
         isFavorite: data.isFavorite !== false,
         favoriteOrder: typeof data.favoriteOrder === 'number' ? data.favoriteOrder : list.length,
         createdAt: now,

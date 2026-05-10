@@ -10,7 +10,8 @@ function _safeAgent(a) {
         model: a.model,
         baseUrl: a.baseUrl || '',
         systemPrompt: a.systemPrompt || '',
-        temperature: typeof a.temperature === 'number' ? a.temperature : 0.7
+        temperature: typeof a.temperature === 'number' ? a.temperature : 0.7,
+        enabledTools: a.enabledTools || null
     };
 }
 
