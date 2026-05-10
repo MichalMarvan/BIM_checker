@@ -159,6 +159,20 @@ export async function count_failures_by_requirement(args) {
     return { groupIndex: idx, breakdown: Array.from(buckets.values()).sort((a, b) => b.failed - a.failed) };
 }
 
+export async function export_validation_xlsx() {
+    if (helpers.getCurrentPageId() !== 'validator') {
+        return { error: 'wrong_page', message: 'Excel export funguje jen na Validator stránce po spuštění validace.' };
+    }
+    if (typeof window.exportToXLSX !== 'function') {
+        return { error: 'export_not_available', message: 'exportToXLSX není dostupný — validace nebyla spuštěna nebo strana je špatně načtená.' };
+    }
+    if (!Array.isArray(window.validationResults) || window.validationResults.length === 0) {
+        return { error: 'no_results' };
+    }
+    window.exportToXLSX();
+    return { triggered: true, message: 'Export spuštěn — soubor by se měl stáhnout do tvého OS.' };
+}
+
 export function register(registerFn) {
     registerFn('list_validation_groups', list_validation_groups);
     registerFn('get_validation_results', get_validation_results);
@@ -167,4 +181,5 @@ export function register(registerFn) {
     registerFn('run_validation', run_validation);
     registerFn('get_validation_failures', get_validation_failures);
     registerFn('count_failures_by_requirement', count_failures_by_requirement);
+    registerFn('export_validation_xlsx', export_validation_xlsx);
 }

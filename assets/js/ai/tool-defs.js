@@ -759,6 +759,14 @@ export const TOOL_DEFINITIONS = [
                 required: ['uri']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'export_validation_xlsx',
+            description: 'Stáhne Excel export validačních výsledků. Page-locked na Validator po spuštění validace.',
+            parameters: { type: 'object', properties: {} }
+        }
     }
 ];
 

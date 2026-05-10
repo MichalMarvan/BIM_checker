@@ -240,4 +240,36 @@ describe('tools/tool-validator (failures)', () => {
             helpers._setCurrentPageForTest(null);
         }
     });
+
+    it('export_validation_xlsx returns wrong_page off validator', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-validator.js');
+        const helpers = await import('../../assets/js/ai/tools/_helpers.js');
+        helpers._setCurrentPageForTest('parser');
+        try {
+            const r = await tools.export_validation_xlsx({});
+            expect(r.error).toBe('wrong_page');
+        } finally {
+            helpers._setCurrentPageForTest(null);
+        }
+    });
+
+    it('export_validation_xlsx triggers exportToXLSX when on validator', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-validator.js');
+        const helpers = await import('../../assets/js/ai/tools/_helpers.js');
+        helpers._setCurrentPageForTest('validator');
+        const origExport = window.exportToXLSX;
+        const origResults = window.validationResults;
+        let called = false;
+        window.exportToXLSX = () => { called = true; };
+        window.validationResults = [{ ifcResults: [] }];
+        try {
+            const r = await tools.export_validation_xlsx({});
+            expect(r.triggered).toBe(true);
+            expect(called).toBe(true);
+        } finally {
+            window.exportToXLSX = origExport;
+            window.validationResults = origResults;
+            helpers._setCurrentPageForTest(null);
+        }
+    });
 });
