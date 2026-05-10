@@ -46,4 +46,18 @@
         }
         deferredPrompt = null;
     });
+
+    // Phase 9a: programmatic API for AI install_pwa tool
+    window.PWA = {
+        canInstall: () => !!deferredPrompt,
+        prompt: async () => {
+            if (!deferredPrompt) return { available: false };
+            deferredPrompt.prompt();
+            const result = await deferredPrompt.userChoice;
+            const accepted = result.outcome === 'accepted';
+            if (accepted && installBtn) installBtn.classList.add(UNAVAILABLE_CLASS);
+            deferredPrompt = null;
+            return { available: true, accepted };
+        }
+    };
 })();

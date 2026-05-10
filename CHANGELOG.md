@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-05-10
+
+### Added
+- AI tools (Phase 9a, 13 new): settings (theme/language/wizard/PWA install/bug report) + agent CRUD
+- `window.PWA.canInstall()` / `window.PWA.prompt()` programmatic install API
+- `window.__bimAiActiveAgentId` global identifies the agent driving the current chat
+- Active-agent guard: `update_agent`/`delete_agent` refuse with `cannot_modify_active` if target == active id
+- `last_agent` guard: refuse to delete the only remaining agent
+
+### Changed
+- `tool-executor.js` `_bootstrap()` now also registers `tool-settings` and `tool-agents` modules
+- SW cache bumped v23 → v24
+
 ## [0.4.0] - 2026-05-10
 
 ### Added

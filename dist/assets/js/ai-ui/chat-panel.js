@@ -17,6 +17,7 @@ const _state = { agentId: null, threadId: null, busy: false, abort: null };
 export async function openForAgent(agentId) {
     if (!_panel) _injectPanel();
     _state.agentId = agentId;
+    window.__bimAiActiveAgentId = agentId;
     _state.threadId = null;
     await _refreshHeader();
     await _refreshThreadsSidebar();
@@ -34,6 +35,7 @@ export function close() {
     }
     _hideLauncher(false);
     if (_state.abort) _state.abort.abort();
+    window.__bimAiActiveAgentId = null;
     storage.updateSettings({ chatPanelOpen: false });
 }
 

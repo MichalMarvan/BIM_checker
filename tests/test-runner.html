@@ -405,6 +405,18 @@
         window.ErrorHandler = {
             error: function() {}, warning: function() {}, success: function() {}, info: function() {}
         };
+        // Stub ThemeManager for tool-settings tests
+        window.ThemeManager = {
+            _theme: localStorage.getItem('theme') || 'light',
+            getCurrentTheme: function() { return this._theme; },
+            setTheme: function(t) { this._theme = t; localStorage.setItem('theme', t); }
+        };
+        // Stub i18n for tool-settings tests
+        window.i18n = {
+            _lang: localStorage.getItem('lang') || 'cs',
+            getCurrentLanguage: function() { return this._lang; },
+            setLanguage: function(l) { this._lang = l; localStorage.setItem('lang', l); }
+        };
     })();
     </script>
     <script src="../assets/js/ifc/viewer-init.js"></script>
@@ -470,6 +482,8 @@
     <script src="test-suites/tools-ids.test.js"></script>
     <script src="test-suites/tools-validator.test.js"></script>
     <script src="test-suites/tools-ifc.test.js"></script>
+    <script src="test-suites/tools-settings.test.js"></script>
+    <script src="test-suites/tools-agents.test.js"></script>
     <script src="test-suites/chat-panel-tool-loop.test.js"></script>
     <script src="test-runner-ui.js"></script>
     

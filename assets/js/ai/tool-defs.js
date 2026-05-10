@@ -1,7 +1,7 @@
 /**
  * Tool definitions for AI function calling.
- * 16 tools spanning storage, validator workflow, IDS specs,
- * IFC content queries, and UI navigation.
+ * 29 tools spanning storage, validator workflow, IDS specs,
+ * IFC content queries, UI navigation, settings, and agent management.
  */
 
 export const TOOL_DEFINITIONS = [
@@ -210,6 +210,160 @@ export const TOOL_DEFINITIONS = [
                     page: { type: 'string', enum: ['home', 'validator', 'parser', 'viewer'] }
                 },
                 required: ['page']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_theme',
+            description: 'Vrátí aktuální barevné téma (light/dark).',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'set_theme',
+            description: 'Přepne barevné téma. Bere efekt okamžitě.',
+            parameters: {
+                type: 'object',
+                properties: { theme: { type: 'string', enum: ['light', 'dark'] } },
+                required: ['theme']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_language',
+            description: 'Vrátí aktuální jazyk UI (cs/en).',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'set_language',
+            description: 'Přepne jazyk UI. Spustí re-render textů.',
+            parameters: {
+                type: 'object',
+                properties: { lang: { type: 'string', enum: ['cs', 'en'] } },
+                required: ['lang']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'start_wizard',
+            description: 'Spustí onboarding průvodce. Funguje jen na podstránkách (validator/parser/viewer), ne na homepage.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    page: { type: 'string', enum: ['validator', 'parser', 'viewer'], description: 'Volitelné — který set kroků použít. Pokud nezadáno, použije se aktuální stránka.' }
+                }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'dismiss_wizard',
+            description: 'Zavře aktivního průvodce.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'install_pwa',
+            description: 'Spustí browser dialog pro instalaci PWA. Pokud browser instalační prompt nemá k dispozici, vrátí available:false.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'open_bug_report',
+            description: 'Otevře dialog hlášení chyby. Volitelně předvyplní popis.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    description: { type: 'string', description: 'Předvyplněný text popisu.' }
+                }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'list_agents',
+            description: 'Vrátí seznam všech AI agentů (bez API klíčů).',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_active_agent',
+            description: 'Vrátí informace o aktuálně běžícím agentovi (tom, co řídí tento chat).',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_agent',
+            description: 'Vytvoří nového AI agenta. Vyžaduje API klíč. Pokud agent stejného jména už existuje, vrátí duplicate_name s existingId — použij update_agent místo dalšího create.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string' },
+                    provider: { type: 'string', description: 'openai | anthropic | google | mistral | groq | other' },
+                    model: { type: 'string' },
+                    apiKey: { type: 'string' },
+                    systemPrompt: { type: 'string' },
+                    temperature: { type: 'number', minimum: 0, maximum: 2 },
+                    icon: { type: 'string' },
+                    baseUrl: { type: 'string' }
+                },
+                required: ['name', 'provider', 'model', 'apiKey']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'update_agent',
+            description: 'Upraví existujícího agenta. Identifikuj přes id NEBO name (jméno musí být unikátní). Pro rename volej s `id` a novým `name`. NESMÍ se použít na aktuálně běžícího agenta — vrátí cannot_modify_active.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string', description: 'Identifikátor agenta. Pokud je vyplněn, hodnota name se interpretuje jako přejmenování.' },
+                    name: { type: 'string', description: 'Bez id slouží jako vyhledávací klíč. S id znamená nové jméno.' },
+                    icon: { type: 'string' },
+                    provider: { type: 'string' },
+                    model: { type: 'string' },
+                    apiKey: { type: 'string' },
+                    systemPrompt: { type: 'string' },
+                    temperature: { type: 'number', minimum: 0, maximum: 2 },
+                    baseUrl: { type: 'string' }
+                }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'delete_agent',
+            description: 'Smaže agenta podle id NEBO name (jméno musí být unikátní). Před smazáním otevře potvrzovací dialog. Nemůže smazat aktuálně běžícího agenta ani posledního zbývajícího.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' }
+                }
             }
         }
     }
