@@ -118,6 +118,16 @@ Branch: phase-8-ai-tools
 
 Branch: phase-9a-user-config-agents
 
+## Phase 9b: Storage + presets + file ops ✅
+- [x] 15 tools (folder CRUD 3, move 2, content 3, replace 1, presets 5, ui 1)
+- [x] Folder name → id resolution with `ambiguous_folder` error on collisions
+- [x] Native confirm() on destructive ops (delete folder, replace content, delete preset)
+- [x] download_file uses Blob + ObjectURL, no LLM payload
+- [x] apply_preset / load_preset cross-page via autorun flag (Phase 8 hotfix pattern)
+- [x] ~32 new tests (621 → 652)
+
+Branch: phase-9b-storage-presets
+
 ---
 
 ## K dokončení (TODO)
