@@ -144,12 +144,12 @@ describe('tools/tool-validator (write)', () => {
 
     it('run_validation sets autorun flag and returns navigating when not on validator', async () => {
         helpers._setCurrentPageForTest('parser');
-        // Clean up before test
         try { localStorage.removeItem('bim_validator_autorun'); } catch (e) {}
         const result = await validatorTools.run_validation({});
         expect(result.navigating).toBe(true);
         expect(localStorage.getItem('bim_validator_autorun')).toBe('1');
-        // Clean up after test (before 150ms setTimeout fires)
+        // Cancel the deferred navigation so it doesn't destroy the test context
+        if (validatorTools.run_validation._timer) clearTimeout(validatorTools.run_validation._timer);
         try { localStorage.removeItem('bim_validator_autorun'); } catch (e) {}
     });
 

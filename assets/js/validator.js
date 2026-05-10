@@ -26,8 +26,10 @@ function _getIfcParserPool() {
     }
 
     try {
-        const scripts = document.querySelectorAll('script[src*="validator.js"]');
-        const validatorSrc = scripts.length ? scripts[0].src : '';
+        // Find this exact script (substring match was greedy and matched ids-xsd-validator.js)
+        const validatorScript = Array.from(document.querySelectorAll('script[src]'))
+            .find(s => /(^|\/)validator\.js(\?|$)/.test(s.src));
+        const validatorSrc = validatorScript ? validatorScript.src : '';
         const baseUrl = validatorSrc.substring(0, validatorSrc.lastIndexOf('/'));
         const workerScript = `${baseUrl}/workers/ifc-parser.worker.js`;
         _ifcParserPool = new WorkerPool({
