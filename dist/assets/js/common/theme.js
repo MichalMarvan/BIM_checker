@@ -129,6 +129,9 @@ const ThemeManager = {
     }
 };
 
+// Expose globally so AI tools (set_theme, get_theme) can reach it on every page
+window.ThemeManager = ThemeManager;
+
 // Auto-initialize on DOMContentLoaded if toggle button exists
 document.addEventListener('DOMContentLoaded', () => {
     // Only auto-init if the toggle button exists
