@@ -303,6 +303,19 @@
     color: var(--text-tertiary, #6b7280);
     font-style: italic;
 }
+.chat-panel__msg--toolcall,
+.chat-panel__msg--toolresult {
+    align-self: flex-start;
+    background: var(--bg-tertiary, rgba(0,0,0,0.04));
+    color: var(--text-tertiary, #6b7280);
+    font-size: 0.85em;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    border-left: 2px solid var(--primary-light, #818cf8);
+    padding: 6px 10px;
+    border-radius: 4px;
+    max-width: 95%;
+    word-break: break-all;
+}
 .chat-panel__msg pre,
 .chat-panel__msg code {
     background: rgba(0,0,0,0.06);

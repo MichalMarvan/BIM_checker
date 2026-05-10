@@ -8,6 +8,7 @@ import * as storage from '../ai/chat-storage.js';
 import { chatCompletion } from '../ai/ai-client.js';
 import { getEffectiveEndpoint } from '../ai/agent-manager.js';
 import { TOOL_DEFINITIONS } from '../ai/tool-defs.js';
+import { executeToolCall } from '../ai/tool-executor.js';
 import { t, onLanguageChange } from './chat-i18n-helpers.js';
 
 let _panel = null;
@@ -213,53 +214,120 @@ async function _send() {
     input.value = '';
     _autoGrowInput();
 
-    const thinkingDiv = document.createElement('div');
-    thinkingDiv.className = 'chat-panel__msg chat-panel__msg--thinking';
-    thinkingDiv.textContent = t('ai.chat.thinking');
-    _panel.querySelector('#chatMessages').appendChild(thinkingDiv);
-
     _state.busy = true;
     _state.abort = new AbortController();
 
+    const MAX_ITERATIONS = 5;
+    let iteration = 0;
+
     try {
+        let messages = [];
+        if (agent.systemPrompt) messages.push({ role: 'system', content: agent.systemPrompt });
         const allMsgs = await storage.listMessages(_state.threadId);
-        const apiMessages = [];
-        if (agent.systemPrompt) apiMessages.push({ role: 'system', content: agent.systemPrompt });
         for (const m of allMsgs) {
-            apiMessages.push({ role: m.role, content: m.content });
+            const cleaned = { role: m.role, content: m.content };
+            if (m.tool_calls) cleaned.tool_calls = m.tool_calls;
+            if (m.tool_call_id) cleaned.tool_call_id = m.tool_call_id;
+            if (m.name && m.role === 'tool') cleaned.name = m.name;
+            messages.push(cleaned);
         }
 
-        const endpoint = getEffectiveEndpoint(agent);
-        let streamed = '';
-        const result = await chatCompletion(endpoint, agent.apiKey, agent.model, apiMessages, TOOL_DEFINITIONS, {
-            temperature: agent.temperature,
-            signal: _state.abort.signal,
-            onStream: (delta, full) => {
-                streamed = full;
-                thinkingDiv.classList.remove('chat-panel__msg--thinking');
-                thinkingDiv.classList.add('chat-panel__msg--assistant');
-                thinkingDiv.textContent = full;
-                _panel.querySelector('#chatMessages').scrollTop = 1e9;
+        while (iteration < MAX_ITERATIONS) {
+            iteration++;
+
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'chat-panel__msg chat-panel__msg--thinking';
+            thinkingDiv.textContent = t('ai.chat.thinking');
+            _panel.querySelector('#chatMessages').appendChild(thinkingDiv);
+
+            let streamed = '';
+            const result = await chatCompletion(
+                getEffectiveEndpoint(agent),
+                agent.apiKey,
+                agent.model,
+                messages,
+                TOOL_DEFINITIONS,
+                {
+                    temperature: agent.temperature,
+                    signal: _state.abort.signal,
+                    onStream: (delta, full) => {
+                        streamed = full;
+                        thinkingDiv.classList.remove('chat-panel__msg--thinking');
+                        thinkingDiv.classList.add('chat-panel__msg--assistant');
+                        thinkingDiv.textContent = full;
+                        _panel.querySelector('#chatMessages').scrollTop = 1e9;
+                    }
+                }
+            );
+
+            const choice = result?.choices?.[0];
+            const finishReason = choice?.finish_reason;
+            const assistantMsg = choice?.message || { role: 'assistant', content: streamed };
+            await storage.appendMessage(_state.threadId, assistantMsg);
+            messages.push(assistantMsg);
+
+            if (finishReason !== 'tool_calls') {
+                if (!streamed && assistantMsg.content) {
+                    thinkingDiv.classList.remove('chat-panel__msg--thinking');
+                    thinkingDiv.classList.add('chat-panel__msg--assistant');
+                    thinkingDiv.textContent = assistantMsg.content;
+                }
+                break;
             }
-        });
 
-        const finalContent = streamed || result?.choices?.[0]?.message?.content || '';
-        thinkingDiv.classList.remove('chat-panel__msg--thinking');
-        thinkingDiv.classList.add('chat-panel__msg--assistant');
-        thinkingDiv.textContent = finalContent;
+            const toolCalls = assistantMsg.tool_calls || [];
+            thinkingDiv.remove();
+            const callBubble = document.createElement('div');
+            callBubble.className = 'chat-panel__msg chat-panel__msg--toolcall';
+            callBubble.textContent = `🔧 ${t('ai.chat.toolCalling')}: ${toolCalls.map(tc => tc.function?.name).join(', ')}`;
+            _panel.querySelector('#chatMessages').appendChild(callBubble);
 
-        await storage.appendMessage(_state.threadId, { role: 'assistant', content: finalContent });
+            for (const tc of toolCalls) {
+                let parsedArgs = {};
+                try { parsedArgs = JSON.parse(tc.function?.arguments || '{}'); } catch {}
+                const toolResult = await executeToolCall({
+                    id: tc.id,
+                    name: tc.function?.name,
+                    arguments: parsedArgs
+                });
+                const toolMsg = {
+                    role: 'tool',
+                    tool_call_id: tc.id,
+                    name: tc.function?.name,
+                    content: JSON.stringify(toolResult)
+                };
+                await storage.appendMessage(_state.threadId, toolMsg);
+                messages.push(toolMsg);
+
+                const resultBubble = document.createElement('div');
+                resultBubble.className = 'chat-panel__msg chat-panel__msg--toolresult';
+                const isError = toolResult?.error;
+                resultBubble.textContent = `${isError ? '❌' : '✓'} ${t('ai.chat.toolReturned')}: ${JSON.stringify(toolResult).slice(0, 120)}`;
+                _panel.querySelector('#chatMessages').appendChild(resultBubble);
+            }
+            _panel.querySelector('#chatMessages').scrollTop = 1e9;
+        }
+
+        if (iteration >= MAX_ITERATIONS) {
+            const limitBubble = document.createElement('div');
+            limitBubble.className = 'chat-panel__msg chat-panel__msg--assistant';
+            limitBubble.textContent = `[${t('ai.chat.maxIterations')}]`;
+            _panel.querySelector('#chatMessages').appendChild(limitBubble);
+        }
     } catch (err) {
         if (err?.name === 'AbortError') {
-            thinkingDiv.remove();
+            const lastThinking = _panel.querySelector('.chat-panel__msg--thinking');
+            if (lastThinking) lastThinking.remove();
             return;
         }
-        // Restore user input so they can retry
         input.value = text;
         _autoGrowInput();
-        thinkingDiv.classList.remove('chat-panel__msg--thinking');
-        thinkingDiv.classList.add('chat-panel__msg--assistant');
-        thinkingDiv.textContent = `[Error] ${err.message || err}`;
+        const lastThinking = _panel.querySelector('.chat-panel__msg--thinking');
+        if (lastThinking) {
+            lastThinking.classList.remove('chat-panel__msg--thinking');
+            lastThinking.classList.add('chat-panel__msg--assistant');
+            lastThinking.textContent = `[Error] ${err.message || err}`;
+        }
         const errKey = _errorKeyFromException(err);
         if (typeof ErrorHandler !== 'undefined' && errKey) {
             ErrorHandler.error(t(errKey).replace('{provider}', _providerName(agent.provider)));

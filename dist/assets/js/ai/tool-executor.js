@@ -1,13 +1,30 @@
 /**
  * Routes tool calls dispatched by the AI to handler functions.
- * Phase 8: REGISTRY is populated as each task adds tools.
+ * REGISTRY is populated at module load via _bootstrap() — each tool sub-module
+ * exports register() and gets called once.
  */
+
+import * as storageTools from './tools/tool-storage.js';
+import * as validatorTools from './tools/tool-validator.js';
+import * as idsTools from './tools/tool-ids.js';
+import * as ifcTools from './tools/tool-ifc.js';
+import * as uiTools from './tools/tool-ui.js';
 
 const REGISTRY = {};
 
 export function _registerTool(name, fn) {
     REGISTRY[name] = fn;
 }
+
+function _bootstrap() {
+    storageTools.register(_registerTool);
+    validatorTools.register(_registerTool);
+    idsTools.register(_registerTool);
+    ifcTools.register(_registerTool);
+    uiTools.register(_registerTool);
+}
+
+_bootstrap();
 
 export async function executeToolCall(toolCall) {
     const name = toolCall?.name;
@@ -25,4 +42,8 @@ export async function executeToolCall(toolCall) {
 export function _registrySizeForTest() { return Object.keys(REGISTRY).length; }
 export function _resetRegistryForTest() {
     for (const k of Object.keys(REGISTRY)) delete REGISTRY[k];
+}
+export function _reinitializeForTest() {
+    _resetRegistryForTest();
+    _bootstrap();
 }
