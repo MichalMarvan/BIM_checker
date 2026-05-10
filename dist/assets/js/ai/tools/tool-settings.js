@@ -1,29 +1,25 @@
 import * as helpers from './_helpers.js';
 
 export async function get_theme() {
-    if (typeof window.ThemeManager === 'undefined') {
-        return { error: 'theme_manager_not_available' };
-    }
-    return { theme: window.ThemeManager.getTheme ? window.ThemeManager.getTheme() : (localStorage.getItem('theme') || 'light') };
+    if (typeof window.ThemeManager === 'undefined') throw new Error('ThemeManager not available');
+    return { theme: window.ThemeManager.getCurrentTheme() };
 }
 
 export async function set_theme(args) {
     helpers.validateArgs(args, { theme: { required: true, enum: ['light', 'dark'] } });
-    if (typeof window.ThemeManager === 'undefined') {
-        return { error: 'theme_manager_not_available' };
-    }
+    if (typeof window.ThemeManager === 'undefined') throw new Error('ThemeManager not available');
     window.ThemeManager.setTheme(args.theme);
     return { applied: args.theme };
 }
 
 export async function get_language() {
-    if (typeof window.i18n === 'undefined') return { error: 'i18n_not_available' };
-    return { lang: window.i18n.getCurrentLanguage ? window.i18n.getCurrentLanguage() : (localStorage.getItem('lang') || 'cs') };
+    if (typeof window.i18n === 'undefined') throw new Error('i18n not available');
+    return { lang: window.i18n.getCurrentLanguage() };
 }
 
 export async function set_language(args) {
     helpers.validateArgs(args, { lang: { required: true, enum: ['cs', 'en'] } });
-    if (typeof window.i18n === 'undefined') return { error: 'i18n_not_available' };
+    if (typeof window.i18n === 'undefined') throw new Error('i18n not available');
     window.i18n.setLanguage(args.lang);
     return { applied: args.lang };
 }

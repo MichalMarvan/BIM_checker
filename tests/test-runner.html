@@ -408,7 +408,7 @@
         // Stub ThemeManager for tool-settings tests
         window.ThemeManager = {
             _theme: localStorage.getItem('theme') || 'light',
-            getTheme: function() { return this._theme; },
+            getCurrentTheme: function() { return this._theme; },
             setTheme: function(t) { this._theme = t; localStorage.setItem('theme', t); }
         };
         // Stub i18n for tool-settings tests
