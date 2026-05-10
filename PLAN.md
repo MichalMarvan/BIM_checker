@@ -148,6 +148,17 @@ Branch: phase-9c-ids-validation-deep
 
 Branch: phase-10-chat-heads-ui
 
+## Phase 11: Tool routing + preset agents ✅
+- [x] Per-agent `enabledTools` whitelist filter v chat-panel
+- [x] Tool catalog: 9 kategorií covering 56 toolů (`tool-catalog.js`)
+- [x] 6 preset agentů (`agent-presets.js`): Generalist, Storage Organizer, Validator, IDS Author, Settings Butler, IFC Analyst
+- [x] Settings UI tool picker (accordion + counter + per-cat select-all)
+- [x] "Start from preset" dropdown při create-mode
+- [x] Backward compat: existující agenti `enabledTools=undefined` = all 56 (no change)
+- [x] +21 testů (684 → 705)
+
+Branch: phase-11-tool-routing
+
 ---
 
 ## K dokončení (TODO)

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-05-10
+
+### Added
+- Per-agent tool routing (Phase 11): `agent.enabledTools` whitelist filters `TOOL_DEFINITIONS` before each API call — drastically reduces Gemini payload for focused agents
+- `assets/js/ai/tool-catalog.js`: 9 categories covering all 56 tools (single source of truth)
+- `assets/js/ai/agent-presets.js`: 6 role-specific presets — Generalist, Storage Organizer, Validator, IDS Author, Settings Butler, IFC Analyst
+- Settings tool picker: accordion grouped by category, counter "X/56", select-all/none + per-category toggles
+- "Start from preset" dropdown when creating agents — prefills name, icon, system prompt, enabledTools
+- ~70 new i18n keys (CZ + EN) for categories, presets, tool labels
+
+### Changed
+- `_safeAgent` in tool-agents.js now exposes `enabledTools` field to AI
+- SW cache bumped v34 → v35
+
+### Backward compatibility
+- Existing agents with `enabledTools=undefined` continue to receive all 56 tools (zero behavior change)
+
 ## [0.8.0] - 2026-05-10
 
 ### Added
