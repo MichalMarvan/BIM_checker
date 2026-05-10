@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-05-10
+
+### Added
+- AI tools (Phase 9b, 15 new): folder CRUD, file move/download/snippet/summary/replace, preset CRUD + apply, request_user_attention
+- `tool-presets.js` module wraps `ValidationPresets` for chat-driven preset management
+- Folder operations resolve user-friendly names; ambiguous matches return `ambiguous_folder` with candidates
+- `download_file` triggers a real browser download via Blob + ObjectURL (no LLM payload bloat)
+- `apply_preset` / `load_preset` integrate with Phase 8 cross-page autorun flag (sets bim_validator_autorun=1, navigates to validator)
+
+### Changed
+- `tool-executor.js` `_bootstrap()` now also registers `tool-presets`
+- SW cache bumped v28 → v29
+
 ## [0.5.0] - 2026-05-10
 
 ### Added

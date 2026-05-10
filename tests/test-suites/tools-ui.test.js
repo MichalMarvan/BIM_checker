@@ -38,8 +38,40 @@ describe('tools/tool-ui', () => {
         expect(threw).toBe(true);
     });
 
-    it('register() adds 2 tools to executor', async () => {
+    it('request_user_attention calls ErrorHandler.info by default', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ui.js');
+        const orig = window.ErrorHandler;
+        let called = null;
+        window.ErrorHandler = {
+            info: (msg) => { called = { kind: 'info', msg }; },
+            warning: () => {},
+            error: () => {},
+            success: () => {}
+        };
+        try {
+            const r = await tools.request_user_attention({ message: 'hello' });
+            expect(r.shown).toBe(true);
+            expect(r.kind).toBe('info');
+            expect(called.msg).toBe('hello');
+        } finally {
+            window.ErrorHandler = orig;
+        }
+    });
+
+    it('request_user_attention returns invalid_kind for unknown kind', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ui.js');
+        const orig = window.ErrorHandler;
+        window.ErrorHandler = { info: () => {}, error: () => {} };
+        try {
+            const r = await tools.request_user_attention({ message: 'x', kind: 'rainbow' });
+            expect(r.error).toBe('invalid_kind');
+        } finally {
+            window.ErrorHandler = orig;
+        }
+    });
+
+    it('register() adds 3 tools to executor', async () => {
         uiTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(2);
+        expect(executor._registrySizeForTest()).toBe(3);
     });
 });

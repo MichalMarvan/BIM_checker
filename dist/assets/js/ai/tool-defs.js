@@ -1,7 +1,8 @@
 /**
  * Tool definitions for AI function calling.
- * 29 tools spanning storage, validator workflow, IDS specs,
- * IFC content queries, UI navigation, settings, and agent management.
+ * 44 tools spanning storage, validator workflow, IDS specs,
+ * IFC content queries, UI navigation, settings, agent management,
+ * folder/file ops, presets, and toast notifications.
  */
 
 export const TOOL_DEFINITIONS = [
@@ -364,6 +365,226 @@ export const TOOL_DEFINITIONS = [
                     id: { type: 'string' },
                     name: { type: 'string' }
                 }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_folder',
+            description: 'Vytvoří novou složku v úložišti pro daný typ. Volitelně lze zadat parentName (jméno nebo cesta nadřazené složky).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' },
+                    parentName: { type: 'string', description: 'Volitelné, default root.' }
+                },
+                required: ['type', 'name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'rename_folder',
+            description: 'Přejmenuje složku. Identifikuj přes folderName (jméno nebo cesta).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    folderName: { type: 'string' },
+                    newName: { type: 'string' }
+                },
+                required: ['type', 'folderName', 'newName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'delete_folder',
+            description: 'Smaže složku včetně všech souborů a podsložek. Před smazáním otevře potvrzovací dialog.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    folderName: { type: 'string' }
+                },
+                required: ['type', 'folderName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'move_file',
+            description: 'Přesune soubor do jiné složky. Soubor i složku identifikuj podle jména.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    fileName: { type: 'string' },
+                    targetFolderName: { type: 'string' }
+                },
+                required: ['type', 'fileName', 'targetFolderName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'move_files_batch',
+            description: 'Přesune více souborů do stejné složky najednou. Vrátí seznam moved a skipped (s důvodem).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    fileNames: { type: 'array', items: { type: 'string' } },
+                    targetFolderName: { type: 'string' }
+                },
+                required: ['type', 'fileNames', 'targetFolderName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'download_file',
+            description: 'Spustí download souboru z úložiště do uživatelova OS (přes browser).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' }
+                },
+                required: ['type', 'name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_file_snippet',
+            description: 'Vrátí prvních N bytů obsahu souboru jako text (default 8000, max 50000). Nastav truncated:true pokud soubor delší.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' },
+                    maxBytes: { type: 'integer', minimum: 100, maximum: 50000 }
+                },
+                required: ['type', 'name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_file_summary',
+            description: 'Souhrn souboru: pro IFC top 10 typů + počet entit, pro IDS počet specifikací + info, plus size a modifiedAt.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' }
+                },
+                required: ['type', 'name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'replace_file_content',
+            description: 'Přepíše obsah existujícího souboru novým textem. Před zápisem otevře potvrzovací dialog (s varováním pokud rozdíl velikostí >50%).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' },
+                    content: { type: 'string' }
+                },
+                required: ['type', 'name', 'content']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'list_presets',
+            description: 'Vypíše všechny uložené validační presety.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'save_preset',
+            description: 'Uloží nový preset. useCurrentGroups:true vezme aktuální skupiny z UI validatoru, jinak použije last-session preset.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string' },
+                    useCurrentGroups: { type: 'boolean' }
+                },
+                required: ['name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'delete_preset',
+            description: 'Smaže preset podle id NEBO name. Před smazáním otevře potvrzovací dialog.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' }
+                }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'load_preset',
+            description: 'Načte preset jako last-session (validator UI se aktualizuje). andNavigate:true přepne na Validator stránku pokud nejsi na ní (a spustí auto-run).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    andNavigate: { type: 'boolean' }
+                }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'apply_preset',
+            description: 'Najde preset podle jména a aplikuje ho. Pokud nejsi na Validator stránce, automaticky tam přepne a spustí validaci.',
+            parameters: {
+                type: 'object',
+                properties: { presetName: { type: 'string' } },
+                required: ['presetName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'request_user_attention',
+            description: 'Zobrazí toast notifikaci uživateli — info/warning/success/error. Použij když chceš upozornit na něco mimo chat panel.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    message: { type: 'string' },
+                    kind: { type: 'string', enum: ['info', 'warning', 'success', 'error'] }
+                },
+                required: ['message']
             }
         }
     }

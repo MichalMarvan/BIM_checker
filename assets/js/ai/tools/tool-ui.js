@@ -24,7 +24,20 @@ export async function navigate_to_page(args) {
     };
 }
 
+export async function request_user_attention(args) {
+    helpers.validateArgs(args, { message: { required: true } });
+    const kind = (args && args.kind) || 'info';
+    if (typeof window.ErrorHandler === 'undefined') {
+        return { error: 'error_handler_not_available' };
+    }
+    const fn = window.ErrorHandler[kind];
+    if (typeof fn !== 'function') return { error: 'invalid_kind', message: `Unknown kind '${kind}'. Použij info|warning|success|error.` };
+    fn.call(window.ErrorHandler, String(args.message));
+    return { shown: true, kind };
+}
+
 export function register(registerFn) {
     registerFn('get_current_page', get_current_page);
     registerFn('navigate_to_page', navigate_to_page);
+    registerFn('request_user_attention', request_user_attention);
 }
