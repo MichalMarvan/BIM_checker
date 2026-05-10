@@ -622,6 +622,33 @@ export const TOOL_DEFINITIONS = [
                 required: ['idsFileName', 'facetType', 'index']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_validation_failures',
+            description: 'Detail selhaných requirementů z poslední validace. Page-locked na Validator. Limit 50, vrátí truncated:true při překročení.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    groupIndex: { type: 'integer', minimum: 0 },
+                    ifcFileName: { type: 'string', description: 'Volitelný filtr na konkrétní IFC soubor.' }
+                },
+                required: ['groupIndex']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'count_failures_by_requirement',
+            description: 'Histogram failed/total per requirement napříč všemi IFC ve skupině. Page-locked na Validator.',
+            parameters: {
+                type: 'object',
+                properties: { groupIndex: { type: 'integer', minimum: 0 } },
+                required: ['groupIndex']
+            }
+        }
     }
 ];
 

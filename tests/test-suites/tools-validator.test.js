@@ -167,3 +167,77 @@ describe('tools/tool-validator (write)', () => {
         }
     });
 });
+
+describe('tools/tool-validator (failures)', () => {
+    it('get_validation_failures returns wrong_page off validator', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-validator.js');
+        const helpers = await import('../../assets/js/ai/tools/_helpers.js');
+        helpers._setCurrentPageForTest('parser');
+        try {
+            const r = await tools.get_validation_failures({ groupIndex: 0 });
+            expect(r.error).toBe('wrong_page');
+        } finally {
+            helpers._setCurrentPageForTest(null);
+        }
+    });
+
+    it('get_validation_failures returns no_results when validationResults empty', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-validator.js');
+        const helpers = await import('../../assets/js/ai/tools/_helpers.js');
+        helpers._setCurrentPageForTest('validator');
+        const orig = window.validationResults;
+        window.validationResults = null;
+        try {
+            const r = await tools.get_validation_failures({ groupIndex: 0 });
+            expect(r.error).toBe('no_results');
+        } finally {
+            window.validationResults = orig;
+            helpers._setCurrentPageForTest(null);
+        }
+    });
+
+    it('get_validation_failures lists failures from a fake group', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-validator.js');
+        const helpers = await import('../../assets/js/ai/tools/_helpers.js');
+        helpers._setCurrentPageForTest('validator');
+        const orig = window.validationResults;
+        window.validationResults = [{
+            idsFileName: 'a.ids', idsTitle: 'A',
+            ifcResults: [{
+                ifcFile: { name: 'x.ifc' },
+                results: [{ specName: 'S1', requirements: [{ requirement: 'IsExternal', pass: 5, fail: 3 }, { requirement: 'AllOK', pass: 10, fail: 0 }] }]
+            }]
+        }];
+        try {
+            const r = await tools.get_validation_failures({ groupIndex: 0 });
+            expect(r.failures.length).toBe(1);
+            expect(r.failures[0].requirement).toBe('IsExternal');
+            expect(r.failures[0].failed).toBe(3);
+        } finally {
+            window.validationResults = orig;
+            helpers._setCurrentPageForTest(null);
+        }
+    });
+
+    it('count_failures_by_requirement aggregates across files', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-validator.js');
+        const helpers = await import('../../assets/js/ai/tools/_helpers.js');
+        helpers._setCurrentPageForTest('validator');
+        const orig = window.validationResults;
+        window.validationResults = [{
+            ifcResults: [
+                { ifcFile: { name: 'a.ifc' }, results: [{ specName: 'S', requirements: [{ requirement: 'R', pass: 1, fail: 2 }] }] },
+                { ifcFile: { name: 'b.ifc' }, results: [{ specName: 'S', requirements: [{ requirement: 'R', pass: 0, fail: 4 }] }] }
+            ]
+        }];
+        try {
+            const r = await tools.count_failures_by_requirement({ groupIndex: 0 });
+            expect(r.breakdown.length).toBe(1);
+            expect(r.breakdown[0].failed).toBe(6);
+            expect(r.breakdown[0].total).toBe(7);
+        } finally {
+            window.validationResults = orig;
+            helpers._setCurrentPageForTest(null);
+        }
+    });
+});
