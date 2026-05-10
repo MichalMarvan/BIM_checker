@@ -226,6 +226,91 @@ export async function move_files_batch(args) {
     return { moved, skipped, targetFolderId: folderResolved.id };
 }
 
+export async function download_file(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        name: { required: true }
+    });
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const file = await window.BIMStorage.getFile(args.type, args.name);
+    if (!file) return { error: 'not_found' };
+    const content = await window.BIMStorage.getFileContent(args.type, file.id);
+    const blob = new Blob([content], { type: args.type === 'ifc' ? 'text/plain' : 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = args.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { downloaded: true, name: args.name, size: file.size };
+}
+
+export async function get_file_snippet(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        name: { required: true }
+    });
+    const maxBytes = typeof args.maxBytes === 'number' && args.maxBytes > 0
+        ? Math.min(args.maxBytes, 50000)
+        : 8000;
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const file = await window.BIMStorage.getFile(args.type, args.name);
+    if (!file) return { error: 'not_found' };
+    const content = await window.BIMStorage.getFileContent(args.type, file.id);
+    const truncated = content.length > maxBytes;
+    return {
+        name: args.name,
+        snippet: truncated ? content.slice(0, maxBytes) : content,
+        truncated,
+        totalBytes: content.length
+    };
+}
+
+export async function get_file_summary(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        name: { required: true }
+    });
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const file = await window.BIMStorage.getFile(args.type, args.name);
+    if (!file) return { error: 'not_found' };
+    const content = await window.BIMStorage.getFileContent(args.type, file.id);
+    const out = {
+        name: args.name,
+        size: file.size,
+        modifiedAt: file.modifiedAt || file.uploadDate || null
+    };
+    if (args.type === 'ifc') {
+        if (typeof window.IFCParserCore === 'undefined') {
+            out.warning = 'IFCParserCore not available — entity counts skipped';
+            return out;
+        }
+        const entities = window.IFCParserCore.parseIFCContent(content, args.name) || [];
+        const counts = {};
+        for (const e of entities) {
+            const t = (e.entity || '').toUpperCase();
+            counts[t] = (counts[t] || 0) + 1;
+        }
+        out.entityCount = entities.length;
+        out.topTypes = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([n, c]) => ({ name: n, count: c }));
+    } else {
+        if (typeof window.parseIDS === 'undefined') {
+            out.warning = 'parseIDS not available — spec count skipped';
+            return out;
+        }
+        const ids = window.parseIDS(content, args.name);
+        out.specCount = ids?.specifications?.length || 0;
+        out.title = ids?.info?.title || null;
+        out.ifcVersion = ids?.info?.ifcVersion || null;
+    }
+    return out;
+}
+
 export function register(registerFn) {
     registerFn('list_storage_files', list_storage_files);
     registerFn('list_storage_folders', list_storage_folders);
@@ -235,4 +320,7 @@ export function register(registerFn) {
     registerFn('delete_folder', delete_folder);
     registerFn('move_file', move_file);
     registerFn('move_files_batch', move_files_batch);
+    registerFn('download_file', download_file);
+    registerFn('get_file_snippet', get_file_snippet);
+    registerFn('get_file_summary', get_file_summary);
 }

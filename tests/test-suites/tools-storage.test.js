@@ -72,7 +72,7 @@ describe('tools/tool-storage', () => {
 
     it('register() adds list_storage_files + list_storage_folders + delete_file_from_storage + folder CRUD + move tools to executor REGISTRY', async () => {
         storageTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(8);
+        expect(executor._registrySizeForTest()).toBe(11);
     });
 
     it('list_storage_folders returns array with folder shape', async () => {
@@ -224,5 +224,88 @@ describe('tools/tool-storage', () => {
             await tools.move_files_batch({ type: 'ifc', fileNames: 'not_array', targetFolderName: 'root' });
         } catch (e) { threw = true; }
         expect(threw).toBe(true);
+    });
+
+    it('download_file triggers a click on a download anchor', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        await window.BIMStorage.saveFile('ifc', { name: 'dl_test.ifc', size: 5, content: 'HELLO' });
+        const origCreate = URL.createObjectURL;
+        const origRevoke = URL.revokeObjectURL;
+        let createUrlCalled = false;
+        URL.createObjectURL = () => { createUrlCalled = true; return 'blob:fake'; };
+        URL.revokeObjectURL = () => {};
+        try {
+            const r = await tools.download_file({ type: 'ifc', name: 'dl_test.ifc' });
+            expect(r.downloaded).toBe(true);
+            expect(r.name).toBe('dl_test.ifc');
+            expect(createUrlCalled).toBe(true);
+        } finally {
+            URL.createObjectURL = origCreate;
+            URL.revokeObjectURL = origRevoke;
+            await window.BIMStorage.deleteFile('ifc', 'dl_test.ifc').catch(() => {});
+        }
+    });
+
+    it('download_file returns not_found for missing file', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const r = await tools.download_file({ type: 'ifc', name: 'never_existed.ifc' });
+        expect(r.error).toBe('not_found');
+    });
+
+    it('get_file_snippet returns content under maxBytes', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        await window.BIMStorage.saveFile('ifc', { name: 'snippet1.ifc', size: 5, content: 'HELLO' });
+        try {
+            const r = await tools.get_file_snippet({ type: 'ifc', name: 'snippet1.ifc' });
+            expect(r.snippet).toBe('HELLO');
+            expect(r.truncated).toBe(false);
+            expect(r.totalBytes).toBe(5);
+        } finally {
+            await window.BIMStorage.deleteFile('ifc', 'snippet1.ifc').catch(() => {});
+        }
+    });
+
+    it('get_file_snippet truncates long content', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const big = 'x'.repeat(20000);
+        await window.BIMStorage.saveFile('ifc', { name: 'big.ifc', size: big.length, content: big });
+        try {
+            const r = await tools.get_file_snippet({ type: 'ifc', name: 'big.ifc', maxBytes: 100 });
+            expect(r.snippet.length).toBe(100);
+            expect(r.truncated).toBe(true);
+            expect(r.totalBytes).toBe(20000);
+        } finally {
+            await window.BIMStorage.deleteFile('ifc', 'big.ifc').catch(() => {});
+        }
+    });
+
+    it('get_file_summary returns ifc entity counts', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const tinyIfc = `ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('test'),'2;1');
+FILE_NAME('t.ifc','',(),(), '', '', '');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+#1=IFCWALL('GUID',$,'Wall1',$,$,$,$,$,$);
+#2=IFCWALL('GUID2',$,'Wall2',$,$,$,$,$,$);
+ENDSEC;
+END-ISO-10303-21;`;
+        await window.BIMStorage.saveFile('ifc', { name: 'sum1.ifc', size: tinyIfc.length, content: tinyIfc });
+        try {
+            const r = await tools.get_file_summary({ type: 'ifc', name: 'sum1.ifc' });
+            expect(r.name).toBe('sum1.ifc');
+            expect(typeof r.entityCount).toBe('number');
+            expect(Array.isArray(r.topTypes)).toBe(true);
+        } finally {
+            await window.BIMStorage.deleteFile('ifc', 'sum1.ifc').catch(() => {});
+        }
+    });
+
+    it('get_file_summary returns not_found for missing file', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const r = await tools.get_file_summary({ type: 'ifc', name: 'nope_summary.ifc' });
+        expect(r.error).toBe('not_found');
     });
 });

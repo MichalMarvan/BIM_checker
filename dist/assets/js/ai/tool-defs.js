@@ -445,6 +445,52 @@ export const TOOL_DEFINITIONS = [
                 required: ['type', 'fileNames', 'targetFolderName']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'download_file',
+            description: 'Spustí download souboru z úložiště do uživatelova OS (přes browser).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' }
+                },
+                required: ['type', 'name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_file_snippet',
+            description: 'Vrátí prvních N bytů obsahu souboru jako text (default 8000, max 50000). Nastav truncated:true pokud soubor delší.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' },
+                    maxBytes: { type: 'integer', minimum: 100, maximum: 50000 }
+                },
+                required: ['type', 'name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_file_summary',
+            description: 'Souhrn souboru: pro IFC top 10 typů + počet entit, pro IDS počet specifikací + info, plus size a modifiedAt.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' }
+                },
+                required: ['type', 'name']
+            }
+        }
     }
 ];
 
