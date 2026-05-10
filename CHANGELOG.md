@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-05-10
+
+### Added
+- AI tools / function calling (Phase 8): 15 tools across storage, validator, IDS, IFC, and UI
+- Storage tools: list_storage_files, delete_file_from_storage
+- Validator tools: list/add/delete validation groups, run_validation, get_validation_results
+- IDS tools: list_ids_specifications
+- IFC tools: search_ifc_entities, count_entities_by_type, find_ifc_files_with_entity, get_entity_properties, get_property_value
+- UI tools: get_current_page, navigate_to_page
+- Tool-call iteration loop in chat-panel (max 5 iterations)
+- Cross-page write tool support via ValidationPresets last-session preset + `ai:applyLastSession` event
+- LRU cache for parsed IFC files (max 3) to avoid re-parsing across tool calls
+- Native browser confirm() dialogs for destructive operations
+- 5 new i18n keys in CZ + EN: ai.chat.toolCalling, toolReturned, toolFailed, toolCancelled, maxIterations
+
+### Fixed
+- IFCParserCore: entity records now include the missing `id` (Express ID) field
+
 ## [0.3.0] — 2026-05-09
 
 ### Added
