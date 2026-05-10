@@ -169,5 +169,33 @@ function _onHeadClick(agentId) {
 }
 
 function _onOverflowClick(overflow) {
-    window.dispatchEvent(new CustomEvent('chatHeads:overflowOpen', { detail: { heads: overflow } }));
+    let popover = document.getElementById('chatHeadsOverflowPopover');
+    if (popover) { popover.remove(); return; }
+    popover = document.createElement('div');
+    popover.id = 'chatHeadsOverflowPopover';
+    popover.className = 'chat-heads-overflow-popover is-open';
+    for (const head of overflow) {
+        const item = document.createElement('div');
+        item.className = 'chat-heads-overflow-popover__item';
+        item.dataset.agentId = head.agentId;
+        const cached = _agentCache.get(head.agentId);
+        item.innerHTML = `
+            <span style="font-size:1.4em">${cached?.icon || '🤖'}</span>
+            <span>${_escapeHtml(cached?.name || '…')}</span>`;
+        item.addEventListener('click', () => {
+            popover.remove();
+            window.dispatchEvent(new CustomEvent('chatHeads:openHead', { detail: { agentId: head.agentId } }));
+        });
+        popover.appendChild(item);
+    }
+    document.body.appendChild(popover);
+    setTimeout(() => {
+        const closeOnOutside = (e) => {
+            if (!popover.contains(e.target) && !e.target.classList.contains('chat-heads-overflow')) {
+                popover.remove();
+                document.removeEventListener('click', closeOnOutside);
+            }
+        };
+        document.addEventListener('click', closeOnOutside);
+    }, 0);
 }

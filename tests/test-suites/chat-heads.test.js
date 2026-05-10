@@ -199,4 +199,29 @@ describe('chat-heads (state)', () => {
             await storage.deleteAgent(a);
         }
     });
+
+    it('clicking overflow pill creates popover with hidden items', async () => {
+        const ids = [];
+        for (let i = 0; i < 7; i++) {
+            ids.push(await storage.saveAgent({ name: `OF${i}`, provider: 'openai', model: 'm', apiKey: 'k' }));
+        }
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        chatHeads.setContainer(container);
+        try {
+            for (let i = 0; i < ids.length; i++) {
+                await chatHeads.addHead({ agentId: ids[i], threadId: `t${i}` });
+            }
+            const pill = container.querySelector('.chat-heads-overflow');
+            pill.click();
+            const popover = document.getElementById('chatHeadsOverflowPopover');
+            expect(!!popover).toBe(true);
+            const items = popover.querySelectorAll('.chat-heads-overflow-popover__item');
+            expect(items.length).toBe(2);
+            popover.remove();
+        } finally {
+            container.remove();
+            for (const id of ids) await storage.deleteAgent(id).catch(() => {});
+        }
+    });
 });
