@@ -8,6 +8,7 @@
  */
 
 import * as launcher from './chat-launcher.js';
+import { getSettings } from '../ai/chat-storage.js';
 
 let _settingsModalPromise = null;
 let _chatPanelPromise = null;
@@ -52,6 +53,19 @@ async function init() {
 
     // When agents change, the launcher's popover re-renders next time it opens
     // (via onLanguageChange-style re-render on each open).
+
+    // Auto-restore chat panel + last thread if it was open before navigation
+    try {
+        const settings = await getSettings();
+        if (settings && settings.chatPanelOpen && settings.lastActiveAgentId) {
+            const cp = await getChatPanel();
+            if (typeof cp.restoreLastSession === 'function') {
+                await cp.restoreLastSession();
+            }
+        }
+    } catch (e) {
+        console.warn('[ai-ui] auto-restore failed:', e);
+    }
 }
 
 if (document.readyState === 'loading') {
