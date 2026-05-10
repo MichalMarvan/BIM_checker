@@ -25,7 +25,27 @@ export async function openForAgent(agentId) {
     _panel.classList.add('is-open');
     _panel.classList.remove('is-minimized');
     _hideLauncher(true);
-    await storage.updateSettings({ chatPanelOpen: true, lastActiveAgentId: agentId });
+    await storage.updateSettings({ chatPanelOpen: true, lastActiveAgentId: agentId, lastActiveThreadId: null });
+}
+
+export async function restoreLastSession() {
+    const settings = await storage.getSettings();
+    if (!settings || !settings.chatPanelOpen || !settings.lastActiveAgentId) return false;
+    const agent = await storage.getAgent(settings.lastActiveAgentId);
+    if (!agent) {
+        await storage.updateSettings({ chatPanelOpen: false, lastActiveAgentId: null, lastActiveThreadId: null });
+        return false;
+    }
+    await openForAgent(settings.lastActiveAgentId);
+    if (settings.lastActiveThreadId) {
+        const thread = await storage.getThread(settings.lastActiveThreadId);
+        if (thread && thread.agentId === settings.lastActiveAgentId) {
+            _state.threadId = settings.lastActiveThreadId;
+            await _refreshMessages();
+            await _refreshThreadsSidebar();
+        }
+    }
+    return true;
 }
 
 export function close() {
@@ -132,6 +152,7 @@ async function _refreshThreadsSidebar() {
     newBtn.addEventListener('click', () => {
         _state.threadId = null;
         _refreshMessages();
+        storage.updateSettings({ lastActiveThreadId: null });
     });
     sidebar.appendChild(newBtn);
 
@@ -155,6 +176,7 @@ async function _refreshThreadsSidebar() {
             _state.threadId = thread.id;
             _refreshMessages();
             _refreshThreadsSidebar();
+            storage.updateSettings({ lastActiveThreadId: thread.id });
         });
         sidebar.appendChild(item);
     }
@@ -208,6 +230,7 @@ async function _send() {
     if (!_state.threadId) {
         _state.threadId = await storage.createThread(_state.agentId, text);
         await _refreshThreadsSidebar();
+        await storage.updateSettings({ lastActiveThreadId: _state.threadId });
     } else {
         await storage.appendMessage(_state.threadId, { role: 'user', content: text });
     }
