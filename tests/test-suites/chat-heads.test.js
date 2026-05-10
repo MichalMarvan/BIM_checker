@@ -163,4 +163,40 @@ describe('chat-heads (state)', () => {
             await storage.deleteAgent(a);
         }
     });
+
+    it('markUnread sets ripple class on the head element', async () => {
+        const a = await storage.saveAgent({ name: 'UnreadVis', provider: 'openai', model: 'm', apiKey: 'k' });
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        chatHeads.setContainer(container);
+        try {
+            await chatHeads.addHead({ agentId: a, threadId: 't1' });
+            await chatHeads.markUnread(a);
+            const btn = container.querySelector('.chat-head');
+            expect(btn.classList.contains('chat-head--unread')).toBe(true);
+            await chatHeads.clearUnread(a);
+            const btnAfter = container.querySelector('.chat-head');
+            expect(btnAfter.classList.contains('chat-head--unread')).toBe(false);
+        } finally {
+            container.remove();
+            await storage.deleteAgent(a);
+        }
+    });
+
+    it('clearUnread (e.g. after openForAgent) resets the flag', async () => {
+        const a = await storage.saveAgent({ name: 'ClearTest', provider: 'openai', model: 'm', apiKey: 'k' });
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        chatHeads.setContainer(container);
+        try {
+            await chatHeads.addHead({ agentId: a, threadId: 't1' });
+            await chatHeads.markUnread(a);
+            expect(chatHeads.getStateSnapshotForTest().heads[0].hasUnread).toBe(true);
+            await chatHeads.clearUnread(a);
+            expect(chatHeads.getStateSnapshotForTest().heads[0].hasUnread).toBe(false);
+        } finally {
+            container.remove();
+            await storage.deleteAgent(a);
+        }
+    });
 });

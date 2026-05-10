@@ -314,6 +314,9 @@ async function _send() {
                     thinkingDiv.classList.add('chat-panel__msg--assistant');
                     thinkingDiv.textContent = assistantMsg.content;
                 }
+                if (_panel && (!_panel.classList.contains('is-open') || _panel.classList.contains('is-minimized'))) {
+                    chatHeads.markUnread(_state.agentId);
+                }
                 break;
             }
 
