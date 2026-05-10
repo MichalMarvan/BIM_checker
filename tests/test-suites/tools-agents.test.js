@@ -24,6 +24,30 @@ describe('tool-agents (read)', () => {
         }
     });
 
+    it('list_agents includes enabledTools field (null by default)', async () => {
+        const id = await chatStorage.saveAgent({ name: 'EtTest', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        try {
+            const list = await agentTools.list_agents({});
+            const me = list.find(a => a.id === id);
+            expect('enabledTools' in me).toBe(true);
+            expect(me.enabledTools).toBe(null);
+        } finally {
+            await chatStorage.deleteAgent(id);
+        }
+    });
+
+    it('list_agents preserves enabledTools array when set', async () => {
+        const id = await chatStorage.saveAgent({ name: 'EtArr', provider: 'openai', model: 'gpt-4', apiKey: 'k', enabledTools: ['get_theme', 'set_theme'] });
+        try {
+            const list = await agentTools.list_agents({});
+            const me = list.find(a => a.id === id);
+            expect(Array.isArray(me.enabledTools)).toBe(true);
+            expect(me.enabledTools.length).toBe(2);
+        } finally {
+            await chatStorage.deleteAgent(id);
+        }
+    });
+
     it('get_active_agent returns no_active_agent when global is unset', async () => {
         delete window.__bimAiActiveAgentId;
         const r = await agentTools.get_active_agent({});

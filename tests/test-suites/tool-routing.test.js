@@ -77,3 +77,39 @@ describe('agent-presets', () => {
         }
     });
 });
+
+describe('chat-panel tool filtering', () => {
+    let defs;
+
+    beforeEach(async () => {
+        defs = await import('../../assets/js/ai/tool-defs.js');
+    });
+
+    it('filter passes all 56 tools when enabledTools is null', async () => {
+        const enabledTools = null;
+        const filteredTools = (enabledTools && Array.isArray(enabledTools))
+            ? defs.TOOL_DEFINITIONS.filter(t => enabledTools.includes(t.function.name))
+            : defs.TOOL_DEFINITIONS;
+        expect(filteredTools.length).toBe(56);
+    });
+
+    it('filter restricts to whitelist when enabledTools is array', async () => {
+        const enabledTools = ['set_theme', 'get_theme', 'list_agents'];
+        const filteredTools = (enabledTools && Array.isArray(enabledTools))
+            ? defs.TOOL_DEFINITIONS.filter(t => enabledTools.includes(t.function.name))
+            : defs.TOOL_DEFINITIONS;
+        expect(filteredTools.length).toBe(3);
+        const names = filteredTools.map(t => t.function.name).sort();
+        expect(names.includes('get_theme')).toBe(true);
+        expect(names.includes('list_agents')).toBe(true);
+        expect(names.includes('set_theme')).toBe(true);
+    });
+
+    it('filter returns empty array when enabledTools is empty array', async () => {
+        const enabledTools = [];
+        const filteredTools = (enabledTools && Array.isArray(enabledTools))
+            ? defs.TOOL_DEFINITIONS.filter(t => enabledTools.includes(t.function.name))
+            : defs.TOOL_DEFINITIONS;
+        expect(filteredTools.length).toBe(0);
+    });
+});

@@ -293,12 +293,15 @@ async function _send() {
             _panel.querySelector('#chatMessages').appendChild(thinkingDiv);
 
             let streamed = '';
+            const filteredTools = (agent.enabledTools && Array.isArray(agent.enabledTools))
+                ? TOOL_DEFINITIONS.filter(t => agent.enabledTools.includes(t.function.name))
+                : TOOL_DEFINITIONS;
             const result = await chatCompletion(
                 getEffectiveEndpoint(agent),
                 agent.apiKey,
                 agent.model,
                 messages,
-                TOOL_DEFINITIONS,
+                filteredTools,
                 {
                     temperature: agent.temperature,
                     signal: _state.abort.signal,
