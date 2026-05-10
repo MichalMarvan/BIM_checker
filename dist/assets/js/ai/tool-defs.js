@@ -714,8 +714,8 @@ export const TOOL_DEFINITIONS = [
                     name: { type: 'string' },
                     ifcVersion: { type: 'string' },
                     description: { type: 'string' },
-                    applicabilityFacets: { type: 'array' },
-                    requirementFacets: { type: 'array' }
+                    applicabilityFacets: { type: 'array', items: { type: 'object' }, description: 'Pole facet objektů (entity/property/attribute/...).' },
+                    requirementFacets: { type: 'array', items: { type: 'object' }, description: 'Pole facet objektů.' }
                 },
                 required: ['idsFileName', 'name', 'applicabilityFacets', 'requirementFacets']
             }
