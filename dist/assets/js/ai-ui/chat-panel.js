@@ -10,6 +10,7 @@ import { getEffectiveEndpoint } from '../ai/agent-manager.js';
 import { TOOL_DEFINITIONS } from '../ai/tool-defs.js';
 import { executeToolCall } from '../ai/tool-executor.js';
 import { t, onLanguageChange } from './chat-i18n-helpers.js';
+import * as chatHeads from './chat-heads.js';
 
 let _panel = null;
 const _state = { agentId: null, threadId: null, busy: false, abort: null };
@@ -25,6 +26,8 @@ export async function openForAgent(agentId) {
     _panel.classList.add('is-open');
     _panel.classList.remove('is-minimized');
     _hideLauncher(true);
+    chatHeads.setOpenHead(agentId);
+    await chatHeads.clearUnread(agentId);
     await storage.updateSettings({ chatPanelOpen: true, lastActiveAgentId: agentId, lastActiveThreadId: null });
 }
 
@@ -49,6 +52,7 @@ export async function restoreLastSession() {
 }
 
 export function close() {
+    const removingAgentId = _state.agentId;
     if (_panel) {
         _panel.classList.remove('is-open');
         _panel.classList.remove('is-minimized');
@@ -56,6 +60,8 @@ export function close() {
     _hideLauncher(false);
     if (_state.abort) _state.abort.abort();
     window.__bimAiActiveAgentId = null;
+    chatHeads.setOpenHead(null);
+    if (removingAgentId) chatHeads.removeHead(removingAgentId);
     storage.updateSettings({ chatPanelOpen: false });
 }
 
@@ -66,7 +72,14 @@ function _hideLauncher(hide) {
 
 function _toggleMinimize() {
     if (!_panel) return;
+    const wasMinimized = _panel.classList.contains('is-minimized');
     _panel.classList.toggle('is-minimized');
+    if (!wasMinimized) {
+        _panel.classList.remove('is-open');
+        _hideLauncher(false);
+        chatHeads.setOpenHead(null);
+        storage.updateSettings({ chatPanelOpen: false });
+    }
 }
 
 function _injectPanel() {
@@ -177,6 +190,8 @@ async function _refreshThreadsSidebar() {
             _refreshMessages();
             _refreshThreadsSidebar();
             storage.updateSettings({ lastActiveThreadId: thread.id });
+            chatHeads.addHead({ agentId: _state.agentId, threadId: thread.id });
+            chatHeads.setOpenHead(_state.agentId);
         });
         sidebar.appendChild(item);
     }
@@ -231,6 +246,8 @@ async function _send() {
         _state.threadId = await storage.createThread(_state.agentId, text);
         await _refreshThreadsSidebar();
         await storage.updateSettings({ lastActiveThreadId: _state.threadId });
+        await chatHeads.addHead({ agentId: _state.agentId, threadId: _state.threadId });
+        chatHeads.setOpenHead(_state.agentId);
     } else {
         await storage.appendMessage(_state.threadId, { role: 'user', content: text });
     }

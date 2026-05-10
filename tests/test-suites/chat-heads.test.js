@@ -142,4 +142,25 @@ describe('chat-heads (state)', () => {
             for (const id of ids) await storage.deleteAgent(id).catch(() => {});
         }
     });
+
+    it('chatHeads:openHead event is dispatched on _onHeadClick', async () => {
+        const a = await storage.saveAgent({ name: 'EvtTest', provider: 'openai', model: 'm', apiKey: 'k' });
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        chatHeads.setContainer(container);
+        let captured = null;
+        const listener = (ev) => { captured = ev.detail; };
+        window.addEventListener('chatHeads:openHead', listener);
+        try {
+            await chatHeads.addHead({ agentId: a, threadId: 't1' });
+            const btn = container.querySelector('.chat-head');
+            btn.click();
+            expect(captured !== null).toBe(true);
+            expect(captured.agentId).toBe(a);
+        } finally {
+            window.removeEventListener('chatHeads:openHead', listener);
+            container.remove();
+            await storage.deleteAgent(a);
+        }
+    });
 });
