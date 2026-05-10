@@ -245,6 +245,12 @@ async function _send() {
 
     const agent = await storage.getAgent(_state.agentId);
     if (!agent) return;
+    if (!agent.model || !String(agent.model).trim()) {
+        if (typeof ErrorHandler !== 'undefined') {
+            ErrorHandler.error(`Agent "${agent.name}" nemá nastavený model. Otevři Settings ⚙️ a vyber model.`);
+        }
+        return;
+    }
 
     if (!_state.threadId) {
         _state.threadId = await storage.createThread(_state.agentId, text);

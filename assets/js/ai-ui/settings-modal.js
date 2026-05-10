@@ -216,6 +216,12 @@ async function _saveFromForm() {
         temperature: parseFloat(_modal.querySelector('#agentTemp').value),
         isFavorite: _modal.querySelector('#agentFav').checked
     };
+    if (!data.model || !data.model.trim()) {
+        if (typeof ErrorHandler !== 'undefined') {
+            ErrorHandler.error('Vyber nebo zadej model agenta — bez modelu API odmítne request.');
+        }
+        return;
+    }
     try {
         await storage.saveAgent(data);
         if (typeof ErrorHandler !== 'undefined') {
