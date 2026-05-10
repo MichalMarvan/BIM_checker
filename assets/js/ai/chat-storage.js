@@ -238,7 +238,7 @@ export async function clearThread(threadId) {
 function _defaultSettings() {
     return {
         lastActiveAgentId: null,
-        lastOpenedThreadId: null,
+        lastActiveThreadId: null,
         chatPanelOpen: false,
         threadsSidebarOpen: true,
         activeChatHeads: []

@@ -119,7 +119,7 @@ function _render() {
         btn.dataset.agentId = head.agentId;
         btn.dataset.threadId = head.threadId || '';
         btn.innerHTML = `
-            <span class="chat-head__circle">${_iconFor(head.agentId)}</span>
+            <span class="chat-head__circle">${_escapeHtml(_iconFor(head.agentId))}</span>
             <span class="chat-head__label">${_escapeHtml(_labelFor(head.agentId))}</span>`;
         btn.addEventListener('click', () => _onHeadClick(head.agentId));
         _container.appendChild(btn);
@@ -180,7 +180,7 @@ function _onOverflowClick(overflow) {
         item.dataset.agentId = head.agentId;
         const cached = _agentCache.get(head.agentId);
         item.innerHTML = `
-            <span style="font-size:1.4em">${cached?.icon || '🤖'}</span>
+            <span style="font-size:1.4em">${_escapeHtml(cached?.icon || '🤖')}</span>
             <span>${_escapeHtml(cached?.name || '…')}</span>`;
         item.addEventListener('click', () => {
             popover.remove();
