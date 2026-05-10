@@ -99,9 +99,72 @@ describe('tool-agents (read)', () => {
         expect(r.error).toBe('not_found');
     });
 
-    it('register adds 4 tools', async () => {
+    it('delete_agent refuses when target is active', async () => {
+        const id1 = await chatStorage.saveAgent({ name: 'A', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const id2 = await chatStorage.saveAgent({ name: 'B', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        window.__bimAiActiveAgentId = id1;
+        try {
+            const r = await agentTools.delete_agent({ id: id1 });
+            expect(r.error).toBe('cannot_modify_active');
+            const still = await chatStorage.getAgent(id1);
+            expect(!!still).toBe(true);
+        } finally {
+            await chatStorage.deleteAgent(id1);
+            await chatStorage.deleteAgent(id2);
+        }
+    });
+
+    it('delete_agent refuses when only one agent remains', async () => {
+        const before = await chatStorage.listAgents();
+        for (const a of before) await chatStorage.deleteAgent(a.id);
+        const id = await chatStorage.saveAgent({ name: 'Only', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        try {
+            const r = await agentTools.delete_agent({ id });
+            expect(r.error).toBe('last_agent');
+            const still = await chatStorage.getAgent(id);
+            expect(!!still).toBe(true);
+        } finally {
+            await chatStorage.deleteAgent(id);
+        }
+    });
+
+    it('delete_agent returns cancelled when confirm dismissed', async () => {
+        const id1 = await chatStorage.saveAgent({ name: 'A', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const id2 = await chatStorage.saveAgent({ name: 'B', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const orig = window.confirm;
+        window.confirm = () => false;
+        try {
+            const r = await agentTools.delete_agent({ id: id1 });
+            expect(r.cancelled).toBe(true);
+            const still = await chatStorage.getAgent(id1);
+            expect(!!still).toBe(true);
+        } finally {
+            window.confirm = orig;
+            await chatStorage.deleteAgent(id1);
+            await chatStorage.deleteAgent(id2);
+        }
+    });
+
+    it('delete_agent succeeds with confirm and non-active id', async () => {
+        const id1 = await chatStorage.saveAgent({ name: 'Keep', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const id2 = await chatStorage.saveAgent({ name: 'Bye', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const orig = window.confirm;
+        window.confirm = () => true;
+        try {
+            const r = await agentTools.delete_agent({ id: id2 });
+            expect(r.deleted).toBe(true);
+            const gone = await chatStorage.getAgent(id2);
+            expect(gone).toBe(null);
+        } finally {
+            window.confirm = orig;
+            await chatStorage.deleteAgent(id1).catch(() => {});
+            await chatStorage.deleteAgent(id2).catch(() => {});
+        }
+    });
+
+    it('register adds 5 tools', async () => {
         let count = 0;
         agentTools.register(() => { count++; });
-        expect(count).toBe(4);
+        expect(count).toBe(5);
     });
 });

@@ -65,9 +65,26 @@ export async function update_agent(args) {
     return { id: args.id, updated: true };
 }
 
+export async function delete_agent(args) {
+    helpers.validateArgs(args, { id: { required: true } });
+    if (window.__bimAiActiveAgentId && args.id === window.__bimAiActiveAgentId) {
+        return { error: 'cannot_modify_active', message: 'Aktuálně běžící agent nelze smazat.' };
+    }
+    const all = await chatStorage.listAgents();
+    if (all.length <= 1) {
+        return { error: 'last_agent', message: 'Nelze smazat posledního zbývajícího agenta.' };
+    }
+    const target = all.find(a => a.id === args.id);
+    if (!target) return { error: 'not_found' };
+    if (!confirm(`Smazat agenta '${target.name}'?`)) return { cancelled: true };
+    const ok = await chatStorage.deleteAgent(args.id);
+    return { deleted: ok };
+}
+
 export function register(registerFn) {
     registerFn('list_agents', list_agents);
     registerFn('get_active_agent', get_active_agent);
     registerFn('create_agent', create_agent);
     registerFn('update_agent', update_agent);
+    registerFn('delete_agent', delete_agent);
 }
