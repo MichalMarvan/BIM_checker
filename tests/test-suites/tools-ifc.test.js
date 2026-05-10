@@ -161,10 +161,64 @@ END-ISO-10303-21;`;
         expect(result.notFound).toBe(true);
     });
 
-    it('register() adds all 5 IFC tools to executor', async () => {
+    it('register() adds all 7 IFC tools to executor', async () => {
         const executor = await import('../../assets/js/ai/tool-executor.js');
         executor._resetRegistryForTest();
         ifcTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(5);
+        expect(executor._registrySizeForTest()).toBe(7);
+    });
+
+    it('compare_ifc_files returns delta histogram', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ifc.js');
+        helpers._clearIfcCacheForTest();
+        const ifcA = `ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('a'),'2;1');
+FILE_NAME('a.ifc','',(),(), '', '', '');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+#1=IFCWALL('GA',$,'W1',$,$,$,$,$,$);
+#2=IFCDOOR('GD',$,'D1',$,$,$,$,$,$);
+ENDSEC;
+END-ISO-10303-21;`;
+        const ifcB = `ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('b'),'2;1');
+FILE_NAME('b.ifc','',(),(), '', '', '');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+#1=IFCWALL('GA',$,'W1',$,$,$,$,$,$);
+#2=IFCWALL('GA2',$,'W2',$,$,$,$,$,$);
+#3=IFCWINDOW('GW',$,'Wd',$,$,$,$,$,$);
+ENDSEC;
+END-ISO-10303-21;`;
+        await window.BIMStorage.saveFile('ifc', { name: 'cmp_a.ifc', size: ifcA.length, content: ifcA });
+        await window.BIMStorage.saveFile('ifc', { name: 'cmp_b.ifc', size: ifcB.length, content: ifcB });
+        try {
+            const r = await tools.compare_ifc_files({ fileNamesA: ['cmp_a.ifc'], fileNamesB: ['cmp_b.ifc'] });
+            expect(typeof r.a.IFCWALL).toBe('number');
+            expect(typeof r.delta).toBe('object');
+            expect(r.delta.IFCWALL).toBe(1);
+            expect(r.delta.IFCDOOR).toBe(-1);
+            expect(r.delta.IFCWINDOW).toBe(1);
+        } finally {
+            await window.BIMStorage.deleteFile('ifc', 'cmp_a.ifc').catch(() => {});
+            await window.BIMStorage.deleteFile('ifc', 'cmp_b.ifc').catch(() => {});
+        }
+    });
+
+    it('find_property_in_ifc returns not_found for missing file', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ifc.js');
+        const r = await tools.find_property_in_ifc({ fileName: 'never.ifc', propertyName: 'X' });
+        expect(r.error).toBe('not_found');
+    });
+
+    it('find_property_in_ifc throws on missing required arg', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ifc.js');
+        let threw = false;
+        try { await tools.find_property_in_ifc({ fileName: 'x.ifc' }); } catch (e) { threw = true; }
+        expect(threw).toBe(true);
     });
 });

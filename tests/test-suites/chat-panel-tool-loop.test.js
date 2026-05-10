@@ -52,16 +52,16 @@ describe('chat-panel tool loop (mocked fetch)', () => {
         expect(result.error).toBe('unknown_tool');
     });
 
-    it('all 48 tools registered after module load', async () => {
+    it('all 50 tools registered after module load', async () => {
         const executor = await import('../../assets/js/ai/tool-executor.js');
         // Earlier test suites may have reset the registry; re-bootstrap explicitly
         executor._reinitializeForTest();
-        expect(executor._registrySizeForTest()).toBe(48);
+        expect(executor._registrySizeForTest()).toBe(50);
     });
 
-    it('TOOL_DEFINITIONS contains 48 entries', async () => {
+    it('TOOL_DEFINITIONS contains 50 entries', async () => {
         const { TOOL_DEFINITIONS } = await import('../../assets/js/ai/tool-defs.js');
-        expect(TOOL_DEFINITIONS.length).toBe(48);
+        expect(TOOL_DEFINITIONS.length).toBe(50);
     });
 
     it('every tool definition has a name and description in Czech', async () => {

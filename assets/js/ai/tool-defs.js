@@ -649,6 +649,37 @@ export const TOOL_DEFINITIONS = [
                 required: ['groupIndex']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'compare_ifc_files',
+            description: 'Porovná entity histogramy dvou skupin IFC souborů. Vrátí { a, b, delta } kde delta = b - a per typ.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    fileNamesA: { type: 'array', items: { type: 'string' } },
+                    fileNamesB: { type: 'array', items: { type: 'string' } }
+                },
+                required: ['fileNamesA', 'fileNamesB']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'find_property_in_ifc',
+            description: 'Najde entity obsahující property daného jména. Volitelně filtr přes value (přesná shoda). Limit 50 matchů.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    fileName: { type: 'string' },
+                    propertyName: { type: 'string' },
+                    value: { type: 'string' }
+                },
+                required: ['fileName', 'propertyName']
+            }
+        }
     }
 ];
 
