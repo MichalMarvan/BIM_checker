@@ -72,7 +72,7 @@ describe('tools/tool-storage', () => {
 
     it('register() adds list_storage_files + list_storage_folders + delete_file_from_storage + folder CRUD + move tools to executor REGISTRY', async () => {
         storageTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(11);
+        expect(executor._registrySizeForTest()).toBe(12);
     });
 
     it('list_storage_folders returns array with folder shape', async () => {
@@ -306,6 +306,47 @@ END-ISO-10303-21;`;
     it('get_file_summary returns not_found for missing file', async () => {
         const tools = await import('../../assets/js/ai/tools/tool-storage.js');
         const r = await tools.get_file_summary({ type: 'ifc', name: 'nope_summary.ifc' });
+        expect(r.error).toBe('not_found');
+    });
+
+    it('replace_file_content overwrites file with confirm', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        await window.BIMStorage.saveFile('ifc', { name: 'rep.ifc', size: 3, content: 'OLD' });
+        const orig = window.confirm;
+        window.confirm = () => true;
+        try {
+            const r = await tools.replace_file_content({ type: 'ifc', name: 'rep.ifc', content: 'NEW_CONTENT' });
+            expect(r.replaced).toBe(true);
+            expect(r.oldSize).toBe(3);
+            expect(r.newSize).toBe(11);
+            const after = await window.BIMStorage.getFileContent('ifc', (await window.BIMStorage.getFile('ifc', 'rep.ifc')).id);
+            expect(after).toBe('NEW_CONTENT');
+        } finally {
+            window.confirm = orig;
+            await window.BIMStorage.deleteFile('ifc', 'rep.ifc').catch(() => {});
+        }
+    });
+
+    it('replace_file_content returns cancelled when confirm dismissed', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        await window.BIMStorage.saveFile('ifc', { name: 'cancel.ifc', size: 3, content: 'OLD' });
+        const orig = window.confirm;
+        window.confirm = () => false;
+        try {
+            const r = await tools.replace_file_content({ type: 'ifc', name: 'cancel.ifc', content: 'NEW' });
+            expect(r.cancelled).toBe(true);
+            const file = await window.BIMStorage.getFile('ifc', 'cancel.ifc');
+            const content = await window.BIMStorage.getFileContent('ifc', file.id);
+            expect(content).toBe('OLD');
+        } finally {
+            window.confirm = orig;
+            await window.BIMStorage.deleteFile('ifc', 'cancel.ifc').catch(() => {});
+        }
+    });
+
+    it('replace_file_content returns not_found for missing file', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const r = await tools.replace_file_content({ type: 'ifc', name: 'gone.ifc', content: 'X' });
         expect(r.error).toBe('not_found');
     });
 });

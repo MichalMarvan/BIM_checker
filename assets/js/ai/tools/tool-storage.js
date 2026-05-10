@@ -311,6 +311,32 @@ export async function get_file_summary(args) {
     return out;
 }
 
+export async function replace_file_content(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        name: { required: true },
+        content: { required: true }
+    });
+    if (typeof args.content !== 'string') {
+        throw new Error('content must be a string');
+    }
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const file = await window.BIMStorage.getFile(args.type, args.name);
+    if (!file) return { error: 'not_found' };
+    const oldSize = file.size || 0;
+    const newSize = args.content.length;
+    const sizeDeltaPercent = oldSize > 0 ? Math.abs(newSize - oldSize) / oldSize * 100 : 0;
+    const warning = sizeDeltaPercent > 50
+        ? ` POZOR: nová velikost se liší o ${sizeDeltaPercent.toFixed(0)}%.`
+        : '';
+    if (!confirm(`Přepsat obsah '${args.name}'?${warning}`)) {
+        return { cancelled: true };
+    }
+    await window.BIMStorage.saveFile(args.type, { name: args.name, size: newSize, content: args.content }, file.folder);
+    return { replaced: true, oldSize, newSize };
+}
+
 export function register(registerFn) {
     registerFn('list_storage_files', list_storage_files);
     registerFn('list_storage_folders', list_storage_folders);
@@ -323,4 +349,5 @@ export function register(registerFn) {
     registerFn('download_file', download_file);
     registerFn('get_file_snippet', get_file_snippet);
     registerFn('get_file_summary', get_file_summary);
+    registerFn('replace_file_content', replace_file_content);
 }

@@ -491,6 +491,22 @@ export const TOOL_DEFINITIONS = [
                 required: ['type', 'name']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'replace_file_content',
+            description: 'Přepíše obsah existujícího souboru novým textem. Před zápisem otevře potvrzovací dialog (s varováním pokud rozdíl velikostí >50%).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' },
+                    content: { type: 'string' }
+                },
+                required: ['type', 'name', 'content']
+            }
+        }
     }
 ];
 
