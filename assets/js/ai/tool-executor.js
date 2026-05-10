@@ -1,13 +1,49 @@
 /**
- * Executes tool calls dispatched by the AI.
- *
- * Phase 7 returns `tools_disabled` for any call. Phase 8+ will implement
- * real tools.
+ * Routes tool calls dispatched by the AI to handler functions.
+ * REGISTRY is populated at module load via _bootstrap() — each tool sub-module
+ * exports register() and gets called once.
  */
+
+import * as storageTools from './tools/tool-storage.js';
+import * as validatorTools from './tools/tool-validator.js';
+import * as idsTools from './tools/tool-ids.js';
+import * as ifcTools from './tools/tool-ifc.js';
+import * as uiTools from './tools/tool-ui.js';
+
+const REGISTRY = {};
+
+export function _registerTool(name, fn) {
+    REGISTRY[name] = fn;
+}
+
+function _bootstrap() {
+    storageTools.register(_registerTool);
+    validatorTools.register(_registerTool);
+    idsTools.register(_registerTool);
+    ifcTools.register(_registerTool);
+    uiTools.register(_registerTool);
+}
+
+_bootstrap();
+
 export async function executeToolCall(toolCall) {
-    console.warn('[tool-executor] Phase 7: tools disabled. Call ignored:', toolCall);
-    return {
-        toolCallId: toolCall?.id,
-        result: { error: 'tools_disabled', message: 'Tools are not available in Phase 7' }
-    };
+    const name = toolCall?.name;
+    const args = toolCall?.arguments;
+    const fn = REGISTRY[name];
+    if (!fn) return { error: 'unknown_tool', name };
+    try {
+        return await fn(args);
+    } catch (e) {
+        console.warn('[tool-executor]', name, 'failed:', e);
+        return { error: 'execution_error', message: e.message, tool: name };
+    }
+}
+
+export function _registrySizeForTest() { return Object.keys(REGISTRY).length; }
+export function _resetRegistryForTest() {
+    for (const k of Object.keys(REGISTRY)) delete REGISTRY[k];
+}
+export function _reinitializeForTest() {
+    _resetRegistryForTest();
+    _bootstrap();
 }

@@ -97,6 +97,18 @@
 - [x] Mimo scope: tools / function calling (Phase 8+), 3D viewer integrace (Phase 9+)
 - [x] +43 unit + integračních testů (518 → 527)
 
+### AI tools / function calling (Phase 8, 2026-05-10) ✅
+- [x] 15 tools (storage 2, validator 5, IDS 1, IFC 5, UI 2)
+- [x] OpenAI function-calling protocol
+- [x] Cross-page write tools via ValidationPresets last-session + `ai:applyLastSession` event
+- [x] LRU cache (max 3) for parsed IFC files
+- [x] Native confirm() for destructive ops (delete file, delete validation group)
+- [x] Tool-call iteration loop in chat-panel (max 5 iterations)
+- [x] Tool-call/result bubbles inline in chat
+- [x] 56 new tests (527 → 583)
+
+Branch: phase-8-ai-tools
+
 ---
 
 ## K dokončení (TODO)

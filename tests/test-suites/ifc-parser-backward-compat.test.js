@@ -65,6 +65,7 @@ describe('IFCParserCore vs legacy parseIFCFileAsync (snapshot)', () => {
                         }
                     }
                     entities.push({
+                        id,
                         guid,
                         entity: entity.type,
                         name: name || '-',

@@ -86,10 +86,20 @@ class WorkerPool {
      * @private
      */
     _handleWorkerError(worker, error) {
-        console.error(`Worker ${worker.id} error:`, error);
-        worker.busy = false;
-        this.availableWorkers.push(worker);
-        this._processQueue();
+        const desc = error.message || `(${error.type || 'unknown'}; src=${error.filename || '?'})`;
+        console.error(`Worker ${worker.id} error: ${desc}`);
+        if (this.terminated) return;
+        // Treat any worker error as a fatal pool failure so consumers can fall
+        // back to the main thread. Without this, pending submit() promises hang
+        // forever because we don't track which task was on which worker.
+        const err = new Error(`Worker pool failed: ${desc}`);
+        for (const [, cb] of this.taskCallbacks) cb.reject(err);
+        this.taskCallbacks.clear();
+        this.taskQueue.length = 0;
+        this.terminated = true;
+        for (const w of this.workers) { try { w.terminate(); } catch (e) { /* ignore */ } }
+        this.workers = [];
+        this.availableWorkers = [];
     }
 
     /**

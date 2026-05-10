@@ -227,6 +227,7 @@
             }
 
             entities.push({
+                id,
                 guid,
                 entity: entity.type,
                 name: name || '-',

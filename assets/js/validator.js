@@ -26,8 +26,10 @@ function _getIfcParserPool() {
     }
 
     try {
-        const scripts = document.querySelectorAll('script[src*="validator.js"]');
-        const validatorSrc = scripts.length ? scripts[0].src : '';
+        // Find this exact script (substring match was greedy and matched ids-xsd-validator.js)
+        const validatorScript = Array.from(document.querySelectorAll('script[src]'))
+            .find(s => /(^|\/)validator\.js(\?|$)/.test(s.src));
+        const validatorSrc = validatorScript ? validatorScript.src : '';
         const baseUrl = validatorSrc.substring(0, validatorSrc.lastIndexOf('/'));
         const workerScript = `${baseUrl}/workers/ifc-parser.worker.js`;
         _ifcParserPool = new WorkerPool({
@@ -2886,28 +2888,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateValidateButton();
 
     // Phase 6: auto-restore last session (async)
-    if (typeof ValidationPresets !== 'undefined') {
-        const last = ValidationPresets.loadLastSession();
-        if (last && Array.isArray(last.groups) && last.groups.length > 0) {
-            // Reserve approximate vertical space to avoid CLS during hydration
-            const groupsContainer = document.getElementById('validationGroups');
-            if (groupsContainer) {
-                const reservedHeight = Math.min(160 * last.groups.length, window.innerHeight * 0.6);
-                groupsContainer.style.minHeight = `${Math.round(reservedHeight)}px`;
-            }
-            try {
-                const hydrated = await ValidationPresets.fromPresetGroups(last.groups);
-                validationGroups.length = 0;
-                for (const g of hydrated) validationGroups.push(g);
-                renderValidationGroups();
-                updateValidateButton();
-            } catch (e) {
-                console.warn('[validator] last-session hydration failed:', e);
-            } finally {
-                if (groupsContainer) groupsContainer.style.minHeight = '';
+    await _applyLastSession();
+});
+
+async function _applyLastSession() {
+    if (typeof ValidationPresets === 'undefined') return;
+    const last = ValidationPresets.loadLastSession();
+    if (!last || !Array.isArray(last.groups)) return;
+    const groupsContainer = document.getElementById('validationGroups');
+    if (groupsContainer && last.groups.length > 0) {
+        const reservedHeight = Math.min(160 * last.groups.length, window.innerHeight * 0.6);
+        groupsContainer.style.minHeight = `${Math.round(reservedHeight)}px`;
+    }
+    try {
+        const hydrated = await ValidationPresets.fromPresetGroups(last.groups);
+        validationGroups.length = 0;
+        for (const g of hydrated) validationGroups.push(g);
+        renderValidationGroups();
+        updateValidateButton();
+    } catch (e) {
+        console.warn('[validator] last-session hydration failed:', e);
+    } finally {
+        if (groupsContainer) groupsContainer.style.minHeight = '';
+    }
+    // Phase 8 hotfix: AI tool can request auto-run via flag
+    try {
+        if (localStorage.getItem('bim_validator_autorun') === '1') {
+            localStorage.removeItem('bim_validator_autorun');
+            if (validationGroups.length > 0 && typeof validateAll === 'function') {
+                await validateAll();
             }
         }
-    }
+    } catch (e) { /* ignore */ }
+}
+
+// Phase 8: respond to AI tool mutations of last-session preset
+window.addEventListener('ai:applyLastSession', () => {
+    _applyLastSession();
 });
 
 window.addEventListener('beforeunload', () => {
