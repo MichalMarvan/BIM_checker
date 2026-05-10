@@ -138,6 +138,16 @@ Branch: phase-9b-storage-presets
 
 Branch: phase-9c-ids-validation-deep
 
+## Phase 10: Chat-heads UI ✅
+- [x] Stack circular avatars above launcher (max 5 + "+N" overflow)
+- [x] Single-chat-active rule — opening a head minimizes the previously open one
+- [x] Hover slide-out label (right→left, cubic-bezier spring)
+- [x] Ripple unread state on stream completion while minimized
+- [x] Persistence via `settings.activeChatHeads`; survives page navigation
+- [x] +12 tests (672 → 684)
+
+Branch: phase-10-chat-heads-ui
+
 ---
 
 ## K dokončení (TODO)

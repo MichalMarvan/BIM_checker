@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-05-10
+
+### Added
+- Chat-heads UI (Phase 10): minimized chats become circular avatars above the launcher
+- `assets/js/ai-ui/chat-heads.js` module — state mgmt + DOM render
+- Hover slide-out label (8px gap from circle, spring ease)
+- Ripple animation on chat-head when AI response arrives during minimize
+- Overflow +N pill + popover for >5 active threads
+- `settings.activeChatHeads` for cross-page persistence
+
+### Changed
+- Minimize button (▼) on chat panel now collapses panel to chat-head (not header strip)
+- Close button (✕) removes the chat-head from the stack (thread persists in storage)
+- SW cache bumped v30 → v31
+
 ## [0.7.0] - 2026-05-10
 
 ### Added
