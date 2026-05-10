@@ -315,7 +315,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'create_agent',
-            description: 'Vytvoří nového AI agenta. Vyžaduje API klíč.',
+            description: 'Vytvoří nového AI agenta. Vyžaduje API klíč. Pokud agent stejného jména už existuje, vrátí duplicate_name s existingId — použij update_agent místo dalšího create.',
             parameters: {
                 type: 'object',
                 properties: {

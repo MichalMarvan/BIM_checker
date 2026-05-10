@@ -37,8 +37,14 @@ export async function create_agent(args) {
     if (typeof args.name !== 'string' || args.name.trim().length === 0) {
         throw new Error('name must be a non-empty string');
     }
+    const trimmedName = args.name.trim();
+    const existing = await chatStorage.listAgents();
+    const dup = existing.find(a => a.name.trim() === trimmedName);
+    if (dup) {
+        return { error: 'duplicate_name', existingId: dup.id, message: `Agent "${trimmedName}" už existuje (id ${dup.id}). Použij update_agent nebo zvol jiné jméno.` };
+    }
     const id = await chatStorage.saveAgent({
-        name: args.name.trim(),
+        name: trimmedName,
         provider: args.provider,
         model: args.model,
         apiKey: args.apiKey,

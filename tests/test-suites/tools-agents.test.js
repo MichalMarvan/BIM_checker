@@ -68,6 +68,30 @@ describe('tool-agents (read)', () => {
         expect(threw).toBe(true);
     });
 
+    it('create_agent returns duplicate_name when agent with same name exists', async () => {
+        const id1 = await chatStorage.saveAgent({ name: 'DupTest', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        try {
+            const r = await agentTools.create_agent({ name: 'DupTest', provider: 'openai', model: 'gpt-4', apiKey: 'k2' });
+            expect(r.error).toBe('duplicate_name');
+            expect(r.existingId).toBe(id1);
+            const all = await chatStorage.listAgents();
+            const matches = all.filter(a => a.name === 'DupTest');
+            expect(matches.length).toBe(1);
+        } finally {
+            await chatStorage.deleteAgent(id1);
+        }
+    });
+
+    it('create_agent treats whitespace-trimmed names as duplicates', async () => {
+        const id1 = await chatStorage.saveAgent({ name: 'TrimTest', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        try {
+            const r = await agentTools.create_agent({ name: '  TrimTest  ', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+            expect(r.error).toBe('duplicate_name');
+        } finally {
+            await chatStorage.deleteAgent(id1);
+        }
+    });
+
     it('update_agent patches fields on non-active agent', async () => {
         const id = await chatStorage.saveAgent({ name: 'Old', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
         try {
