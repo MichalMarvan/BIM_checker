@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-05-10
+
+### Added
+- AI tools (Phase 9c, 12 new): IDS deep-dive, validation drilldown, IFC analysis, IDS generation, bSDD stubs, Excel export
+- `tool-bsdd.js` module — gated stubs for upcoming bSDD integration
+- IDSXMLGenerator now loaded on homepage (was only on parser/viewer)
+- AI catalog reaches 56 tools end-to-end
+
+### Changed
+- `tool-executor.js` `_bootstrap()` registers `tool-bsdd`
+- SW cache bumped v29 → v30
+
 ## [0.6.0] - 2026-05-10
 
 ### Added

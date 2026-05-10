@@ -1,8 +1,8 @@
 /**
  * Tool definitions for AI function calling.
- * 44 tools spanning storage, validator workflow, IDS specs,
- * IFC content queries, UI navigation, settings, agent management,
- * folder/file ops, presets, and toast notifications.
+ * 56 tools spanning storage, validator workflow, IDS specs + generation,
+ * IFC content queries + analysis, UI navigation, settings, agent management,
+ * folder/file ops, presets, validation drilldown, bSDD (gated), and Excel export.
  */
 
 export const TOOL_DEFINITIONS = [
@@ -586,6 +586,186 @@ export const TOOL_DEFINITIONS = [
                 },
                 required: ['message']
             }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_specification_detail',
+            description: 'Detail jedné specifikace v IDS souboru. Najdi přes specName nebo specIndex (od 0). Vrátí applicability + requirements facets.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    idsFileName: { type: 'string' },
+                    specName: { type: 'string' },
+                    specIndex: { type: 'integer', minimum: 0 }
+                },
+                required: ['idsFileName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_facet_detail',
+            description: 'Detail konkrétního facetu uvnitř specifikace. facetType je entity|partOf|classification|attribute|property|material. in=applicability|requirements (default applicability).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    idsFileName: { type: 'string' },
+                    specName: { type: 'string' },
+                    specIndex: { type: 'integer' },
+                    facetType: { type: 'string', enum: ['entity', 'partOf', 'classification', 'attribute', 'property', 'material'] },
+                    index: { type: 'integer', minimum: 0 },
+                    in: { type: 'string', enum: ['applicability', 'requirements'] }
+                },
+                required: ['idsFileName', 'facetType', 'index']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_validation_failures',
+            description: 'Detail selhaných requirementů z poslední validace. Page-locked na Validator. Limit 50, vrátí truncated:true při překročení.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    groupIndex: { type: 'integer', minimum: 0 },
+                    ifcFileName: { type: 'string', description: 'Volitelný filtr na konkrétní IFC soubor.' }
+                },
+                required: ['groupIndex']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'count_failures_by_requirement',
+            description: 'Histogram failed/total per requirement napříč všemi IFC ve skupině. Page-locked na Validator.',
+            parameters: {
+                type: 'object',
+                properties: { groupIndex: { type: 'integer', minimum: 0 } },
+                required: ['groupIndex']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'compare_ifc_files',
+            description: 'Porovná entity histogramy dvou skupin IFC souborů. Vrátí { a, b, delta } kde delta = b - a per typ.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    fileNamesA: { type: 'array', items: { type: 'string' } },
+                    fileNamesB: { type: 'array', items: { type: 'string' } }
+                },
+                required: ['fileNamesA', 'fileNamesB']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'find_property_in_ifc',
+            description: 'Najde entity obsahující property daného jména. Volitelně filtr přes value (přesná shoda). Limit 50 matchů.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    fileName: { type: 'string' },
+                    propertyName: { type: 'string' },
+                    value: { type: 'string' }
+                },
+                required: ['fileName', 'propertyName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'generate_ids_skeleton',
+            description: 'Vygeneruje minimální IDS XML kostru s jednou prázdnou specifikací. Vrací XML jako string. Generátor vyžaduje email v author poli (XSD constraint).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    title: { type: 'string' },
+                    author: { type: 'string', description: 'Email pro author pole (povinné per XSD).' },
+                    ifcVersion: { type: 'string', description: 'Default IFC4X3_ADD2.' },
+                    copyright: { type: 'string' },
+                    version: { type: 'string' },
+                    description: { type: 'string' },
+                    purpose: { type: 'string' },
+                    milestone: { type: 'string' }
+                },
+                required: ['title']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'add_specification_to_ids',
+            description: 'Přidá novou specifikaci do existujícího IDS souboru. Před zápisem otevře potvrzovací dialog. Facets musí mít správný shape (type + příslušná pole).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    idsFileName: { type: 'string' },
+                    name: { type: 'string' },
+                    ifcVersion: { type: 'string' },
+                    description: { type: 'string' },
+                    applicabilityFacets: { type: 'array' },
+                    requirementFacets: { type: 'array' }
+                },
+                required: ['idsFileName', 'name', 'applicabilityFacets', 'requirementFacets']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'validate_ids_xml',
+            description: 'Spustí XSD validaci IDS souboru proti ids-1.0.xsd. Vrací valid + errors[0..20]. Funguje jen tam, kde je XSD validátor načtený (validator/parser stránka).',
+            parameters: {
+                type: 'object',
+                properties: { idsFileName: { type: 'string' } },
+                required: ['idsFileName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'bsdd_search',
+            description: 'Hledání v buildingSMART Data Dictionary. Aktuálně gated stub — vrátí integration_disabled. Bude implementováno v další fázi.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string' },
+                    classificationUri: { type: 'string' }
+                },
+                required: ['query']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'bsdd_get_property',
+            description: 'Detail bSDD property dle URI. Aktuálně gated stub — vrátí integration_disabled.',
+            parameters: {
+                type: 'object',
+                properties: { uri: { type: 'string' } },
+                required: ['uri']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'export_validation_xlsx',
+            description: 'Stáhne Excel export validačních výsledků. Page-locked na Validator po spuštění validace.',
+            parameters: { type: 'object', properties: {} }
         }
     }
 ];

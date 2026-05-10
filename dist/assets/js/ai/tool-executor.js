@@ -12,6 +12,7 @@ import * as uiTools from './tools/tool-ui.js';
 import * as settingsTools from './tools/tool-settings.js';
 import * as agentTools from './tools/tool-agents.js';
 import * as presetTools from './tools/tool-presets.js';
+import * as bsddTools from './tools/tool-bsdd.js';
 
 const REGISTRY = {};
 
@@ -28,6 +29,7 @@ function _bootstrap() {
     settingsTools.register(_registerTool);
     agentTools.register(_registerTool);
     presetTools.register(_registerTool);
+    bsddTools.register(_registerTool);
 }
 
 _bootstrap();
