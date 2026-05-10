@@ -179,6 +179,53 @@ export async function delete_folder(args) {
     return { deleted: ok };
 }
 
+export async function move_file(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        fileName: { required: true },
+        targetFolderName: { required: true }
+    });
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const sm = args.type === 'ifc' ? window.BIMStorage.ifcStorage : window.BIMStorage.idsStorage;
+    if (!sm.data) await sm.load();
+    const file = await window.BIMStorage.getFile(args.type, args.fileName);
+    if (!file) return { error: 'not_found', message: `Soubor "${args.fileName}" neexistuje.` };
+    const folderResolved = _resolveFolderId(sm.data.folders, args.targetFolderName);
+    if (folderResolved.error) return folderResolved;
+    const ok = await sm.moveFile(file.id, folderResolved.id);
+    return { moved: ok, fileId: file.id, targetFolderId: folderResolved.id };
+}
+
+export async function move_files_batch(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        fileNames: { required: true },
+        targetFolderName: { required: true }
+    });
+    if (!Array.isArray(args.fileNames)) {
+        throw new Error('fileNames must be an array of strings');
+    }
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const sm = args.type === 'ifc' ? window.BIMStorage.ifcStorage : window.BIMStorage.idsStorage;
+    if (!sm.data) await sm.load();
+    const folderResolved = _resolveFolderId(sm.data.folders, args.targetFolderName);
+    if (folderResolved.error) return folderResolved;
+    const moved = [];
+    const skipped = [];
+    for (const name of args.fileNames) {
+        const file = await window.BIMStorage.getFile(args.type, name);
+        if (!file) {
+            skipped.push({ name, reason: 'not_found' });
+            continue;
+        }
+        const ok = await sm.moveFile(file.id, folderResolved.id);
+        if (ok) moved.push(name); else skipped.push({ name, reason: 'move_failed' });
+    }
+    return { moved, skipped, targetFolderId: folderResolved.id };
+}
+
 export function register(registerFn) {
     registerFn('list_storage_files', list_storage_files);
     registerFn('list_storage_folders', list_storage_folders);
@@ -186,4 +233,6 @@ export function register(registerFn) {
     registerFn('create_folder', create_folder);
     registerFn('rename_folder', rename_folder);
     registerFn('delete_folder', delete_folder);
+    registerFn('move_file', move_file);
+    registerFn('move_files_batch', move_files_batch);
 }

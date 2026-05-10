@@ -70,9 +70,9 @@ describe('tools/tool-storage', () => {
         expect(result.error).toBe('not_found');
     });
 
-    it('register() adds list_storage_files + list_storage_folders + delete_file_from_storage + folder CRUD to executor REGISTRY', async () => {
+    it('register() adds list_storage_files + list_storage_folders + delete_file_from_storage + folder CRUD + move tools to executor REGISTRY', async () => {
         storageTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(6);
+        expect(executor._registrySizeForTest()).toBe(8);
     });
 
     it('list_storage_folders returns array with folder shape', async () => {
@@ -172,5 +172,57 @@ describe('tools/tool-storage', () => {
             window.confirm = orig;
             await window.BIMStorage.ifcStorage.deleteFolder(created.folderId).catch(() => {});
         }
+    });
+
+    it('move_file resolves filename and target folder, then moves', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        await window.BIMStorage.saveFile('ifc', { name: 'mv_a.ifc', size: 10, content: 'AAA' });
+        const created = await tools.create_folder({ type: 'ifc', name: 'MoveTarget_mv' });
+        try {
+            const r = await tools.move_file({ type: 'ifc', fileName: 'mv_a.ifc', targetFolderName: 'MoveTarget_mv' });
+            expect(r.moved).toBe(true);
+            const file = await window.BIMStorage.getFile('ifc', 'mv_a.ifc');
+            expect(file.folder).toBe(created.folderId);
+        } finally {
+            await window.BIMStorage.deleteFile('ifc', 'mv_a.ifc').catch(() => {});
+            await window.BIMStorage.ifcStorage.deleteFolder(created.folderId).catch(() => {});
+        }
+    });
+
+    it('move_file returns not_found for missing file', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const r = await tools.move_file({ type: 'ifc', fileName: 'nonexistent_x.ifc', targetFolderName: 'root' });
+        expect(r.error).toBe('not_found');
+    });
+
+    it('move_files_batch reports moved + skipped', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        await window.BIMStorage.saveFile('ifc', { name: 'b1.ifc', size: 10, content: 'X' });
+        await window.BIMStorage.saveFile('ifc', { name: 'b2.ifc', size: 10, content: 'X' });
+        const created = await tools.create_folder({ type: 'ifc', name: 'BatchTarget_b' });
+        try {
+            const r = await tools.move_files_batch({
+                type: 'ifc',
+                fileNames: ['b1.ifc', 'b2.ifc', 'nope.ifc'],
+                targetFolderName: 'BatchTarget_b'
+            });
+            expect(r.moved.length).toBe(2);
+            expect(r.skipped.length).toBe(1);
+            expect(r.skipped[0].name).toBe('nope.ifc');
+            expect(r.skipped[0].reason).toBe('not_found');
+        } finally {
+            await window.BIMStorage.deleteFile('ifc', 'b1.ifc').catch(() => {});
+            await window.BIMStorage.deleteFile('ifc', 'b2.ifc').catch(() => {});
+            await window.BIMStorage.ifcStorage.deleteFolder(created.folderId).catch(() => {});
+        }
+    });
+
+    it('move_files_batch rejects non-array fileNames', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        let threw = false;
+        try {
+            await tools.move_files_batch({ type: 'ifc', fileNames: 'not_array', targetFolderName: 'root' });
+        } catch (e) { threw = true; }
+        expect(threw).toBe(true);
     });
 });

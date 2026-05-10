@@ -413,6 +413,38 @@ export const TOOL_DEFINITIONS = [
                 required: ['type', 'folderName']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'move_file',
+            description: 'Přesune soubor do jiné složky. Soubor i složku identifikuj podle jména.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    fileName: { type: 'string' },
+                    targetFolderName: { type: 'string' }
+                },
+                required: ['type', 'fileName', 'targetFolderName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'move_files_batch',
+            description: 'Přesune více souborů do stejné složky najednou. Vrátí seznam moved a skipped (s důvodem).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    fileNames: { type: 'array', items: { type: 'string' } },
+                    targetFolderName: { type: 'string' }
+                },
+                required: ['type', 'fileNames', 'targetFolderName']
+            }
+        }
     }
 ];
 
