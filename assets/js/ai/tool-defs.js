@@ -587,6 +587,41 @@ export const TOOL_DEFINITIONS = [
                 required: ['message']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_specification_detail',
+            description: 'Detail jedné specifikace v IDS souboru. Najdi přes specName nebo specIndex (od 0). Vrátí applicability + requirements facets.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    idsFileName: { type: 'string' },
+                    specName: { type: 'string' },
+                    specIndex: { type: 'integer', minimum: 0 }
+                },
+                required: ['idsFileName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_facet_detail',
+            description: 'Detail konkrétního facetu uvnitř specifikace. facetType je entity|partOf|classification|attribute|property|material. in=applicability|requirements (default applicability).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    idsFileName: { type: 'string' },
+                    specName: { type: 'string' },
+                    specIndex: { type: 'integer' },
+                    facetType: { type: 'string', enum: ['entity', 'partOf', 'classification', 'attribute', 'property', 'material'] },
+                    index: { type: 'integer', minimum: 0 },
+                    in: { type: 'string', enum: ['applicability', 'requirements'] }
+                },
+                required: ['idsFileName', 'facetType', 'index']
+            }
+        }
     }
 ];
 
