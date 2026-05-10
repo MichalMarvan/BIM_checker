@@ -49,9 +49,59 @@ describe('tool-agents (read)', () => {
         expect(r.error).toBe('not_found');
     });
 
-    it('register adds 2 tools', async () => {
+    it('create_agent stores a new agent and returns id', async () => {
+        const r = await agentTools.create_agent({ name: 'New', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        try {
+            expect(r.created).toBe(true);
+            expect(typeof r.id).toBe('string');
+            const stored = await chatStorage.getAgent(r.id);
+            expect(stored.name).toBe('New');
+        } finally {
+            await chatStorage.deleteAgent(r.id);
+        }
+    });
+
+    it('create_agent rejects empty name', async () => {
+        let threw = false;
+        try { await agentTools.create_agent({ name: '   ', provider: 'openai', model: 'gpt-4', apiKey: 'k' }); }
+        catch (e) { threw = true; }
+        expect(threw).toBe(true);
+    });
+
+    it('update_agent patches fields on non-active agent', async () => {
+        const id = await chatStorage.saveAgent({ name: 'Old', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        try {
+            const r = await agentTools.update_agent({ id, name: 'NewName', temperature: 0.2 });
+            expect(r.updated).toBe(true);
+            const stored = await chatStorage.getAgent(id);
+            expect(stored.name).toBe('NewName');
+            expect(stored.temperature).toBe(0.2);
+        } finally {
+            await chatStorage.deleteAgent(id);
+        }
+    });
+
+    it('update_agent refuses when target is the active agent', async () => {
+        const id = await chatStorage.saveAgent({ name: 'A', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        window.__bimAiActiveAgentId = id;
+        try {
+            const r = await agentTools.update_agent({ id, name: 'tryRename' });
+            expect(r.error).toBe('cannot_modify_active');
+            const stored = await chatStorage.getAgent(id);
+            expect(stored.name).toBe('A');
+        } finally {
+            await chatStorage.deleteAgent(id);
+        }
+    });
+
+    it('update_agent returns not_found for missing id', async () => {
+        const r = await agentTools.update_agent({ id: 'agent_nope_1234', name: 'X' });
+        expect(r.error).toBe('not_found');
+    });
+
+    it('register adds 4 tools', async () => {
         let count = 0;
         agentTools.register(() => { count++; });
-        expect(count).toBe(2);
+        expect(count).toBe(4);
     });
 });
