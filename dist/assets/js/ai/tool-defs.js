@@ -732,6 +732,33 @@ export const TOOL_DEFINITIONS = [
                 required: ['idsFileName']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'bsdd_search',
+            description: 'Hledání v buildingSMART Data Dictionary. Aktuálně gated stub — vrátí integration_disabled. Bude implementováno v další fázi.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string' },
+                    classificationUri: { type: 'string' }
+                },
+                required: ['query']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'bsdd_get_property',
+            description: 'Detail bSDD property dle URI. Aktuálně gated stub — vrátí integration_disabled.',
+            parameters: {
+                type: 'object',
+                properties: { uri: { type: 'string' } },
+                required: ['uri']
+            }
+        }
     }
 ];
 
