@@ -38,3 +38,42 @@ describe('tool-catalog', () => {
         expect(unique.size).toBe(allNames.length);
     });
 });
+
+describe('agent-presets', () => {
+    let presets;
+    let catalog;
+
+    beforeEach(async () => {
+        presets = await import('../../assets/js/ai/agent-presets.js');
+        catalog = await import('../../assets/js/ai/tool-catalog.js');
+    });
+
+    it('AGENT_PRESETS contains exactly 6 presets', async () => {
+        expect(presets.AGENT_PRESETS.length).toBe(6);
+    });
+
+    it('getPreset returns valid preset for known id', async () => {
+        const p = presets.getPreset('validator');
+        expect(p.name).toBe('Validator');
+        expect(Array.isArray(p.enabledTools)).toBe(true);
+        expect(p.enabledTools.includes('run_validation')).toBe(true);
+    });
+
+    it('getPreset returns null for unknown id', async () => {
+        expect(presets.getPreset('nonexistent')).toBe(null);
+    });
+
+    it('general preset has enabledTools=null (means all tools)', async () => {
+        expect(presets.getPreset('general').enabledTools).toBe(null);
+    });
+
+    it('all preset enabledTools reference valid tool names in catalog', async () => {
+        const allNames = new Set(catalog.getAllToolNames());
+        for (const p of presets.AGENT_PRESETS) {
+            if (!p.enabledTools) continue;
+            for (const name of p.enabledTools) {
+                expect(allNames.has(name)).toBe(true);
+            }
+        }
+    });
+});
