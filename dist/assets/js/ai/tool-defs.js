@@ -1,6 +1,6 @@
 /**
  * Tool definitions for AI function calling.
- * 29 tools spanning storage, validator workflow, IDS specs,
+ * 32 tools spanning storage, validator workflow, IDS specs,
  * IFC content queries, UI navigation, settings, and agent management.
  */
 
@@ -364,6 +364,53 @@ export const TOOL_DEFINITIONS = [
                     id: { type: 'string' },
                     name: { type: 'string' }
                 }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_folder',
+            description: 'Vytvoří novou složku v úložišti pro daný typ. Volitelně lze zadat parentName (jméno nebo cesta nadřazené složky).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    name: { type: 'string' },
+                    parentName: { type: 'string', description: 'Volitelné, default root.' }
+                },
+                required: ['type', 'name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'rename_folder',
+            description: 'Přejmenuje složku. Identifikuj přes folderName (jméno nebo cesta).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    folderName: { type: 'string' },
+                    newName: { type: 'string' }
+                },
+                required: ['type', 'folderName', 'newName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'delete_folder',
+            description: 'Smaže složku včetně všech souborů a podsložek. Před smazáním otevře potvrzovací dialog.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    type: { type: 'string', enum: ['ifc', 'ids'] },
+                    folderName: { type: 'string' }
+                },
+                required: ['type', 'folderName']
             }
         }
     }

@@ -59,9 +59,9 @@ describe('chat-panel tool loop (mocked fetch)', () => {
         expect(executor._registrySizeForTest()).toBe(32);
     });
 
-    it('TOOL_DEFINITIONS contains 29 entries', async () => {
+    it('TOOL_DEFINITIONS contains 32 entries', async () => {
         const { TOOL_DEFINITIONS } = await import('../../assets/js/ai/tool-defs.js');
-        expect(TOOL_DEFINITIONS.length).toBe(29);
+        expect(TOOL_DEFINITIONS.length).toBe(32);
     });
 
     it('every tool definition has a name and description in Czech', async () => {
