@@ -75,7 +75,7 @@ export async function delete_agent(args) {
         return { error: 'last_agent', message: 'Nelze smazat posledního zbývajícího agenta.' };
     }
     const target = all.find(a => a.id === args.id);
-    if (!target) return { error: 'not_found' };
+    if (!target) return { error: 'not_found', message: 'Agent s tímto id neexistuje.' };
     if (!confirm(`Smazat agenta '${target.name}'?`)) return { cancelled: true };
     const ok = await chatStorage.deleteAgent(args.id);
     return { deleted: ok };

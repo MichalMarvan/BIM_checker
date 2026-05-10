@@ -324,7 +324,7 @@ export const TOOL_DEFINITIONS = [
                     model: { type: 'string' },
                     apiKey: { type: 'string' },
                     systemPrompt: { type: 'string' },
-                    temperature: { type: 'number' },
+                    temperature: { type: 'number', minimum: 0, maximum: 2 },
                     icon: { type: 'string' },
                     baseUrl: { type: 'string' }
                 },
@@ -347,7 +347,7 @@ export const TOOL_DEFINITIONS = [
                     model: { type: 'string' },
                     apiKey: { type: 'string' },
                     systemPrompt: { type: 'string' },
-                    temperature: { type: 'number' },
+                    temperature: { type: 'number', minimum: 0, maximum: 2 },
                     baseUrl: { type: 'string' }
                 },
                 required: ['id']

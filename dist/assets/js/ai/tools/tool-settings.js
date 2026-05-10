@@ -37,7 +37,7 @@ export async function start_wizard(args) {
 
 export async function dismiss_wizard() {
     if (typeof window.wizard === 'undefined' || typeof window.wizard.stop !== 'function') {
-        return { error: 'wrong_page' };
+        return { error: 'wrong_page', message: 'Průvodce je dostupný jen na podstránkách (validator/parser/viewer).' };
     }
     window.wizard.stop();
     return { dismissed: true };
