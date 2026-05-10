@@ -507,6 +507,70 @@ export const TOOL_DEFINITIONS = [
                 required: ['type', 'name', 'content']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'list_presets',
+            description: 'Vypíše všechny uložené validační presety.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'save_preset',
+            description: 'Uloží nový preset. useCurrentGroups:true vezme aktuální skupiny z UI validatoru, jinak použije last-session preset.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string' },
+                    useCurrentGroups: { type: 'boolean' }
+                },
+                required: ['name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'delete_preset',
+            description: 'Smaže preset podle id NEBO name. Před smazáním otevře potvrzovací dialog.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' }
+                }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'load_preset',
+            description: 'Načte preset jako last-session (validator UI se aktualizuje). andNavigate:true přepne na Validator stránku pokud nejsi na ní (a spustí auto-run).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    andNavigate: { type: 'boolean' }
+                }
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'apply_preset',
+            description: 'Najde preset podle jména a aplikuje ho. Pokud nejsi na Validator stránce, automaticky tam přepne a spustí validaci.',
+            parameters: {
+                type: 'object',
+                properties: { presetName: { type: 'string' } },
+                required: ['presetName']
+            }
+        }
     }
 ];
 

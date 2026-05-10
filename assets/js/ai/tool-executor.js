@@ -11,6 +11,7 @@ import * as ifcTools from './tools/tool-ifc.js';
 import * as uiTools from './tools/tool-ui.js';
 import * as settingsTools from './tools/tool-settings.js';
 import * as agentTools from './tools/tool-agents.js';
+import * as presetTools from './tools/tool-presets.js';
 
 const REGISTRY = {};
 
@@ -26,6 +27,7 @@ function _bootstrap() {
     uiTools.register(_registerTool);
     settingsTools.register(_registerTool);
     agentTools.register(_registerTool);
+    presetTools.register(_registerTool);
 }
 
 _bootstrap();
