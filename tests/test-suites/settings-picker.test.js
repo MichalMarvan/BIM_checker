@@ -32,4 +32,20 @@ describe('settings tool picker (state logic)', () => {
         expect(Array.isArray(result)).toBe(true);
         expect(result.length).toBe(3);
     });
+
+    it('preset apply: validator preset sets correct fields', async () => {
+        const presets = await import('../../assets/js/ai/agent-presets.js');
+        const p = presets.getPreset('validator');
+        expect(p.name).toBe('Validator');
+        expect(p.icon).toBe('✓');
+        expect(Array.isArray(p.enabledTools)).toBe(true);
+        expect(p.enabledTools.includes('run_validation')).toBe(true);
+        expect(p.systemPrompt.length > 0).toBe(true);
+    });
+
+    it('preset apply: general preset has null enabledTools (all)', async () => {
+        const presets = await import('../../assets/js/ai/agent-presets.js');
+        const p = presets.getPreset('general');
+        expect(p.enabledTools).toBe(null);
+    });
 });

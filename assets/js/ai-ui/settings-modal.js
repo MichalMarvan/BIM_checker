@@ -8,6 +8,7 @@ import { PROVIDERS } from '../ai/providers.js';
 import { fetchModels } from '../ai/ai-client.js';
 import { t, onLanguageChange } from './chat-i18n-helpers.js';
 import { TOOL_CATEGORIES, TOTAL_TOOLS } from '../ai/tool-catalog.js';
+import { AGENT_PRESETS, getPreset } from '../ai/agent-presets.js';
 
 let _modal = null;
 const _state = { view: 'list', editingId: null, modelsCache: {} };
@@ -107,6 +108,15 @@ async function _renderFormView(agentId) {
 
     body.innerHTML = `
         <form class="agent-form" id="agentForm">
+            ${!agentId ? `
+            <div class="agent-form__row agent-form__preset-row">
+                <label>${t('ai.agent.startFromPreset')}</label>
+                <select id="agentPresetSelect">
+                    <option value="">${t('ai.agent.noPreset')}</option>
+                    ${AGENT_PRESETS.map(p => `<option value="${p.id}">${escapeHtml(p.icon + ' ' + p.name)}</option>`).join('')}
+                </select>
+            </div>
+            ` : ''}
             <div class="agent-form__row">
                 <label>${t('ai.agent.iconLabel')}</label>
                 <input type="text" id="agentIcon" maxlength="4" value="${escapeAttr(agent.icon || '🤖')}" style="width:80px;">
@@ -178,6 +188,18 @@ async function _renderFormView(agentId) {
         _saveFromForm();
     });
     _renderToolPicker(agent ? agent.enabledTools : null);
+
+    const presetSelect = _modal.querySelector('#agentPresetSelect');
+    if (presetSelect) {
+        presetSelect.addEventListener('change', (e) => {
+            const preset = getPreset(e.target.value);
+            if (!preset) return;
+            _modal.querySelector('#agentName').value = preset.name;
+            _modal.querySelector('#agentIcon').value = preset.icon;
+            _modal.querySelector('#agentSystemPrompt').value = preset.systemPrompt;
+            _renderToolPicker(preset.enabledTools);
+        });
+    }
 }
 
 async function _loadModelsIntoForm() {
