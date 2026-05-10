@@ -83,8 +83,102 @@ export async function get_facet_detail(args) {
     return { facet: filtered[args.index], in: args.in === 'requirements' ? 'requirements' : 'applicability', total: filtered.length };
 }
 
+export async function generate_ids_skeleton(args) {
+    helpers.validateArgs(args, { title: { required: true } });
+    if (typeof window.IDSXMLGenerator === 'undefined') {
+        return { error: 'generator_not_available', message: 'IDS XML generator není načtený na této stránce.' };
+    }
+    const idsData = {
+        title: String(args.title),
+        copyright: args.copyright || '',
+        version: args.version || '1.0',
+        description: args.description || '',
+        author: args.author || '',
+        date: new Date().toISOString().slice(0, 10),
+        purpose: args.purpose || '',
+        milestone: args.milestone || '',
+        specifications: [{
+            name: 'Empty Specification',
+            ifcVersion: args.ifcVersion || 'IFC4X3_ADD2',
+            identifier: '',
+            description: '',
+            instructions: '',
+            applicability: [{ type: 'entity', name: { simpleValue: 'IFCWALL' } }],
+            requirements: []
+        }]
+    };
+    const xml = new window.IDSXMLGenerator().generateIDS(idsData);
+    return { xml, length: xml.length };
+}
+
+export async function add_specification_to_ids(args) {
+    helpers.validateArgs(args, {
+        idsFileName: { required: true },
+        name: { required: true },
+        applicabilityFacets: { required: true },
+        requirementFacets: { required: true }
+    });
+    if (!Array.isArray(args.applicabilityFacets) || !Array.isArray(args.requirementFacets)) {
+        throw new Error('applicabilityFacets and requirementFacets must be arrays');
+    }
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    if (typeof window.IDSParser === 'undefined') throw new Error('IDSParser not available');
+    if (typeof window.IDSXMLGenerator === 'undefined') {
+        return { error: 'generator_not_available' };
+    }
+    await window.BIMStorage.init();
+    const file = await window.BIMStorage.getFile('ids', args.idsFileName);
+    if (!file) return { error: 'not_found' };
+    const content = await window.BIMStorage.getFileContent('ids', file.id);
+    const parsed = window.IDSParser.parse(content);
+    if (parsed.error) return { error: 'parse_error', message: parsed.error.message };
+    const idsData = {
+        title: parsed.info?.title || '',
+        copyright: parsed.info?.copyright || '',
+        version: parsed.info?.version || '',
+        description: parsed.info?.description || '',
+        author: parsed.info?.author || '',
+        date: parsed.info?.date || '',
+        purpose: parsed.info?.purpose || '',
+        milestone: parsed.info?.milestone || '',
+        specifications: [...(parsed.specifications || [])]
+    };
+    idsData.specifications.push({
+        name: args.name,
+        ifcVersion: args.ifcVersion || idsData.specifications[0]?.ifcVersion || 'IFC4X3_ADD2',
+        identifier: '',
+        description: args.description || '',
+        instructions: '',
+        applicability: args.applicabilityFacets,
+        requirements: args.requirementFacets
+    });
+    const xml = new window.IDSXMLGenerator().generateIDS(idsData);
+    if (!confirm(`Přidat specifikaci '${args.name}' do '${args.idsFileName}'?`)) {
+        return { cancelled: true };
+    }
+    await window.BIMStorage.saveFile('ids', { name: args.idsFileName, size: xml.length, content: xml }, file.folder);
+    return { added: true, totalSpecs: idsData.specifications.length };
+}
+
+export async function validate_ids_xml(args) {
+    helpers.validateArgs(args, { idsFileName: { required: true } });
+    if (typeof window.IDSXSDValidator === 'undefined') {
+        return { error: 'validator_not_available', message: 'XSD validátor není k dispozici (jen na podstránkách).' };
+    }
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const file = await window.BIMStorage.getFile('ids', args.idsFileName);
+    if (!file) return { error: 'not_found' };
+    const content = await window.BIMStorage.getFileContent('ids', file.id);
+    const result = await window.IDSXSDValidator.validate(content);
+    return { valid: result.valid, errorCount: (result.errors || []).length, errors: (result.errors || []).slice(0, 20) };
+}
+
 export function register(registerFn) {
     registerFn('list_ids_specifications', list_ids_specifications);
     registerFn('get_specification_detail', get_specification_detail);
     registerFn('get_facet_detail', get_facet_detail);
+    registerFn('generate_ids_skeleton', generate_ids_skeleton);
+    registerFn('add_specification_to_ids', add_specification_to_ids);
+    registerFn('validate_ids_xml', validate_ids_xml);
 }

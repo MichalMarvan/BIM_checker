@@ -1,8 +1,8 @@
 /**
  * Tool definitions for AI function calling.
- * 44 tools spanning storage, validator workflow, IDS specs,
+ * 53 tools spanning storage, validator workflow, IDS specs,
  * IFC content queries, UI navigation, settings, agent management,
- * folder/file ops, presets, and toast notifications.
+ * folder/file ops, presets, toast notifications, and IDS generation/validation.
  */
 
 export const TOOL_DEFINITIONS = [
@@ -678,6 +678,58 @@ export const TOOL_DEFINITIONS = [
                     value: { type: 'string' }
                 },
                 required: ['fileName', 'propertyName']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'generate_ids_skeleton',
+            description: 'Vygeneruje minimální IDS XML kostru s jednou prázdnou specifikací. Vrací XML jako string. Generátor vyžaduje email v author poli (XSD constraint).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    title: { type: 'string' },
+                    author: { type: 'string', description: 'Email pro author pole (povinné per XSD).' },
+                    ifcVersion: { type: 'string', description: 'Default IFC4X3_ADD2.' },
+                    copyright: { type: 'string' },
+                    version: { type: 'string' },
+                    description: { type: 'string' },
+                    purpose: { type: 'string' },
+                    milestone: { type: 'string' }
+                },
+                required: ['title']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'add_specification_to_ids',
+            description: 'Přidá novou specifikaci do existujícího IDS souboru. Před zápisem otevře potvrzovací dialog. Facets musí mít správný shape (type + příslušná pole).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    idsFileName: { type: 'string' },
+                    name: { type: 'string' },
+                    ifcVersion: { type: 'string' },
+                    description: { type: 'string' },
+                    applicabilityFacets: { type: 'array' },
+                    requirementFacets: { type: 'array' }
+                },
+                required: ['idsFileName', 'name', 'applicabilityFacets', 'requirementFacets']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'validate_ids_xml',
+            description: 'Spustí XSD validaci IDS souboru proti ids-1.0.xsd. Vrací valid + errors[0..20]. Funguje jen tam, kde je XSD validátor načtený (validator/parser stránka).',
+            parameters: {
+                type: 'object',
+                properties: { idsFileName: { type: 'string' } },
+                required: ['idsFileName']
             }
         }
     }

@@ -51,7 +51,7 @@ describe('tools/tool-ids', () => {
 
     it('register() adds tool to executor', async () => {
         idsTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(3);
+        expect(executor._registrySizeForTest()).toBe(6);
     });
 
     it('get_specification_detail returns spec by index', async () => {
@@ -96,6 +96,47 @@ describe('tools/tool-ids', () => {
             expect(r.in).toBe('applicability');
         } finally {
             await window.BIMStorage.deleteFile('ids', 'fd.ids').catch(() => {});
+        }
+    });
+
+    it('generate_ids_skeleton returns valid-looking XML', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ids.js');
+        const r = await tools.generate_ids_skeleton({ title: 'Test IDS', author: 'me@example.com' });
+        expect(typeof r.xml).toBe('string');
+        expect(r.xml.includes('<title>Test IDS</title>')).toBe(true);
+        expect(r.xml.includes('<ids')).toBe(true);
+    });
+
+    it('add_specification_to_ids appends spec with confirm', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ids.js');
+        const ids = `<?xml version="1.0"?><ids xmlns="http://standards.buildingsmart.org/IDS"><info><title>T</title><author>a@b.c</author></info><specifications><specification name="Existing" ifcVersion="IFC4"><applicability><entity><name><simpleValue>IFCWALL</simpleValue></name></entity></applicability><requirements/></specification></specifications></ids>`;
+        await window.BIMStorage.saveFile('ids', { name: 'add_spec.ids', size: ids.length, content: ids });
+        const orig = window.confirm;
+        window.confirm = () => true;
+        try {
+            const r = await tools.add_specification_to_ids({
+                idsFileName: 'add_spec.ids',
+                name: 'NewSpec',
+                applicabilityFacets: [{ type: 'entity', name: { simpleValue: 'IFCDOOR' } }],
+                requirementFacets: []
+            });
+            expect(r.added).toBe(true);
+            expect(r.totalSpecs).toBe(2);
+        } finally {
+            window.confirm = orig;
+            await window.BIMStorage.deleteFile('ids', 'add_spec.ids').catch(() => {});
+        }
+    });
+
+    it('validate_ids_xml returns validator_not_available when XSD validator missing', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ids.js');
+        const orig = window.IDSXSDValidator;
+        delete window.IDSXSDValidator;
+        try {
+            const r = await tools.validate_ids_xml({ idsFileName: 'whatever.ids' });
+            expect(r.error).toBe('validator_not_available');
+        } finally {
+            if (orig) window.IDSXSDValidator = orig;
         }
     });
 });
