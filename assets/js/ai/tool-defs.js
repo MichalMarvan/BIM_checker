@@ -571,6 +571,21 @@ export const TOOL_DEFINITIONS = [
                 required: ['presetName']
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'request_user_attention',
+            description: 'Zobrazí toast notifikaci uživateli — info/warning/success/error. Použij když chceš upozornit na něco mimo chat panel.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    message: { type: 'string' },
+                    kind: { type: 'string', enum: ['info', 'warning', 'success', 'error'] }
+                },
+                required: ['message']
+            }
+        }
     }
 ];
 

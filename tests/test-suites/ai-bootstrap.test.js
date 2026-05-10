@@ -29,9 +29,9 @@ describe('AI bootstrap', () => {
         for (const fn of expected) expect(typeof storage[fn]).toBe('function');
     });
 
-    it('TOOL_DEFINITIONS has 43 entries in Phase 9b', async () => {
+    it('TOOL_DEFINITIONS has 44 entries in Phase 9b', async () => {
         const { TOOL_DEFINITIONS } = await import('../../assets/js/ai/tool-defs.js');
         expect(Array.isArray(TOOL_DEFINITIONS)).toBe(true);
-        expect(TOOL_DEFINITIONS.length).toBe(43);
+        expect(TOOL_DEFINITIONS.length).toBe(44);
     });
 });
