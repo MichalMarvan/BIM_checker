@@ -152,6 +152,61 @@ describe('tool-agents (read)', () => {
         }
     });
 
+    it('delete_agent resolves by name when id missing', async () => {
+        const id1 = await chatStorage.saveAgent({ name: 'KeepMe', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const id2 = await chatStorage.saveAgent({ name: 'DeleteByName', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const orig = window.confirm;
+        window.confirm = () => true;
+        try {
+            const r = await agentTools.delete_agent({ name: 'DeleteByName' });
+            expect(r.deleted).toBe(true);
+            const gone = await chatStorage.getAgent(id2);
+            expect(gone).toBe(null);
+        } finally {
+            window.confirm = orig;
+            await chatStorage.deleteAgent(id1).catch(() => {});
+            await chatStorage.deleteAgent(id2).catch(() => {});
+        }
+    });
+
+    it('delete_agent returns ambiguous_name when multiple agents share name', async () => {
+        const id1 = await chatStorage.saveAgent({ name: 'A', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const id2 = await chatStorage.saveAgent({ name: 'Dup', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        const id3 = await chatStorage.saveAgent({ name: 'Dup', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        try {
+            const r = await agentTools.delete_agent({ name: 'Dup' });
+            expect(r.error).toBe('ambiguous_name');
+            expect(r.candidates.length).toBe(2);
+        } finally {
+            await chatStorage.deleteAgent(id1).catch(() => {});
+            await chatStorage.deleteAgent(id2).catch(() => {});
+            await chatStorage.deleteAgent(id3).catch(() => {});
+        }
+    });
+
+    it('delete_agent returns missing_identifier when neither id nor name given', async () => {
+        const r = await agentTools.delete_agent({});
+        expect(r.error).toBe('missing_identifier');
+    });
+
+    it('update_agent resolves by name and rename works via id+name', async () => {
+        const id = await chatStorage.saveAgent({ name: 'OldName', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
+        try {
+            const r = await agentTools.update_agent({ name: 'OldName', temperature: 0.3 });
+            expect(r.updated).toBe(true);
+            const stored1 = await chatStorage.getAgent(id);
+            expect(stored1.temperature).toBe(0.3);
+            expect(stored1.name).toBe('OldName');
+
+            const r2 = await agentTools.update_agent({ id, name: 'NewName' });
+            expect(r2.updated).toBe(true);
+            const stored2 = await chatStorage.getAgent(id);
+            expect(stored2.name).toBe('NewName');
+        } finally {
+            await chatStorage.deleteAgent(id);
+        }
+    });
+
     it('delete_agent returns cancelled when confirm dismissed', async () => {
         const id1 = await chatStorage.saveAgent({ name: 'A', provider: 'openai', model: 'gpt-4', apiKey: 'k' });
         const id2 = await chatStorage.saveAgent({ name: 'B', provider: 'openai', model: 'gpt-4', apiKey: 'k' });

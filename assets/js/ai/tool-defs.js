@@ -336,12 +336,12 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'update_agent',
-            description: 'Upraví existujícího agenta podle id. NESMÍ být použit na aktuálně běžícího agenta — vrátí cannot_modify_active.',
+            description: 'Upraví existujícího agenta. Identifikuj přes id NEBO name (jméno musí být unikátní). Pro rename volej s `id` a novým `name`. NESMÍ se použít na aktuálně běžícího agenta — vrátí cannot_modify_active.',
             parameters: {
                 type: 'object',
                 properties: {
-                    id: { type: 'string' },
-                    name: { type: 'string' },
+                    id: { type: 'string', description: 'Identifikátor agenta. Pokud je vyplněn, hodnota name se interpretuje jako přejmenování.' },
+                    name: { type: 'string', description: 'Bez id slouží jako vyhledávací klíč. S id znamená nové jméno.' },
                     icon: { type: 'string' },
                     provider: { type: 'string' },
                     model: { type: 'string' },
@@ -349,8 +349,7 @@ export const TOOL_DEFINITIONS = [
                     systemPrompt: { type: 'string' },
                     temperature: { type: 'number', minimum: 0, maximum: 2 },
                     baseUrl: { type: 'string' }
-                },
-                required: ['id']
+                }
             }
         }
     },
@@ -358,11 +357,13 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'delete_agent',
-            description: 'Smaže agenta podle id. Před smazáním otevře potvrzovací dialog. Nemůže smazat aktuálně běžícího agenta ani posledního zbývajícího.',
+            description: 'Smaže agenta podle id NEBO name (jméno musí být unikátní). Před smazáním otevře potvrzovací dialog. Nemůže smazat aktuálně běžícího agenta ani posledního zbývajícího.',
             parameters: {
                 type: 'object',
-                properties: { id: { type: 'string' } },
-                required: ['id']
+                properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' }
+                }
             }
         }
     }

@@ -56,34 +56,60 @@ export async function create_agent(args) {
     return { id, created: true };
 }
 
+async function _resolveAgentId(args) {
+    if (args && args.id) return { id: args.id };
+    if (args && args.name) {
+        const all = await chatStorage.listAgents();
+        const matches = all.filter(a => a.name.trim() === args.name.trim());
+        if (matches.length === 0) return { error: 'not_found', message: `Agent "${args.name}" neexistuje.` };
+        if (matches.length > 1) {
+            return {
+                error: 'ambiguous_name',
+                message: `Více agentů má jméno "${args.name}". Zavolej znovu s id konkrétního.`,
+                candidates: matches.map(a => ({ id: a.id, name: a.name }))
+            };
+        }
+        return { id: matches[0].id };
+    }
+    return { error: 'missing_identifier', message: 'Zadej buď id nebo name.' };
+}
+
 export async function update_agent(args) {
-    helpers.validateArgs(args, { id: { required: true } });
-    if (window.__bimAiActiveAgentId && args.id === window.__bimAiActiveAgentId) {
+    const resolved = await _resolveAgentId(args);
+    if (resolved.error) return resolved;
+    const id = resolved.id;
+    if (window.__bimAiActiveAgentId && id === window.__bimAiActiveAgentId) {
         return { error: 'cannot_modify_active', message: 'Aktuálně běžící agent nelze měnit. Přepni se na jiného agenta nebo to udělej v UI.' };
     }
-    const existing = await chatStorage.getAgent(args.id);
+    const existing = await chatStorage.getAgent(id);
     if (!existing) return { error: 'not_found', message: 'Agent s tímto id neexistuje.' };
-    const patch = { id: args.id };
-    for (const k of ['name', 'icon', 'provider', 'baseUrl', 'apiKey', 'model', 'systemPrompt', 'temperature']) {
+    // If only `name` was provided (no id), it's a lookup key, not a rename.
+    // Otherwise treat name as a rename target.
+    const isRename = !!args.id;
+    const patch = { id, name: existing.name };
+    for (const k of ['icon', 'provider', 'baseUrl', 'apiKey', 'model', 'systemPrompt', 'temperature']) {
         if (k in args) patch[k] = args[k];
     }
+    if (isRename && 'name' in args) patch.name = args.name;
     await chatStorage.saveAgent(patch);
-    return { id: args.id, updated: true };
+    return { id, updated: true };
 }
 
 export async function delete_agent(args) {
-    helpers.validateArgs(args, { id: { required: true } });
-    if (window.__bimAiActiveAgentId && args.id === window.__bimAiActiveAgentId) {
+    const resolved = await _resolveAgentId(args);
+    if (resolved.error) return resolved;
+    const id = resolved.id;
+    if (window.__bimAiActiveAgentId && id === window.__bimAiActiveAgentId) {
         return { error: 'cannot_modify_active', message: 'Aktuálně běžící agent nelze smazat.' };
     }
     const all = await chatStorage.listAgents();
     if (all.length <= 1) {
         return { error: 'last_agent', message: 'Nelze smazat posledního zbývajícího agenta.' };
     }
-    const target = all.find(a => a.id === args.id);
+    const target = all.find(a => a.id === id);
     if (!target) return { error: 'not_found', message: 'Agent s tímto id neexistuje.' };
     if (!confirm(`Smazat agenta '${target.name}'?`)) return { cancelled: true };
-    const ok = await chatStorage.deleteAgent(args.id);
+    const ok = await chatStorage.deleteAgent(id);
     return { deleted: ok };
 }
 
