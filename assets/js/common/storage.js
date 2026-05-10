@@ -87,6 +87,19 @@ class StorageManager {
         const stored = await this.idb.get(this.storageKey);
         if (stored) {
             this.data = stored;
+            // Mirror the repair in loadMetadata so subsequent save() persists
+            // a clean structure.
+            for (const folderId in this.data.folders) {
+                const f = this.data.folders[folderId];
+                if (Array.isArray(f.files)) {
+                    const seen = new Set();
+                    f.files = f.files.filter(id => {
+                        if (seen.has(id)) return false;
+                        seen.add(id);
+                        return !!this.data.files[id];
+                    });
+                }
+            }
         } else {
             this.data = {
                 folders: {
@@ -112,6 +125,20 @@ class StorageManager {
                 folders: stored.folders,
                 files: {}
             };
+
+            // Repair any past corruption: dedupe folder.files and prune ids that
+            // don't exist in stored.files (orphans). Runs once per page load.
+            for (const folderId in this.metadata.folders) {
+                const f = this.metadata.folders[folderId];
+                if (Array.isArray(f.files)) {
+                    const seen = new Set();
+                    f.files = f.files.filter(id => {
+                        if (seen.has(id)) return false;
+                        seen.add(id);
+                        return !!stored.files[id];
+                    });
+                }
+            }
 
             // Copy only metadata (no content)
             for (const fileId in stored.files) {
@@ -352,11 +379,16 @@ class StorageManager {
             }
         }
 
-        // Add to new folder
+        // Add to new folder (guard against duplicate ids in case the file is
+        // already in the target folder for any reason — race, double-call, prior
+        // corrupted state). addFile uses the same pattern.
         file.folder = targetFolderId;
-        this.data.folders[targetFolderId].files.push(fileId);
-        // Only update metadata if different reference
-        if (this.metadata.folders !== this.data.folders) {
+        if (!this.data.folders[targetFolderId].files.includes(fileId)) {
+            this.data.folders[targetFolderId].files.push(fileId);
+        }
+        if (this.metadata.folders !== this.data.folders
+            && this.metadata.folders[targetFolderId]
+            && !this.metadata.folders[targetFolderId].files.includes(fileId)) {
             this.metadata.folders[targetFolderId].files.push(fileId);
         }
         if (this.metadata.files !== this.data.files && this.metadata.files[fileId]) {
