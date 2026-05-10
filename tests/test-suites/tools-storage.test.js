@@ -70,9 +70,9 @@ describe('tools/tool-storage', () => {
         expect(result.error).toBe('not_found');
     });
 
-    it('register() adds list_storage_files + list_storage_folders + delete_file_from_storage to executor REGISTRY', async () => {
+    it('register() adds list_storage_files + list_storage_folders + delete_file_from_storage + folder CRUD to executor REGISTRY', async () => {
         storageTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(3);
+        expect(executor._registrySizeForTest()).toBe(6);
     });
 
     it('list_storage_folders returns array with folder shape', async () => {
@@ -107,5 +107,70 @@ describe('tools/tool-storage', () => {
         await window.BIMStorage.saveFile('ifc', makeFile('root2.ifc', 'IFC'));
         const result = await storageTools.list_storage_files({ type: 'ifc', folder: 'root' });
         expect(result.length).toBe(2);
+    });
+
+    it('create_folder creates a folder under root', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const r = await tools.create_folder({ type: 'ifc', name: 'TestFolderA' });
+        try {
+            expect(typeof r.folderId).toBe('string');
+            expect(r.path.includes('TestFolderA')).toBe(true);
+        } finally {
+            await window.BIMStorage.ifcStorage.deleteFolder(r.folderId).catch(() => {});
+        }
+    });
+
+    it('create_folder returns not_found for missing parent', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const r = await tools.create_folder({ type: 'ifc', name: 'X', parentName: 'NonexistentParent_zzz' });
+        expect(r.error).toBe('not_found');
+    });
+
+    it('rename_folder renames an existing folder', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const created = await tools.create_folder({ type: 'ifc', name: 'OldName_rt' });
+        try {
+            const r = await tools.rename_folder({ type: 'ifc', folderName: 'OldName_rt', newName: 'NewName_rt' });
+            expect(r.renamed).toBe(true);
+            const folders = window.BIMStorage.ifcStorage.data.folders;
+            expect(folders[created.folderId].name).toBe('NewName_rt');
+        } finally {
+            await window.BIMStorage.ifcStorage.deleteFolder(created.folderId).catch(() => {});
+        }
+    });
+
+    it('rename_folder refuses on root', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const r = await tools.rename_folder({ type: 'ifc', folderName: 'root', newName: 'X' });
+        expect(r.error).toBe('cannot_modify_root');
+    });
+
+    it('delete_folder asks confirm and deletes on accept', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const created = await tools.create_folder({ type: 'ifc', name: 'ToDelete_dt' });
+        const orig = window.confirm;
+        window.confirm = () => true;
+        try {
+            const r = await tools.delete_folder({ type: 'ifc', folderName: 'ToDelete_dt' });
+            expect(r.deleted).toBe(true);
+            expect(!!window.BIMStorage.ifcStorage.data.folders[created.folderId]).toBe(false);
+        } finally {
+            window.confirm = orig;
+        }
+    });
+
+    it('delete_folder returns cancelled when confirm dismissed', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-storage.js');
+        const created = await tools.create_folder({ type: 'ifc', name: 'KeepMe_kt' });
+        const orig = window.confirm;
+        window.confirm = () => false;
+        try {
+            const r = await tools.delete_folder({ type: 'ifc', folderName: 'KeepMe_kt' });
+            expect(r.cancelled).toBe(true);
+            expect(!!window.BIMStorage.ifcStorage.data.folders[created.folderId]).toBe(true);
+        } finally {
+            window.confirm = orig;
+            await window.BIMStorage.ifcStorage.deleteFolder(created.folderId).catch(() => {});
+        }
     });
 });

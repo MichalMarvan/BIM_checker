@@ -29,6 +29,26 @@ function _collectDescendantFolderIds(foldersMap, rootId) {
     return result;
 }
 
+function _resolveFolderId(foldersMap, nameOrPath) {
+    if (!nameOrPath || nameOrPath === 'root') return { id: 'root' };
+    const needle = String(nameOrPath).toLowerCase();
+    const matches = Object.values(foldersMap).filter(f => {
+        if (f.id === 'root') return false;
+        if (f.name.toLowerCase() === needle) return true;
+        const path = _buildFolderPath(foldersMap, f.id).toLowerCase();
+        return path === needle || path.endsWith('/' + needle);
+    });
+    if (matches.length === 0) return { error: 'not_found', message: `Složka "${nameOrPath}" neexistuje.` };
+    if (matches.length > 1) {
+        return {
+            error: 'ambiguous_folder',
+            message: `Více složek odpovídá "${nameOrPath}". Zadej úplnou cestu.`,
+            candidates: matches.map(f => ({ id: f.id, path: _buildFolderPath(foldersMap, f.id) }))
+        };
+    }
+    return { id: matches[0].id };
+}
+
 export async function list_storage_files(args) {
     helpers.validateArgs(args, { type: { required: true, enum: ['ifc', 'ids'] } });
     if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
@@ -105,8 +125,65 @@ export async function delete_file_from_storage(args) {
     return { deleted: true };
 }
 
+export async function create_folder(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        name: { required: true }
+    });
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const sm = args.type === 'ifc' ? window.BIMStorage.ifcStorage : window.BIMStorage.idsStorage;
+    if (!sm.data) await sm.load();
+    const folders = sm.data.folders;
+    const parentResolution = _resolveFolderId(folders, args.parentName || 'root');
+    if (parentResolution.error) return parentResolution;
+    const folderId = await sm.createFolder(args.name.trim(), parentResolution.id);
+    return { folderId, path: _buildFolderPath(folders, folderId) };
+}
+
+export async function rename_folder(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        folderName: { required: true },
+        newName: { required: true }
+    });
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const sm = args.type === 'ifc' ? window.BIMStorage.ifcStorage : window.BIMStorage.idsStorage;
+    if (!sm.data) await sm.load();
+    const resolved = _resolveFolderId(sm.data.folders, args.folderName);
+    if (resolved.error) return resolved;
+    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: 'Kořenovou složku nelze přejmenovat.' };
+    const ok = await sm.renameFolder(resolved.id, args.newName.trim());
+    return { renamed: ok, folderId: resolved.id };
+}
+
+export async function delete_folder(args) {
+    helpers.validateArgs(args, {
+        type: { required: true, enum: ['ifc', 'ids'] },
+        folderName: { required: true }
+    });
+    if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
+    await window.BIMStorage.init();
+    const sm = args.type === 'ifc' ? window.BIMStorage.ifcStorage : window.BIMStorage.idsStorage;
+    if (!sm.data) await sm.load();
+    const resolved = _resolveFolderId(sm.data.folders, args.folderName);
+    if (resolved.error) return resolved;
+    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: 'Kořenovou složku nelze smazat.' };
+    const folder = sm.data.folders[resolved.id];
+    const fileCount = (folder.files || []).length;
+    if (!confirm(`Smazat složku '${folder.name}' (${fileCount} souborů + podsložky)?`)) {
+        return { cancelled: true };
+    }
+    const ok = await sm.deleteFolder(resolved.id);
+    return { deleted: ok };
+}
+
 export function register(registerFn) {
     registerFn('list_storage_files', list_storage_files);
     registerFn('list_storage_folders', list_storage_folders);
     registerFn('delete_file_from_storage', delete_file_from_storage);
+    registerFn('create_folder', create_folder);
+    registerFn('rename_folder', rename_folder);
+    registerFn('delete_folder', delete_folder);
 }

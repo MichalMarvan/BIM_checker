@@ -52,11 +52,11 @@ describe('chat-panel tool loop (mocked fetch)', () => {
         expect(result.error).toBe('unknown_tool');
     });
 
-    it('all 29 tools registered after module load', async () => {
+    it('all 32 tools registered after module load', async () => {
         const executor = await import('../../assets/js/ai/tool-executor.js');
         // Earlier test suites may have reset the registry; re-bootstrap explicitly
         executor._reinitializeForTest();
-        expect(executor._registrySizeForTest()).toBe(29);
+        expect(executor._registrySizeForTest()).toBe(32);
     });
 
     it('TOOL_DEFINITIONS contains 29 entries', async () => {
