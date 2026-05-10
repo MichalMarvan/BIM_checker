@@ -128,6 +128,16 @@ Branch: phase-9a-user-config-agents
 
 Branch: phase-9b-storage-presets
 
+## Phase 9c: IDS deep-dive + IDS gen + bSDD + Excel ✅
+- [x] 12 tools (IDS detail 2, validation drilldown 2, IFC analysis 2, IDS gen 3, bSDD stubs 2, Excel 1)
+- [x] Spec/facet introspection via `IDSParser`
+- [x] Validation failure drilldown reads `window.validationResults` (page-locked)
+- [x] IDS XML generation via existing `IDSXMLGenerator` (homepage gets script tag for skeleton tool)
+- [x] bSDD tools shipped as gated stubs returning `integration_disabled`
+- [x] +20 new tests (652 → 672)
+
+Branch: phase-9c-ids-validation-deep
+
 ---
 
 ## K dokončení (TODO)
