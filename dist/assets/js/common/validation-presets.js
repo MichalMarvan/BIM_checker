@@ -134,6 +134,12 @@
                 idsFileName: g.idsFile ? g.idsFile.name : (g.missingIdsName || null)
             }));
         },
+        _internals: {
+            _delete(key) {
+                localStorage.removeItem(key);
+            }
+        },
+
         async fromPresetGroups(presetGroups) {
             if (typeof BIMStorage === 'undefined') return [];
             await BIMStorage.init();
