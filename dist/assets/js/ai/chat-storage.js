@@ -240,7 +240,8 @@ function _defaultSettings() {
         lastActiveAgentId: null,
         lastOpenedThreadId: null,
         chatPanelOpen: false,
-        threadsSidebarOpen: true
+        threadsSidebarOpen: true,
+        activeChatHeads: []
     };
 }
 
