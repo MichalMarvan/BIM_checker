@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.6] - 2026-05-11
+
+### Added
+- `data-i18n-content` attribute handler in i18n.js (translates `<meta>` content)
+- `data-i18n-aria-label` attribute handler (translates accessibility labels)
+- `resolvePreset(preset, lang)` export in agent-presets.js — locale-aware agent creation
+- ~120 new translation keys (CS + EN) across page.title.*, page.meta.description.*, ai.tool.*, viewer.error.*, viewer.warn.*, validator.results.*, progress.*, chat.*, settings.*, update.*, wizard.*
+- Regression test (`tests/test-suites/i18n-completeness.test.js`) — fails CI if CS chars appear in source outside allowlist
+- +3 regression test cases (737 → 740)
+
+### Changed
+- 154+ hardcoded Czech strings replaced via `i18n.t()` across 22 source files
+- Sample IDS in `parser.js` rewritten to English (international audience priority)
+- `tool-defs.js` LLM-facing tool descriptions translated to English (industry default — 71 strings)
+- Agent presets: dual `nameCs`/`nameEn`, `descriptionCs`/`descriptionEn`, `systemPromptCs`/`systemPromptEn` schema; consumer routes via `resolvePreset()` based on current UI language
+- HTML `<title>` and `<meta name="description">` fallback text changed to English (SEO/share previews; i18n.t still translates at runtime)
+- CSS `.file-tree-modern:empty::before` dual-language via `html[data-lang="cs"]` selector (default EN)
+- `parser.js` Czech regex character classes converted to Unicode escapes (`á-ž` → `á-ž`)
+- SW cache bumped v45 → v46
+
+### Fixed
+- LinkedIn user-reported issue (Petru Conduraru, buildingSMART trainer RO): EN UI mode no longer leaks Czech text anywhere
+- HTML comments in 2 pages translated CS → EN
+
+### Notes
+- Trigger: feedback from Petru Conduraru — "When choosing English language, not everything is translated"
+- `tool-defs.js` kept in English only (LLM-facing schema, not user-facing)
+
 ## [0.10.5] - 2026-05-11
 
 ### Added
