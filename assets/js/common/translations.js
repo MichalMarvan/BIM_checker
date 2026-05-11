@@ -23,6 +23,12 @@ const translations = {
         'nav.tools': 'Nástroje',
         'nav.about': 'O projektu',
 
+        // === MOBILE NAV (Phase 12a) ===
+        'mobile.nav.home': 'Domů',
+        'mobile.nav.validator': 'Validator',
+        'mobile.nav.parser': 'Parser',
+        'mobile.nav.viewer': 'Viewer',
+
         // === ÚLOŽIŠTĚ ===
         'storage.title': 'Úložiště souborů',
         'storage.subtitle': 'Nahrajte a organizujte své IFC a IDS soubory pro snadné použití napříč aplikacemi',
@@ -1038,6 +1044,12 @@ const translations = {
         'nav.storage': 'Storage',
         'nav.tools': 'Tools',
         'nav.about': 'About',
+
+        // === MOBILE NAV (Phase 12a) ===
+        'mobile.nav.home': 'Home',
+        'mobile.nav.validator': 'Validator',
+        'mobile.nav.parser': 'Parser',
+        'mobile.nav.viewer': 'Viewer',
 
         // === STORAGE ===
         'storage.title': 'File Storage',
