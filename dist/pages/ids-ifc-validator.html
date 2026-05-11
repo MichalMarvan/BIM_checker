@@ -152,8 +152,8 @@
     </nav>
     <div class="page-container">
         <div class="upload-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                    <h2 style="margin: 0; color: var(--text-primary);" data-i18n="validator.groups">📋 Validační skupiny</h2>
+                <div class="validator-page-header">
+                    <h2 data-i18n="validator.groups">📋 Validační skupiny</h2>
                     <button class="btn btn-success" onclick="addValidationGroup()" data-i18n="validator.addGroup">➕ Přidat validační skupinu</button>
                 </div>
 
@@ -181,9 +181,9 @@
                 </div>
 
                 <div id="validationGroups">
-                    <div class="vg-empty-state" style="text-align: center; padding: 60px; color: #a0aec0;">
-                        <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
-                        <h3 style="color: #6c757d;" data-i18n="validator.group.noGroups">Žádné validační skupiny</h3>
+                    <div class="vg-empty-state">
+                        <div class="vg-empty-state__icon">📋</div>
+                        <h3 data-i18n="validator.group.noGroups">Žádné validační skupiny</h3>
                         <p data-i18n="validator.group.clickToAdd">Klikněte na "➕ Přidat validační skupinu" pro začátek</p>
                     </div>
                 </div>
@@ -369,6 +369,7 @@
             BugReport.init();
         }
     </script>
+    <script defer src="../assets/js/ai-ui/chat-panel-mobile.js"></script>
     <script type="module" src="../assets/js/ai-ui/init.js"></script>
     <!-- Mobile bottom tabs (visible < 1024px) -->
     <nav class="bim-mobile-tabs">

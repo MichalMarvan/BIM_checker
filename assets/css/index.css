@@ -1447,6 +1447,16 @@ body {
         padding: var(--spacing-lg);
     }
 
+    /* Collapse the empty file tree placeholder on phones */
+    .file-tree-modern {
+        min-height: 0;
+        max-height: 280px;
+    }
+    .file-tree-modern:empty::before {
+        padding: var(--spacing-md);
+        font-size: 0.9em;
+    }
+
     .card-header {
         flex-direction: column;
         align-items: stretch;
