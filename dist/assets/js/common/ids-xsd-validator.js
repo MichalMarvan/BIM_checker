@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * IDSXSDValidator — lazy-loaded XSD validation against IDS 1.0 schema via xmllint-wasm.
  *

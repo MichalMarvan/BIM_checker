@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * Headless test runner using Puppeteer
  * Spouští testy v headless Chrome a vypisuje výsledky do konzole

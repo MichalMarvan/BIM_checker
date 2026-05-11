@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 import * as storage from './chat-storage.js';
 import { PROVIDERS } from './providers.js';
 

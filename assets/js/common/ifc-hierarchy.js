@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * IFCHierarchy — lazy-loaded IFC class hierarchy + PredefinedType attribute positions.
  * Data sourced from build-time JSON (assets/data/ifc-hierarchy-<version>.json).

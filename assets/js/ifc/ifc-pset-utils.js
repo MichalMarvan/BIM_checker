@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * IfcPsetUtils — pure utilities for IFC property set / quantity set parsing and manipulation.
  * No DOM mutations, no global state beyond namespace export.

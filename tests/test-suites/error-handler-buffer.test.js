@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 describe('ErrorHandler ring buffer', () => {
     beforeEach(() => {
         // Reset buffer between tests

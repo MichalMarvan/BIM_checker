@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 const DB_NAME = 'bim_checker_storage';
 const STORE = 'storage';
 

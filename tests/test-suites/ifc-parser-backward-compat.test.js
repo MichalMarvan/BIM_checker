@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 describe('IFCParserCore vs legacy parseIFCFileAsync (snapshot)', () => {
     function deepEqual(a, b) {
         return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));

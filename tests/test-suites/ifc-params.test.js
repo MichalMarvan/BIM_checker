@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 describe('IfcParams.splitIfcParams', () => {
     it('should split simple comma-separated', () => {
         expect(IfcParams.splitIfcParams("a,b,c")).toEqual(["a","b","c"]);

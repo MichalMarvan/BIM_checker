@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * BIM Checker - Wizard Module
  * Interactive tutorial/guide system for all pages

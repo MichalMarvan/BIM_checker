@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
 
 const _DISABLED = { error: 'integration_disabled', message: 'bSDD integrace zatím není zapojena. Implementace přijde v další fázi.' };

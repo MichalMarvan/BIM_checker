@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * Update Checker - kontroluje nové verze na GitHub Releases
  * Funguje v Tauri i ve webové verzi

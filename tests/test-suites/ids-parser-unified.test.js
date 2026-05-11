@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 describe('IDSParser', () => {
     it('should expose IDSParser namespace globally', () => {
         expect(typeof window.IDSParser).toBe('object');

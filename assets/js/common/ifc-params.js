@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * IfcParams — utilities for parsing IFC entity parameter strings.
  * Handles quoted strings with '' escape, nested parentheses.

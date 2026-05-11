@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * Single source of truth for tool categorization.
  * Used by Settings tool picker and (future) AI help modal.

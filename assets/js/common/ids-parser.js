@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * IDSParser — pure parsing of IDS 1.0 XML documents.
  * No DOM mutations, no event listeners. Safe to load on any page.

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 describe('AI bootstrap', () => {
     it('PROVIDERS exposes all 5 providers', async () => {
         const { PROVIDERS } = await import('../../assets/js/ai/providers.js');

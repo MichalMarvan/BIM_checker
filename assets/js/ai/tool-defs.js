@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * Tool definitions for AI function calling.
  * 56 tools spanning storage, validator workflow, IDS specs + generation,

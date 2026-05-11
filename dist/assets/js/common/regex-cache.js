@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /* ===========================================
    BIM CHECKER - REGEX CACHE
    Caches compiled RegExp objects for reuse

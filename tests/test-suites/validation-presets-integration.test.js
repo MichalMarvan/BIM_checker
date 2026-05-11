@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 describe('ValidationPresets integration — full save/load roundtrip', () => {
     async function clearAll() {
         localStorage.removeItem('bim_validation_presets');

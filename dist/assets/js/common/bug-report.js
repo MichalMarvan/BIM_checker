@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
 /**
  * BugReport — in-app bug reporting modal that posts to /api/bug-report.
  * Anonymous, no contact field, no screenshot. Failure mode falls back to a
