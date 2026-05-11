@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * Routes tool calls dispatched by the AI to handler functions.
  * REGISTRY is populated at module load via _bootstrap() — each tool sub-module

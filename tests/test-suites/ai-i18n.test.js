@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('AI i18n key coverage', () => {
     const REQUIRED_KEYS = [
         'ai.settings.tooltip','ai.settings.title','ai.settings.agentsHeading','ai.settings.addAgent','ai.settings.close','ai.settings.advancedSection',

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * Compression — IFC/IDS file content gzip via native CompressionStream API.
  * Backward compat: decompress() detects gzip magic bytes, falls back to

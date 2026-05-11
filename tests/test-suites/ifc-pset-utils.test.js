@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('IfcPsetUtils', () => {
     it('should expose IfcPsetUtils namespace globally', () => {
         expect(typeof window.IfcPsetUtils).toBe('object');

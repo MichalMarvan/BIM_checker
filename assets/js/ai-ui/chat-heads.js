@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * Chat-heads stack manager — single source of truth for active threads
  * shown as circular avatars above the launcher.

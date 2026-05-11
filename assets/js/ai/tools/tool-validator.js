@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 import * as helpers from './_helpers.js';
 
 export async function list_validation_groups() {

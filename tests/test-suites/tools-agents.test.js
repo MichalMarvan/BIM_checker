@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('tool-agents (read)', () => {
     let agentTools;
     let chatStorage;

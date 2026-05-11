@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * Shared helpers for Phase 8 tools.
  *  - getCurrentPageId: URL-path heuristic for the active BIM_checker page

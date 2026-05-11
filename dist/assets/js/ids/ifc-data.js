@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * IFC Data
  * Common IFC types and PropertySets for autocomplete

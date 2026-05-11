@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 // =======================
 // INTEGRATION TESTS - Real IFC Files
 // Testy s reálnými soubory pro debugging problémů

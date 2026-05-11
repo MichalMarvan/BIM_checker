@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('IDSParser', () => {
     it('should expose IDSParser namespace globally', () => {
         expect(typeof window.IDSParser).toBe('object');

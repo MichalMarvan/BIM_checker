@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * Bottom-right circular launcher button + popover with favorite agents.
  *

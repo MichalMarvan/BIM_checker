@@ -1,0 +1,1103 @@
+{
+  "version": "0.1.0",
+  "project_path": "/home/michal/work/BIM_checker",
+  "generated_at": "2026-03-09T09:15:32.937082",
+  "summary": {
+    "files_indexed": 60,
+    "symbols_extracted": 662,
+    "dependencies_found": 7,
+    "envelopes_generated": 0,
+    "language_breakdown": {
+      "javascript": 60
+    },
+    "unsupported_source_files": 2,
+    "unsupported_language_breakdown": {
+      "rust": 2
+    },
+    "detector_coverage": {}
+  },
+  "graph": {
+    "nodes": 60,
+    "edges": 0,
+    "density": 0.0
+  },
+  "circular_dependencies": [],
+  "strong_circular_dependencies": [],
+  "coupling_metrics": [
+    {
+      "module": "assets",
+      "afferent": 0,
+      "efferent": 0,
+      "instability": 0.0
+    },
+    {
+      "module": "eslint.config.js",
+      "afferent": 0,
+      "efferent": 0,
+      "instability": 0.0
+    },
+    {
+      "module": "sw.js",
+      "afferent": 0,
+      "efferent": 0,
+      "instability": 0.0
+    },
+    {
+      "module": "tests",
+      "afferent": 0,
+      "efferent": 0,
+      "instability": 0.0
+    },
+    {
+      "module": "tests/test-suites",
+      "afferent": 0,
+      "efferent": 0,
+      "instability": 0.0
+    }
+  ],
+  "god_classes": [
+    {
+      "name": "IDSEditorCore",
+      "file": "assets/js/ids/ids-editor-core.js",
+      "methods": 42,
+      "dependencies": 0,
+      "lines": 1100
+    },
+    {
+      "name": "IDSEditorModals",
+      "file": "assets/js/ids/ids-editor-modals.js",
+      "methods": 35,
+      "dependencies": 0,
+      "lines": 968
+    },
+    {
+      "name": "WizardManager",
+      "file": "assets/js/common/wizard.js",
+      "methods": 29,
+      "dependencies": 0,
+      "lines": 758
+    },
+    {
+      "name": "FilePanel",
+      "file": "assets/js/index.js",
+      "methods": 26,
+      "dependencies": 0,
+      "lines": 680
+    },
+    {
+      "name": "PerformanceMonitor",
+      "file": "assets/js/common/performance-monitor.js",
+      "methods": 20,
+      "dependencies": 0,
+      "lines": 427
+    },
+    {
+      "name": "StorageManager",
+      "file": "assets/js/common/storage.js",
+      "methods": 17,
+      "dependencies": 0,
+      "lines": 365
+    },
+    {
+      "name": "VirtualTreeView",
+      "file": "assets/js/common/virtual-tree.js",
+      "methods": 16,
+      "dependencies": 0,
+      "lines": 265
+    },
+    {
+      "name": "ValidationOrchestrator",
+      "file": "assets/js/common/validation-orchestrator.js",
+      "methods": 15,
+      "dependencies": 0,
+      "lines": 333
+    }
+  ],
+  "bottlenecks": [],
+  "layer_violations": [],
+  "orphan_files": [],
+  "runtime_entry_candidates": [],
+  "dead_code": {
+    "total": 0,
+    "unused_imports": 0,
+    "unused_methods": 0,
+    "unused_properties": 0,
+    "abandoned_classes": 0,
+    "findings": []
+  },
+  "hardwiring": {
+    "total": 49,
+    "magic_strings": 17,
+    "repeated_literals": 31,
+    "hardcoded_entities": 0,
+    "hardcoded_network": 1,
+    "env_outside_config": 0,
+    "findings": [
+      {
+        "file": "assets/js/common/ifc-stream-parser.js",
+        "line": 117,
+        "value": "DATA;",
+        "category": "magic_string",
+        "context": "if (line === 'DATA;') {",
+        "severity": "high",
+        "confidence": "medium",
+        "suggestion": "Extract 'DATA;' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/common/ifc-stream-parser.js",
+        "line": 124,
+        "value": "ENDSEC;",
+        "category": "magic_string",
+        "context": "if (line === 'ENDSEC;') {",
+        "severity": "high",
+        "confidence": "medium",
+        "suggestion": "Extract 'ENDSEC;' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/common/performance-monitor.js",
+        "line": 213,
+        "value": "render-update",
+        "category": "magic_string",
+        "context": "case 'render-update':",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'render-update' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/common/performance-monitor.js",
+        "line": 216,
+        "value": "file-load",
+        "category": "magic_string",
+        "context": "case 'file-load':",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'file-load' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/ids/ids-editor-modals.js",
+        "line": 409,
+        "value": "IFCRELVOIDSELEMENT IFCRELFILLSELEMENT",
+        "category": "magic_string",
+        "context": "<option value=\"IFCRELVOIDSELEMENT IFCRELFILLSELEMENT\" ${data.relation === 'IFCRELVOIDSELEMENT IFCRELFILLSELEMENT' ? 'selected' : ''}>IFCRELVOIDSELEMENT IFCRELFILLSELEMENT</option>",
+        "severity": "high",
+        "confidence": "medium",
+        "suggestion": "Extract 'IFCRELVOIDSELEMENT IFCRELFILLSELEMENT' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/ifc/viewer-init.js",
+        "line": 1003,
+        "value": "ENDSEC;",
+        "category": "magic_string",
+        "context": "if (modifiedLines[i].trim() === 'ENDSEC;') {",
+        "severity": "high",
+        "confidence": "medium",
+        "suggestion": "Extract 'ENDSEC;' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/ifc/viewer-parser.js",
+        "line": 546,
+        "value": "DATA;",
+        "category": "magic_string",
+        "context": "if (line === 'DATA;') {",
+        "severity": "high",
+        "confidence": "medium",
+        "suggestion": "Extract 'DATA;' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/ifc/viewer-parser.js",
+        "line": 550,
+        "value": "ENDSEC;",
+        "category": "magic_string",
+        "context": "if (line === 'ENDSEC;') {",
+        "severity": "high",
+        "confidence": "medium",
+        "suggestion": "Extract 'ENDSEC;' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1283,
+        "value": "expand-all-specs",
+        "category": "magic_string",
+        "context": "case 'expand-all-specs':",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'expand-all-specs' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1287,
+        "value": "collapse-all-specs",
+        "category": "magic_string",
+        "context": "case 'collapse-all-specs':",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'collapse-all-specs' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1291,
+        "value": "toggle-specification",
+        "category": "magic_string",
+        "context": "case 'toggle-specification': {",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'toggle-specification' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1299,
+        "value": "toggle-tree-node",
+        "category": "magic_string",
+        "context": "case 'toggle-tree-node': {",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'toggle-tree-node' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1307,
+        "value": "toggle-ids-storage-folder",
+        "category": "magic_string",
+        "context": "case 'toggle-ids-storage-folder': {",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'toggle-ids-storage-folder' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1315,
+        "value": "select-ids-file",
+        "category": "magic_string",
+        "context": "case 'select-ids-file': {",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'select-ids-file' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1323,
+        "value": "select-ids-file-radio",
+        "category": "magic_string",
+        "context": "case 'select-ids-file-radio': {",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'select-ids-file-radio' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/workers/ifc-parser.worker.js",
+        "line": 39,
+        "value": "GET_STATS",
+        "category": "magic_string",
+        "context": "case 'GET_STATS':",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'GET_STATS' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/workers/validation.worker.js",
+        "line": 22,
+        "value": "VALIDATE_SPEC",
+        "category": "magic_string",
+        "context": "case 'VALIDATE_SPEC':",
+        "severity": "high",
+        "confidence": "high",
+        "suggestion": "Extract case label 'VALIDATE_SPEC' into a class constant or enum."
+      },
+      {
+        "file": "assets/js/common/storage.js",
+        "line": 74,
+        "value": "bim_checker_storage",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/storage.js:74, assets/js/common/storage.js:441, assets/js/parser.js:1036, assets/js/validator.js:1663",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'bim_checker_storage' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/ids/ids-editor-core.js",
+        "line": 402,
+        "value": "btn btn-secondary",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/ids/ids-editor-core.js:402, assets/js/ids/ids-editor-core.js:839, assets/js/ids/ids-editor-modals.js:34, assets/js/ids/ids-editor-modals.js:65, assets/js/ifc/viewer-init.js:1738 ... and 1 more",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'btn btn-secondary' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 294,
+        "value": "cardinality.facetOptionalDesc",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:294, assets/js/common/translations.js:1027, assets/js/ids/ids-editor-core.js:614, assets/js/ids/ids-editor-modals.js:888",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'cardinality.facetOptionalDesc' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 295,
+        "value": "cardinality.facetProhibitedDesc",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:295, assets/js/common/translations.js:1028, assets/js/ids/ids-editor-core.js:615, assets/js/ids/ids-editor-modals.js:890",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'cardinality.facetProhibitedDesc' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 293,
+        "value": "cardinality.facetRequiredDesc",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:293, assets/js/common/translations.js:1026, assets/js/ids/ids-editor-core.js:613, assets/js/ids/ids-editor-modals.js:886",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'cardinality.facetRequiredDesc' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 288,
+        "value": "cardinality.optional",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:288, assets/js/common/translations.js:1021, assets/js/ids/ids-editor-core.js:590, assets/js/parser.js:662",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'cardinality.optional' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 289,
+        "value": "cardinality.prohibited",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:289, assets/js/common/translations.js:1022, assets/js/ids/ids-editor-core.js:591, assets/js/parser.js:663",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'cardinality.prohibited' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 287,
+        "value": "cardinality.required",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:287, assets/js/common/translations.js:1020, assets/js/ids/ids-editor-core.js:589, assets/js/parser.js:661",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'cardinality.required' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/drag-drop.js",
+        "line": 39,
+        "value": "drag-over",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/drag-drop.js:39, assets/js/index.js:46, assets/js/index.js:50, assets/js/index.js:55, assets/js/index.js:646 ... and 5 more",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'drag-over' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/wizard-steps.js",
+        "line": 231,
+        "value": "edit-mode",
+        "category": "repeated_literal",
+        "context": "Found in 4 files: assets/js/common/wizard-steps.js:231, assets/js/common/wizard-steps.js:498, assets/js/ids/ids-editor-core.js:654, assets/js/ids/ids-editor-core.js:668, assets/js/ifc/viewer-init.js:238 ... and 2 more",
+        "severity": "medium",
+        "confidence": "medium",
+        "suggestion": "Extract repeated literal 'edit-mode' into a shared constant (appears in 4 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 307,
+        "value": "editor.cancel",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:307, assets/js/common/translations.js:1040, assets/js/ids/ids-editor-core.js:839, assets/js/ids/ids-editor-modals.js:34, assets/js/ids/ids-editor-modals.js:65",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'editor.cancel' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 309,
+        "value": "editor.example",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:309, assets/js/common/translations.js:1042, assets/js/ids/ids-editor-core.js:808, assets/js/ids/ids-editor-core.js:834, assets/js/ids/ids-editor-modals.js:185 ... and 10 more",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'editor.example' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 308,
+        "value": "editor.save",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:308, assets/js/common/translations.js:1041, assets/js/ids/ids-editor-core.js:840, assets/js/ids/ids-editor-modals.js:35, assets/js/ids/ids-editor-modals.js:66",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'editor.save' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/ifc/viewer-ui.js",
+        "line": 86,
+        "value": "file-name",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/ifc/viewer-ui.js:86, assets/js/index.js:334, assets/js/index.js:392, assets/js/validator.js:1796, assets/js/validator.js:1848",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'file-name' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/ids/ids-xml-generator.js",
+        "line": 9,
+        "value": "http://www.w3.org/2001/XMLSchema",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/ids/ids-xml-generator.js:9, assets/js/ids/ids-xml-generator.js:23, assets/js/parser.js:220, assets/js/parser.js:234, assets/js/parser.js:244 ... and 2 more",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'http://www.w3.org/2001/XMLSchema' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/components.js",
+        "line": 140,
+        "value": "loading.files",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/components.js:140, assets/js/common/components.js:230, assets/js/common/translations.js:534, assets/js/common/translations.js:1267, assets/js/ifc/viewer-ui.js:19",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'loading.files' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 194,
+        "value": "parser.error.parsingError",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:194, assets/js/common/translations.js:927, assets/js/ifc/viewer-ui.js:35, assets/js/parser.js:50",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'parser.error.parsingError' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 217,
+        "value": "parser.facet.value",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:217, assets/js/common/translations.js:950, assets/js/parser.js:461, assets/js/validator.js:1029, assets/js/validator.js:1072",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'parser.facet.value' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 233,
+        "value": "parser.facetType.attribute",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:233, assets/js/common/translations.js:966, assets/js/parser.js:632, assets/js/validator.js:1047",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'parser.facetType.attribute' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 238,
+        "value": "parser.storage.fileCount",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:238, assets/js/common/translations.js:971, assets/js/index.js:161, assets/js/parser.js:1130",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'parser.storage.fileCount' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/ifc/viewer-init.js",
+        "line": 1337,
+        "value": "storage-empty-message",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/ifc/viewer-init.js:1337, assets/js/parser.js:1088, assets/js/validator.js:2106, assets/js/validator.js:2433",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'storage-empty-message' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 486,
+        "value": "validator.error.fileNotFound",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:486, assets/js/common/translations.js:1219, assets/js/parser.js:1225, assets/js/parser.js:1244, assets/js/parser.js:1248 ... and 2 more",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'validator.error.fileNotFound' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 483,
+        "value": "validator.error.onlyIdsAllowed",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:483, assets/js/common/translations.js:1216, assets/js/index.js:121, assets/js/validator.js:1965",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'validator.error.onlyIdsAllowed' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 477,
+        "value": "validator.error.onlyIfc",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:477, assets/js/common/translations.js:1210, assets/js/ifc/viewer-ui.js:14, assets/js/validator.js:84",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'validator.error.onlyIfc' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 482,
+        "value": "validator.error.onlyIfcAllowed",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:482, assets/js/common/translations.js:1215, assets/js/index.js:121, assets/js/validator.js:1934",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'validator.error.onlyIfcAllowed' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 485,
+        "value": "validator.error.selectIds",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:485, assets/js/common/translations.js:1218, assets/js/parser.js:1219, assets/js/validator.js:2570",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'validator.error.selectIds' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 435,
+        "value": "viewer.csv.entity",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:435, assets/js/common/translations.js:1168, assets/js/ifc/viewer-init.js:135, assets/js/ifc/viewer-ui.js:513",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'viewer.csv.entity' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 121,
+        "value": "viewer.editMode",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:121, assets/js/common/translations.js:374, assets/js/common/translations.js:854, assets/js/common/translations.js:1107, assets/js/ifc/viewer-init.js:240 ... and 1 more",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'viewer.editMode' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 103,
+        "value": "viewer.entities",
+        "category": "repeated_literal",
+        "context": "Found in 4 files: assets/js/common/translations.js:103, assets/js/common/translations.js:378, assets/js/common/translations.js:836, assets/js/common/translations.js:1111, assets/js/ifc/viewer-init.js:281 ... and 8 more",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'viewer.entities' into a shared constant (appears in 4 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 411,
+        "value": "viewer.files",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:411, assets/js/common/translations.js:1144, assets/js/ifc/viewer-init.js:1372, assets/js/validator.js:2226",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'viewer.files' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 410,
+        "value": "viewer.selectAllInFolder",
+        "category": "repeated_literal",
+        "context": "Found in 3 files: assets/js/common/translations.js:410, assets/js/common/translations.js:1143, assets/js/ifc/viewer-init.js:1369, assets/js/validator.js:2223",
+        "severity": "medium",
+        "confidence": "low",
+        "suggestion": "Extract repeated literal 'viewer.selectAllInFolder' into a shared constant (appears in 3 files)."
+      },
+      {
+        "file": "assets/js/ids/ids-xml-generator.js",
+        "line": 8,
+        "value": "http://standards.buildingsmart.org/IDS",
+        "category": "hardcoded_ip_url",
+        "context": "this.nsIds = 'http://standards.buildingsmart.org/IDS';",
+        "severity": "medium",
+        "confidence": "medium",
+        "suggestion": "Move URL to configuration or environment variable."
+      }
+    ]
+  },
+  "review": {
+    "total_reviewed": 38,
+    "true_positives": 0,
+    "false_positives": 0,
+    "needs_context": 38,
+    "rules_generated": 0,
+    "rules_prefiltered": 0,
+    "verdicts": [
+      {
+        "file": "assets/js/common/ifc-stream-parser.js",
+        "line": 117,
+        "category": "magic_string",
+        "name": "",
+        "value": "DATA;",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/ifc-stream-parser.js",
+        "line": 124,
+        "category": "magic_string",
+        "name": "",
+        "value": "ENDSEC;",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/performance-monitor.js",
+        "line": 213,
+        "category": "magic_string",
+        "name": "",
+        "value": "render-update",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/performance-monitor.js",
+        "line": 216,
+        "category": "magic_string",
+        "name": "",
+        "value": "file-load",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ids/ids-editor-modals.js",
+        "line": 409,
+        "category": "magic_string",
+        "name": "",
+        "value": "IFCRELVOIDSELEMENT IFCRELFILLSELEMENT",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ifc/viewer-init.js",
+        "line": 1003,
+        "category": "magic_string",
+        "name": "",
+        "value": "ENDSEC;",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ifc/viewer-parser.js",
+        "line": 546,
+        "category": "magic_string",
+        "name": "",
+        "value": "DATA;",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ifc/viewer-parser.js",
+        "line": 550,
+        "category": "magic_string",
+        "name": "",
+        "value": "ENDSEC;",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1283,
+        "category": "magic_string",
+        "name": "",
+        "value": "expand-all-specs",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1287,
+        "category": "magic_string",
+        "name": "",
+        "value": "collapse-all-specs",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1291,
+        "category": "magic_string",
+        "name": "",
+        "value": "toggle-specification",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1299,
+        "category": "magic_string",
+        "name": "",
+        "value": "toggle-tree-node",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1307,
+        "category": "magic_string",
+        "name": "",
+        "value": "toggle-ids-storage-folder",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1315,
+        "category": "magic_string",
+        "name": "",
+        "value": "select-ids-file",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/parser.js",
+        "line": 1323,
+        "category": "magic_string",
+        "name": "",
+        "value": "select-ids-file-radio",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/workers/ifc-parser.worker.js",
+        "line": 39,
+        "category": "magic_string",
+        "name": "",
+        "value": "GET_STATS",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/workers/validation.worker.js",
+        "line": 22,
+        "category": "magic_string",
+        "name": "",
+        "value": "VALIDATE_SPEC",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ids/ids-editor-core.js",
+        "line": 402,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "btn btn-secondary",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ifc/viewer-ui.js",
+        "line": 86,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "file-name",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/storage.js",
+        "line": 74,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "bim_checker_storage",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ids/ids-xml-generator.js",
+        "line": 9,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "http://www.w3.org/2001/XMLSchema",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ifc/viewer-init.js",
+        "line": 1337,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "storage-empty-message",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 294,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "cardinality.facetOptionalDesc",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 295,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "cardinality.facetProhibitedDesc",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 293,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "cardinality.facetRequiredDesc",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 288,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "cardinality.optional",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 289,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "cardinality.prohibited",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 287,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "cardinality.required",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/drag-drop.js",
+        "line": 39,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "drag-over",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/wizard-steps.js",
+        "line": 231,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "edit-mode",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 307,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "editor.cancel",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 309,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "editor.example",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 308,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "editor.save",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/components.js",
+        "line": 140,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "loading.files",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 194,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "parser.error.parsingError",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 217,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "parser.facet.value",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/common/translations.js",
+        "line": 233,
+        "category": "repeated_literal",
+        "name": "",
+        "value": "parser.facetType.attribute",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      },
+      {
+        "file": "assets/js/ids/ids-xml-generator.js",
+        "line": 8,
+        "category": "hardcoded_ip_url",
+        "name": "",
+        "value": "http://standards.buildingsmart.org/IDS",
+        "verdict": "needs_context",
+        "reason": "AI review unavailable"
+      }
+    ]
+  },
+  "extensions": {
+    "contract_inventory": {
+      "summary": {
+        "symbolic_literals": 12
+      },
+      "symbolic_literals": [
+        {
+          "value": "ifc:fileSelected",
+          "count": 2,
+          "locations": [
+            {
+              "file": "assets/js/ifc/viewer-init.js",
+              "line": 1480
+            },
+            {
+              "file": "assets/js/ifc/viewer-ui.js",
+              "line": 33
+            }
+          ]
+        },
+        {
+          "value": "validator:idsLoaded",
+          "count": 2,
+          "locations": [
+            {
+              "file": "assets/js/validator.js",
+              "line": 1989
+            },
+            {
+              "file": "assets/js/validator.js",
+              "line": 2618
+            }
+          ]
+        },
+        {
+          "value": "validator:ifcLoaded",
+          "count": 2,
+          "locations": [
+            {
+              "file": "assets/js/validator.js",
+              "line": 1954
+            },
+            {
+              "file": "assets/js/validator.js",
+              "line": 2334
+            }
+          ]
+        },
+        {
+          "value": "ids:loaded",
+          "count": 1,
+          "locations": [
+            {
+              "file": "assets/js/parser.js",
+              "line": 1023
+            }
+          ]
+        },
+        {
+          "value": "languageChanged",
+          "count": 1,
+          "locations": [
+            {
+              "file": "assets/js/common/i18n.js",
+              "line": 133
+            }
+          ]
+        },
+        {
+          "value": "storage:fileAdded",
+          "count": 1,
+          "locations": [
+            {
+              "file": "assets/js/index.js",
+              "line": 188
+            }
+          ]
+        },
+        {
+          "value": "themeChanged",
+          "count": 1,
+          "locations": [
+            {
+              "file": "assets/js/common/theme.js",
+              "line": 83
+            }
+          ]
+        },
+        {
+          "value": "validator:complete",
+          "count": 1,
+          "locations": [
+            {
+              "file": "assets/js/validator.js",
+              "line": 2851
+            }
+          ]
+        },
+        {
+          "value": "validator:groupAdded",
+          "count": 1,
+          "locations": [
+            {
+              "file": "assets/js/validator.js",
+              "line": 1686
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "recommendations": [
+    {
+      "title": "Refactor God Classes",
+      "description": "Found 8 oversized classes. The worst offender is `IDSEditorCore` in `assets/js/ids/ids-editor-core.js` with 42 methods. Consider extracting responsibilities into dedicated service classes.",
+      "priority": "high"
+    },
+    {
+      "title": "Reduce Hardwiring",
+      "description": "Found 49 hardwiring issues: 17 magic strings, 31 repeated literals, 0 hardcoded entity references. Extract to constants, enums, or configuration.",
+      "priority": "medium"
+    }
+  ]
+}

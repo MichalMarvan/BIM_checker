@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* ===========================================
    BIM CHECKER - HTML COMPONENTS
    Reusable UI components for consistent layout

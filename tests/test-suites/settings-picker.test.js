@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('settings tool picker (state logic)', () => {
     let catalog;
 

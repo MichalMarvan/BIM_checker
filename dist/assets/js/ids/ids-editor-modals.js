@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * IDS Editor Modals
  * Handles modal windows for adding/editing facets

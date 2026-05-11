@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * AI client — direct browser calls to OpenAI-compatible endpoints.
  * Supports streaming via Server-Sent Events. Maps HTTP errors to structured codes.

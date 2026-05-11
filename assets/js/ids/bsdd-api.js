@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * bSDD API Service Layer
  * Handles communication with buildingSMART Data Dictionary API

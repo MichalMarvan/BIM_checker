@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 const CACHE_VERSION = 'bim-checker-v36';
 const ASSETS_TO_CACHE = [
     './index.html',

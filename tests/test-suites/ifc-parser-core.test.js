@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('IFCParserCore namespace', () => {
     it('should expose IFCParserCore globally', () => {
         expect(typeof window.IFCParserCore).toBe('object');

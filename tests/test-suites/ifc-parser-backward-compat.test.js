@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('IFCParserCore vs legacy parseIFCFileAsync (snapshot)', () => {
     function deepEqual(a, b) {
         return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));

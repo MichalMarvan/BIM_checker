@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 // Tests classifyModification + applyModificationsToIFC behavior using synthetic IFC strings.
 // classifyModification is exposed on window for testing.
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * IDS Excel Template
  * Generates sample Excel template with Top 20 IFC4 psets

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* ===========================================
    BIM CHECKER - WORKER POOL MANAGER
    Manages a pool of Web Workers for parallel processing

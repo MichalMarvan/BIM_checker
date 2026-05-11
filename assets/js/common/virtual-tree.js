@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* ===========================================
    BIM CHECKER - VIRTUAL TREE VIEW
    Efficient tree rendering for large datasets

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * Settings modal — manage AI agents.
  * Public API: open() — lazy-injects modal on first call.

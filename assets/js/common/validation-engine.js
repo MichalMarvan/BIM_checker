@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* ===========================================
    BIM CHECKER - VALIDATION ENGINE
    Shared validation logic for main thread and workers

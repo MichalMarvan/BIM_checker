@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * i18n helpers — re-export `t()` for module use, register
  * languageChanged listeners that re-render AI UI elements.

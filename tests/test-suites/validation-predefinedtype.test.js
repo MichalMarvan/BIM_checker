@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('Validation: predefinedType matching', () => {
     beforeEach(async () => {
         await IFCHierarchy.load('IFC4');

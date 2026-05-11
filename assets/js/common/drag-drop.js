@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* ===========================================
    BIM CHECKER - DRAG & DROP MODULE
    Reusable drag-drop functionality for file uploads

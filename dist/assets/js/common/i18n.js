@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * BIM Checker - Internationalization (i18n)
  * Language switching and translation management

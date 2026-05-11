@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * BIM Checker - Index Page JavaScript
  * Main page logic for file storage management

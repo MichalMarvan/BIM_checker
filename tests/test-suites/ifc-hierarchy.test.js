@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('IFCHierarchy', () => {
     it('should expose IFCHierarchy global', () => {
         expect(typeof window.IFCHierarchy).toBe('object');

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 // XSS prevention utility
 function escapeHtml(text) {
     if (text === null || text === undefined) {

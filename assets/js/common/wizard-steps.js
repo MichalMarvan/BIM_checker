@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * BIM Checker - Wizard Steps Definition
  * Defines steps and help content for each page

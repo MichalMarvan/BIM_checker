@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * Predefined agent presets — name, icon, systemPrompt, enabledTools subset.
  * Used by Settings UI "Start from preset" dropdown.

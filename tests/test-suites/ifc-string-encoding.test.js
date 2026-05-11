@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 // =======================
 // IFC STRING ENCODING TESTS
 // Tests for decodeIFCString and parseProperty functions

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* ===========================================
    BIM CHECKER - PROPERTY SET INDEX
    Builds inverted index for O(1) property set lookup

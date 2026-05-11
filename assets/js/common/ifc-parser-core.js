@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * IFCParserCore — pure synchronous IFC content → entities[] parser.
  * Single source of truth, used by:

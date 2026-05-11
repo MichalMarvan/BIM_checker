@@ -42,3 +42,4 @@ podpora/
 # Tauri
 src-tauri/target/
 src-tauri/gen/
+.superpowers/

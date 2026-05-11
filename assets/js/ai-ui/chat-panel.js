@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * Chat panel — right-side floating panel with threads sidebar + messages + streaming input.
  *

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 describe('Compression namespace', () => {
     it('should expose Compression namespace globally', () => {
         expect(typeof window.Compression).toBe('object');

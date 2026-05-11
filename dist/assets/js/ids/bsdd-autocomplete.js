@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /**
  * bSDD Autocomplete Dropdown Component
  * Custom autocomplete that replaces native <datalist> for bSDD-enabled fields
