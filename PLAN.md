@@ -173,6 +173,19 @@ Branch: phase-12a-mobile-foundation
 
 First piece of Phase 12 (mobile/tablet responsive). Pages still desktop layout inside — separate sub-phases handle each page's mobile redesign.
 
+## Phase 12b: Mobile modals ✅
+- [x] All `.modal-overlay` / `.modal-container` go fullscreen < 1024px
+- [x] Both `.show` (legacy) and `.active` (AI Settings) open states supported
+- [x] Modal header sticky top with close button
+- [x] Body scrollable (`-webkit-overflow-scrolling: touch`)
+- [x] Footer sticky bottom when present
+- [x] Higher-specificity selectors (0,3,0) override `.ai-settings-modal .modal-container` + same-specificity rules in common.css / ids-editor-styles.css / ids-validator.css / ifc-viewer.css
+- [x] +4 tests (714 → 718)
+
+Branch: phase-12b-mobile-modals
+
+Affects all existing modals: AI Settings, Bug Report, IDS/IFC storage pickers, bulk edit, add pset, rename pset/property, XSD export, validation result modals.
+
 ---
 
 ## K dokončení (TODO)
