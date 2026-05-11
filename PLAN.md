@@ -221,6 +221,44 @@ Branch: phase-12e-validator-parser-mobile
 
 Note: per-row master-detail card layout for results tables (per spec line 95) deferred — current results stay as desktop-style cards which stack adequately at < 1024px.
 
+## Phase 12f: IFC Viewer mobile ✅
+- [x] Upload section + file-list stack vertically; file cards full-width
+- [x] Controls (search + filter selects) stack; iOS 16px no-zoom; 44px touch
+- [x] Column manager + Pset groups + prop items: compact padding, 44px tap targets
+- [x] Data table keeps horizontal scroll (overflow-x); padding compact; smaller font-size
+- [x] Pagination container stacks info above controls; buttons 44×44px
+- [x] Edit panel compact margins/padding
+- [x] iOS-no-zoom rule covers `.form-group select` + `.form-group input` (higher specificity than base)
+- [x] +5 tests (732 → 737)
+
+Branch: phase-12f-ifc-viewer-mobile
+
+Note: full virtual-scrolled card list (per spec line 102) deferred — keeps table with horizontal scroll. Future enhancement.
+
+---
+
+## Phase 12 COMPLETE 🎉
+
+Six sub-phases delivered:
+- 12a Foundation (top bar + bottom tabs, 1024px breakpoint)
+- 12b Modals (fullscreen modals < 1024px)
+- 12c Homepage (storage card stack, 44px touch, compact drop zones)
+- 12d Chat bottom sheet (docked panel, drag handle, chat-heads hidden)
+- 12e Validator + Parser (stacked filters/headers, iOS 16px)
+- 12f IFC Viewer (stacked controls, compact table, horizontal scroll)
+
+Test growth: 705 → 737 (+32 mobile tests).
+SW cache progression: v39 → v45.
+Single breakpoint `< 1024px` across all sub-phases.
+All interactive controls ≥ 44×44px touch (WCAG 2.5.5/2.5.8).
+All form inputs `font-size: 16px` (no iOS Safari auto-zoom).
+
+Deferred for future polish:
+- Virtual-scrolled entity card list (Viewer)
+- Master-detail card pattern for validator results table
+- Real drag-to-resize gestures on chat sheet
+- Wizard/tour mobile redesign
+
 ---
 
 ## K dokončení (TODO)
