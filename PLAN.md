@@ -208,6 +208,19 @@ No HTML/JS changes — drop zone click→file-picker already works on touch.
 
 Branch: phase-12d-chat-bottom-sheet
 
+## Phase 12e: Validator + Parser mobile ✅
+- [x] Validator filters-grid stacks (1 col); spec-header stacks; results-header stacks; presets panel stacks
+- [x] Stat cards 2-column on phone (was 4 auto-fit)
+- [x] Form inputs `font-size: 16px` to prevent iOS auto-zoom on focus
+- [x] All interactive controls ≥ 44×44px touch (min-width + min-height)
+- [x] Compact section padding (40px → spacing-lg/md)
+- [x] Parser ids-info-grid stacks; cards compact
+- [x] +5 tests (727 → 732)
+
+Branch: phase-12e-validator-parser-mobile
+
+Note: per-row master-detail card layout for results tables (per spec line 95) deferred — current results stay as desktop-style cards which stack adequately at < 1024px.
+
 ---
 
 ## K dokončení (TODO)
