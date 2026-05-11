@@ -1431,27 +1431,83 @@ body {
 }
 
 /* Responsive Design */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
+    /* Hero compact on phone — was 4rem title + 3xl padding */
+    .hero {
+        padding: 24px 16px 16px;
+    }
+
     .hero-title {
-        font-size: 3rem;
+        font-size: 2.2rem;
+        margin-bottom: 8px;
+    }
+
+    .hero-subtitle {
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+
+    .hero-features { display: none; }
+    .hero-decoration { display: none; }
+
+    /* Section headings compact */
+    .section-header {
+        margin-bottom: 16px;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        margin-bottom: 8px;
+        gap: 8px;
+    }
+
+    .title-icon {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+
+    .section-description {
+        font-size: 0.95rem;
+    }
+
+    .storage-section {
+        margin-bottom: 24px;
     }
 
     .storage-grid,
     .tools-grid-modern,
     .about-grid {
         grid-template-columns: 1fr;
+        gap: 12px;
     }
 
-    /* Storage card mobile: stack header, larger touch targets, compact padding */
+    /* Storage card mobile: tighter padding for more content room */
     .storage-card {
-        padding: var(--spacing-lg);
+        padding: 16px;
+        border-radius: var(--radius-xl);
+    }
+
+    /* Hide redundant subtitle on phone */
+    .card-subtitle {
+        display: none;
+    }
+
+    /* Collapse the empty file tree placeholder on phones */
+    .file-tree-modern {
+        min-height: 0;
+        max-height: 280px;
+    }
+    .file-tree-modern:empty::before {
+        padding: var(--spacing-md);
+        font-size: 0.9em;
     }
 
     .card-header {
         flex-direction: column;
         align-items: stretch;
-        gap: 16px;
-        padding-bottom: 16px;
+        gap: 12px;
+        padding-bottom: 12px;
+        margin-bottom: 12px;
     }
 
     .card-actions {

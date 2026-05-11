@@ -1,6 +1,25 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 
+/* === Global app-like polish (all viewports) === */
+
+/* Suppress iOS tap-flash (blue overlay on tap) for cleaner native feel */
+html {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Reduced motion: shorten transitions/animations */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* === Mobile + tablet responsive foundation === */
 /* Visible < 1024px; hidden ≥ 1024px (desktop keeps existing nav) */
 
@@ -66,6 +85,41 @@
     }
     .bim-mobile-topbar__settings:hover { background: rgba(255,255,255,0.28); }
 
+    /* Top bar actions cluster: lang + settings */
+    .bim-mobile-topbar__actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Compact CZ | EN toggle in top bar */
+    .bim-mobile-topbar__lang {
+        display: flex;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 2px;
+    }
+    .bim-mobile-topbar__lang .lang-btn {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 8px;
+        min-width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+    .bim-mobile-topbar__lang .lang-btn.active {
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--primary-color, #667eea);
+    }
+    .bim-mobile-topbar__lang .lang-btn:not(.active):hover {
+        color: white;
+    }
+
     /* Bottom tabs */
     .bim-mobile-tabs {
         display: flex;
@@ -83,6 +137,7 @@
     }
     .bim-mobile-tabs__tab {
         flex: 1;
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -91,23 +146,77 @@
         padding: 8px 4px;
         text-decoration: none;
         color: var(--text-tertiary, #6b7280);
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 500;
-        transition: color 0.15s;
+        transition: color 0.15s, background 0.15s;
         min-height: 44px;
     }
+    /* Strong active indicator: 3px primary bar at top + bold label + tint */
     .bim-mobile-tabs__tab.is-active {
         color: var(--primary-color, #667eea);
+        font-weight: 700;
+        background: rgba(102, 126, 234, 0.08);
+    }
+    .bim-mobile-tabs__tab.is-active::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 12px;
+        right: 12px;
+        height: 3px;
+        background: var(--primary-color, #667eea);
+        border-radius: 0 0 3px 3px;
     }
     .bim-mobile-tabs__icon {
         font-size: 22px;
         line-height: 1;
     }
+    .bim-mobile-tabs__tab.is-active .bim-mobile-tabs__icon {
+        transform: scale(1.05);
+    }
     .bim-mobile-tabs__label { line-height: 1; }
 
-    /* Reserve space at bottom of body so content not overlapped by fixed tabs */
+    /* Reset body padding < 1024px: zero horizontal so content can go edge-to-edge.
+       Bottom reserves space for fixed bottom tabs.
+       Top zero — sticky top bar handles its own height.
+       overscroll-behavior contains pull-to-refresh/bounce for app-like feel. */
     body {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 0 !important;
         padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+        overscroll-behavior-y: contain;
+    }
+
+    /* UI chrome: not selectable (text selection on tabs/topbar feels wrong) */
+    .bim-mobile-topbar,
+    .bim-mobile-tabs {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    /* Visible focus rings for keyboard navigation */
+    .bim-mobile-tabs__tab:focus-visible,
+    .bim-mobile-topbar__settings:focus-visible,
+    .bim-mobile-topbar__lang .lang-btn:focus-visible,
+    .btn-icon-modern:focus-visible {
+        outline: 2px solid var(--primary-color, #667eea);
+        outline-offset: 2px;
+    }
+
+    /* Page wrappers (every page uses one of these): edge-to-edge with small breathing room.
+       Use !important to win against per-page < 768px rules that re-add 16px padding. */
+    .page-container,
+    .main-container,
+    .container {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    /* Section paddings inside page wrappers: also compact */
+    .hero {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
     }
 
     /* On tablet (768-1023): slightly larger touch targets */

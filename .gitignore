@@ -21,6 +21,7 @@ npm-debug.log*
 # Temporary files
 *.tmp
 *.temp
+tmp/
 
 # IFC test files and data
 podklady/
