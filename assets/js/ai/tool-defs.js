@@ -12,12 +12,12 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_storage_files',
-            description: 'Vypíše všechny soubory v IndexedDB úložišti pro daný typ. Volitelně lze filtrovat podle složky (substring match cesty). Bez `folder` vrátí všechny soubory.',
+            description: 'Lists all files in IndexedDB storage for the given type. Optionally filter by folder (substring match on path). Without `folder` returns all files.',
             parameters: {
                 type: 'object',
                 properties: {
-                    type: { type: 'string', enum: ['ifc', 'ids'], description: 'Typ souborů' },
-                    folder: { type: 'string', description: 'Volitelný filtr — jméno nebo část cesty složky. Vrátí soubory ze složky a všech podsložek.' }
+                    type: { type: 'string', enum: ['ifc', 'ids'], description: 'File type' },
+                    folder: { type: 'string', description: 'Optional filter — folder name or path fragment. Returns files from the folder and all subfolders.' }
                 },
                 required: ['type']
             }
@@ -27,7 +27,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_storage_folders',
-            description: 'Vrátí seznam složek v úložišti spolu s jejich přímými soubory. Použij když uživatel mluví o složce a chceš vědět, které soubory v ní jsou.',
+            description: 'Returns a list of folders in storage with their direct files. Use this when the user talks about a folder and you want to know which files are in it.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -41,12 +41,12 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'delete_file_from_storage',
-            description: 'Smaže soubor z úložiště. Před smazáním se uživatele zeptá přes potvrzovací dialog.',
+            description: 'Deletes a file from storage. Asks the user for confirmation before deletion.',
             parameters: {
                 type: 'object',
                 properties: {
                     type: { type: 'string', enum: ['ifc', 'ids'] },
-                    name: { type: 'string', description: 'Přesné jméno souboru' }
+                    name: { type: 'string', description: 'Exact file name' }
                 },
                 required: ['type', 'name']
             }
@@ -56,7 +56,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_validation_groups',
-            description: 'Vypíše aktuální validační skupiny (z last-session preset).',
+            description: 'Lists the current validation groups (from the last-session preset).',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -64,12 +64,12 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'add_validation_group',
-            description: 'Přidá novou validační skupinu. Soubory se identifikují podle jména.',
+            description: 'Adds a new validation group. Files are identified by name.',
             parameters: {
                 type: 'object',
                 properties: {
-                    ifcFileNames: { type: 'array', items: { type: 'string' }, description: 'Pole jmen IFC souborů' },
-                    idsFileName: { type: 'string', description: 'Jméno IDS souboru' }
+                    ifcFileNames: { type: 'array', items: { type: 'string' }, description: 'Array of IFC file names' },
+                    idsFileName: { type: 'string', description: 'IDS file name' }
                 },
                 required: ['ifcFileNames', 'idsFileName']
             }
@@ -79,7 +79,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'delete_validation_group',
-            description: 'Smaže validační skupinu podle indexu (od 0). Před smazáním se zeptá uživatele.',
+            description: 'Deletes a validation group by index (0-based). Asks the user for confirmation before deletion.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -93,7 +93,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'run_validation',
-            description: 'Spustí validaci. Pokud nejsi na Validator stránce, sám tam přepne a po obnovení automaticky spustí validaci (chat panel se zavře). Před voláním se ujisti, že existují validační skupiny (volej add_validation_group).',
+            description: 'Runs validation. If not on the Validator page, navigates there automatically and triggers validation after reload (chat panel will close). Before calling, ensure validation groups exist (call add_validation_group).',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -101,7 +101,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_validation_results',
-            description: 'Vrátí poslední výsledky validace. Funguje pouze na stránce Validator.',
+            description: 'Returns the latest validation results. Only works on the Validator page.',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -109,11 +109,11 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_ids_specifications',
-            description: 'Vrátí seznam specifikací uvnitř daného IDS souboru.',
+            description: 'Returns a list of specifications inside the given IDS file.',
             parameters: {
                 type: 'object',
                 properties: {
-                    filename: { type: 'string', description: 'Jméno IDS souboru v úložišti' }
+                    filename: { type: 'string', description: 'IDS file name in storage' }
                 },
                 required: ['filename']
             }
@@ -123,12 +123,12 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'search_ifc_entities',
-            description: 'Najde entity v IFC souboru podle IFC typu (např. IFCWALL). Limit 50 entit, vrací počet.',
+            description: 'Finds entities in an IFC file by IFC type (e.g. IFCWALL). Limit 50 entities, returns count.',
             parameters: {
                 type: 'object',
                 properties: {
                     filename: { type: 'string' },
-                    entityType: { type: 'string', description: 'IFC typ, např. IFCWALL, IFCDOOR' }
+                    entityType: { type: 'string', description: 'IFC type, e.g. IFCWALL, IFCDOOR' }
                 },
                 required: ['filename', 'entityType']
             }
@@ -138,7 +138,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'count_entities_by_type',
-            description: 'Histogram IFC typů v souboru — kolik entit od každého typu.',
+            description: 'Histogram of IFC types in a file — how many entities of each type.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -152,7 +152,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'find_ifc_files_with_entity',
-            description: 'Pro daný IFC typ najde, ve kterých souborech v úložišti se vyskytuje a kolikrát.',
+            description: 'For a given IFC type, finds which files in storage contain it and how many times.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -166,7 +166,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_entity_properties',
-            description: 'Vrátí všechny PSet (property sets) dané entity podle Express ID.',
+            description: 'Returns all PSets (property sets) for a given entity by Express ID.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -181,7 +181,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_property_value',
-            description: 'Vrátí konkrétní hodnotu vlastnosti z property setu.',
+            description: 'Returns the value of a specific property from a property set.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -198,7 +198,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_current_page',
-            description: 'Vrátí, na které stránce BIM_checker je uživatel právě teď.',
+            description: 'Returns which BIM_checker page the user is currently on.',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -206,7 +206,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'navigate_to_page',
-            description: 'Přepne uživatele na jinou stránku aplikace. POZOR: vyvolá page reload, chat panel se zavře.',
+            description: 'Navigates the user to a different page in the app. WARNING: causes a page reload, the chat panel will close.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -220,7 +220,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_theme',
-            description: 'Vrátí aktuální barevné téma (light/dark).',
+            description: 'Returns the current color theme (light/dark).',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -228,7 +228,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'set_theme',
-            description: 'Přepne barevné téma. Bere efekt okamžitě.',
+            description: 'Switches the color theme. Takes effect immediately.',
             parameters: {
                 type: 'object',
                 properties: { theme: { type: 'string', enum: ['light', 'dark'] } },
@@ -240,7 +240,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_language',
-            description: 'Vrátí aktuální jazyk UI (cs/en).',
+            description: 'Returns the current UI language (cs/en).',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -248,7 +248,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'set_language',
-            description: 'Přepne jazyk UI. Spustí re-render textů.',
+            description: 'Switches the UI language. Triggers a re-render of all text.',
             parameters: {
                 type: 'object',
                 properties: { lang: { type: 'string', enum: ['cs', 'en'] } },
@@ -260,11 +260,11 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'start_wizard',
-            description: 'Spustí onboarding průvodce. Funguje jen na podstránkách (validator/parser/viewer), ne na homepage.',
+            description: 'Starts the onboarding wizard. Only works on sub-pages (validator/parser/viewer), not on the homepage.',
             parameters: {
                 type: 'object',
                 properties: {
-                    page: { type: 'string', enum: ['validator', 'parser', 'viewer'], description: 'Volitelné — který set kroků použít. Pokud nezadáno, použije se aktuální stránka.' }
+                    page: { type: 'string', enum: ['validator', 'parser', 'viewer'], description: 'Optional — which step set to use. If omitted, the current page is used.' }
                 }
             }
         }
@@ -273,7 +273,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'dismiss_wizard',
-            description: 'Zavře aktivního průvodce.',
+            description: 'Closes the active wizard.',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -281,7 +281,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'install_pwa',
-            description: 'Spustí browser dialog pro instalaci PWA. Pokud browser instalační prompt nemá k dispozici, vrátí available:false.',
+            description: 'Triggers the browser install dialog for the PWA. If the browser does not have an install prompt available, returns available:false.',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -289,11 +289,11 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'open_bug_report',
-            description: 'Otevře dialog hlášení chyby. Volitelně předvyplní popis.',
+            description: 'Opens the bug report dialog. Optionally pre-fills the description.',
             parameters: {
                 type: 'object',
                 properties: {
-                    description: { type: 'string', description: 'Předvyplněný text popisu.' }
+                    description: { type: 'string', description: 'Pre-filled description text.' }
                 }
             }
         }
@@ -302,7 +302,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_agents',
-            description: 'Vrátí seznam všech AI agentů (bez API klíčů).',
+            description: 'Returns a list of all AI agents (without API keys).',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -310,7 +310,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_active_agent',
-            description: 'Vrátí informace o aktuálně běžícím agentovi (tom, co řídí tento chat).',
+            description: 'Returns information about the currently active agent (the one driving this chat).',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -318,7 +318,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'create_agent',
-            description: 'Vytvoří nového AI agenta. Vyžaduje API klíč. Pokud agent stejného jména už existuje, vrátí duplicate_name s existingId — použij update_agent místo dalšího create.',
+            description: 'Creates a new AI agent. Requires an API key. If an agent with the same name already exists, returns duplicate_name with existingId — use update_agent instead of creating again.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -339,12 +339,12 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'update_agent',
-            description: 'Upraví existujícího agenta. Identifikuj přes id NEBO name (jméno musí být unikátní). Pro rename volej s `id` a novým `name`. NESMÍ se použít na aktuálně běžícího agenta — vrátí cannot_modify_active.',
+            description: 'Updates an existing agent. Identify via id OR name (name must be unique). For renaming, call with `id` and a new `name`. MUST NOT be used on the currently active agent — returns cannot_modify_active.',
             parameters: {
                 type: 'object',
                 properties: {
-                    id: { type: 'string', description: 'Identifikátor agenta. Pokud je vyplněn, hodnota name se interpretuje jako přejmenování.' },
-                    name: { type: 'string', description: 'Bez id slouží jako vyhledávací klíč. S id znamená nové jméno.' },
+                    id: { type: 'string', description: 'Agent identifier. When provided, the name value is interpreted as a rename.' },
+                    name: { type: 'string', description: 'Without id, acts as a lookup key. With id, sets the new name.' },
                     icon: { type: 'string' },
                     provider: { type: 'string' },
                     model: { type: 'string' },
@@ -360,7 +360,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'delete_agent',
-            description: 'Smaže agenta podle id NEBO name (jméno musí být unikátní). Před smazáním otevře potvrzovací dialog. Nemůže smazat aktuálně běžícího agenta ani posledního zbývajícího.',
+            description: 'Deletes an agent by id OR name (name must be unique). Opens a confirmation dialog before deletion. Cannot delete the currently active agent or the last remaining one.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -374,13 +374,13 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'create_folder',
-            description: 'Vytvoří novou složku v úložišti pro daný typ. Volitelně lze zadat parentName (jméno nebo cesta nadřazené složky).',
+            description: 'Creates a new folder in storage for the given type. Optionally specify parentName (name or path of the parent folder).',
             parameters: {
                 type: 'object',
                 properties: {
                     type: { type: 'string', enum: ['ifc', 'ids'] },
                     name: { type: 'string' },
-                    parentName: { type: 'string', description: 'Volitelné, default root.' }
+                    parentName: { type: 'string', description: 'Optional, defaults to root.' }
                 },
                 required: ['type', 'name']
             }
@@ -390,7 +390,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'rename_folder',
-            description: 'Přejmenuje složku. Identifikuj přes folderName (jméno nebo cesta).',
+            description: 'Renames a folder. Identify via folderName (name or path).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -406,7 +406,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'delete_folder',
-            description: 'Smaže složku včetně všech souborů a podsložek. Před smazáním otevře potvrzovací dialog.',
+            description: 'Deletes a folder including all files and subfolders. Opens a confirmation dialog before deletion.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -421,7 +421,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'move_file',
-            description: 'Přesune soubor do jiné složky. Soubor i složku identifikuj podle jména.',
+            description: 'Moves a file to a different folder. Identify both the file and the folder by name.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -437,7 +437,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'move_files_batch',
-            description: 'Přesune více souborů do stejné složky najednou. Vrátí seznam moved a skipped (s důvodem).',
+            description: 'Moves multiple files to the same folder at once. Returns lists of moved and skipped (with reason).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -453,7 +453,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'download_file',
-            description: 'Spustí download souboru z úložiště do uživatelova OS (přes browser).',
+            description: 'Triggers a download of a file from storage to the user\'s OS (via browser).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -468,7 +468,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_file_snippet',
-            description: 'Vrátí prvních N bytů obsahu souboru jako text (default 8000, max 50000). Nastav truncated:true pokud soubor delší.',
+            description: 'Returns the first N bytes of a file\'s content as text (default 8000, max 50000). Sets truncated:true if the file is longer.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -484,7 +484,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_file_summary',
-            description: 'Souhrn souboru: pro IFC top 10 typů + počet entit, pro IDS počet specifikací + info, plus size a modifiedAt.',
+            description: 'File summary: for IFC returns top 10 types + entity count, for IDS returns specification count + info, plus size and modifiedAt.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -499,7 +499,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'replace_file_content',
-            description: 'Přepíše obsah existujícího souboru novým textem. Před zápisem otevře potvrzovací dialog (s varováním pokud rozdíl velikostí >50%).',
+            description: 'Overwrites the content of an existing file with new text. Opens a confirmation dialog before writing (with a warning if the size difference is >50%).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -515,7 +515,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_presets',
-            description: 'Vypíše všechny uložené validační presety.',
+            description: 'Lists all saved validation presets.',
             parameters: { type: 'object', properties: {} }
         }
     },
@@ -523,7 +523,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'save_preset',
-            description: 'Uloží nový preset. useCurrentGroups:true vezme aktuální skupiny z UI validatoru, jinak použije last-session preset.',
+            description: 'Saves a new preset. useCurrentGroups:true takes the current groups from the validator UI, otherwise uses the last-session preset.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -538,7 +538,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'delete_preset',
-            description: 'Smaže preset podle id NEBO name. Před smazáním otevře potvrzovací dialog.',
+            description: 'Deletes a preset by id OR name. Opens a confirmation dialog before deletion.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -552,7 +552,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'load_preset',
-            description: 'Načte preset jako last-session (validator UI se aktualizuje). andNavigate:true přepne na Validator stránku pokud nejsi na ní (a spustí auto-run).',
+            description: 'Loads a preset as the last-session preset (validator UI updates). andNavigate:true switches to the Validator page if not already there (and triggers auto-run).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -567,7 +567,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'apply_preset',
-            description: 'Najde preset podle jména a aplikuje ho. Pokud nejsi na Validator stránce, automaticky tam přepne a spustí validaci.',
+            description: 'Finds a preset by name and applies it. If not on the Validator page, automatically navigates there and starts validation.',
             parameters: {
                 type: 'object',
                 properties: { presetName: { type: 'string' } },
@@ -579,7 +579,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'request_user_attention',
-            description: 'Zobrazí toast notifikaci uživateli — info/warning/success/error. Použij když chceš upozornit na něco mimo chat panel.',
+            description: 'Displays a toast notification to the user — info/warning/success/error. Use when you want to alert the user to something outside the chat panel.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -594,7 +594,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_specification_detail',
-            description: 'Detail jedné specifikace v IDS souboru. Najdi přes specName nebo specIndex (od 0). Vrátí applicability + requirements facets.',
+            description: 'Details of a single specification in an IDS file. Find via specName or specIndex (0-based). Returns applicability + requirements facets.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -610,7 +610,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_facet_detail',
-            description: 'Detail konkrétního facetu uvnitř specifikace. facetType je entity|partOf|classification|attribute|property|material. in=applicability|requirements (default applicability).',
+            description: 'Details of a specific facet within a specification. facetType is entity|partOf|classification|attribute|property|material. in=applicability|requirements (default applicability).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -629,12 +629,12 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_validation_failures',
-            description: 'Detail selhaných requirementů z poslední validace. Page-locked na Validator. Limit 50, vrátí truncated:true při překročení.',
+            description: 'Details of failed requirements from the last validation. Page-locked to Validator. Limit 50, returns truncated:true if exceeded.',
             parameters: {
                 type: 'object',
                 properties: {
                     groupIndex: { type: 'integer', minimum: 0 },
-                    ifcFileName: { type: 'string', description: 'Volitelný filtr na konkrétní IFC soubor.' }
+                    ifcFileName: { type: 'string', description: 'Optional filter for a specific IFC file.' }
                 },
                 required: ['groupIndex']
             }
@@ -644,7 +644,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'count_failures_by_requirement',
-            description: 'Histogram failed/total per requirement napříč všemi IFC ve skupině. Page-locked na Validator.',
+            description: 'Histogram of failed/total per requirement across all IFC files in a group. Page-locked to Validator.',
             parameters: {
                 type: 'object',
                 properties: { groupIndex: { type: 'integer', minimum: 0 } },
@@ -656,7 +656,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'compare_ifc_files',
-            description: 'Porovná entity histogramy dvou skupin IFC souborů. Vrátí { a, b, delta } kde delta = b - a per typ.',
+            description: 'Compares entity histograms of two groups of IFC files. Returns { a, b, delta } where delta = b - a per type.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -671,7 +671,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'find_property_in_ifc',
-            description: 'Najde entity obsahující property daného jména. Volitelně filtr přes value (přesná shoda). Limit 50 matchů.',
+            description: 'Finds entities containing a property with the given name. Optional value filter (exact match). Limit 50 matches.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -687,12 +687,12 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'generate_ids_skeleton',
-            description: 'Vygeneruje minimální IDS XML kostru s jednou prázdnou specifikací. Vrací XML jako string. Generátor vyžaduje email v author poli (XSD constraint).',
+            description: 'Generates a minimal IDS XML skeleton with one empty specification. Returns XML as a string. The generator requires an email in the author field (XSD constraint).',
             parameters: {
                 type: 'object',
                 properties: {
                     title: { type: 'string' },
-                    author: { type: 'string', description: 'Email pro author pole (povinné per XSD).' },
+                    author: { type: 'string', description: 'Email for the author field (required per XSD).' },
                     ifcVersion: { type: 'string', description: 'Default IFC4X3_ADD2.' },
                     copyright: { type: 'string' },
                     version: { type: 'string' },
@@ -708,7 +708,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'add_specification_to_ids',
-            description: 'Přidá novou specifikaci do existujícího IDS souboru. Před zápisem otevře potvrzovací dialog. Facets musí mít správný shape (type + příslušná pole).',
+            description: 'Adds a new specification to an existing IDS file. Opens a confirmation dialog before writing. Facets must have the correct shape (type + relevant fields).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -716,8 +716,8 @@ export const TOOL_DEFINITIONS = [
                     name: { type: 'string' },
                     ifcVersion: { type: 'string' },
                     description: { type: 'string' },
-                    applicabilityFacets: { type: 'array', items: { type: 'object' }, description: 'Pole facet objektů (entity/property/attribute/...).' },
-                    requirementFacets: { type: 'array', items: { type: 'object' }, description: 'Pole facet objektů.' }
+                    applicabilityFacets: { type: 'array', items: { type: 'object' }, description: 'Array of facet objects (entity/property/attribute/...).' },
+                    requirementFacets: { type: 'array', items: { type: 'object' }, description: 'Array of facet objects.' }
                 },
                 required: ['idsFileName', 'name', 'applicabilityFacets', 'requirementFacets']
             }
@@ -727,7 +727,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'validate_ids_xml',
-            description: 'Spustí XSD validaci IDS souboru proti ids-1.0.xsd. Vrací valid + errors[0..20]. Funguje jen tam, kde je XSD validátor načtený (validator/parser stránka).',
+            description: 'Runs XSD validation of an IDS file against ids-1.0.xsd. Returns valid + errors[0..20]. Only works where the XSD validator is loaded (validator/parser page).',
             parameters: {
                 type: 'object',
                 properties: { idsFileName: { type: 'string' } },
@@ -739,7 +739,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'bsdd_search',
-            description: 'Hledání v buildingSMART Data Dictionary. Aktuálně gated stub — vrátí integration_disabled. Bude implementováno v další fázi.',
+            description: 'Search in the buildingSMART Data Dictionary. Currently a gated stub — returns integration_disabled. Will be implemented in a future phase.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -754,7 +754,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'bsdd_get_property',
-            description: 'Detail bSDD property dle URI. Aktuálně gated stub — vrátí integration_disabled.',
+            description: 'Details of a bSDD property by URI. Currently a gated stub — returns integration_disabled.',
             parameters: {
                 type: 'object',
                 properties: { uri: { type: 'string' } },
@@ -766,7 +766,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'export_validation_xlsx',
-            description: 'Stáhne Excel export validačních výsledků. Page-locked na Validator po spuštění validace.',
+            description: 'Downloads an Excel export of validation results. Page-locked to Validator after validation has been run.',
             parameters: { type: 'object', properties: {} }
         }
     }
