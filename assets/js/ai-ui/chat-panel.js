@@ -243,7 +243,7 @@ async function _send() {
     if (!agent) return;
     if (!agent.model || !String(agent.model).trim()) {
         if (typeof ErrorHandler !== 'undefined') {
-            ErrorHandler.error(`Agent "${agent.name}" nemá nastavený model. Otevři Settings ⚙️ a vyber model.`);
+            ErrorHandler.error(t('chat.agent.noModel', { name: agent.name }));
         }
         return;
     }
@@ -408,7 +408,7 @@ function _providerName(key) {
 
 function _relativeTime(ms) {
     const diff = Date.now() - ms;
-    if (diff < 60000) return 'teď';
+    if (diff < 60000) return t('chat.time.now');
     if (diff < 3600000) return `${Math.floor(diff / 60000)} min`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)} h`;
     return new Date(ms).toLocaleDateString();

@@ -123,7 +123,7 @@ class ProgressPanel {
         // Show completed count header if any completed
         let headerHtml = '';
         if (completedFiles.length > 0) {
-            headerHtml = `<div class="validation-progress__completed">✓ ${completedFiles.length} dokončeno</div>`;
+            headerHtml = `<div class="validation-progress__completed">${i18n.t('progress.completedCount', { count: completedFiles.length })}</div>`;
         }
 
         const filesHtml = activeFiles.map(([id, file]) => {

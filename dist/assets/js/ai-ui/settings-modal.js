@@ -96,7 +96,7 @@ async function _renderListView() {
     advanced.className = 'ai-settings-modal__advanced';
     advanced.innerHTML = `<summary>${t('ai.settings.advancedSection')}</summary>
         <p style="color: var(--text-tertiary); padding: 8px 0;">
-            (Nepoužito v Phase 7 — připraveno pro budoucí endpoint library.)
+            (Not used in Phase 7 — reserved for future endpoint library.)
         </p>`;
     body.appendChild(advanced);
 }
@@ -253,7 +253,7 @@ async function _saveFromForm() {
     };
     if (!data.model || !data.model.trim()) {
         if (typeof ErrorHandler !== 'undefined') {
-            ErrorHandler.error('Vyber nebo zadej model agenta — bez modelu API odmítne request.');
+            ErrorHandler.error(t('settings.modal.errorNoModel'));
         }
         return;
     }

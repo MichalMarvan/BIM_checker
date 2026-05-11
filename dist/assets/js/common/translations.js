@@ -1058,6 +1058,15 @@ const translations = {
         'update.download': 'Stáhnout novou verzi',
         'update.later': 'Později',
         'update.close': 'Zavřít',
+
+        // === I18N CLEANUP T5 ===
+        'validator.results.lineLabel': 'Řádek',
+        'validator.results.fileCountLabel': 'souborů',
+        'validator.results.fileCountSingular': 'soubor',
+        'progress.completedCount': '✓ {count} dokončeno',
+        'settings.modal.errorNoModel': 'Vyber nebo zadej model agenta — bez modelu API odmítne request.',
+        'chat.time.now': 'teď',
+        'chat.agent.noModel': 'Agent "{name}" nemá nastavený model. Otevři Settings ⚙️ a vyber model.',
     },
 
     en: {
@@ -2114,6 +2123,15 @@ const translations = {
 
         // === WIZARD TOOLTIP ===
         'wizard.tooltip.newHere': 'New here? Click for the tour!',
+
+        // === I18N CLEANUP T5 ===
+        'validator.results.lineLabel': 'Line',
+        'validator.results.fileCountLabel': 'files',
+        'validator.results.fileCountSingular': 'file',
+        'progress.completedCount': '✓ {count} done',
+        'settings.modal.errorNoModel': 'Select or enter an agent model — without a model, the API rejects the request.',
+        'chat.time.now': 'now',
+        'chat.agent.noModel': 'Agent "{name}" has no model set. Open Settings ⚙️ and select a model.',
     }
 };
 

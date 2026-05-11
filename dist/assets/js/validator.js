@@ -1531,7 +1531,7 @@ function renderValidationGroups() {
                 detailList.dataset.xsdGroupIdx = index;
                 detailList.hidden = true;
                 detailList.innerHTML = group.idsFile.xsdResult.errors.map(e =>
-                    `<li><strong>${e.line ? 'Řádek ' + e.line + ': ' : ''}</strong>${escapeHtml(e.message)}</li>`
+                    `<li><strong>${e.line ? i18n.t('validator.results.lineLabel') + ' ' + e.line + ': ' : ''}</strong>${escapeHtml(e.message)}</li>`
                 ).join('');
                 fileItem.appendChild(detailList);
 
@@ -2580,7 +2580,7 @@ async function validateAll() {
             }
 
             // Process files in batches for parallel execution
-            document.getElementById('currentFile').textContent = `${t('validator.loading.validating')} ${ifcFiles.length} IFC ${ifcFiles.length === 1 ? 'soubor' : 'souborů'}...`;
+            document.getElementById('currentFile').textContent = `${t('validator.loading.validating')} ${ifcFiles.length} IFC ${ifcFiles.length === 1 ? t('validator.results.fileCountSingular') : t('validator.results.fileCountLabel')}...`;
 
             for (let i = 0; i < ifcFiles.length; i += maxConcurrent) {
                 if (validationAborted) break;
@@ -2635,7 +2635,7 @@ function _ensureSavePresetModal() {
         <div id="savePresetModal" class="modal-overlay">
             <div class="modal-container" style="max-width: 420px;">
                 <div class="modal-header">
-                    <h2 data-i18n="presets.saveModal.title">Uložit preset</h2>
+                    <h2 data-i18n="presets.saveModal.title">Save preset</h2>
                     <button class="modal-close" id="savePresetModalClose">&times;</button>
                 </div>
                 <div class="modal-body">
@@ -2645,8 +2645,8 @@ function _ensureSavePresetModal() {
                     <div id="savePresetError" style="color: var(--danger,#dc2626); font-size: 0.9em; margin-top: 8px; display:none;"></div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" id="savePresetCancel" data-i18n="presets.saveModal.cancel">Zrušit</button>
-                    <button class="btn btn-primary" id="savePresetConfirm" data-i18n="presets.saveModal.save">Uložit</button>
+                    <button class="btn btn-secondary" id="savePresetCancel" data-i18n="presets.saveModal.cancel">Cancel</button>
+                    <button class="btn btn-primary" id="savePresetConfirm" data-i18n="presets.saveModal.save">Save</button>
                 </div>
             </div>
         </div>
