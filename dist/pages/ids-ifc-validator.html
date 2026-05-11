@@ -52,7 +52,20 @@
         html.i18n-ready [data-i18n] { opacity: 1; transition: opacity 0.15s ease; }
     </style>
 </head>
-<body>
+<body data-page="validator">
+    <!-- Mobile top bar (visible < 1024px) -->
+    <header class="bim-mobile-topbar">
+        <a href="../index.html" class="bim-mobile-topbar__brand">
+            <span class="bim-mobile-topbar__icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </span>
+            <span class="bim-mobile-topbar__name" data-i18n="app.title">BIM Checker</span>
+        </a>
+        <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
+    </header>
     <!-- Loading Overlay - mimo page-container pro správné centrování -->
     <div class="loading-overlay-modern" id="loading">
         <div class="loading-card">
@@ -357,5 +370,33 @@
         }
     </script>
     <script type="module" src="../assets/js/ai-ui/init.js"></script>
+    <!-- Mobile bottom tabs (visible < 1024px) -->
+    <nav class="bim-mobile-tabs">
+        <a href="../index.html" class="bim-mobile-tabs__tab" data-tab="home">
+            <span class="bim-mobile-tabs__icon">🏠</span>
+            <span class="bim-mobile-tabs__label" data-i18n="mobile.nav.home">Domů</span>
+        </a>
+        <a href="./ids-ifc-validator.html" class="bim-mobile-tabs__tab" data-tab="validator">
+            <span class="bim-mobile-tabs__icon">✓</span>
+            <span class="bim-mobile-tabs__label" data-i18n="mobile.nav.validator">Validator</span>
+        </a>
+        <a href="./ids-parser-visualizer.html" class="bim-mobile-tabs__tab" data-tab="parser">
+            <span class="bim-mobile-tabs__icon">📐</span>
+            <span class="bim-mobile-tabs__label" data-i18n="mobile.nav.parser">Parser</span>
+        </a>
+        <a href="./ifc-viewer-multi-file.html" class="bim-mobile-tabs__tab" data-tab="viewer">
+            <span class="bim-mobile-tabs__icon">🏗️</span>
+            <span class="bim-mobile-tabs__label" data-i18n="mobile.nav.viewer">Viewer</span>
+        </a>
+    </nav>
+    <script src="../assets/js/common/mobile-nav.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const btn = document.getElementById('aiSettingsBtnMobile');
+            if (btn) btn.addEventListener('click', function() {
+                window.dispatchEvent(new CustomEvent('ai:openSettings'));
+            });
+        });
+    </script>
 </body>
 </html>
