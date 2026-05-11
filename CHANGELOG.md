@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2026-05-11
+
+### Added
+- Mobile/tablet responsive foundation (Phase 12a): sticky top bar (48px) + fixed bottom tab bar (64px) for viewports < 1024px
+- `assets/css/mobile-nav.css` — styles for top bar, bottom tabs, breakpoint hiding of desktop navbar
+- `assets/js/common/mobile-nav.js` — active-tab assignment from `<body data-page>` attribute
+- 4 new i18n keys (CZ + EN): `mobile.nav.home`, `mobile.nav.validator`, `mobile.nav.parser`, `mobile.nav.viewer`
+- safe-area-inset support for iPhone X+ notch + home indicator
+- Settings button in mobile top bar opens existing AI agents modal
+
+### Changed
+- Existing desktop `.navbar` hidden < 1024px via media query
+- `body` reserves 64px bottom padding < 1024px to clear fixed bottom tabs
+- Footer tech badges hidden < 1024px; meta items wrap
+
+### Notes
+- Page content inside each route still uses the desktop layout — separate Phase 12b-f handle per-page mobile redesigns.
+
+SW cache bumped v39 → v40.
+
 ## [0.9.0] - 2026-05-10
 
 ### Added

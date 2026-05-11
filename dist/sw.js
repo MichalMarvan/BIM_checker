@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-const CACHE_VERSION = 'bim-checker-v39';
+const CACHE_VERSION = 'bim-checker-v40';
 const ASSETS_TO_CACHE = [
     './index.html',
     './assets/og-image-v2.png',
@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
     './pages/ids-ifc-validator.html',
     './pages/ifc-viewer-multi-file.html',
     './assets/css/common.css',
+    './assets/css/mobile-nav.css',
     './assets/css/index.css',
     './assets/css/wizard.css',
     './assets/css/ids-parser.css',
@@ -19,6 +20,7 @@ const ASSETS_TO_CACHE = [
     './assets/css/ids-editor-styles.css',
     './assets/css/progress-panel.css',
     './assets/js/common/translations.js',
+    './assets/js/common/mobile-nav.js',
     './assets/js/common/i18n.js',
     './assets/js/common/error-handler.js',
     './assets/js/common/storage.js',

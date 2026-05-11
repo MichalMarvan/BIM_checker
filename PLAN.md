@@ -159,6 +159,20 @@ Branch: phase-10-chat-heads-ui
 
 Branch: phase-11-tool-routing
 
+## Phase 12a: Mobile foundation ✅
+- [x] mobile-nav.css — sticky top bar (48px) + fixed bottom tabs (64px)
+- [x] mobile-nav.js — active-tab class from `body[data-page]`
+- [x] 4 i18n keys CZ+EN (`mobile.nav.home/validator/parser/viewer`)
+- [x] Top bar + bottom tabs HTML on all 4 pages
+- [x] Existing `.navbar` hidden < 1024px
+- [x] Compact footer < 1024px (tech badges hidden)
+- [x] safe-area insets for iPhone X+
+- [x] +9 tests (705 → 714)
+
+Branch: phase-12a-mobile-foundation
+
+First piece of Phase 12 (mobile/tablet responsive). Pages still desktop layout inside — separate sub-phases handle each page's mobile redesign.
+
 ---
 
 ## K dokončení (TODO)
