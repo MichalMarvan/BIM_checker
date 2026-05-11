@@ -83,6 +83,7 @@
     }
     .bim-mobile-tabs__tab {
         flex: 1;
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -91,23 +92,59 @@
         padding: 8px 4px;
         text-decoration: none;
         color: var(--text-tertiary, #6b7280);
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 500;
-        transition: color 0.15s;
+        transition: color 0.15s, background 0.15s;
         min-height: 44px;
     }
+    /* Strong active indicator: 3px primary bar at top + bold label + tint */
     .bim-mobile-tabs__tab.is-active {
         color: var(--primary-color, #667eea);
+        font-weight: 700;
+        background: rgba(102, 126, 234, 0.08);
+    }
+    .bim-mobile-tabs__tab.is-active::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 12px;
+        right: 12px;
+        height: 3px;
+        background: var(--primary-color, #667eea);
+        border-radius: 0 0 3px 3px;
     }
     .bim-mobile-tabs__icon {
         font-size: 22px;
         line-height: 1;
     }
+    .bim-mobile-tabs__tab.is-active .bim-mobile-tabs__icon {
+        transform: scale(1.05);
+    }
     .bim-mobile-tabs__label { line-height: 1; }
 
-    /* Reserve space at bottom of body so content not overlapped by fixed tabs */
+    /* Reset body padding < 1024px: zero horizontal so content can go edge-to-edge.
+       Bottom reserves space for fixed bottom tabs.
+       Top zero — sticky top bar handles its own height. */
     body {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 0 !important;
         padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Page wrappers (every page uses one of these): edge-to-edge with small breathing room.
+       Use !important to win against per-page < 768px rules that re-add 16px padding. */
+    .page-container,
+    .main-container,
+    .container {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    /* Section paddings inside page wrappers: also compact */
+    .hero {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
     }
 
     /* On tablet (768-1023): slightly larger touch targets */

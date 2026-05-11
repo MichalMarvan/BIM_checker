@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-/* Inspect computed sizes of key mobile elements to find layout issues. */
+/* Deep inspection: find any overflow, anything wider than viewport, weird gaps. */
 
 import puppeteer from 'puppeteer';
 import { createServer } from 'http';
@@ -34,6 +34,13 @@ function startServer(port) {
     });
 }
 
+const PAGES = [
+    { name: 'homepage', path: '/index.html' },
+    { name: 'validator', path: '/pages/ids-ifc-validator.html' },
+    { name: 'parser', path: '/pages/ids-parser-visualizer.html' },
+    { name: 'viewer', path: '/pages/ifc-viewer-multi-file.html' }
+];
+
 const PORT = 8780;
 (async () => {
     const server = await startServer(PORT);
@@ -42,86 +49,87 @@ const PORT = 8780;
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
     });
     try {
-        const page = await browser.newPage();
-        await page.setViewport({ width: 375, height: 667, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+        for (const pg of PAGES) {
+            const page = await browser.newPage();
+            await page.setViewport({ width: 375, height: 667, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+            await page.goto(`http://localhost:${PORT}${pg.path}`, { waitUntil: 'networkidle2' });
+            await new Promise(r => setTimeout(r, 500));
 
-        // VALIDATOR
-        await page.goto(`http://localhost:${PORT}/pages/ids-ifc-validator.html`, { waitUntil: 'networkidle2' });
-        await new Promise(r => setTimeout(r, 500));
+            const report = await page.evaluate(() => {
+                const VW = window.innerWidth;
+                // Find every element whose right edge exceeds viewport
+                const all = document.querySelectorAll('body *');
+                const overflowers = [];
+                for (const el of all) {
+                    if (!el.offsetParent && el.tagName !== 'BODY') continue;
+                    const r = el.getBoundingClientRect();
+                    if (r.width === 0 || r.height === 0) continue;
+                    if (r.right > VW + 1) {
+                        const id = el.id ? `#${el.id}` : '';
+                        const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(/\s+/).slice(0, 3).join('.') : '';
+                        overflowers.push({
+                            tag: el.tagName,
+                            id, cls,
+                            rect: { left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) },
+                            overflowBy: Math.round(r.right - VW)
+                        });
+                    }
+                }
+                // Top 10 widest elements that exceed
+                overflowers.sort((a, b) => b.overflowBy - a.overflowBy);
 
-        const validatorReport = await page.evaluate(() => {
-            const out = {};
-            const measure = (sel) => {
-                const el = document.querySelector(sel);
-                if (!el) return null;
-                const r = el.getBoundingClientRect();
-                const s = getComputedStyle(el);
+                // Get key wrapper widths
+                const measure = (sel) => {
+                    const el = document.querySelector(sel);
+                    if (!el) return null;
+                    const r = el.getBoundingClientRect();
+                    const s = getComputedStyle(el);
+                    return { w: Math.round(r.width), pad: s.padding, margin: s.margin, left: Math.round(r.left), right: Math.round(r.right) };
+                };
+
                 return {
-                    sel,
-                    rect: { w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top) },
-                    styles: {
-                        height: s.height, minHeight: s.minHeight, padding: s.padding,
-                        fontSize: s.fontSize, display: s.display, flexDirection: s.flexDirection,
-                        size: el.size, tag: el.tagName
+                    viewport: VW,
+                    docScrollWidth: document.documentElement.scrollWidth,
+                    bodyScrollWidth: document.body.scrollWidth,
+                    overflowers: overflowers.slice(0, 15),
+                    wrappers: {
+                        body: measure('body'),
+                        page: measure('.page-container'),
+                        hero: measure('.hero'),
+                        heroContainer: measure('.hero-container'),
+                        mainContainer: measure('.main-container'),
+                        storageSection: measure('#uloziste, .storage-section'),
+                        storageGrid: measure('.storage-grid'),
+                        storageCard: measure('.storage-card'),
+                        uploadSection: measure('.upload-section'),
+                        validatorHeader: measure('.validator-page-header'),
+                        controls: measure('.controls'),
+                        tableContainer: measure('.table-container'),
+                        footer: measure('footer.footer-modern, footer')
                     }
                 };
-            };
-            out.presetSelect = measure('#presetSelect');
-            out.presetsPanelControls = measure('.presets-panel__controls');
-            out.h2Title = measure('h2[data-i18n="validator.groups"]');
-            out.addBtn = measure('button[onclick="addValidationGroup()"]');
-            out.titleRow = measure('h2[data-i18n="validator.groups"]')?.styles ? (() => {
-                const h2 = document.querySelector('h2[data-i18n="validator.groups"]');
-                const parent = h2.parentElement;
-                const r = parent.getBoundingClientRect();
-                return { w: r.width, h: r.height, top: r.top, classes: parent.className, inlineStyle: parent.getAttribute('style') };
-            })() : null;
-            out.launcher = measure('.chat-launcher');
-            return out;
-        });
-        console.log('=== VALIDATOR phone-375 ===');
-        console.log(JSON.stringify(validatorReport, null, 2));
+            });
 
-        // HOMEPAGE
-        await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: 'networkidle2' });
-        await new Promise(r => setTimeout(r, 500));
-        const homeReport = await page.evaluate(() => {
-            const measure = (sel) => {
-                const el = document.querySelector(sel);
-                if (!el) return null;
-                const r = el.getBoundingClientRect();
-                return { sel, rect: { w: Math.round(r.width), h: Math.round(r.height) }, classes: el.className };
-            };
-            return {
-                fileTree0: measure('.file-tree-modern'),
-                storageCard0: measure('.storage-card'),
-                dropZone0: measure('.drop-zone-modern'),
-                cardHeader0: measure('.card-header'),
-                cardActions0: measure('.card-actions'),
-                btnIcon0: measure('.btn-icon-modern')
-            };
-        });
-        console.log('=== HOMEPAGE phone-375 ===');
-        console.log(JSON.stringify(homeReport, null, 2));
+            console.log(`\n=== ${pg.name} (viewport ${report.viewport}px) ===`);
+            console.log(`docScrollWidth: ${report.docScrollWidth}  bodyScrollWidth: ${report.bodyScrollWidth}`);
+            if (report.docScrollWidth > report.viewport) {
+                console.log(`⚠️  HORIZONTAL OVERFLOW: ${report.docScrollWidth - report.viewport}px past viewport`);
+            }
+            console.log('\nWrappers:');
+            for (const [k, v] of Object.entries(report.wrappers)) {
+                if (v) console.log(`  ${k.padEnd(20)} w=${v.w}  left=${v.left}  right=${v.right}  pad=${v.pad}  m=${v.margin}`);
+            }
+            console.log('\nElements wider than viewport (top 10):');
+            if (report.overflowers.length === 0) {
+                console.log('  (none) ✓');
+            } else {
+                for (const o of report.overflowers.slice(0, 10)) {
+                    console.log(`  +${o.overflowBy}px  ${o.tag}${o.id}${o.cls}  width=${o.rect.width}`);
+                }
+            }
 
-        // PARSER
-        await page.goto(`http://localhost:${PORT}/pages/ids-parser-visualizer.html`, { waitUntil: 'networkidle2' });
-        await new Promise(r => setTimeout(r, 500));
-        const parserReport = await page.evaluate(() => {
-            const measure = (sel) => {
-                const el = document.querySelector(sel);
-                if (!el) return null;
-                const r = el.getBoundingClientRect();
-                return { sel, rect: { w: Math.round(r.width), h: Math.round(r.height) } };
-            };
-            return {
-                body: measure('body'),
-                main: measure('main') || measure('.page-container'),
-                footer: measure('footer') || measure('.footer-modern')
-            };
-        });
-        console.log('=== PARSER phone-375 ===');
-        console.log(JSON.stringify(parserReport, null, 2));
+            await page.close();
+        }
     } finally {
         await browser.close();
         server.close();

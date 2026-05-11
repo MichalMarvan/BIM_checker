@@ -1,11 +1,6 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-/* Copyright (C) 2025 Michal Marvan */
-/**
- * Mobile screenshot audit — captures every page at phone + tablet viewports.
- * Run: node scripts/mobile-audit.js
- * Output: tmp/mobile-audit/<viewport>/<page>.png
- */
+/* Detailed mobile audit — viewport-sized snapshots + scrolled views + interactive states. */
 
 import puppeteer from 'puppeteer';
 import { createServer } from 'http';
@@ -19,46 +14,25 @@ const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 
 const mimeTypes = {
-    '.html': 'text/html',
-    '.js': 'application/javascript',
-    '.mjs': 'application/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
-    '.ifc': 'text/plain',
-    '.ids': 'application/xml',
-    '.xml': 'application/xml',
-    '.xsd': 'application/xml',
-    '.wasm': 'application/wasm',
-    '.svg': 'image/svg+xml',
-    '.png': 'image/png',
-    '.ico': 'image/x-icon'
+    '.html': 'text/html', '.js': 'application/javascript', '.mjs': 'application/javascript',
+    '.css': 'text/css', '.json': 'application/json', '.ifc': 'text/plain',
+    '.ids': 'application/xml', '.xml': 'application/xml', '.xsd': 'application/xml',
+    '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon'
 };
 
 function startServer(port) {
     return new Promise((resolve) => {
-        const server = createServer((req, res) => {
+        const s = createServer((req, res) => {
             let filePath = join(projectRoot, req.url === '/' ? 'index.html' : req.url);
             filePath = filePath.split('?')[0];
-            if (!existsSync(filePath)) {
-                res.writeHead(404); res.end('Not found'); return;
-            }
+            if (!existsSync(filePath)) { res.writeHead(404); res.end('Not found'); return; }
             const ext = extname(filePath);
-            const contentType = mimeTypes[ext] || 'application/octet-stream';
-            try {
-                res.writeHead(200, { 'Content-Type': contentType });
-                res.end(readFileSync(filePath));
-            } catch (err) {
-                res.writeHead(500); res.end(err.message);
-            }
+            res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
+            res.end(readFileSync(filePath));
         });
-        server.listen(port, () => resolve(server));
+        s.listen(port, () => resolve(s));
     });
 }
-
-const VIEWPORTS = [
-    { name: 'phone-375', width: 375, height: 667, deviceScaleFactor: 2 },
-    { name: 'tablet-768', width: 768, height: 1024, deviceScaleFactor: 2 }
-];
 
 const PAGES = [
     { name: 'homepage', path: '/index.html' },
@@ -67,101 +41,58 @@ const PAGES = [
     { name: 'viewer', path: '/pages/ifc-viewer-multi-file.html' }
 ];
 
+const VIEWPORTS = [
+    { name: 'phone-375', width: 375, height: 812 },
+    { name: 'tablet-768', width: 768, height: 1024 }
+];
+
 const PORT = 8779;
 
-async function snap(page, outPath) {
-    await page.screenshot({ path: outPath, fullPage: true });
-    console.log('  saved', outPath);
+async function snap(page, outPath, fullPage = false) {
+    await page.screenshot({ path: outPath, fullPage });
 }
 
-async function captureStates(browser, vp, pageDef) {
+async function capture(browser, vp, pageDef) {
     const dir = join(projectRoot, 'tmp', 'mobile-audit', vp.name);
     mkdirSync(dir, { recursive: true });
 
     const page = await browser.newPage();
-    await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: vp.deviceScaleFactor, isMobile: true, hasTouch: true });
-    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+    await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 
     const url = `http://localhost:${PORT}${pageDef.path}`;
-    console.log(`[${vp.name}] ${pageDef.name} → ${url}`);
+    console.log(`[${vp.name}] ${pageDef.name}`);
     try {
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
     } catch (e) {
-        console.warn('  goto warning:', e.message);
+        console.warn('  goto warn:', e.message);
     }
-
-    // Wait for any deferred JS to settle
     await new Promise(r => setTimeout(r, 700));
 
-    // 1) baseline (top)
-    await snap(page, join(dir, `${pageDef.name}.png`));
+    // 1) Viewport at top (most important — what user sees first)
+    await snap(page, join(dir, `${pageDef.name}-1-top.png`), false);
 
-    // 2) open the chat launcher popover (every page has it)
-    const launcherClicked = await page.evaluate(() => {
-        const btn = document.querySelector('.chat-launcher');
-        if (btn) { btn.click(); return true; }
-        return false;
-    });
-    if (launcherClicked) {
-        await new Promise(r => setTimeout(r, 400));
-        await snap(page, join(dir, `${pageDef.name}-launcher-open.png`));
-        // dismiss
-        await page.evaluate(() => {
-            const popover = document.querySelector('.chat-launcher-popover');
-            if (popover) popover.classList.remove('is-open');
-        });
-    }
+    // 2) Bottom of page — see footer + tab bar + final content
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await new Promise(r => setTimeout(r, 300));
+    await snap(page, join(dir, `${pageDef.name}-2-bottom.png`), false);
 
-    // 3) force chat panel open (and seed dummy content so it renders something)
-    const chatOpened = await page.evaluate(() => {
-        const panel = document.querySelector('.chat-panel');
-        if (!panel) return false;
-        panel.classList.add('is-open');
-        // Force visibility regardless of internal state
-        panel.style.display = 'flex';
-        return true;
-    });
-    if (chatOpened) {
-        await new Promise(r => setTimeout(r, 400));
-        await snap(page, join(dir, `${pageDef.name}-chat-open.png`));
-        await page.evaluate(() => {
-            const panel = document.querySelector('.chat-panel');
-            if (panel) { panel.classList.remove('is-open'); panel.style.display = ''; }
-        });
-    }
-
-    // 4) open a modal — different per page; try AI settings (works on all 4)
-    const modalOpened = await page.evaluate(() => {
-        document.dispatchEvent(new CustomEvent('ai:openSettings'));
-        return true;
-    });
-    await new Promise(r => setTimeout(r, 600));
-    const hasModalOpen = await page.evaluate(() => {
-        return !!document.querySelector('.modal-overlay.show, .modal-overlay.active');
-    });
-    if (hasModalOpen) {
-        await snap(page, join(dir, `${pageDef.name}-modal-settings.png`));
-    }
+    // 3) Full page stitched (for overview)
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await new Promise(r => setTimeout(r, 200));
+    await snap(page, join(dir, `${pageDef.name}-3-full.png`), true);
 
     await page.close();
 }
 
 (async () => {
-    console.log('Starting server on', PORT);
     const server = await startServer(PORT);
-
-    console.log('Launching browser...');
     const browser = await puppeteer.launch({
-        headless: 'new',
-        executablePath: '/usr/bin/chromium-browser',
+        headless: 'new', executablePath: '/usr/bin/chromium-browser',
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
     });
-
     try {
         for (const vp of VIEWPORTS) {
-            for (const pg of PAGES) {
-                await captureStates(browser, vp, pg);
-            }
+            for (const pg of PAGES) await capture(browser, vp, pg);
         }
     } finally {
         await browser.close();

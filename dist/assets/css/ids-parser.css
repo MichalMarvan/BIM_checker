@@ -446,6 +446,10 @@
 
 /* === Phase 12e: Mobile + tablet (< 1024px) === */
 @media (max-width: 1023px) {
+    .upload-section {
+        padding: 16px 8px;
+    }
+
     .ids-info {
         padding: 16px;
     }

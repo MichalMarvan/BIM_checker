@@ -740,10 +740,10 @@
 
 /* === Phase 12e: Mobile + tablet (< 1024px) === */
 @media (max-width: 1023px) {
-    /* Section padding compact */
+    /* Section padding compact (horizontal trimmed since page-container already has 12px) */
     .upload-section,
     .results-section {
-        padding: var(--spacing-lg) var(--spacing-md);
+        padding: 16px 8px;
     }
 
     /* Validator page header: stack title + add button on mobile */
