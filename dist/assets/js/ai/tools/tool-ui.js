@@ -34,7 +34,7 @@ export async function request_user_attention(args) {
         return { error: 'error_handler_not_available' };
     }
     const fn = window.ErrorHandler[kind];
-    if (typeof fn !== 'function') return { error: 'invalid_kind', message: `Unknown kind '${kind}'. Použij info|warning|success|error.` };
+    if (typeof fn !== 'function') return { error: 'invalid_kind', message: t('ai.tool.ui.invalidKind', { kind }) };
     fn.call(window.ErrorHandler, String(args.message));
     return { shown: true, kind };
 }

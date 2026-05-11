@@ -41,11 +41,11 @@ function _resolveFolderId(foldersMap, nameOrPath) {
         const path = _buildFolderPath(foldersMap, f.id).toLowerCase();
         return path === needle || path.endsWith('/' + needle);
     });
-    if (matches.length === 0) return { error: 'not_found', message: `Složka "${nameOrPath}" neexistuje.` };
+    if (matches.length === 0) return { error: 'not_found', message: t('ai.tool.storage.folderNotFound', { nameOrPath }) };
     if (matches.length > 1) {
         return {
             error: 'ambiguous_folder',
-            message: `Více složek odpovídá "${nameOrPath}". Zadej úplnou cestu.`,
+            message: t('ai.tool.storage.ambiguousFolder', { nameOrPath }),
             candidates: matches.map(f => ({ id: f.id, path: _buildFolderPath(foldersMap, f.id) }))
         };
     }
@@ -118,7 +118,7 @@ export async function delete_file_from_storage(args) {
         type: { required: true, enum: ['ifc', 'ids'] },
         name: { required: true }
     });
-    if (!confirm(`Smazat soubor '${args.name}' z úložiště?`)) return { cancelled: true };
+    if (!confirm(t('ai.tool.storage.deleteFileConfirm', { name: args.name }))) return { cancelled: true };
     if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
     await window.BIMStorage.init();
     const file = await window.BIMStorage.getFile(args.type, args.name);
@@ -175,7 +175,7 @@ export async function delete_folder(args) {
     if (resolved.id === 'root') return { error: 'cannot_modify_root', message: t('ai.tool.storage.cannotDeleteRoot') };
     const folder = sm.data.folders[resolved.id];
     const fileCount = (folder.files || []).length;
-    if (!confirm(`Smazat složku '${folder.name}' (${fileCount} souborů + podsložky)?`)) {
+    if (!confirm(t('ai.tool.storage.deleteFolderConfirm', { name: folder.name, fileCount }))) {
         return { cancelled: true };
     }
     const ok = await sm.deleteFolder(resolved.id);
@@ -333,7 +333,7 @@ export async function replace_file_content(args) {
     const warning = sizeDeltaPercent > 50
         ? t('ai.tool.storage.sizeDeltaWarning', { pct: sizeDeltaPercent.toFixed(0) })
         : '';
-    if (!confirm(`Přepsat obsah '${args.name}'?${warning}`)) {
+    if (!confirm(t('ai.tool.storage.replaceContentConfirm', { name: args.name, warning }))) {
         return { cancelled: true };
     }
     await window.BIMStorage.saveFile(args.type, { name: args.name, size: newSize, content: args.content }, file.folder);

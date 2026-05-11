@@ -1058,6 +1058,16 @@ const translations = {
         'ai.tool.ui.pageRedirect': 'Stránka se nyní přesměruje. Chat panel se zavře, otevřete jej znovu po načtení.',
         'ai.tool.bsdd.disabled': 'bSDD integrace zatím není zapojena. Implementace přijde v další fázi.',
         'ai.tool.presets.noGroups': 'Nejsou žádné skupiny k uložení (validator je prázdný a žádný last-session preset).',
+        'ai.tool.agents.duplicateName': 'Agent "{name}" už existuje (id {id}). Použij update_agent nebo zvol jiné jméno.',
+        'ai.tool.agents.ambiguousName': 'Více agentů má jméno "{name}". Zavolej znovu s id konkrétního.',
+        'ai.tool.ifc.fileNotFound': 'IFC soubor "{fileName}" neexistuje nebo se nepodařil parsovat.',
+        'ai.tool.ui.invalidKind': 'Unknown kind \'{kind}\'. Použij info|warning|success|error.',
+        'ai.tool.ids.addSpecConfirm': 'Přidat specifikaci \'{name}\' do \'{idsFileName}\'?',
+        'ai.tool.storage.folderNotFound': 'Složka "{nameOrPath}" neexistuje.',
+        'ai.tool.storage.ambiguousFolder': 'Více složek odpovídá "{nameOrPath}". Zadej úplnou cestu.',
+        'ai.tool.storage.deleteFileConfirm': 'Smazat soubor \'{name}\' z úložiště?',
+        'ai.tool.storage.deleteFolderConfirm': 'Smazat složku \'{name}\' ({fileCount} souborů + podsložky)?',
+        'ai.tool.storage.replaceContentConfirm': 'Přepsat obsah \'{name}\'?{warning}',
         'chat.emptyConversation': '(prázdná konverzace)',
 
         // === BUG REPORT ===
@@ -2150,6 +2160,16 @@ const translations = {
         'ai.tool.ui.pageRedirect': 'The page will redirect now. The chat panel will close, reopen it after loading.',
         'ai.tool.bsdd.disabled': 'bSDD integration is not yet wired in. Implementation in the next phase.',
         'ai.tool.presets.noGroups': 'No groups to save (validator is empty and no last-session preset).',
+        'ai.tool.agents.duplicateName': 'Agent "{name}" already exists (id {id}). Use update_agent or choose a different name.',
+        'ai.tool.agents.ambiguousName': 'Multiple agents have the name "{name}". Call again with the specific id.',
+        'ai.tool.ifc.fileNotFound': 'IFC file "{fileName}" does not exist or failed to parse.',
+        'ai.tool.ui.invalidKind': 'Unknown kind \'{kind}\'. Use info|warning|success|error.',
+        'ai.tool.ids.addSpecConfirm': 'Add specification \'{name}\' to \'{idsFileName}\'?',
+        'ai.tool.storage.folderNotFound': 'Folder "{nameOrPath}" does not exist.',
+        'ai.tool.storage.ambiguousFolder': 'Multiple folders match "{nameOrPath}". Provide the full path.',
+        'ai.tool.storage.deleteFileConfirm': 'Delete file \'{name}\' from storage?',
+        'ai.tool.storage.deleteFolderConfirm': 'Delete folder \'{name}\' ({fileCount} files + subfolders)?',
+        'ai.tool.storage.replaceContentConfirm': 'Replace content of \'{name}\'?{warning}',
         'chat.emptyConversation': '(empty conversation)',
 
         // === BUG REPORT ===

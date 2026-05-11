@@ -156,7 +156,7 @@ export async function add_specification_to_ids(args) {
         requirements: args.requirementFacets
     });
     const xml = new window.IDSXMLGenerator().generateIDS(idsData);
-    if (!confirm(`Přidat specifikaci '${args.name}' do '${args.idsFileName}'?`)) {
+    if (!confirm(t('ai.tool.ids.addSpecConfirm', { name: args.name, idsFileName: args.idsFileName }))) {
         return { cancelled: true };
     }
     await window.BIMStorage.saveFile('ids', { name: args.idsFileName, size: xml.length, content: xml }, file.folder);

@@ -45,7 +45,7 @@ export async function create_agent(args) {
     const existing = await chatStorage.listAgents();
     const dup = existing.find(a => a.name.trim() === trimmedName);
     if (dup) {
-        return { error: 'duplicate_name', existingId: dup.id, message: `Agent "${trimmedName}" už existuje (id ${dup.id}). Použij update_agent nebo zvol jiné jméno.` };
+        return { error: 'duplicate_name', existingId: dup.id, message: t('ai.tool.agents.duplicateName', { name: trimmedName, id: dup.id }) };
     }
     const id = await chatStorage.saveAgent({
         name: trimmedName,
@@ -69,7 +69,7 @@ async function _resolveAgentId(args) {
         if (matches.length > 1) {
             return {
                 error: 'ambiguous_name',
-                message: `Více agentů má jméno "${args.name}". Zavolej znovu s id konkrétního.`,
+                message: t('ai.tool.agents.ambiguousName', { name: args.name }),
                 candidates: matches.map(a => ({ id: a.id, name: a.name }))
             };
         }

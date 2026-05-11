@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 export async function search_ifc_entities(args) {
     helpers.validateArgs(args, {
@@ -137,7 +138,7 @@ export async function find_property_in_ifc(args) {
     } catch (_) {
         entities = null;
     }
-    if (!entities) return { error: 'not_found', message: `IFC soubor "${args.fileName}" neexistuje nebo se nepodařil parsovat.` };
+    if (!entities) return { error: 'not_found', message: t('ai.tool.ifc.fileNotFound', { fileName: args.fileName }) };
     const matches = [];
     let truncated = false;
     const targetValue = (args.value !== undefined && args.value !== null) ? String(args.value) : null;
