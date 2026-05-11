@@ -10,7 +10,7 @@ import { PROVIDERS } from '../ai/providers.js';
 import { fetchModels } from '../ai/ai-client.js';
 import { t, onLanguageChange } from './chat-i18n-helpers.js';
 import { TOOL_CATEGORIES, TOTAL_TOOLS } from '../ai/tool-catalog.js';
-import { AGENT_PRESETS, getPreset } from '../ai/agent-presets.js';
+import { AGENT_PRESETS, getPreset, resolvePreset } from '../ai/agent-presets.js';
 
 let _modal = null;
 const _state = { view: 'list', editingId: null, modelsCache: {} };
@@ -115,7 +115,7 @@ async function _renderFormView(agentId) {
                 <label>${t('ai.agent.startFromPreset')}</label>
                 <select id="agentPresetSelect">
                     <option value="">${t('ai.agent.noPreset')}</option>
-                    ${AGENT_PRESETS.map(p => `<option value="${p.id}">${escapeHtml(p.icon + ' ' + p.name)}</option>`).join('')}
+                    ${(() => { const _lang = (window.i18n && window.i18n.getLanguage) ? window.i18n.getLanguage() : 'cs'; return AGENT_PRESETS.map(p => resolvePreset(p, _lang)).map(p => `<option value="${p.id}">${escapeHtml(p.icon + ' ' + p.name)}</option>`).join(''); })()}
                 </select>
             </div>
             ` : ''}
@@ -194,8 +194,10 @@ async function _renderFormView(agentId) {
     const presetSelect = _modal.querySelector('#agentPresetSelect');
     if (presetSelect) {
         presetSelect.addEventListener('change', (e) => {
-            const preset = getPreset(e.target.value);
-            if (!preset) return;
+            const raw = getPreset(e.target.value);
+            if (!raw) return;
+            const currentLang = (window.i18n && window.i18n.getLanguage) ? window.i18n.getLanguage() : 'cs';
+            const preset = resolvePreset(raw, currentLang);
             _modal.querySelector('#agentName').value = preset.name;
             _modal.querySelector('#agentIcon').value = preset.icon;
             _modal.querySelector('#agentSystemPrompt').value = preset.systemPrompt;
