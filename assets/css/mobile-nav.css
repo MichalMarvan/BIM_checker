@@ -130,8 +130,8 @@
     }
 
     /* === Mobile modals (fullscreen < 1024px) === */
-    /* Overrides common.css .modal-overlay/.modal-container defaults. */
-    /* Works for both .show (legacy) and .active (AI Settings) open states. */
+    /* Overrides common.css/ai-chat.css/ids-*.css .modal-container defaults via higher specificity. */
+    /* Works for both .show (legacy) and .active (AI Settings, Phase 7+) open states. */
     .modal-overlay {
         padding: 0;
     }
@@ -139,9 +139,9 @@
     .modal-overlay.active {
         display: flex;
         align-items: stretch;
-        justify-content: stretch;
     }
-    .modal-container {
+    .modal-overlay.show .modal-container,
+    .modal-overlay.active .modal-container {
         width: 100%;
         height: 100%;
         max-width: none;
@@ -151,7 +151,8 @@
         flex-direction: column;
         overflow: hidden;
     }
-    .modal-header {
+    .modal-overlay.show .modal-header,
+    .modal-overlay.active .modal-header {
         position: sticky;
         top: 0;
         z-index: 2;
@@ -159,21 +160,25 @@
         padding: 16px 20px;
         flex-shrink: 0;
     }
-    .modal-header h2 {
+    .modal-overlay.show .modal-header h2,
+    .modal-overlay.active .modal-header h2 {
         font-size: 1.2em;
     }
-    .modal-close {
+    .modal-overlay.show .modal-close,
+    .modal-overlay.active .modal-close {
         width: 36px;
         height: 36px;
         font-size: 1.3em;
     }
-    .modal-body {
+    .modal-overlay.show .modal-body,
+    .modal-overlay.active .modal-body {
         padding: 16px 20px;
         flex: 1 1 auto;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
     }
-    .modal-footer {
+    .modal-overlay.show .modal-footer,
+    .modal-overlay.active .modal-footer {
         padding: 12px 20px;
         position: sticky;
         bottom: 0;
