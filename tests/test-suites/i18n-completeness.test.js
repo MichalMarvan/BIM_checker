@@ -39,7 +39,8 @@ describe('i18n-completeness — no hardcoded Czech outside allowlist', () => {
     }
 
     function stripDataI18nFallbackText(text) {
-        return text.replace(/<([a-z][a-z0-9]*)\b[^>]*\bdata-i18n[^>]*>([^<]*)</gi, '<$1>__I18N_FALLBACK__<');
+        // Match opening tag with data-i18n through the next opening of any tag (multi-line OK via [\s\S])
+        return text.replace(/<([a-z][a-z0-9]*)\b[^>]*\bdata-i18n[^>]*>([\s\S]*?)</gi, '<$1>__I18N_FALLBACK__<');
     }
 
     it('all scanned files are reachable', async () => {

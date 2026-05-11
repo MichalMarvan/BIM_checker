@@ -1022,7 +1022,7 @@
 @media (max-width: 1023px) {
     /* Upload section + file list */
     .upload-section {
-        padding: var(--spacing-md);
+        padding: 16px 8px;
     }
 
     .file-list {

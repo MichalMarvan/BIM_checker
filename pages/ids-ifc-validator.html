@@ -4,8 +4,11 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="page.title.validator">IDS-IFC Validator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="BIM Checker">
+    <title data-i18n="page.title.validator">BIM Checker — IDS-IFC Validator</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#667eea">
@@ -64,7 +67,13 @@
             </span>
             <span class="bim-mobile-topbar__name" data-i18n="app.title">BIM Checker</span>
         </a>
-        <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
+        <div class="bim-mobile-topbar__actions">
+            <div class="bim-mobile-topbar__lang">
+                <button class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
+                <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
+            </div>
+            <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
+        </div>
     </header>
     <!-- Loading Overlay - outside page-container for correct centering -->
     <div class="loading-overlay-modern" id="loading">
@@ -152,8 +161,8 @@
     </nav>
     <div class="page-container">
         <div class="upload-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                    <h2 style="margin: 0; color: var(--text-primary);" data-i18n="validator.groups">📋 Validační skupiny</h2>
+                <div class="validator-page-header">
+                    <h2 data-i18n="validator.groups">📋 Validační skupiny</h2>
                     <button class="btn btn-success" onclick="addValidationGroup()" data-i18n="validator.addGroup">➕ Přidat validační skupinu</button>
                 </div>
 
@@ -181,9 +190,9 @@
                 </div>
 
                 <div id="validationGroups">
-                    <div class="vg-empty-state" style="text-align: center; padding: 60px; color: #a0aec0;">
-                        <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
-                        <h3 style="color: #6c757d;" data-i18n="validator.group.noGroups">Žádné validační skupiny</h3>
+                    <div class="vg-empty-state">
+                        <div class="vg-empty-state__icon">📋</div>
+                        <h3 data-i18n="validator.group.noGroups">Žádné validační skupiny</h3>
                         <p data-i18n="validator.group.clickToAdd">Klikněte na "➕ Přidat validační skupinu" pro začátek</p>
                     </div>
                 </div>

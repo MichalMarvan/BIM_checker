@@ -4,7 +4,10 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="BIM Checker">
     <title data-i18n="page.title.parser">BIM Checker — IDS Parser &amp; Visualizer</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="manifest" href="../manifest.json">
@@ -63,7 +66,13 @@
             </span>
             <span class="bim-mobile-topbar__name" data-i18n="app.title">BIM Checker</span>
         </a>
-        <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
+        <div class="bim-mobile-topbar__actions">
+            <div class="bim-mobile-topbar__lang">
+                <button class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
+                <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
+            </div>
+            <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
+        </div>
     </header>
     <nav class="navbar navbar-subpage">
         <div class="navbar-container">
