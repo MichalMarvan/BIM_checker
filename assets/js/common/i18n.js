@@ -185,6 +185,12 @@ class I18n {
             el.textContent = `${value} ${this.t(key)}`;
         });
 
+        // 5b. Content attributes (e.g., <meta name="description" data-i18n-content="page.meta.description.x" content="...">)
+        document.querySelectorAll('[data-i18n-content]').forEach(el => {
+            const key = el.getAttribute('data-i18n-content');
+            el.setAttribute('content', this.t(key));
+        });
+
         // 5. HTML lang attribute
         document.documentElement.lang = this.currentLang;
         document.documentElement.setAttribute('data-lang', this.currentLang);

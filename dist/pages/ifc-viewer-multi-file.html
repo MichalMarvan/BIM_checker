@@ -5,12 +5,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="viewer.title"></title>
+    <title data-i18n="page.title.viewer">BIM Checker — IFC Multi-File Viewer</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#667eea">
     <!-- OG_TAGS_PHASE_12 -->
-    <meta name="description" content="Advanced viewer for multiple IFC files at once. Unified entity table, search, PropertySet management, CSV export.">
+    <meta name="description" data-i18n-content="page.meta.description.viewer" content="Advanced viewer for multiple IFC files at once. Unified entity table, search, PSet management, CSV export.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="BIM Checker">
     <meta property="og:locale" content="en_US">
@@ -144,7 +144,7 @@
                             </svg>
                         </div>
                         <p class="drop-zone-title" data-i18n="viewer.upload">Přetáhněte IFC soubory sem</p>
-                        <p class="drop-zone-subtitle">nebo klikněte pro výběr</p>
+                        <p class="drop-zone-subtitle" data-i18n="viewer.dropHint">or click to select</p>
                         <div class="drop-zone-formats">.ifc</div>
                     </div>
                     <input type="file" id="fileInput" accept=".ifc" multiple style="display: none;">
@@ -159,7 +159,7 @@
                 <div class="loading-card">
                     <div class="loading-spinner-modern"></div>
                     <h3 class="loading-title" data-i18n="viewer.loading">Načítám IFC soubory...</h3>
-                    <p class="loading-subtitle" id="loadingStatus">Prosím čekejte...</p>
+                    <p class="loading-subtitle" id="loadingStatus" data-i18n="viewer.loadingStatus">Please wait...</p>
                     <div class="progress-bar-modern-container">
                         <div class="progress-bar-modern" id="progressBar">
                             <div class="progress-bar-fill"></div>
@@ -522,6 +522,7 @@
             BugReport.init();
         }
     </script>
+    <script defer src="../assets/js/ai-ui/chat-panel-mobile.js"></script>
     <script type="module" src="../assets/js/ai-ui/init.js"></script>
     <!-- Mobile bottom tabs (visible < 1024px) -->
     <nav class="bim-mobile-tabs">

@@ -8,6 +8,19 @@
 const translations = {
     cs: {
     // === HLAVNÍ APLIKACE ===
+        // Page titles + meta descriptions (Phase i18n cleanup)
+        'page.title.index': 'BIM Checker — Nástroje pro IFC a IDS',
+        'page.title.validator': 'BIM Checker — IDS-IFC Validátor',
+        'page.title.parser': 'BIM Checker — IDS Parser a Vizualizér',
+        'page.title.viewer': 'BIM Checker — IFC Multi-File Viewer',
+        'page.meta.description.index': 'Profesionální nástroje pro validaci a analýzu BIM dat (IFC a IDS). Validátor, parser, viewer.',
+        'page.meta.description.validator': 'Validace IFC modelů proti IDS specifikacím. Detailní výsledky, statistiky, Excel export.',
+        'page.meta.description.parser': 'Zobrazení a analýza IDS (Information Delivery Specification) souborů. Stromová struktura, raw XML, XSD validace.',
+        'page.meta.description.viewer': 'Pokročilý prohlížeč pro více IFC souborů najednou. Sjednocená tabulka entit, vyhledávání, správa PSet, CSV export.',
+        'home.toolLink': 'Otevřít nástroj →',
+        'viewer.dropHint': 'nebo klikněte pro výběr',
+        'viewer.loadingStatus': 'Prosím čekejte...',
+
         'app.title': 'BIM Checker',
         'app.subtitle': 'Profesionální nástroje pro validaci a analýzu BIM dat',
         'app.version': 'verze 0.1.2',
@@ -1030,6 +1043,19 @@ const translations = {
 
     en: {
     // === MAIN APPLICATION ===
+        // Page titles + meta descriptions (Phase i18n cleanup)
+        'page.title.index': 'BIM Checker — Tools for IFC and IDS',
+        'page.title.validator': 'BIM Checker — IDS-IFC Validator',
+        'page.title.parser': 'BIM Checker — IDS Parser & Visualizer',
+        'page.title.viewer': 'BIM Checker — IFC Multi-File Viewer',
+        'page.meta.description.index': 'Professional tools for BIM data validation and analysis (IFC and IDS). Validator, parser, viewer.',
+        'page.meta.description.validator': 'Validate IFC models against IDS specifications. Detailed results, statistics, Excel export.',
+        'page.meta.description.parser': 'View and analyze IDS (Information Delivery Specification) files. Tree structure, raw XML, XSD validation.',
+        'page.meta.description.viewer': 'Advanced viewer for multiple IFC files at once. Unified entity table, search, PSet management, CSV export.',
+        'home.toolLink': 'Open tool →',
+        'viewer.dropHint': 'or click to select',
+        'viewer.loadingStatus': 'Please wait...',
+
         'app.title': 'BIM Checker',
         'app.subtitle': 'Professional tools for BIM data validation and analysis',
         'app.version': 'version 0.1.2',
