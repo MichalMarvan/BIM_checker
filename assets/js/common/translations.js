@@ -69,6 +69,9 @@ const translations = {
         'btn.close': 'Zavřít',
 
         // === NÁSTROJE ===
+        'tools.section.title': 'Nástroje',
+        'tools.section.subtitle': 'Profesionální nástroje pro práci s BIM daty',
+
         'tools.viewer.title': 'IFC Multi-File Viewer',
         'tools.viewer.desc': 'Pokročilý prohlížeč pro analýzu a porovnání více IFC souborů současně',
         'tools.viewer.feature1': 'Načtení více IFC souborů',
@@ -1172,6 +1175,9 @@ const translations = {
         'btn.close': 'Close',
 
         // === TOOLS ===
+        'tools.section.title': 'Tools',
+        'tools.section.subtitle': 'Professional tools for working with BIM data',
+
         'tools.viewer.title': 'IFC Multi-File Viewer',
         'tools.viewer.desc': 'Advanced viewer for analyzing and comparing multiple IFC files simultaneously',
         'tools.viewer.feature1': 'Load multiple IFC files',

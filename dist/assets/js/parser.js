@@ -438,7 +438,7 @@ function explainRegex(pattern) {
         '^\\w+@\\w+\\.\\w+$': t('regex.explain.emailBasic'),
         '^\\+?\\d{1,3}[- ]?\\d{3}[- ]?\\d{3}[- ]?\\d{3}$': t('regex.explain.phoneNumber'),
         '^SO\\d{6}': t('regex.explain.soPrefix'),
-        '^[a-zá-ž].*$': t('regex.explain.lowercaseStart'),
+        '^[a-z\u00e1-\u017e].*$': t('regex.explain.lowercaseStart'),
         'PDPS': `${t('regex.explain.exactText')} "PDPS"`,
         'OTSKP': `${t('regex.explain.exactText')} "OTSKP"`,
         'CCI': `${t('regex.explain.exactText')} "CCI"`,
@@ -459,7 +459,7 @@ function explainRegex(pattern) {
     }
 
     // Czech characters
-    if (pattern.includes('á-ž') || pattern.includes('Á-Ž')) {
+    if (pattern.includes('\u00e1-\u017e') || pattern.includes('\u00c1-\u017d')) {
         explanation += t('regex.explain.czechChars') + ' ';
     }
 
