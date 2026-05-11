@@ -364,7 +364,7 @@ class WizardSidebar {
                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                         <line x1="12" y1="17" x2="12.01" y2="17"/>
                     </svg>
-                    <span data-i18n="wizard.help.title">Nápověda</span>
+                    <span data-i18n="wizard.help.title">Help</span>
                 </h2>
                 <button class="wizard-sidebar__close" data-action="close">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -378,7 +378,7 @@ class WizardSidebar {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
-                    <span data-i18n="wizard.start">Spustit průvodce</span>
+                    <span data-i18n="wizard.start">Start tour</span>
                 </button>
 
                 <div class="wizard-sidebar__section wizard-sidebar__section--about">
@@ -388,7 +388,7 @@ class WizardSidebar {
                             <line x1="12" y1="16" x2="12" y2="12"/>
                             <line x1="12" y1="8" x2="12.01" y2="8"/>
                         </svg>
-                        <span data-i18n="wizard.help.about">O této stránce</span>
+                        <span data-i18n="wizard.help.about">About this page</span>
                     </h3>
                     <p class="wizard-sidebar__about"></p>
                 </div>
@@ -400,7 +400,7 @@ class WizardSidebar {
                             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                             <line x1="12" y1="17" x2="12.01" y2="17"/>
                         </svg>
-                        <span data-i18n="wizard.help.faq">Časté otázky</span>
+                        <span data-i18n="wizard.help.faq">FAQ</span>
                     </h3>
                     <div class="wizard-faq"></div>
                 </div>
@@ -411,7 +411,7 @@ class WizardSidebar {
                             <rect x="2" y="4" width="20" height="16" rx="2"/>
                             <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M8 16h8"/>
                         </svg>
-                        <span data-i18n="wizard.help.shortcuts">Klávesové zkratky</span>
+                        <span data-i18n="wizard.help.shortcuts">Keyboard shortcuts</span>
                     </h3>
                     <div class="wizard-shortcuts"></div>
                 </div>
@@ -631,8 +631,8 @@ class WizardManager {
         const hint = document.createElement('div');
         hint.className = 'wizard-hint';
         hint.textContent = window.i18n ?
-            window.i18n.t('wizard.hint.firstVisit') :
-            'Nový zde? Klikni pro průvodce!';
+            window.i18n.t('wizard.tooltip.newHere') :
+            'New here? Click for the tour!';
 
         wizardBtn.style.position = 'relative';
         wizardBtn.appendChild(hint);
@@ -750,7 +750,7 @@ class WizardManager {
         if (window.showSuccess) {
             const i18n = window.i18n;
             window.showSuccess(
-                i18n ? i18n.t('wizard.completed') : 'Průvodce dokončen!'
+                i18n ? i18n.t('wizard.completed') : 'Tour complete!'
             );
         }
     }

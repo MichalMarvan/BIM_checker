@@ -642,6 +642,7 @@ const translations = {
         'wizard.requiredStep': 'Povinný krok',
         'wizard.step': '{current}/{total}',
         'wizard.hint.firstVisit': 'Nový zde? Klikni pro průvodce!',
+        'wizard.tooltip.newHere': 'Nový zde? Klikni pro průvodce!',
 
         // Wizard Help Sidebar
         'wizard.help.title': 'Nápověda',
@@ -1039,6 +1040,12 @@ const translations = {
         'bugReport.successOpenIssue': 'Otevřít na GitHubu',
         'bugReport.fallbackOpen': 'Otevřít issue ručně',
         'bugReport.close': 'Zavřít',
+
+        // === UPDATE CHECKER ===
+        'update.newVersion': 'Nová verze k dispozici!',
+        'update.download': 'Stáhnout novou verzi',
+        'update.later': 'Později',
+        'update.close': 'Zavřít',
     },
 
     en: {
@@ -2074,6 +2081,15 @@ const translations = {
         'bugReport.successOpenIssue': 'Open on GitHub',
         'bugReport.fallbackOpen': 'Open issue manually',
         'bugReport.close': 'Close',
+
+        // === UPDATE CHECKER ===
+        'update.newVersion': 'New version available!',
+        'update.download': 'Download new version',
+        'update.later': 'Later',
+        'update.close': 'Close',
+
+        // === WIZARD TOOLTIP ===
+        'wizard.tooltip.newHere': 'New here? Click for the tour!',
     }
 };
 
