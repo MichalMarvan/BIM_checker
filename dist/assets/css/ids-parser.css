@@ -443,3 +443,26 @@
 }
 .xsd-error-list { margin: 12px 0; padding-left: 24px; }
 .xsd-error-list li { margin-bottom: 6px; line-height: 1.5; }
+
+/* === Phase 12e: Mobile + tablet (< 1024px) === */
+@media (max-width: 1023px) {
+    .ids-info {
+        padding: 16px;
+    }
+
+    .ids-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .info-item {
+        padding: 12px;
+    }
+
+    .specification-card {
+        padding: var(--spacing-md);
+    }
+
+    .specifications-container {
+        margin-top: 1rem;
+    }
+}

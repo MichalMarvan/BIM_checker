@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.4] - 2026-05-11
+
+### Added
+- Validator + Parser mobile responsive (Phase 12e): filters-grid stacks to single column, spec headers stack title/badge/stats vertically, results header stacks, presets panel controls stack
+- Stat cards 2-column on phone (was auto-fit grid)
+- Form inputs use `font-size: 16px` to prevent iOS auto-zoom on focus
+- All interactive controls (selects, buttons, delete actions) enforced to ≥ 44×44px touch targets
+- +5 smoke tests (727 → 732)
+
+### Changed
+- Validator section padding compacted on mobile (40px → spacing-lg)
+- Parser ids-info-grid forced to single column at < 1024px (was < 768px)
+- SW cache bumped v43 → v44
+
+### Notes
+- Desktop ≥ 1024px: no visual changes
+- Source-order comment added in validator < 768px block to explain `.results-stats` 2-col override on phone
+- Spec mentions master-detail card layout for results tables — deferred (current card list stacks adequately)
+
 ## [0.10.3] - 2026-05-11
 
 ### Added

@@ -495,6 +495,7 @@
     font-size: 0.9em;
 }
 
+/* NOTE: .results-stats 1fr here is overridden by the Phase 12e 1023px block at end of file (later in file → wins). Phone gets 2-col stats. */
 /* Responsive */
 @media (max-width: 768px) {
     .upload-grid {
@@ -705,4 +706,104 @@
     margin-left: 6px;
     font-size: 0.85em;
     color: var(--text-tertiary, #6b7280);
+}
+
+/* === Phase 12e: Mobile + tablet (< 1024px) === */
+@media (max-width: 1023px) {
+    /* Section padding compact */
+    .upload-section,
+    .results-section {
+        padding: var(--spacing-lg) var(--spacing-md);
+    }
+
+    /* Results header: stack title + actions */
+    .results-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+
+    /* Stat cards: 2-column on phone, 4-column on tablet via min-width fallback */
+    .results-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 14px;
+    }
+
+    .stat-number {
+        font-size: 2em;
+    }
+
+    /* Filters: full stack on phone */
+    .filters-section {
+        padding: 12px;
+    }
+
+    .filters-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* iOS form-input zoom prevention (font-size >= 16px) */
+    .filter-input {
+        font-size: 16px;
+    }
+
+    /* Spec header: stack title + badge + stats */
+    .spec-header {
+        padding: 14px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .spec-name {
+        font-size: 1.1em;
+    }
+
+    .spec-stats {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* Validation group: compact */
+    .validation-group {
+        padding: var(--spacing-md);
+    }
+
+    .group-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .group-delete-btn {
+        align-self: flex-end;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Presets panel: stack controls */
+    .presets-panel {
+        padding: 12px;
+    }
+
+    .presets-panel__controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .presets-panel__select {
+        width: 100%;
+        font-size: 16px;
+        min-height: 44px;
+    }
+
+    .presets-panel__controls .btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }
