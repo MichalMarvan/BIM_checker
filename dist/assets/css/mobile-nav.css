@@ -116,4 +116,16 @@
         .bim-mobile-tabs__tab { font-size: 12px; }
         .bim-mobile-tabs__icon { font-size: 24px; }
     }
+
+    /* Compact footer < 1024px */
+    .footer-modern .footer-tech { display: none; }
+    .footer-modern .footer-content {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    .footer-modern .footer-meta {
+        flex-wrap: wrap;
+        gap: 6px 12px;
+    }
 }
