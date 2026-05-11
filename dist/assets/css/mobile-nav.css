@@ -1,0 +1,119 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
+
+/* === Mobile + tablet responsive foundation === */
+/* Visible < 1024px; hidden ≥ 1024px (desktop keeps existing nav) */
+
+.bim-mobile-topbar,
+.bim-mobile-tabs {
+    display: none;
+}
+
+@media (max-width: 1023px) {
+    /* Hide existing desktop navbar */
+    .navbar { display: none !important; }
+
+    /* Top bar */
+    .bim-mobile-topbar {
+        display: flex;
+        position: sticky;
+        top: 0;
+        z-index: 8500;
+        height: calc(48px + env(safe-area-inset-top, 0px));
+        padding-top: env(safe-area-inset-top, 0px);
+        align-items: center;
+        justify-content: space-between;
+        padding-left: 16px;
+        padding-right: 16px;
+        background: var(--primary-gradient, linear-gradient(135deg, #667eea 0%, #5568d3 100%));
+        color: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    }
+    .bim-mobile-topbar__brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: white;
+    }
+    .bim-mobile-topbar__icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+    .bim-mobile-topbar__name {
+        font-weight: 700;
+        font-size: 16px;
+        letter-spacing: -0.3px;
+    }
+    .bim-mobile-topbar__settings {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.18);
+        border: none;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .bim-mobile-topbar__settings:hover { background: rgba(255,255,255,0.28); }
+
+    /* Bottom tabs */
+    .bim-mobile-tabs {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 8500;
+        height: calc(64px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        align-items: stretch;
+        background: var(--bg-primary, #fff);
+        border-top: 1px solid var(--border-primary, #e5e7eb);
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+    }
+    .bim-mobile-tabs__tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 8px 4px;
+        text-decoration: none;
+        color: var(--text-tertiary, #6b7280);
+        font-size: 11px;
+        font-weight: 500;
+        transition: color 0.15s;
+        min-height: 44px;
+    }
+    .bim-mobile-tabs__tab.is-active {
+        color: var(--primary-color, #667eea);
+    }
+    .bim-mobile-tabs__icon {
+        font-size: 22px;
+        line-height: 1;
+    }
+    .bim-mobile-tabs__label { line-height: 1; }
+
+    /* Reserve space at bottom of body so content not overlapped by fixed tabs */
+    body {
+        padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* On tablet (768-1023): slightly larger touch targets */
+    @media (min-width: 768px) {
+        .bim-mobile-topbar { padding-left: 24px; padding-right: 24px; }
+        .bim-mobile-tabs__tab { font-size: 12px; }
+        .bim-mobile-tabs__icon { font-size: 24px; }
+    }
+}
