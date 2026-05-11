@@ -43,3 +43,9 @@ podpora/
 src-tauri/target/
 src-tauri/gen/
 .superpowers/
+
+# Dev/build artifacts (do not publish)
+.aigiscode/
+.claude/skills/
+docs/architecture.md
+docs/plans/2026-03-09-bsdd-integration*.md
