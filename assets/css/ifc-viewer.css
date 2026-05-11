@@ -1017,3 +1017,116 @@
     gap: 15px;
     margin-top: 15px;
 }
+
+/* === Phase 12f: Mobile + tablet (< 1024px) === */
+@media (max-width: 1023px) {
+    /* Upload section + file list */
+    .upload-section {
+        padding: var(--spacing-md);
+    }
+
+    .file-list {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .file-card {
+        width: 100%;
+    }
+
+    /* Controls (search + filter selects) */
+    .controls {
+        padding: 12px var(--spacing-md);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .control-input {
+        min-width: 0;
+        width: 100%;
+        font-size: 16px;
+        min-height: 44px;
+    }
+
+    .control-select {
+        width: 100%;
+        font-size: 16px;
+        min-height: 44px;
+    }
+
+    /* Column manager */
+    .column-manager {
+        padding: 12px;
+    }
+
+    #psetList {
+        max-height: 50vh;
+    }
+
+    .pset-group {
+        padding: 12px;
+    }
+
+    .pset-group-header {
+        padding: 10px;
+    }
+
+    .prop-item {
+        margin-left: 10px;
+        padding: 10px;
+        min-height: 44px;
+    }
+
+    /* Table container: keep horizontal scroll; compact outer padding */
+    .table-container {
+        padding: 0 var(--spacing-md) var(--spacing-md);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 10px 12px;
+        font-size: 0.85em;
+    }
+
+    /* Pagination: stack info above controls */
+    .pagination-container {
+        padding: 12px var(--spacing-md);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .pagination-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .pagination-controls button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .page-input-group {
+        font-size: 16px;
+    }
+
+    /* Edit panel: compact + readable on phone */
+    .edit-panel {
+        margin: var(--spacing-md);
+        padding: var(--spacing-md);
+    }
+
+    .edit-panel-buttons button {
+        min-height: 44px;
+    }
+
+    /* Form inputs/selects inside edit + add-pset/add-prop modals: iOS no-zoom + 44px touch */
+    .form-select,
+    .form-group select,
+    .form-group input {
+        font-size: 16px;
+        min-height: 44px;
+    }
+}

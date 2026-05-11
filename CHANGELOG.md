@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.5] - 2026-05-11
+
+### Added
+- IFC Viewer mobile responsive (Phase 12f, completes Phase 12): upload + file-list stack, file cards full-width
+- Controls (search + filter selects) stack vertically, iOS 16px font (no auto-zoom), 44px touch
+- Column manager compact; Pset groups + prop items touch-friendly (44px)
+- Data table keeps horizontal scroll (`overflow-x: auto` already in place); padding + font-size compacted
+- Pagination container stacks vertically; buttons 44×44px
+- Edit panel compact margins
+- iOS-no-zoom rule extended to `.form-group select` + `.form-group input` (higher specificity than base)
+- +5 smoke tests (732 → 737)
+
+### Changed
+- SW cache bumped v44 → v45
+
+### Phase 12 complete summary
+All 6 sub-phases delivered (12a–12f). Test growth 705 → 737 (+32). Single 1024px breakpoint. All controls 44px+. All inputs 16px font.
+
+### Deferred
+- Virtual-scrolled entity card list for IFC Viewer (1000s of rows)
+- Master-detail card pattern for validator results
+- Real drag-to-resize gestures on chat sheet
+- Wizard/tour mobile redesign
+
 ## [0.10.4] - 2026-05-11
 
 ### Added
