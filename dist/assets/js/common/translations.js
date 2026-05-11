@@ -13,6 +13,7 @@ const translations = {
 
         // === FOOTER ===
         'footer.github': 'GitHub',
+        'footer.license': 'AGPL v3',
         'footer.author': 'Autor',
 
         // === NAVIGACE ===
@@ -1028,6 +1029,7 @@ const translations = {
 
         // === FOOTER ===
         'footer.github': 'GitHub',
+        'footer.license': 'AGPL v3',
         'footer.author': 'Author',
 
         // === NAVIGATION ===

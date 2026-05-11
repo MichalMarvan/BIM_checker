@@ -1,6 +1,6 @@
 # BIM Checker
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![buildingSMART](https://img.shields.io/badge/buildingSMART-IDS%201.0-blue)](https://www.buildingsmart.org/)
 [![IFC](https://img.shields.io/badge/IFC-4.x-green)](https://www.buildingsmart.org/standards/bsi-standards/industry-foundation-classes/)
 [![bSDD](https://img.shields.io/badge/bSDD-integrated-orange)](https://www.buildingsmart.org/users/services/buildingsmart-data-dictionary/)
@@ -116,7 +116,7 @@ BIM_checker/
 │   └── api/                       # bSDD API CORS proxy
 ├── tests/                          # Test suite (280+ tests)
 ├── docs/                           # Documentation
-├── LICENSE                         # MIT License
+├── LICENSE                         # GNU AGPL v3
 ├── CONTRIBUTING.md                 # Contribution guide
 └── package.json                    # Project metadata
 ```
@@ -176,7 +176,11 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0-or-later)** — see the [LICENSE](LICENSE) file for the full text.
+
+The AGPL extends the GPL with a "network use" clause: if you run a modified version on a server that users interact with over a network, you must make the source code of your modified version available to those users. The canonical source is at https://github.com/MichalMarvan/BIM_checker.
+
+Vendor dependencies retain their own licenses (xlsx.full.min.js — Apache 2.0, xmllint-wasm — MIT/LGPL).
 
 ### Third-Party Acknowledgments
 
