@@ -186,6 +186,17 @@ Branch: phase-12b-mobile-modals
 
 Affects all existing modals: AI Settings, Bug Report, IDS/IFC storage pickers, bulk edit, add pset, rename pset/property, XSD export, validation result modals.
 
+## Phase 12c: Homepage mobile ✅
+- [x] Storage cards: header stacks (title on top, 4 icon buttons below)
+- [x] `.btn-icon-modern` enforced to 44×44px on touch (WCAG 2.5.5)
+- [x] Drop zones compact padding + smaller icon on phone
+- [x] `tools-grid-modern` + `about-grid` single-column at < 1024px (was < 768px)
+- [x] +4 tests (718 → 722)
+
+Branch: phase-12c-homepage-mobile
+
+No HTML/JS changes — drop zone click→file-picker already works on touch.
+
 ---
 
 ## K dokončení (TODO)

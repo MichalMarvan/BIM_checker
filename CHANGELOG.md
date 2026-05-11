@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.2] - 2026-05-11
+
+### Added
+- Homepage mobile responsive (Phase 12c): storage card headers stack on phone (title above 4 icon buttons row)
+- `.btn-icon-modern` enforced to 44×44px touch targets (WCAG 2.5.5)
+- Drop zones compact padding + smaller icon on phone
+- `tools-grid-modern` and `about-grid` now single-column at < 1024px (matches mobile foundation breakpoint)
+- +4 smoke tests (718 → 722)
+
+### Changed
+- SW cache bumped v41 → v42
+
+### Notes
+- No HTML/JS changes — drop zone click handler already triggers native file picker on touch, no DnD-only path
+
 ## [0.10.1] - 2026-05-11
 
 ### Added
