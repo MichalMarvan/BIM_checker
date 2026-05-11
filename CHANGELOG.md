@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.3] - 2026-05-11
+
+### Added
+- AI chat as bottom sheet < 1024px (Phase 12d): docks to bottom edge above bottom tab bar, full-width, rounded top corners, drag-handle pill on top of header
+- Tap drag-handle area cycles 3 heights: default 60vh → expanded full → collapsed (header only)
+- `assets/js/ai-ui/chat-panel-mobile.js` — IIFE handles tap-to-cycle, exposes `window.__bimChatPanelMobile`
+- +5 smoke tests (722 → 727)
+
+### Changed
+- Phase 10 chat-heads stack HIDDEN < 1024px per mobile design spec — agent switching via launcher popover
+- Mobile chat breakpoint raised from < 767px to < 1024px (matches Phase 12a foundation)
+- Chat launcher button repositioned above bottom tabs on mobile
+- 44px touch targets on chat panel header buttons (WCAG 2.5.5)
+- SW cache bumped v42 → v43, `chat-panel-mobile.js` added to `ASSETS_TO_CACHE`
+
+### Notes
+- Desktop ≥ 1024px: no visual changes
+- All 4 HTML pages include `chat-panel-mobile.js` as `defer` before AI init module
+
 ## [0.10.2] - 2026-05-11
 
 ### Added

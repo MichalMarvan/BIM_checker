@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-const CACHE_VERSION = 'bim-checker-v42';
+const CACHE_VERSION = 'bim-checker-v43';
 const ASSETS_TO_CACHE = [
     './index.html',
     './assets/og-image-v2.png',
@@ -96,6 +96,7 @@ const ASSETS_TO_CACHE = [
     './assets/js/ai/tools/tool-bsdd.js',
     './assets/js/ai/chat-storage.js',
     './assets/js/ai-ui/init.js',
+    './assets/js/ai-ui/chat-panel-mobile.js',
     './assets/js/ai-ui/chat-launcher.js',
     './assets/js/ai-ui/settings-modal.js',
     './assets/js/ai-ui/chat-panel.js',

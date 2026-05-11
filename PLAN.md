@@ -197,6 +197,17 @@ Branch: phase-12c-homepage-mobile
 
 No HTML/JS changes — drop zone click→file-picker already works on touch.
 
+## Phase 12d: Chat bottom sheet ✅
+- [x] Chat panel docks to bottom edge < 1024px (full-width, above bottom tabs, rounded top corners)
+- [x] Drag-handle pill (40×4px) at top of header
+- [x] Tap handle cycles 3 heights: default (60vh) → expanded (full) → collapsed (header-only)
+- [x] `assets/js/ai-ui/chat-panel-mobile.js` IIFE, exposes `window.__bimChatPanelMobile`
+- [x] Phase 10 chat-heads stack hidden < 1024px (per spec — agent switching via launcher popover)
+- [x] Launcher button repositioned above bottom tabs
+- [x] +5 tests (722 → 727)
+
+Branch: phase-12d-chat-bottom-sheet
+
 ---
 
 ## K dokončení (TODO)
