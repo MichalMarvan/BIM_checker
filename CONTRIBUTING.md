@@ -228,9 +228,34 @@ Sample IFC and IDS files for testing:
 - **GitHub Discussions**: Questions and general discussions
 - **Pull Requests**: Code contributions
 
-## 📄 License
+## 📄 License & DCO sign-off
 
-By contributing to BIM Checker, you agree that your contributions will be licensed under the MIT License.
+BIM Checker is licensed under the **GNU Affero General Public License v3.0 or later** ([AGPL-3.0-or-later](LICENSE)).
+
+By submitting a pull request, you agree to:
+
+1. **License your contribution under AGPL-3.0-or-later** — same terms as the rest of the project. You retain copyright to your work; you grant the project the right to distribute it under AGPL.
+2. **Add SPDX + Copyright headers** to any new source file you create:
+   ```
+   /* SPDX-License-Identifier: AGPL-3.0-or-later */
+   /* Copyright (C) <year> <Your Name> */
+   ```
+   Use `<!-- ... -->` style for HTML.
+3. **Sign off your commits** using the Developer Certificate of Origin (DCO):
+   ```bash
+   git commit -s -m "your message"
+   ```
+   This appends a `Signed-off-by: Your Name <your@email>` line and certifies you wrote the code (or have the right to submit it). See [developercertificate.org](https://developercertificate.org/) for the full DCO text.
+
+### What AGPL means for users of your fork
+
+If you fork BIM Checker and run it as a network service (e.g. host a modified version on your server), AGPL requires you to make the source code of your modified version available to users interacting with it. The canonical source for the upstream project lives at https://github.com/MichalMarvan/BIM_checker.
+
+If you fork only for personal/local use, no obligations beyond standard GPL apply.
+
+### Vendor dependencies
+
+Some bundled dependencies remain under their own licenses (e.g. `xlsx.full.min.js` — Apache 2.0, `xmllint-wasm` — MIT/LGPL). Do not relicense them; reuse them as-is per their original terms.
 
 ## 🙏 Recognition
 
