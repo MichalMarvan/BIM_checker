@@ -356,22 +356,83 @@
 @media (max-width: 1023px) {
     .ai-settings-modal .modal-container { max-width: 90%; }
 }
-@media (max-width: 767px) {
-    /* Mobile: chat takes near-full screen, anchored to bottom edge */
+@media (max-width: 1023px) {
+    /* === Phase 12d: Chat as bottom sheet === */
+    /* Chat panel docks to bottom edge (above bottom tab bar), full-width, drag-handle on top */
     .chat-panel {
-        bottom: 80px;
-        right: 8px;
-        left: 8px;
-        width: auto;
-        height: calc(100vh - 100px);
+        bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+        right: 0;
+        left: 0;
+        top: auto;
+        width: 100%;
+        max-width: 100%;
+        height: 60vh;
+        max-height: calc(100vh - 48px - env(safe-area-inset-top, 0px) - 64px - env(safe-area-inset-bottom, 0px));
+        border-radius: 16px 16px 0 0;
+        border-bottom: none;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+        transition: height 0.25s ease;
     }
-    .chat-panel__threads.is-expanded { width: 120px; }
+    .chat-panel.is-sheet-expanded {
+        height: calc(100vh - 48px - env(safe-area-inset-top, 0px) - 64px - env(safe-area-inset-bottom, 0px));
+    }
+    .chat-panel.is-sheet-collapsed {
+        height: 56px;
+    }
+    .chat-panel.is-sheet-collapsed .chat-panel__body,
+    .chat-panel.is-sheet-collapsed .chat-panel__input {
+        display: none;
+    }
+
+    /* Drag handle pill at top of header */
+    .chat-panel__header {
+        position: relative;
+        padding-top: 18px;
+        cursor: ns-resize;
+        touch-action: none;
+    }
+    .chat-panel__header::before {
+        content: '';
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border-secondary, #d1d5db);
+    }
+
+    /* Header buttons: 44px touch targets */
+    .chat-panel__header__btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px;
+    }
+
+    /* Threads sidebar narrower on mobile */
+    .chat-panel__threads.is-expanded {
+        width: 120px;
+    }
+
+    /* Launcher popover already opens as anchored sheet on mobile */
     .chat-launcher-popover {
         bottom: 0;
         right: 0;
         left: 0;
         max-width: 100%;
-        border-radius: 12px 12px 0 0;
+        border-radius: 16px 16px 0 0;
+    }
+
+    /* Launcher button repositioned above bottom tabs */
+    .chat-launcher {
+        bottom: calc(64px + 16px + env(safe-area-inset-bottom, 0px));
+        right: 16px;
+    }
+
+    /* Phase 10 chat-heads HIDDEN on mobile per spec — switching via launcher popover */
+    .chat-heads-stack {
+        display: none !important;
     }
 }
 
