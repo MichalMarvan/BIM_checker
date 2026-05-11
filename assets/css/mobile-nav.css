@@ -92,32 +92,32 @@ html {
         gap: 8px;
     }
 
-    /* Compact CZ | EN toggle in top bar */
+    /* Compact lang toggle in top bar — shows the OTHER language (tap to switch).
+       The currently-active .lang-btn is hidden; only the inactive one renders. */
     .bim-mobile-topbar__lang {
         display: flex;
-        background: rgba(255, 255, 255, 0.15);
-        border-radius: 8px;
-        padding: 2px;
+        align-items: center;
     }
     .bim-mobile-topbar__lang .lang-btn {
-        background: transparent;
+        display: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
         border: none;
-        color: rgba(255, 255, 255, 0.7);
+        color: white;
         font-size: 12px;
         font-weight: 700;
-        padding: 4px 8px;
-        min-width: 30px;
-        height: 30px;
-        border-radius: 6px;
         cursor: pointer;
-        transition: background 0.15s, color 0.15s;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
     }
-    .bim-mobile-topbar__lang .lang-btn.active {
-        background: rgba(255, 255, 255, 0.92);
-        color: var(--primary-color, #667eea);
+    .bim-mobile-topbar__lang .lang-btn:not(.active) {
+        display: flex;
     }
-    .bim-mobile-topbar__lang .lang-btn:not(.active):hover {
-        color: white;
+    .bim-mobile-topbar__lang .lang-btn:hover {
+        background: rgba(255, 255, 255, 0.28);
     }
 
     /* Bottom tabs */
