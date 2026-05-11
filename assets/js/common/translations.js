@@ -514,6 +514,18 @@ const translations = {
         'viewer.phase3': 'Budování prostorové struktury',
         'viewer.phase4': 'Zpracování entit',
 
+        // IFC viewer parser errors/warnings (Phase i18n cleanup)
+        'viewer.error.encryptedFile': 'Soubor je zašifrovaný (Microsoft Intune). Dešifrujte ho před nahráním.',
+        'viewer.error.invalidIfcHeader': 'Neplatný IFC formát — soubor neobsahuje standardní IFC hlavičku.',
+        'viewer.error.noDataSection': 'Neplatný IFC formát — soubor neobsahuje datovou sekci.',
+        'viewer.warn.largeFile': '⚠️ Velmi velký soubor ({sizeMB} MB)!\n\n',
+        'viewer.warn.largeFileSize': 'Soubor "{fileName}" je velmi velký a může způsobit zpomalení prohlížeče.\n\n',
+        'viewer.warn.largeFileExplain': 'Pro optimalizaci budou přeskočeny geometrické entity (viewer je nepotřebuje pro zobrazení properties).\n\n',
+        'viewer.warn.largeFileContinue': 'Chcete pokračovat?',
+        'viewer.warn.cancelled': 'Načítání zrušeno uživatelem.',
+        'viewer.log.largeFileOptimized': '[IFC Parser] Velký soubor ({sizeMB} MB) — používám optimalizovaný parser.',
+        'viewer.log.skippedGeometry': '[IFC Parser] Přeskočeno {count} geometrických entit pro optimalizaci.',
+
         // === CSV EXPORT ===
         'viewer.csv.file': 'Soubor',
         'viewer.csv.guid': 'GUID',
@@ -1555,6 +1567,18 @@ const translations = {
         'viewer.phase2': 'Parsing property sets',
         'viewer.phase3': 'Building spatial structure',
         'viewer.phase4': 'Processing entities',
+
+        // IFC viewer parser errors/warnings (Phase i18n cleanup)
+        'viewer.error.encryptedFile': 'File is encrypted (Microsoft Intune). Decrypt it before uploading.',
+        'viewer.error.invalidIfcHeader': 'Invalid IFC format — file does not contain a standard IFC header.',
+        'viewer.error.noDataSection': 'Invalid IFC format — file does not contain a data section.',
+        'viewer.warn.largeFile': '⚠️ Very large file ({sizeMB} MB)!\n\n',
+        'viewer.warn.largeFileSize': 'File "{fileName}" is very large and may slow down the browser.\n\n',
+        'viewer.warn.largeFileExplain': 'For optimization, geometry entities will be skipped (the viewer does not need them to display properties).\n\n',
+        'viewer.warn.largeFileContinue': 'Continue?',
+        'viewer.warn.cancelled': 'Loading cancelled by user.',
+        'viewer.log.largeFileOptimized': '[IFC Parser] Large file ({sizeMB} MB) — using optimized parser.',
+        'viewer.log.skippedGeometry': '[IFC Parser] Skipped {count} geometry entities for optimization.',
 
         // === CSV EXPORT ===
         'viewer.csv.file': 'File',
