@@ -8,6 +8,19 @@
 const translations = {
     cs: {
     // === HLAVNÍ APLIKACE ===
+        // Page titles + meta descriptions (Phase i18n cleanup)
+        'page.title.index': 'BIM Checker — Nástroje pro IFC a IDS',
+        'page.title.validator': 'BIM Checker — IDS-IFC Validátor',
+        'page.title.parser': 'BIM Checker — IDS Parser a Vizualizér',
+        'page.title.viewer': 'BIM Checker — IFC Multi-File Viewer',
+        'page.meta.description.index': 'Profesionální nástroje pro validaci a analýzu BIM dat (IFC a IDS). Validátor, parser, viewer.',
+        'page.meta.description.validator': 'Validace IFC modelů proti IDS specifikacím. Detailní výsledky, statistiky, Excel export.',
+        'page.meta.description.parser': 'Zobrazení a analýza IDS (Information Delivery Specification) souborů. Stromová struktura, raw XML, XSD validace.',
+        'page.meta.description.viewer': 'Pokročilý prohlížeč pro více IFC souborů najednou. Sjednocená tabulka entit, vyhledávání, správa PSet, CSV export.',
+        'home.toolLink': 'Otevřít nástroj →',
+        'viewer.dropHint': 'nebo klikněte pro výběr',
+        'viewer.loadingStatus': 'Prosím čekejte...',
+
         'app.title': 'BIM Checker',
         'app.subtitle': 'Profesionální nástroje pro validaci a analýzu BIM dat',
         'app.version': 'verze 0.1.2',
@@ -56,6 +69,9 @@ const translations = {
         'btn.close': 'Zavřít',
 
         // === NÁSTROJE ===
+        'tools.section.title': 'Nástroje',
+        'tools.section.subtitle': 'Profesionální nástroje pro práci s BIM daty',
+
         'tools.viewer.title': 'IFC Multi-File Viewer',
         'tools.viewer.desc': 'Pokročilý prohlížeč pro analýzu a porovnání více IFC souborů současně',
         'tools.viewer.feature1': 'Načtení více IFC souborů',
@@ -501,6 +517,18 @@ const translations = {
         'viewer.phase3': 'Budování prostorové struktury',
         'viewer.phase4': 'Zpracování entit',
 
+        // IFC viewer parser errors/warnings (Phase i18n cleanup)
+        'viewer.error.encryptedFile': 'Soubor je zašifrovaný (Microsoft Intune). Dešifrujte ho před nahráním.',
+        'viewer.error.invalidIfcHeader': 'Neplatný IFC formát — soubor neobsahuje standardní IFC hlavičku.',
+        'viewer.error.noDataSection': 'Neplatný IFC formát — soubor neobsahuje datovou sekci.',
+        'viewer.warn.largeFile': '⚠️ Velmi velký soubor ({sizeMB} MB)!\n\n',
+        'viewer.warn.largeFileSize': 'Soubor "{fileName}" je velmi velký a může způsobit zpomalení prohlížeče.\n\n',
+        'viewer.warn.largeFileExplain': 'Pro optimalizaci budou přeskočeny geometrické entity (viewer je nepotřebuje pro zobrazení properties).\n\n',
+        'viewer.warn.largeFileContinue': 'Chcete pokračovat?',
+        'viewer.warn.cancelled': 'Načítání zrušeno uživatelem.',
+        'viewer.log.largeFileOptimized': '[IFC Parser] Velký soubor ({sizeMB} MB) — používám optimalizovaný parser.',
+        'viewer.log.skippedGeometry': '[IFC Parser] Přeskočeno {count} geometrických entit pro optimalizaci.',
+
         // === CSV EXPORT ===
         'viewer.csv.file': 'Soubor',
         'viewer.csv.guid': 'GUID',
@@ -629,6 +657,7 @@ const translations = {
         'wizard.requiredStep': 'Povinný krok',
         'wizard.step': '{current}/{total}',
         'wizard.hint.firstVisit': 'Nový zde? Klikni pro průvodce!',
+        'wizard.tooltip.newHere': 'Nový zde? Klikni pro průvodce!',
 
         // Wizard Help Sidebar
         'wizard.help.title': 'Nápověda',
@@ -1004,6 +1033,46 @@ const translations = {
         'ai.endpoint.loadModelsBtn': '↻ Načíst dostupné modely',
         'ai.endpoint.loadModelsFailed': 'Nelze načíst modely. Zadejte ručně.',
 
+        // AI tool responses (Phase i18n cleanup)
+        'ai.tool.validator.viewerOnly': 'Výsledky validace jsou viditelné jen na stránce Validator.',
+        'ai.tool.validator.notRun': 'Validace nebyla spuštěna nebo výsledky chybí.',
+        'ai.tool.validator.deleteGroupConfirm': 'Smazat validační skupinu #{n}?',
+        'ai.tool.validator.switchingToValidator': 'Přepínám na Validator a spouštím validaci. Chat panel se po obnovení stránky zavře, ale výsledky uvidíš v UI.',
+        'ai.tool.validator.validationStarted': 'Validace spuštěna. Výsledky uvidíš v panelu.',
+        'ai.tool.validator.failuresReadOnly': 'Failures lze číst pouze na stránce Validator (po spuštění validace).',
+        'ai.tool.validator.notRunShort': 'Validace nebyla spuštěna.',
+        'ai.tool.validator.excelExportPageOnly': 'Excel export funguje jen na Validator stránce po spuštění validace.',
+        'ai.tool.validator.exportNotAvailable': 'exportToXLSX není dostupný — validace nebyla spuštěna nebo strana je špatně načtená.',
+        'ai.tool.validator.exportTriggered': 'Export spuštěn — soubor by se měl stáhnout do tvého OS.',
+        'ai.tool.agents.noActive': 'Žádný agent právě neřídí chat.',
+        'ai.tool.agents.activeNotFound': 'Aktivní agent nebyl nalezen v úložišti.',
+        'ai.tool.agents.missingIdentifier': 'Zadej buď id nebo name.',
+        'ai.tool.agents.cannotModifyActive': 'Aktuálně běžící agent nelze měnit. Přepni se na jiného agenta nebo to udělej v UI.',
+        'ai.tool.agents.notFound': 'Agent s tímto id neexistuje.',
+        'ai.tool.agents.cannotDeleteActive': 'Aktuálně běžící agent nelze smazat.',
+        'ai.tool.agents.lastAgent': 'Nelze smazat posledního zbývajícího agenta.',
+        'ai.tool.storage.cannotRenameRoot': 'Kořenovou složku nelze přejmenovat.',
+        'ai.tool.storage.cannotDeleteRoot': 'Kořenovou složku nelze smazat.',
+        'ai.tool.storage.sizeDeltaWarning': ' POZOR: nová velikost se liší o {pct}%.',
+        'ai.tool.settings.wizardSubpagesOnly': 'Průvodce je dostupný jen na podstránkách (validator/parser/viewer).',
+        'ai.tool.settings.installPromptNotReady': 'Browser instalační prompt zatím není připraven, zkuste později.',
+        'ai.tool.ids.generatorNotAvailable': 'IDS XML generator není načtený na této stránce.',
+        'ai.tool.ids.xsdValidatorNotAvailable': 'XSD validátor není k dispozici (jen na podstránkách).',
+        'ai.tool.ui.pageRedirect': 'Stránka se nyní přesměruje. Chat panel se zavře, otevřete jej znovu po načtení.',
+        'ai.tool.bsdd.disabled': 'bSDD integrace zatím není zapojena. Implementace přijde v další fázi.',
+        'ai.tool.presets.noGroups': 'Nejsou žádné skupiny k uložení (validator je prázdný a žádný last-session preset).',
+        'ai.tool.agents.duplicateName': 'Agent "{name}" už existuje (id {id}). Použij update_agent nebo zvol jiné jméno.',
+        'ai.tool.agents.ambiguousName': 'Více agentů má jméno "{name}". Zavolej znovu s id konkrétního.',
+        'ai.tool.ifc.fileNotFound': 'IFC soubor "{fileName}" neexistuje nebo se nepodařil parsovat.',
+        'ai.tool.ui.invalidKind': 'Unknown kind \'{kind}\'. Použij info|warning|success|error.',
+        'ai.tool.ids.addSpecConfirm': 'Přidat specifikaci \'{name}\' do \'{idsFileName}\'?',
+        'ai.tool.storage.folderNotFound': 'Složka "{nameOrPath}" neexistuje.',
+        'ai.tool.storage.ambiguousFolder': 'Více složek odpovídá "{nameOrPath}". Zadej úplnou cestu.',
+        'ai.tool.storage.deleteFileConfirm': 'Smazat soubor \'{name}\' z úložiště?',
+        'ai.tool.storage.deleteFolderConfirm': 'Smazat složku \'{name}\' ({fileCount} souborů + podsložky)?',
+        'ai.tool.storage.replaceContentConfirm': 'Přepsat obsah \'{name}\'?{warning}',
+        'chat.emptyConversation': '(prázdná konverzace)',
+
         // === BUG REPORT ===
         'bugReport.tooltip': 'Nahlásit chybu',
         'bugReport.title': 'Nahlásit chybu',
@@ -1026,10 +1095,38 @@ const translations = {
         'bugReport.successOpenIssue': 'Otevřít na GitHubu',
         'bugReport.fallbackOpen': 'Otevřít issue ručně',
         'bugReport.close': 'Zavřít',
+
+        // === UPDATE CHECKER ===
+        'update.newVersion': 'Nová verze k dispozici!',
+        'update.download': 'Stáhnout novou verzi',
+        'update.later': 'Později',
+        'update.close': 'Zavřít',
+
+        // === I18N CLEANUP T5 ===
+        'validator.results.lineLabel': 'Řádek',
+        'validator.results.fileCountLabel': 'souborů',
+        'validator.results.fileCountSingular': 'soubor',
+        'progress.completedCount': '✓ {count} dokončeno',
+        'settings.modal.errorNoModel': 'Vyber nebo zadej model agenta — bez modelu API odmítne request.',
+        'chat.time.now': 'teď',
+        'chat.agent.noModel': 'Agent "{name}" nemá nastavený model. Otevři Settings ⚙️ a vyber model.',
     },
 
     en: {
     // === MAIN APPLICATION ===
+        // Page titles + meta descriptions (Phase i18n cleanup)
+        'page.title.index': 'BIM Checker — Tools for IFC and IDS',
+        'page.title.validator': 'BIM Checker — IDS-IFC Validator',
+        'page.title.parser': 'BIM Checker — IDS Parser & Visualizer',
+        'page.title.viewer': 'BIM Checker — IFC Multi-File Viewer',
+        'page.meta.description.index': 'Professional tools for BIM data validation and analysis (IFC and IDS). Validator, parser, viewer.',
+        'page.meta.description.validator': 'Validate IFC models against IDS specifications. Detailed results, statistics, Excel export.',
+        'page.meta.description.parser': 'View and analyze IDS (Information Delivery Specification) files. Tree structure, raw XML, XSD validation.',
+        'page.meta.description.viewer': 'Advanced viewer for multiple IFC files at once. Unified entity table, search, PSet management, CSV export.',
+        'home.toolLink': 'Open tool →',
+        'viewer.dropHint': 'or click to select',
+        'viewer.loadingStatus': 'Please wait...',
+
         'app.title': 'BIM Checker',
         'app.subtitle': 'Professional tools for BIM data validation and analysis',
         'app.version': 'version 0.1.2',
@@ -1078,6 +1175,9 @@ const translations = {
         'btn.close': 'Close',
 
         // === TOOLS ===
+        'tools.section.title': 'Tools',
+        'tools.section.subtitle': 'Professional tools for working with BIM data',
+
         'tools.viewer.title': 'IFC Multi-File Viewer',
         'tools.viewer.desc': 'Advanced viewer for analyzing and comparing multiple IFC files simultaneously',
         'tools.viewer.feature1': 'Load multiple IFC files',
@@ -1522,6 +1622,18 @@ const translations = {
         'viewer.phase2': 'Parsing property sets',
         'viewer.phase3': 'Building spatial structure',
         'viewer.phase4': 'Processing entities',
+
+        // IFC viewer parser errors/warnings (Phase i18n cleanup)
+        'viewer.error.encryptedFile': 'File is encrypted (Microsoft Intune). Decrypt it before uploading.',
+        'viewer.error.invalidIfcHeader': 'Invalid IFC format — file does not contain a standard IFC header.',
+        'viewer.error.noDataSection': 'Invalid IFC format — file does not contain a data section.',
+        'viewer.warn.largeFile': '⚠️ Very large file ({sizeMB} MB)!\n\n',
+        'viewer.warn.largeFileSize': 'File "{fileName}" is very large and may slow down the browser.\n\n',
+        'viewer.warn.largeFileExplain': 'For optimization, geometry entities will be skipped (the viewer does not need them to display properties).\n\n',
+        'viewer.warn.largeFileContinue': 'Continue?',
+        'viewer.warn.cancelled': 'Loading cancelled by user.',
+        'viewer.log.largeFileOptimized': '[IFC Parser] Large file ({sizeMB} MB) — using optimized parser.',
+        'viewer.log.skippedGeometry': '[IFC Parser] Skipped {count} geometry entities for optimization.',
 
         // === CSV EXPORT ===
         'viewer.csv.file': 'File',
@@ -2026,6 +2138,46 @@ const translations = {
         'ai.endpoint.loadModelsBtn': '↻ Load available models',
         'ai.endpoint.loadModelsFailed': 'Cannot load models. Enter manually.',
 
+        // AI tool responses (Phase i18n cleanup)
+        'ai.tool.validator.viewerOnly': 'Validation results are only visible on the Validator page.',
+        'ai.tool.validator.notRun': 'Validation has not been run or results are missing.',
+        'ai.tool.validator.deleteGroupConfirm': 'Delete validation group #{n}?',
+        'ai.tool.validator.switchingToValidator': 'Switching to Validator and starting validation. Chat panel will close after page reload, but you will see results in the UI.',
+        'ai.tool.validator.validationStarted': 'Validation started. You will see results in the panel.',
+        'ai.tool.validator.failuresReadOnly': 'Failures can only be read on the Validator page (after running validation).',
+        'ai.tool.validator.notRunShort': 'Validation has not been run.',
+        'ai.tool.validator.excelExportPageOnly': 'Excel export only works on the Validator page after running validation.',
+        'ai.tool.validator.exportNotAvailable': 'exportToXLSX is not available — validation has not been run or page loaded incorrectly.',
+        'ai.tool.validator.exportTriggered': 'Export started — the file should download to your OS.',
+        'ai.tool.agents.noActive': 'No agent is currently driving the chat.',
+        'ai.tool.agents.activeNotFound': 'Active agent was not found in storage.',
+        'ai.tool.agents.missingIdentifier': 'Provide either id or name.',
+        'ai.tool.agents.cannotModifyActive': 'The currently running agent cannot be modified. Switch to another agent or do it in the UI.',
+        'ai.tool.agents.notFound': 'Agent with this id does not exist.',
+        'ai.tool.agents.cannotDeleteActive': 'The currently running agent cannot be deleted.',
+        'ai.tool.agents.lastAgent': 'Cannot delete the last remaining agent.',
+        'ai.tool.storage.cannotRenameRoot': 'The root folder cannot be renamed.',
+        'ai.tool.storage.cannotDeleteRoot': 'The root folder cannot be deleted.',
+        'ai.tool.storage.sizeDeltaWarning': ' WARNING: new size differs by {pct}%.',
+        'ai.tool.settings.wizardSubpagesOnly': 'The tour is only available on subpages (validator/parser/viewer).',
+        'ai.tool.settings.installPromptNotReady': 'Browser install prompt is not ready yet, try later.',
+        'ai.tool.ids.generatorNotAvailable': 'IDS XML generator is not loaded on this page.',
+        'ai.tool.ids.xsdValidatorNotAvailable': 'XSD validator is not available (only on subpages).',
+        'ai.tool.ui.pageRedirect': 'The page will redirect now. The chat panel will close, reopen it after loading.',
+        'ai.tool.bsdd.disabled': 'bSDD integration is not yet wired in. Implementation in the next phase.',
+        'ai.tool.presets.noGroups': 'No groups to save (validator is empty and no last-session preset).',
+        'ai.tool.agents.duplicateName': 'Agent "{name}" already exists (id {id}). Use update_agent or choose a different name.',
+        'ai.tool.agents.ambiguousName': 'Multiple agents have the name "{name}". Call again with the specific id.',
+        'ai.tool.ifc.fileNotFound': 'IFC file "{fileName}" does not exist or failed to parse.',
+        'ai.tool.ui.invalidKind': 'Unknown kind \'{kind}\'. Use info|warning|success|error.',
+        'ai.tool.ids.addSpecConfirm': 'Add specification \'{name}\' to \'{idsFileName}\'?',
+        'ai.tool.storage.folderNotFound': 'Folder "{nameOrPath}" does not exist.',
+        'ai.tool.storage.ambiguousFolder': 'Multiple folders match "{nameOrPath}". Provide the full path.',
+        'ai.tool.storage.deleteFileConfirm': 'Delete file \'{name}\' from storage?',
+        'ai.tool.storage.deleteFolderConfirm': 'Delete folder \'{name}\' ({fileCount} files + subfolders)?',
+        'ai.tool.storage.replaceContentConfirm': 'Replace content of \'{name}\'?{warning}',
+        'chat.emptyConversation': '(empty conversation)',
+
         // === BUG REPORT ===
         'bugReport.tooltip': 'Report bug',
         'bugReport.title': 'Report a bug',
@@ -2048,6 +2200,24 @@ const translations = {
         'bugReport.successOpenIssue': 'Open on GitHub',
         'bugReport.fallbackOpen': 'Open issue manually',
         'bugReport.close': 'Close',
+
+        // === UPDATE CHECKER ===
+        'update.newVersion': 'New version available!',
+        'update.download': 'Download new version',
+        'update.later': 'Later',
+        'update.close': 'Close',
+
+        // === WIZARD TOOLTIP ===
+        'wizard.tooltip.newHere': 'New here? Click for the tour!',
+
+        // === I18N CLEANUP T5 ===
+        'validator.results.lineLabel': 'Line',
+        'validator.results.fileCountLabel': 'files',
+        'validator.results.fileCountSingular': 'file',
+        'progress.completedCount': '✓ {count} done',
+        'settings.modal.errorNoModel': 'Select or enter an agent model — without a model, the API rejects the request.',
+        'chat.time.now': 'now',
+        'chat.agent.noModel': 'Agent "{name}" has no model set. Open Settings ⚙️ and select a model.',
     }
 };
 

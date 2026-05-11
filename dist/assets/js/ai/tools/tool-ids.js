@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 export async function list_ids_specifications(args) {
     helpers.validateArgs(args, { filename: { required: true } });
@@ -88,7 +89,7 @@ export async function get_facet_detail(args) {
 export async function generate_ids_skeleton(args) {
     helpers.validateArgs(args, { title: { required: true } });
     if (typeof window.IDSXMLGenerator === 'undefined') {
-        return { error: 'generator_not_available', message: 'IDS XML generator není načtený na této stránce.' };
+        return { error: 'generator_not_available', message: t('ai.tool.ids.generatorNotAvailable') };
     }
     const idsData = {
         title: String(args.title),
@@ -155,7 +156,7 @@ export async function add_specification_to_ids(args) {
         requirements: args.requirementFacets
     });
     const xml = new window.IDSXMLGenerator().generateIDS(idsData);
-    if (!confirm(`Přidat specifikaci '${args.name}' do '${args.idsFileName}'?`)) {
+    if (!confirm(t('ai.tool.ids.addSpecConfirm', { name: args.name, idsFileName: args.idsFileName }))) {
         return { cancelled: true };
     }
     await window.BIMStorage.saveFile('ids', { name: args.idsFileName, size: xml.length, content: xml }, file.folder);
@@ -165,7 +166,7 @@ export async function add_specification_to_ids(args) {
 export async function validate_ids_xml(args) {
     helpers.validateArgs(args, { idsFileName: { required: true } });
     if (typeof window.IDSXSDValidator === 'undefined') {
-        return { error: 'validator_not_available', message: 'XSD validátor není k dispozici (jen na podstránkách).' };
+        return { error: 'validator_not_available', message: t('ai.tool.ids.xsdValidatorNotAvailable') };
     }
     if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
     await window.BIMStorage.init();

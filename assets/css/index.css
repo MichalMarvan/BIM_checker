@@ -775,12 +775,16 @@ body {
 }
 
 .file-tree-modern:empty::before {
-    content: "Žádné soubory";
+    content: "No files";
     display: block;
     text-align: center;
     color: var(--text-tertiary);
     font-style: italic;
     padding: var(--spacing-2xl);
+}
+
+html[data-lang="cs"] .file-tree-modern:empty::before {
+    content: "Žádné soubory";
 }
 
 /* File Tree Structure */

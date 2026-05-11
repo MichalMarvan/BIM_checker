@@ -178,11 +178,23 @@ class I18n {
             el.title = this.t(key);
         });
 
+        // 3b. aria-label attributes (e.g., <button data-i18n-aria-label="update.close" aria-label="Close">)
+        document.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+            const key = el.getAttribute('data-i18n-aria-label');
+            el.setAttribute('aria-label', this.t(key));
+        });
+
         // 4. Row selector options (e.g., "500 rows")
         document.querySelectorAll('[data-i18n-rows]').forEach(el => {
             const key = el.getAttribute('data-i18n-rows');
             const value = el.value || el.getAttribute('value');
             el.textContent = `${value} ${this.t(key)}`;
+        });
+
+        // 5b. Content attributes (e.g., <meta name="description" data-i18n-content="page.meta.description.x" content="...">)
+        document.querySelectorAll('[data-i18n-content]').forEach(el => {
+            const key = el.getAttribute('data-i18n-content');
+            el.setAttribute('content', this.t(key));
         });
 
         // 5. HTML lang attribute

@@ -66,16 +66,16 @@ function showUpdateNotification(version, releaseUrl, releaseNotes) {
         <div class="update-notification-content">
             <div class="update-notification-header">
                 <span class="update-notification-icon">🔔</span>
-                <span class="update-notification-title" data-i18n="update.newVersion">Nová verze k dispozici!</span>
-                <button class="update-notification-close" aria-label="Zavřít">&times;</button>
+                <span class="update-notification-title" data-i18n="update.newVersion">New version available!</span>
+                <button class="update-notification-close" aria-label="Close" data-i18n-aria-label="update.close">&times;</button>
             </div>
             <div class="update-notification-body">
                 <p><strong>BIM Checker ${version}</strong></p>
                 ${releaseNotes ? `<p class="update-notification-notes">${releaseNotes.slice(0, 200)}${releaseNotes.length > 200 ? '...' : ''}</p>` : ''}
             </div>
             <div class="update-notification-actions">
-                <a href="${releaseUrl}" target="_blank" rel="noopener noreferrer" class="update-notification-btn primary" data-i18n="update.download">Stáhnout novou verzi</a>
-                <button class="update-notification-btn secondary update-notification-later" data-i18n="update.later">Později</button>
+                <a href="${releaseUrl}" target="_blank" rel="noopener noreferrer" class="update-notification-btn primary" data-i18n="update.download">Download new version</a>
+                <button class="update-notification-btn secondary update-notification-later" data-i18n="update.later">Later</button>
             </div>
         </div>
     `;

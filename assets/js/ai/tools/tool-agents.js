@@ -2,6 +2,7 @@
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
 import * as chatStorage from '../chat-storage.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 function _safeAgent(a) {
     return {
@@ -24,9 +25,9 @@ export async function list_agents() {
 
 export async function get_active_agent() {
     const id = window.__bimAiActiveAgentId;
-    if (!id) return { error: 'no_active_agent', message: 'Žádný agent právě neřídí chat.' };
+    if (!id) return { error: 'no_active_agent', message: t('ai.tool.agents.noActive') };
     const agent = await chatStorage.getAgent(id);
-    if (!agent) return { error: 'not_found', message: 'Aktivní agent nebyl nalezen v úložišti.' };
+    if (!agent) return { error: 'not_found', message: t('ai.tool.agents.activeNotFound') };
     return _safeAgent(agent);
 }
 
@@ -44,7 +45,7 @@ export async function create_agent(args) {
     const existing = await chatStorage.listAgents();
     const dup = existing.find(a => a.name.trim() === trimmedName);
     if (dup) {
-        return { error: 'duplicate_name', existingId: dup.id, message: `Agent "${trimmedName}" už existuje (id ${dup.id}). Použij update_agent nebo zvol jiné jméno.` };
+        return { error: 'duplicate_name', existingId: dup.id, message: t('ai.tool.agents.duplicateName', { name: trimmedName, id: dup.id }) };
     }
     const id = await chatStorage.saveAgent({
         name: trimmedName,
@@ -68,13 +69,13 @@ async function _resolveAgentId(args) {
         if (matches.length > 1) {
             return {
                 error: 'ambiguous_name',
-                message: `Více agentů má jméno "${args.name}". Zavolej znovu s id konkrétního.`,
+                message: t('ai.tool.agents.ambiguousName', { name: args.name }),
                 candidates: matches.map(a => ({ id: a.id, name: a.name }))
             };
         }
         return { id: matches[0].id };
     }
-    return { error: 'missing_identifier', message: 'Zadej buď id nebo name.' };
+    return { error: 'missing_identifier', message: t('ai.tool.agents.missingIdentifier') };
 }
 
 export async function update_agent(args) {
@@ -82,10 +83,10 @@ export async function update_agent(args) {
     if (resolved.error) return resolved;
     const id = resolved.id;
     if (window.__bimAiActiveAgentId && id === window.__bimAiActiveAgentId) {
-        return { error: 'cannot_modify_active', message: 'Aktuálně běžící agent nelze měnit. Přepni se na jiného agenta nebo to udělej v UI.' };
+        return { error: 'cannot_modify_active', message: t('ai.tool.agents.cannotModifyActive') };
     }
     const existing = await chatStorage.getAgent(id);
-    if (!existing) return { error: 'not_found', message: 'Agent s tímto id neexistuje.' };
+    if (!existing) return { error: 'not_found', message: t('ai.tool.agents.notFound') };
     // If only `name` was provided (no id), it's a lookup key, not a rename.
     // Otherwise treat name as a rename target.
     const isRename = !!args.id;
@@ -103,14 +104,14 @@ export async function delete_agent(args) {
     if (resolved.error) return resolved;
     const id = resolved.id;
     if (window.__bimAiActiveAgentId && id === window.__bimAiActiveAgentId) {
-        return { error: 'cannot_modify_active', message: 'Aktuálně běžící agent nelze smazat.' };
+        return { error: 'cannot_modify_active', message: t('ai.tool.agents.cannotDeleteActive') };
     }
     const all = await chatStorage.listAgents();
     if (all.length <= 1) {
-        return { error: 'last_agent', message: 'Nelze smazat posledního zbývajícího agenta.' };
+        return { error: 'last_agent', message: t('ai.tool.agents.lastAgent') };
     }
     const target = all.find(a => a.id === id);
-    if (!target) return { error: 'not_found', message: 'Agent s tímto id neexistuje.' };
+    if (!target) return { error: 'not_found', message: t('ai.tool.agents.notFound') };
     if (!confirm(`Smazat agenta '${target.name}'?`)) return { cancelled: true };
     const ok = await chatStorage.deleteAgent(id);
     return { deleted: ok };

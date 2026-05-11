@@ -259,6 +259,21 @@ Deferred for future polish:
 - Real drag-to-resize gestures on chat sheet
 - Wizard/tour mobile redesign
 
+## i18n Complete EN Localization ✅
+- [x] i18n.js engine extended: `data-i18n-content` (meta tags) + `data-i18n-aria-label` (accessibility)
+- [x] ~120 new translation keys CS+EN (page.title, page.meta.description, ai.tool.*, viewer.error, etc.)
+- [x] 154+ hardcoded CS strings replaced via `i18n.t()` across 20 source files
+- [x] Sample IDS in parser.js rewritten to English (international audience)
+- [x] Agent presets: dual CS/EN schema with locale-aware `resolvePreset()` resolution
+- [x] tool-defs.js (LLM-facing) translated CS → EN (71 strings)
+- [x] CSS `.file-tree-modern:empty::before` dual-language via `[data-lang="cs"]` selector
+- [x] Regression test enforces no CS chars outside allowlist (i18n-completeness.test.js)
+- [x] +3 regression tests (737 → 740)
+
+Branch: i18n-cleanup-complete-en
+
+Trigger: external user feedback on LinkedIn about incomplete EN translation.
+
 ---
 
 ## K dokončení (TODO)

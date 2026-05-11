@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 const PATH_MAP = {
     home: '/index.html',
@@ -21,7 +22,7 @@ export async function navigate_to_page(args) {
     return {
         navigating: true,
         target: args.page,
-        warning: 'Stránka se nyní přesměruje. Chat panel se zavře, otevřete jej znovu po načtení.',
+        warning: t('ai.tool.ui.pageRedirect'),
         _timer: timer
     };
 }
@@ -33,7 +34,7 @@ export async function request_user_attention(args) {
         return { error: 'error_handler_not_available' };
     }
     const fn = window.ErrorHandler[kind];
-    if (typeof fn !== 'function') return { error: 'invalid_kind', message: `Unknown kind '${kind}'. Použij info|warning|success|error.` };
+    if (typeof fn !== 'function') return { error: 'invalid_kind', message: t('ai.tool.ui.invalidKind', { kind }) };
     fn.call(window.ErrorHandler, String(args.message));
     return { shown: true, kind };
 }

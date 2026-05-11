@@ -264,7 +264,7 @@ function validateIFCContent(content) {
         return {
             valid: false,
             error: 'encrypted',
-            message: 'Soubor je zašifrovaný (Microsoft Intune). Dešifrujte ho před nahráním.'
+            message: i18n.t('viewer.error.encryptedFile')
         };
     }
 
@@ -273,7 +273,7 @@ function validateIFCContent(content) {
         return {
             valid: false,
             error: 'invalid',
-            message: 'Neplatný IFC formát - soubor neobsahuje standardní IFC hlavičku.'
+            message: i18n.t('viewer.error.invalidIfcHeader')
         };
     }
 
@@ -281,7 +281,7 @@ function validateIFCContent(content) {
         return {
             valid: false,
             error: 'invalid',
-            message: 'Neplatný IFC formát - soubor neobsahuje datovou sekci.'
+            message: i18n.t('viewer.error.noDataSection')
         };
     }
 
@@ -509,17 +509,17 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
         if (fileSize > VERY_LARGE_FILE_THRESHOLD) {
             const sizeMB = (fileSize / (1024 * 1024)).toFixed(0);
             const confirmed = confirm(
-                `⚠️ Velmi velký soubor (${sizeMB} MB)!\n\n` +
-                `Soubor "${fileName}" je velmi velký a může způsobit zpomalení prohlížeče.\n\n` +
-                'Pro optimalizaci budou přeskočeny geometrické entity (viewer je nepotřebuje pro zobrazení properties).\n\n' +
-                'Chcete pokračovat?'
+                i18n.t('viewer.warn.largeFile', { sizeMB }) +
+                i18n.t('viewer.warn.largeFileSize', { fileName }) +
+                i18n.t('viewer.warn.largeFileExplain') +
+                i18n.t('viewer.warn.largeFileContinue')
             );
             if (!confirmed) {
-                throw new Error('Načítání zrušeno uživatelem.');
+                throw new Error(i18n.t('viewer.warn.cancelled'));
             }
         } else if (fileSize > LARGE_FILE_THRESHOLD) {
             const sizeMB = (fileSize / (1024 * 1024)).toFixed(0);
-            console.info(`[IFC Parser] Velký soubor (${sizeMB} MB) - používám optimalizovaný parser.`);
+            console.info(i18n.t('viewer.log.largeFileOptimized', { sizeMB }));
         }
 
         const fileData = [];
@@ -606,7 +606,7 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
 
         // Log optimization stats
         if (skippedEntities > 0) {
-            console.info(`[IFC Parser] Přeskočeno ${skippedEntities.toLocaleString()} geometrických entit pro optimalizaci.`);
+            console.info(i18n.t('viewer.log.skippedGeometry', { count: skippedEntities.toLocaleString() }));
         }
 
         // Phase 2: Parse property sets and relationships

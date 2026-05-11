@@ -8,12 +8,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="BIM Checker">
-    <title data-i18n="parser.title"></title>
+    <title data-i18n="page.title.parser">BIM Checker — IDS Parser &amp; Visualizer</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#667eea">
     <!-- OG_TAGS_PHASE_12 -->
-    <meta name="description" content="View and analyze IDS (Information Delivery Specification) files. Tree structure, raw XML, XSD validation.">
+    <meta name="description" data-i18n-content="page.meta.description.parser" content="View and analyze IDS (Information Delivery Specification) files. Tree structure, raw XML, XSD validation.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="BIM Checker">
     <meta property="og:locale" content="en_US">
@@ -68,7 +68,7 @@
         </a>
         <div class="bim-mobile-topbar__actions">
             <div class="bim-mobile-topbar__lang">
-                <button class="lang-btn active" data-lang="cs" aria-label="Čeština">CZ</button>
+                <button class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
                 <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
             </div>
             <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
@@ -291,7 +291,7 @@
                     Vyberte jeden IDS soubor z úložiště:
                 </p>
                 <div id="idsStorageFileTree" class="storage-file-tree">
-                    <!-- Zde bude stromová struktura souborů -->
+                    <!-- File tree will be rendered here -->
                 </div>
                 <div class="selected-files-info">
                     <strong data-i18n="parser.selectedFile">Vybraný soubor:</strong> <span id="selectedIdsFileName" data-i18n="parser.noFile">Žádný</span>

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 function _buildFolderPath(foldersMap, folderId) {
     const names = [];
@@ -40,11 +41,11 @@ function _resolveFolderId(foldersMap, nameOrPath) {
         const path = _buildFolderPath(foldersMap, f.id).toLowerCase();
         return path === needle || path.endsWith('/' + needle);
     });
-    if (matches.length === 0) return { error: 'not_found', message: `Složka "${nameOrPath}" neexistuje.` };
+    if (matches.length === 0) return { error: 'not_found', message: t('ai.tool.storage.folderNotFound', { nameOrPath }) };
     if (matches.length > 1) {
         return {
             error: 'ambiguous_folder',
-            message: `Více složek odpovídá "${nameOrPath}". Zadej úplnou cestu.`,
+            message: t('ai.tool.storage.ambiguousFolder', { nameOrPath }),
             candidates: matches.map(f => ({ id: f.id, path: _buildFolderPath(foldersMap, f.id) }))
         };
     }
@@ -117,7 +118,7 @@ export async function delete_file_from_storage(args) {
         type: { required: true, enum: ['ifc', 'ids'] },
         name: { required: true }
     });
-    if (!confirm(`Smazat soubor '${args.name}' z úložiště?`)) return { cancelled: true };
+    if (!confirm(t('ai.tool.storage.deleteFileConfirm', { name: args.name }))) return { cancelled: true };
     if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
     await window.BIMStorage.init();
     const file = await window.BIMStorage.getFile(args.type, args.name);
@@ -155,7 +156,7 @@ export async function rename_folder(args) {
     if (!sm.data) await sm.load();
     const resolved = _resolveFolderId(sm.data.folders, args.folderName);
     if (resolved.error) return resolved;
-    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: 'Kořenovou složku nelze přejmenovat.' };
+    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: t('ai.tool.storage.cannotRenameRoot') };
     const ok = await sm.renameFolder(resolved.id, args.newName.trim());
     return { renamed: ok, folderId: resolved.id };
 }
@@ -171,10 +172,10 @@ export async function delete_folder(args) {
     if (!sm.data) await sm.load();
     const resolved = _resolveFolderId(sm.data.folders, args.folderName);
     if (resolved.error) return resolved;
-    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: 'Kořenovou složku nelze smazat.' };
+    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: t('ai.tool.storage.cannotDeleteRoot') };
     const folder = sm.data.folders[resolved.id];
     const fileCount = (folder.files || []).length;
-    if (!confirm(`Smazat složku '${folder.name}' (${fileCount} souborů + podsložky)?`)) {
+    if (!confirm(t('ai.tool.storage.deleteFolderConfirm', { name: folder.name, fileCount }))) {
         return { cancelled: true };
     }
     const ok = await sm.deleteFolder(resolved.id);
@@ -330,9 +331,9 @@ export async function replace_file_content(args) {
     const newSize = args.content.length;
     const sizeDeltaPercent = oldSize > 0 ? Math.abs(newSize - oldSize) / oldSize * 100 : 0;
     const warning = sizeDeltaPercent > 50
-        ? ` POZOR: nová velikost se liší o ${sizeDeltaPercent.toFixed(0)}%.`
+        ? t('ai.tool.storage.sizeDeltaWarning', { pct: sizeDeltaPercent.toFixed(0) })
         : '';
-    if (!confirm(`Přepsat obsah '${args.name}'?${warning}`)) {
+    if (!confirm(t('ai.tool.storage.replaceContentConfirm', { name: args.name, warning }))) {
         return { cancelled: true };
     }
     await window.BIMStorage.saveFile(args.type, { name: args.name, size: newSize, content: args.content }, file.folder);

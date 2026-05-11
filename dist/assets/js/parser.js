@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-// Globální proměnná pro uchování IDS dat
+// Global variable for storing IDS data
 let currentIDSData = null;
 
 // Event listeners (only attach when DOM elements exist)
@@ -61,13 +61,13 @@ function handleFile(file) {
 function parseIDS(xmlString) {
     const xmlDoc = new DOMParser().parseFromString(xmlString, 'text/xml');
 
-    // Kontrola chyb parsování
+    // Check for parsing errors
     if (xmlDoc.querySelector('parsererror')) {
         showError(t('parser.error.invalidXml'));
         return;
     }
 
-    // Zpracování IDS dat pomocí IDSParser
+    // Process IDS data using IDSParser
     const parsed = IDSParser.parseDocument(xmlDoc);
     currentIDSData = {
         xml: xmlString,
@@ -76,7 +76,7 @@ function parseIDS(xmlString) {
         specifications: parsed.specifications
     };
 
-    // Zobrazení vizualizace
+    // Render visualization
     const visualizationSection = document.getElementById('visualizationSection');
     if (visualizationSection) {
         displayIDS();
@@ -306,37 +306,37 @@ function formatFacets(facets, isRequirements = false) {
         html += `<div class="facet-type">${getFacetTypeName(facet.type)}${cardinalityBadge}</div>`;
         html += '<div class="facet-details">';
 
-        // Zobrazení názvu (pro non-property facety)
+        // Show name (for non-property facets)
         if (facet.name) {
             html += `${escapeHtml(t('parser.facet.name'))} <span class="facet-value">${formatValue(facet.name)}</span><br>`;
         }
 
-        // Zobrazení property setu (první pro property)
+        // Show property set (first for property)
         if (facet.propertySet) {
             html += `${escapeHtml(t('parser.facet.propertySet'))} <span class="facet-value">${formatValue(facet.propertySet)}</span><br>`;
         }
 
-        // Zobrazení baseName (název property - pod propertySet)
+        // Show baseName (property name — below propertySet)
         if (facet.baseName) {
             html += `${escapeHtml(t('parser.facet.name'))} <span class="facet-value">${formatValue(facet.baseName)}</span><br>`;
         }
 
-        // Zobrazení hodnoty
+        // Show value
         if (facet.value) {
             html += `${escapeHtml(t('parser.facet.value'))} <span class="facet-value">${formatValue(facet.value)}</span>`;
         }
 
-        // Zobrazení relace
+        // Show relation
         if (facet.relation) {
             html += `${escapeHtml(t('parser.facet.relation'))} <span class="facet-value">${formatValue(facet.relation)}</span>`;
         }
 
-        // Zobrazení systému
+        // Show system
         if (facet.system) {
             html += `${escapeHtml(t('parser.facet.system'))} <span class="facet-value">${formatValue(facet.system)}</span>`;
         }
 
-        // Zobrazení predefined type
+        // Show predefined type
         if (facet.predefinedType) {
             html += `<br>${escapeHtml(t('parser.facet.predefinedType'))} <span class="facet-value">${formatValue(facet.predefinedType)}</span>`;
         }
@@ -438,12 +438,12 @@ function explainRegex(pattern) {
         '^\\w+@\\w+\\.\\w+$': t('regex.explain.emailBasic'),
         '^\\+?\\d{1,3}[- ]?\\d{3}[- ]?\\d{3}[- ]?\\d{3}$': t('regex.explain.phoneNumber'),
         '^SO\\d{6}': t('regex.explain.soPrefix'),
-        '^[a-zá-ž].*$': t('regex.explain.lowercaseStart'),
+        '^[a-z\u00e1-\u017e].*$': t('regex.explain.lowercaseStart'),
         'PDPS': `${t('regex.explain.exactText')} "PDPS"`,
         'OTSKP': `${t('regex.explain.exactText')} "OTSKP"`,
         'CCI': `${t('regex.explain.exactText')} "CCI"`,
         'R': `${t('regex.explain.exactLetter')} "R"`,
-        'sejmutí ornice': `${t('regex.explain.exactText')} "sejmutí ornice"`
+        'topsoil removal': `${t('regex.explain.exactText')} "topsoil removal"`
     };
 
     if (explanations[pattern]) {
@@ -459,7 +459,7 @@ function explainRegex(pattern) {
     }
 
     // Czech characters
-    if (pattern.includes('á-ž') || pattern.includes('Á-Ž')) {
+    if (pattern.includes('\u00e1-\u017e') || pattern.includes('\u00c1-\u017d')) {
         explanation += t('regex.explain.czechChars') + ' ';
     }
 
@@ -586,7 +586,7 @@ function generateTreeView(node, level) {
 
     html += `<span class="tree-label">${escapeHtml(node.nodeName)}</span>`;
 
-    // Zobrazení atributů
+    // Show attributes
     if (node.attributes.length > 0) {
         const attrs = Array.from(node.attributes)
             .map(attr => `${escapeHtml(attr.name)}="${escapeHtml(attr.value)}"`)
@@ -594,14 +594,14 @@ function generateTreeView(node, level) {
         html += ` <span class="tree-bracket">[${attrs}]</span>`;
     }
 
-    // Zobrazení hodnoty
+    // Show value
     if (nodeValue && !hasChildren) {
         html += `: <span class="tree-value">${escapeHtml(nodeValue)}</span>`;
     }
 
     html += '</div>';
 
-    // Rekurzivně pro děti
+    // Recurse into children
     if (hasChildren) {
         html += '<div class="tree-children">';
         Array.from(node.children).forEach(child => {
@@ -664,7 +664,7 @@ function formatXML(xml) {
 }
 
 function switchTab(tabName) {
-    // Přepnutí tabů
+    // Switch tabs
     document.querySelectorAll('.tab').forEach(tab => {
         tab.classList.remove('active');
     });
@@ -672,7 +672,7 @@ function switchTab(tabName) {
         content.classList.remove('active');
     });
 
-    // Aktivace vybraného tabu - podpora volání z kódu i z onclicku
+    // Activate selected tab — supports calls from code and from onclick
     const tabBtn = document.querySelector(`.tab[onclick*="'${tabName}'"]`);
     if (tabBtn) {
         tabBtn.classList.add('active');
@@ -698,17 +698,17 @@ function loadSampleIDS() {
          xmlns:xs="http://www.w3.org/2001/XMLSchema" 
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <ids:info>
-        <ids:title>Ukázkový IDS - Komplexní požadavky</ids:title>
+        <ids:title>Sample IDS — Complex Requirements</ids:title>
         <ids:copyright>BuildingSMART</ids:copyright>
         <ids:version>1.0</ids:version>
-        <ids:description>Příklad IDS souboru s různými typy požadavků včetně regex</ids:description>
-        <ids:author>IDS Vizualizér</ids:author>
+        <ids:description>Example IDS file with various requirement types including regex</ids:description>
+        <ids:author>BIM Checker — IDS Visualizer</ids:author>
         <ids:date>2024-01-01</ids:date>
-        <ids:purpose>Demonstrace</ids:purpose>
+        <ids:purpose>Demonstration</ids:purpose>
     </ids:info>
-    
+
     <ids:specifications>
-        <ids:specification name="Protipožární vlastnosti stěn" ifcVersion="IFC4">
+        <ids:specification name="Wall fire safety properties" ifcVersion="IFC4">
             <ids:applicability>
                 <ids:entity>
                     <ids:name>
@@ -737,8 +737,8 @@ function loadSampleIDS() {
                 </ids:property>
             </ids:requirements>
         </ids:specification>
-        
-        <ids:specification name="Kódování místností" ifcVersion="IFC4">
+
+        <ids:specification name="Room coding" ifcVersion="IFC4">
             <ids:applicability>
                 <ids:entity>
                     <ids:name>
@@ -772,8 +772,8 @@ function loadSampleIDS() {
                 </ids:property>
             </ids:requirements>
         </ids:specification>
-        
-        <ids:specification name="Nosné stěny" ifcVersion="IFC4">
+
+        <ids:specification name="Load-bearing walls" ifcVersion="IFC4">
             <ids:applicability>
                 <ids:entity>
                     <ids:name>
@@ -797,9 +797,9 @@ function loadSampleIDS() {
                     <ids:value>
                         <ids:restriction>
                             <ids:options>
-                                <ids:option>Beton</ids:option>
-                                <ids:option>Železobeton</ids:option>
-                                <ids:option>Cihla</ids:option>
+                                <ids:option>Concrete</ids:option>
+                                <ids:option>Reinforced concrete</ids:option>
+                                <ids:option>Brick</ids:option>
                             </ids:options>
                         </ids:restriction>
                     </ids:value>
@@ -819,8 +819,8 @@ function loadSampleIDS() {
                 </ids:property>
             </ids:requirements>
         </ids:specification>
-        
-        <ids:specification name="Identifikace zařízení" ifcVersion="IFC4">
+
+        <ids:specification name="Equipment identification" ifcVersion="IFC4">
             <ids:applicability>
                 <ids:entity>
                     <ids:name>

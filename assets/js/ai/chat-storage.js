@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
+function _t(key) { return (typeof window.t === 'function') ? window.t(key) : key; }
 const DB_NAME = 'bim_checker_storage';
 const STORE = 'storage';
 
@@ -173,7 +174,7 @@ export async function createThread(agentId, firstMessage) {
     const all = (await _get(KEY_THREADS)) || [];
     const id = _genId();
     const now = Date.now();
-    const title = String(firstMessage || '(prázdná konverzace)').slice(0, 60);
+    const title = String(firstMessage || _t('chat.emptyConversation')).slice(0, 60);
     const thread = {
         id,
         agentId,
