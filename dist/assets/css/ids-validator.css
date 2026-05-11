@@ -495,6 +495,7 @@
     font-size: 0.9em;
 }
 
+/* NOTE: .results-stats 1fr here is overridden by the Phase 12e 1023px block at end of file (later in file → wins). Phone gets 2-col stats. */
 /* Responsive */
 @media (max-width: 768px) {
     .upload-grid {
@@ -781,6 +782,7 @@
 
     .group-delete-btn {
         align-self: flex-end;
+        min-width: 44px;
         min-height: 44px;
     }
 
@@ -801,6 +803,7 @@
     }
 
     .presets-panel__controls .btn {
+        min-width: 44px;
         min-height: 44px;
     }
 }
