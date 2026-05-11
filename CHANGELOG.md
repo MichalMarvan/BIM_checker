@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.1] - 2026-05-11
+
+### Added
+- Mobile modals fullscreen < 1024px (Phase 12b): all `.modal-overlay` / `.modal-container` become fullscreen on phone + tablet
+- Modal header sticky top, body scrollable, footer sticky bottom
+- Supports both `.show` (legacy) and `.active` (AI Settings, Phase 7+) open-state classes
+- Higher-specificity selectors `(.modal-overlay.show|.modal-overlay.active) .modal-container` override per-modal CSS (e.g., `.ai-settings-modal .modal-container { max-width: 720px }`) on mobile
+- +4 smoke tests (714 → 718)
+
+### Changed
+- SW cache bumped v40 → v41
+- `tests/test-runner.html` now links `mobile-nav.css` for CSS-presence assertions
+
+### Notes
+- Affected modals (verified): AI Settings, AI agent form, Bug Report, IDS storage picker, IFC storage picker, bulk edit, add pset, rename pset/property, XSD export, validation preset save/load.
+
 ## [0.10.0] - 2026-05-11
 
 ### Added
