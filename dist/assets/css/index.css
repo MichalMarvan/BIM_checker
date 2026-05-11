@@ -1435,9 +1435,56 @@ body {
     .hero-title {
         font-size: 3rem;
     }
-    
-    .storage-grid {
+
+    .storage-grid,
+    .tools-grid-modern,
+    .about-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* Storage card mobile: stack header, larger touch targets, compact padding */
+    .storage-card {
+        padding: var(--spacing-lg);
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+        padding-bottom: 16px;
+    }
+
+    .card-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .btn-icon-modern {
+        min-width: 44px;
+        min-height: 44px;
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Drop zone compact + still touchable */
+    .drop-zone-modern {
+        padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .drop-zone-icon {
+        width: 3rem;
+        height: 3rem;
+        margin: 0 auto 12px;
+    }
+
+    .drop-zone-title {
+        font-size: 1rem;
+    }
+
+    .drop-zone-subtitle {
+        font-size: 0.85rem;
     }
 }
 
