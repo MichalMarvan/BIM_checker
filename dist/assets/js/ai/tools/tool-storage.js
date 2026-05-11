@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 function _buildFolderPath(foldersMap, folderId) {
     const names = [];
@@ -155,7 +156,7 @@ export async function rename_folder(args) {
     if (!sm.data) await sm.load();
     const resolved = _resolveFolderId(sm.data.folders, args.folderName);
     if (resolved.error) return resolved;
-    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: 'Kořenovou složku nelze přejmenovat.' };
+    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: t('ai.tool.storage.cannotRenameRoot') };
     const ok = await sm.renameFolder(resolved.id, args.newName.trim());
     return { renamed: ok, folderId: resolved.id };
 }
@@ -171,7 +172,7 @@ export async function delete_folder(args) {
     if (!sm.data) await sm.load();
     const resolved = _resolveFolderId(sm.data.folders, args.folderName);
     if (resolved.error) return resolved;
-    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: 'Kořenovou složku nelze smazat.' };
+    if (resolved.id === 'root') return { error: 'cannot_modify_root', message: t('ai.tool.storage.cannotDeleteRoot') };
     const folder = sm.data.folders[resolved.id];
     const fileCount = (folder.files || []).length;
     if (!confirm(`Smazat složku '${folder.name}' (${fileCount} souborů + podsložky)?`)) {
@@ -330,7 +331,7 @@ export async function replace_file_content(args) {
     const newSize = args.content.length;
     const sizeDeltaPercent = oldSize > 0 ? Math.abs(newSize - oldSize) / oldSize * 100 : 0;
     const warning = sizeDeltaPercent > 50
-        ? ` POZOR: nová velikost se liší o ${sizeDeltaPercent.toFixed(0)}%.`
+        ? t('ai.tool.storage.sizeDeltaWarning', { pct: sizeDeltaPercent.toFixed(0) })
         : '';
     if (!confirm(`Přepsat obsah '${args.name}'?${warning}`)) {
         return { cancelled: true };

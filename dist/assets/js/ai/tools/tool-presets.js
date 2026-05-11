@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 function _resolvePresetId(args) {
     if (typeof window.ValidationPresets === 'undefined') throw new Error('ValidationPresets not available');
@@ -41,7 +42,7 @@ export async function save_preset(args) {
         groups = (last && Array.isArray(last.groups)) ? last.groups : [];
     }
     if (groups.length === 0) {
-        return { error: 'no_groups', message: 'Nejsou žádné skupiny k uložení (validator je prázdný a žádný last-session preset).' };
+        return { error: 'no_groups', message: t('ai.tool.presets.noGroups') };
     }
     const id = window.ValidationPresets.save(args.name.trim(), groups);
     return { presetId: id, groupCount: groups.length };

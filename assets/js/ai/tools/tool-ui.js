@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 const PATH_MAP = {
     home: '/index.html',
@@ -21,7 +22,7 @@ export async function navigate_to_page(args) {
     return {
         navigating: true,
         target: args.page,
-        warning: 'Stránka se nyní přesměruje. Chat panel se zavře, otevřete jej znovu po načtení.',
+        warning: t('ai.tool.ui.pageRedirect'),
         _timer: timer
     };
 }

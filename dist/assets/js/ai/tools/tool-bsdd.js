@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
-const _DISABLED = { error: 'integration_disabled', message: 'bSDD integrace zatím není zapojena. Implementace přijde v další fázi.' };
+const _DISABLED = { error: 'integration_disabled', message: t('ai.tool.bsdd.disabled') };
 
 export async function bsdd_search(args) {
     helpers.validateArgs(args, { query: { required: true } });

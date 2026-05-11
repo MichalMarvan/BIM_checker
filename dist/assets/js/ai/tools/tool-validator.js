@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 export async function list_validation_groups() {
     if (typeof window.ValidationPresets === 'undefined') return [];
@@ -18,11 +19,11 @@ export async function get_validation_results() {
     if (helpers.getCurrentPageId() !== 'validator') {
         return {
             error: 'wrong_page',
-            message: 'Výsledky validace jsou viditelné jen na stránce Validator.'
+            message: t('ai.tool.validator.viewerOnly')
         };
     }
     if (!Array.isArray(window.validationResults) || window.validationResults.length === 0) {
-        return { empty: true, message: 'Validace nebyla spuštěna nebo výsledky chybí.' };
+        return { empty: true, message: t('ai.tool.validator.notRun') };
     }
     return {
         groups: window.validationResults.map((r, i) => ({
@@ -66,7 +67,7 @@ export async function delete_validation_group(args) {
     if (typeof args.index !== 'number') {
         throw new Error('index must be a number');
     }
-    if (!confirm(`Smazat validační skupinu #${args.index + 1}?`)) return { cancelled: true };
+    if (!confirm(t('ai.tool.validator.deleteGroupConfirm', { n: args.index + 1 }))) return { cancelled: true };
     const last = window.ValidationPresets.loadLastSession() || { groups: [] };
     if (args.index < 0 || args.index >= last.groups.length) return { error: 'index_out_of_range' };
     last.groups.splice(args.index, 1);
@@ -87,21 +88,21 @@ export async function run_validation() {
         run_validation._timer = setTimeout(() => { window.location.href = targetUrl; }, 150);
         return {
             navigating: true,
-            message: 'Přepínám na Validator a spouštím validaci. Chat panel se po obnovení stránky zavře, ale výsledky uvidíš v UI.'
+            message: t('ai.tool.validator.switchingToValidator')
         };
     }
     if (typeof window.validateAll !== 'function') return { error: 'validator_not_ready' };
     window.validateAll();
-    return { started: true, message: 'Validace spuštěna. Výsledky uvidíš v panelu.' };
+    return { started: true, message: t('ai.tool.validator.validationStarted') };
 }
 
 export async function get_validation_failures(args) {
     helpers.validateArgs(args, { groupIndex: { required: true } });
     if (helpers.getCurrentPageId() !== 'validator') {
-        return { error: 'wrong_page', message: 'Failures lze číst pouze na stránce Validator (po spuštění validace).' };
+        return { error: 'wrong_page', message: t('ai.tool.validator.failuresReadOnly') };
     }
     if (!Array.isArray(window.validationResults) || window.validationResults.length === 0) {
-        return { error: 'no_results', message: 'Validace nebyla spuštěna.' };
+        return { error: 'no_results', message: t('ai.tool.validator.notRunShort') };
     }
     const idx = args.groupIndex;
     if (idx < 0 || idx >= window.validationResults.length) {
@@ -163,16 +164,16 @@ export async function count_failures_by_requirement(args) {
 
 export async function export_validation_xlsx() {
     if (helpers.getCurrentPageId() !== 'validator') {
-        return { error: 'wrong_page', message: 'Excel export funguje jen na Validator stránce po spuštění validace.' };
+        return { error: 'wrong_page', message: t('ai.tool.validator.excelExportPageOnly') };
     }
     if (typeof window.exportToXLSX !== 'function') {
-        return { error: 'export_not_available', message: 'exportToXLSX není dostupný — validace nebyla spuštěna nebo strana je špatně načtená.' };
+        return { error: 'export_not_available', message: t('ai.tool.validator.exportNotAvailable') };
     }
     if (!Array.isArray(window.validationResults) || window.validationResults.length === 0) {
         return { error: 'no_results' };
     }
     window.exportToXLSX();
-    return { triggered: true, message: 'Export spuštěn — soubor by se měl stáhnout do tvého OS.' };
+    return { triggered: true, message: t('ai.tool.validator.exportTriggered') };
 }
 
 export function register(registerFn) {

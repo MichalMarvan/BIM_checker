@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 import * as helpers from './_helpers.js';
+function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 export async function get_theme() {
     if (typeof window.ThemeManager === 'undefined') throw new Error('ThemeManager not available');
@@ -28,7 +29,7 @@ export async function set_language(args) {
 
 export async function start_wizard(args) {
     if (typeof window.wizard === 'undefined' || typeof window.wizard.start !== 'function') {
-        return { error: 'wrong_page', message: 'Průvodce je dostupný jen na podstránkách (validator/parser/viewer).' };
+        return { error: 'wrong_page', message: t('ai.tool.settings.wizardSubpagesOnly') };
     }
     if (args && args.page && typeof window.wizard.setCurrentPage === 'function') {
         window.wizard.setCurrentPage(args.page);
@@ -39,7 +40,7 @@ export async function start_wizard(args) {
 
 export async function dismiss_wizard() {
     if (typeof window.wizard === 'undefined' || typeof window.wizard.stop !== 'function') {
-        return { error: 'wrong_page', message: 'Průvodce je dostupný jen na podstránkách (validator/parser/viewer).' };
+        return { error: 'wrong_page', message: t('ai.tool.settings.wizardSubpagesOnly') };
     }
     window.wizard.stop();
     return { dismissed: true };
@@ -47,7 +48,7 @@ export async function dismiss_wizard() {
 
 export async function install_pwa() {
     if (typeof window.PWA === 'undefined') throw new Error('PWA not available');
-    if (!window.PWA.canInstall()) return { available: false, message: 'Browser instalační prompt zatím není připraven, zkuste později.' };
+    if (!window.PWA.canInstall()) return { available: false, message: t('ai.tool.settings.installPromptNotReady') };
     return await window.PWA.prompt();
 }
 
