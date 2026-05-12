@@ -50,7 +50,14 @@ export const TOOL_CATEGORIES = [
             { name: 'download_file', labelKey: 'ai.tool.download_file.label' },
             { name: 'get_file_snippet', labelKey: 'ai.tool.get_file_snippet.label' },
             { name: 'get_file_summary', labelKey: 'ai.tool.get_file_summary.label' },
-            { name: 'replace_file_content', labelKey: 'ai.tool.replace_file_content.label' }
+            { name: 'replace_file_content', labelKey: 'ai.tool.replace_file_content.label' },
+            { name: 'connect_local_folder', labelKey: 'ai.tool.connect_local_folder.label' },
+            { name: 'disconnect_local_folder', labelKey: 'ai.tool.disconnect_local_folder.label' },
+            { name: 'rescan_local_folder', labelKey: 'ai.tool.rescan_local_folder.label' },
+            { name: 'get_storage_info', labelKey: 'ai.tool.get_storage_info.label' },
+            { name: 'save_file_to_folder', labelKey: 'ai.tool.save_file_to_folder.label' },
+            { name: 'check_folder_writable', labelKey: 'ai.tool.check_folder_writable.label' },
+            { name: 'get_file_mtime', labelKey: 'ai.tool.get_file_mtime.label' }
         ]
     },
     {

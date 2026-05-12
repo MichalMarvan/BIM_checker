@@ -7,6 +7,9 @@
  * Dependencies: storage.js (IndexedDBStorage, StorageManager)
  */
 
+// Storage backend restore moved to common/storage-backend-restore.js
+// (so it runs on every page, not just homepage)
+
 // =======================
 // FILE PANEL
 // =======================

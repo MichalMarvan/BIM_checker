@@ -11,6 +11,15 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Escape for use inside an HTML attribute value (data-*, etc).
+// Preserves all characters losslessly so dataset reads back the original via HTML parser decode.
+function escapeAttr(text) {
+    if (text === null || text === undefined) return '';
+    return String(text).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
 let ifcFiles = [];
 let idsFiles = [];
 let validationResults = null;
@@ -1234,6 +1243,24 @@ function _exportToXLSX() {
 
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary', true);
 
+    // Folder mode: write report directly into connected folder root
+    const backend = window.BIMStorage && window.BIMStorage.backend;
+    if (backend && backend.kind === 'localFolder') {
+        try {
+            const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+            backend.writeNewFile('ids', '', 'ids-validation-results.xlsx', buf).then(result => {
+                if (result && result.error) {
+                    ErrorHandler.error(t('validator.export.failed') + ' ' + (result.message || result.error));
+                } else if (result && result.ok) {
+                    ErrorHandler.success(t('validator.reportSavedToFolder') + ' ' + result.finalName);
+                }
+            });
+        } catch (e) {
+            ErrorHandler.error(t('validator.export.failed') + ' ' + (e.message || e));
+        }
+        return;
+    }
+
     // Generate and download
     XLSX.writeFile(wb, 'ids-validation-results.xlsx');
 }
@@ -1278,6 +1305,15 @@ if (collapseAllBtn) {
 
 if (exportBtn) {
     exportBtn.addEventListener('click', exportToXLSX);
+    const updateExportLabel = () => {
+        const isFolder = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+        const key = isFolder ? 'validator.saveReportToFolder' : 'validator.exportExcel';
+        exportBtn.setAttribute('data-i18n', key);
+        exportBtn.innerHTML = '📥 ' + t(key);
+    };
+    updateExportLabel();
+    document.addEventListener('storage:backendChanged', updateExportLabel);
+    window.addEventListener('languageChanged', updateExportLabel);
 }
 
 if (newValidationBtn) {
@@ -1761,7 +1797,8 @@ async function openIfcStoragePicker(groupIndex) {
         });
     }
 
-    if (!storageDB) {
+    const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+    if (!isFolderMode && !storageDB) {
         storageDB = await initStorageDB();
     }
 
@@ -1834,6 +1871,37 @@ function setupIfcTreeEventListeners() {
 
 // Render IFC storage tree
 async function renderIfcStorageTree() {
+    // Folder backend mode: always rebuild from current tree (handles late backend restore)
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        const tree = window.BIMStorage.backend.getFolderTree('ifc');
+        const folders = {};
+        const files = {};
+        function walk(node, parentId, folderId) {
+            folders[folderId] = {
+                id: folderId,
+                name: node.name || 'root',
+                parentId,
+                files: node.files.map(f => f.path),
+                children: node.subfolders.map(sub => sub.path || sub.name)
+            };
+            for (const f of node.files) {
+                files[f.path] = { id: f.path, name: f.name, size: f.size, folder: folderId, uploadDate: null };
+            }
+            for (const sub of node.subfolders) walk(sub, folderId, sub.path || sub.name);
+        }
+        if (tree) walk(tree, null, 'root');
+        ifcMetadata = { folders, files };
+        ifcStorageData = ifcMetadata;
+        if (!tree || Object.keys(files).length === 0) {
+            document.getElementById('ifcStorageTree').innerHTML = '<p class="storage-empty-message">' + t('validator.storage.noIfcFiles') + '</p>';
+        } else {
+            document.getElementById('ifcStorageTree').innerHTML = renderIfcFolderRecursive('root', 0);
+        }
+        document.getElementById('ifcSelectedCount').textContent = selectedIfcFiles.size;
+        setupIfcTreeEventListeners();
+        return;
+    }
+
     // Use pre-loaded metadata if available (instant!)
     if (ifcMetadata) {
         ifcStorageData = ifcMetadata;
@@ -1958,8 +2026,8 @@ function renderIfcFolderRecursive(folderId, level) {
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
 
-    // Sanitize folderId to prevent XSS (only allow alphanumeric, underscore, hyphen)
-    const safeFolderId = String(folderId).replace(/[^a-zA-Z0-9_-]/g, '');
+    // HTML-escape for attribute; preserves '/' and '.' so folder-mode paths survive round-trip via dataset
+    const safeFolderId = escapeAttr(folderId);
 
     let html = '';
 
@@ -1995,8 +2063,7 @@ function renderIfcFolderRecursive(folderId, level) {
                     return;
                 }
 
-                // Sanitize fileId
-                const safeFileId = String(fileId).replace(/[^a-zA-Z0-9_-]/g, '');
+                const safeFileId = escapeAttr(fileId);
                 const isSelected = selectedIfcFiles.has(fileId);
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
@@ -2040,6 +2107,42 @@ function toggleIfcFileSelection(fileId) {
 
 // Confirm IFC selection
 async function confirmIfcSelection() {
+    // Folder backend mode: load content via BIMStorage
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        try {
+            const files = [];
+            const meta = ifcStorageData || ifcMetadata;
+            const decoder = new TextDecoder('utf-8');
+            for (const fileId of selectedIfcFiles) {
+                const fileMetadata = meta && meta.files && meta.files[fileId];
+                if (!fileMetadata) continue;
+                const buf = await window.BIMStorage.backend.getFileContent('ifc', fileId);
+                if (buf) {
+                    // IFC content is text; folder backend returns ArrayBuffer — decode.
+                    const fileContent = (buf instanceof ArrayBuffer) ? decoder.decode(buf) : buf;
+                    files.push({
+                        ...fileMetadata,
+                        content: fileContent
+                    });
+                }
+            }
+            const targetGroup = validationGroups[currentGroupIndex];
+            targetGroup.ifcFiles = files;
+            if (targetGroup.missingIfcNames && targetGroup.missingIfcNames.length > 0) {
+                const newNames = new Set(files.map(f => f.name));
+                targetGroup.missingIfcNames = targetGroup.missingIfcNames.filter(n => !newNames.has(n));
+            }
+            closeIfcStorageModal();
+            renderValidationGroups();
+            updateValidateButton();
+            window.dispatchEvent(new CustomEvent('validator:ifcLoaded'));
+        } catch (e) {
+            console.error('Error loading IFC files (folder mode):', e);
+            ErrorHandler.error(t('validator.error.storageLoad'));
+        }
+        return;
+    }
+
     try {
         // Load metadata structure
         const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
@@ -2105,7 +2208,8 @@ async function openIdsStoragePicker(groupIndex) {
     currentGroupIndex = groupIndex;
     selectedIdsFile = null;
 
-    if (!storageDB) {
+    const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+    if (!isFolderMode && !storageDB) {
         storageDB = await initStorageDB();
     }
 
@@ -2166,6 +2270,37 @@ function setupIdsTreeEventListeners() {
 
 // Render IDS storage tree (similar to IFC, but single-select)
 async function renderIdsStorageTree() {
+    // Folder backend mode: always rebuild from current tree (handles late backend restore)
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        const tree = window.BIMStorage.backend.getFolderTree('ids');
+        const folders = {};
+        const files = {};
+        function walk(node, parentId, folderId) {
+            folders[folderId] = {
+                id: folderId,
+                name: node.name || 'root',
+                parentId,
+                files: node.files.map(f => f.path),
+                children: node.subfolders.map(sub => sub.path || sub.name)
+            };
+            for (const f of node.files) {
+                files[f.path] = { id: f.path, name: f.name, size: f.size, folder: folderId, uploadDate: null };
+            }
+            for (const sub of node.subfolders) walk(sub, folderId, sub.path || sub.name);
+        }
+        if (tree) walk(tree, null, 'root');
+        idsMetadata = { folders, files };
+        idsStorageData = idsMetadata;
+        if (!tree || Object.keys(files).length === 0) {
+            document.getElementById('idsStorageTree').innerHTML = '<p class="storage-empty-message">' + t('validator.storage.noIdsFiles') + '</p>';
+        } else {
+            document.getElementById('idsStorageTree').innerHTML = renderIdsFolderRecursive('root', 0);
+        }
+        updateIdsSelectedName();
+        setupIdsTreeEventListeners();
+        return;
+    }
+
     // Use pre-loaded metadata if available (instant!)
     if (idsMetadata) {
         idsStorageData = idsMetadata;
@@ -2239,8 +2374,8 @@ function renderIdsFolderRecursive(folderId, level) {
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
 
-    // Sanitize folderId to prevent XSS (only allow alphanumeric, underscore, hyphen)
-    const safeFolderId = String(folderId).replace(/[^a-zA-Z0-9_-]/g, '');
+    // HTML-escape for attribute; preserves '/' and '.' so folder-mode paths survive round-trip via dataset
+    const safeFolderId = escapeAttr(folderId);
 
     let html = '';
 
@@ -2270,8 +2405,7 @@ function renderIdsFolderRecursive(folderId, level) {
                     return;
                 }
 
-                // Sanitize fileId
-                const safeFileId = String(fileId).replace(/[^a-zA-Z0-9_-]/g, '');
+                const safeFileId = escapeAttr(fileId);
                 const isSelected = selectedIdsFile === fileId;
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
@@ -2325,6 +2459,46 @@ function updateIdsSelectedName() {
 async function confirmIdsSelection() {
     if (!selectedIdsFile) {
         ErrorHandler.error(t('validator.error.selectIds'));
+        return;
+    }
+
+    // Folder backend mode: load content via BIMStorage
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        try {
+            const meta = idsStorageData || idsMetadata;
+            const fileMetadata = meta && meta.files && meta.files[selectedIdsFile];
+            if (!fileMetadata) {
+                ErrorHandler.error(t('validator.error.fileNotFound'));
+                return;
+            }
+            const idsBuf = await window.BIMStorage.backend.getFileContent('ids', selectedIdsFile);
+            if (!idsBuf) {
+                ErrorHandler.error(t('validator.error.fileNotFound'));
+                return;
+            }
+            // IDS content is XML text; folder backend returns ArrayBuffer — decode.
+            const decoder = new TextDecoder('utf-8');
+            const fileContent = (idsBuf instanceof ArrayBuffer) ? decoder.decode(idsBuf) : idsBuf;
+            window._currentIDSPath = selectedIdsFile;
+            window._currentIDSName = fileMetadata.name;
+            window._currentIDSFolder = selectedIdsFile.includes('/') ? selectedIdsFile.slice(0, selectedIdsFile.lastIndexOf('/')) : '';
+            const group = validationGroups[currentGroupIndex];
+            group.idsFile = {
+                ...fileMetadata,
+                content: fileContent
+            };
+            if (group.missingIdsName && group.idsFile && group.missingIdsName === group.idsFile.name) {
+                group.missingIdsName = null;
+            }
+            closeIdsStorageModal();
+            renderValidationGroups();
+            updateValidateButton();
+            validateIDSFileXSD(currentGroupIndex);
+            window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
+        } catch (e) {
+            console.error('Error loading IDS file (folder mode):', e);
+            ErrorHandler.error(t('validator.error.storageLoad'));
+        }
         return;
     }
 
@@ -2771,6 +2945,47 @@ window.selectIdsFile = selectIdsFile;
 
 // Pre-load storage metadata on page load for instant modal opening
 (async function preloadStorageMetadata() {
+    // Folder backend mode: synthesize metadata from BIMStorage folder tree
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        function buildMetaFromTree(tree) {
+            if (!tree) return null;
+            const folders = {};
+            const files = {};
+            function walk(node, parentId, folderId) {
+                folders[folderId] = {
+                    id: folderId,
+                    name: node.name || 'root',
+                    parentId: parentId,
+                    files: node.files.map(f => f.path),
+                    children: node.subfolders.map(sub => sub.path || sub.name)
+                };
+                for (const f of node.files) {
+                    files[f.path] = {
+                        id: f.path,
+                        name: f.name,
+                        size: f.size,
+                        folder: folderId,
+                        uploadDate: null
+                    };
+                }
+                for (const sub of node.subfolders) {
+                    walk(sub, folderId, sub.path || sub.name);
+                }
+            }
+            walk(tree, null, 'root');
+            return { folders, files };
+        }
+
+        const ifcTree = window.BIMStorage.backend.getFolderTree('ifc');
+        ifcMetadata = buildMetaFromTree(ifcTree);
+        if (ifcMetadata) console.log('✓ IFC storage metadata pre-loaded (folder mode)');
+
+        const idsTree = window.BIMStorage.backend.getFolderTree('ids');
+        idsMetadata = buildMetaFromTree(idsTree);
+        if (idsMetadata) console.log('✓ IDS storage metadata pre-loaded (folder mode)');
+        return;
+    }
+
     try {
         if (!storageDB) {
             storageDB = await initStorageDB();
@@ -2926,6 +3141,12 @@ async function _applyLastSession() {
 
 // Phase 8: respond to AI tool mutations of last-session preset
 window.addEventListener('ai:applyLastSession', () => {
+    _applyLastSession();
+});
+
+// Re-apply last session when backend swaps (folder restore finishes async after first apply,
+// or user switches between IDB / folder projects in Settings).
+document.addEventListener('storage:backendChanged', () => {
     _applyLastSession();
 });
 

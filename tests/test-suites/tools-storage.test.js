@@ -74,7 +74,7 @@ describe('tools/tool-storage', () => {
 
     it('register() adds list_storage_files + list_storage_folders + delete_file_from_storage + folder CRUD + move tools to executor REGISTRY', async () => {
         storageTools.register(executor._registerTool);
-        expect(executor._registrySizeForTest()).toBe(12);
+        expect(executor._registrySizeForTest()).toBe(19);
     });
 
     it('list_storage_folders returns array with folder shape', async () => {

@@ -145,6 +145,8 @@
         async fromPresetGroups(presetGroups) {
             if (typeof BIMStorage === 'undefined') return [];
             await BIMStorage.init();
+            const decoder = (typeof TextDecoder !== 'undefined') ? new TextDecoder('utf-8') : null;
+            const decodeIfBuffer = (c) => (c instanceof ArrayBuffer && decoder) ? decoder.decode(c) : c;
             const result = [];
             for (const pg of (presetGroups || [])) {
                 const ifcFiles = [];
@@ -153,8 +155,8 @@
                     try {
                         const meta = await BIMStorage.getFile('ifc', name);
                         if (meta) {
-                            const content = await BIMStorage.getFileContent('ifc', meta.id);
-                            ifcFiles.push({ id: meta.id, name: meta.name, size: meta.size, content });
+                            const raw = await BIMStorage.getFileContent('ifc', meta.id);
+                            ifcFiles.push({ id: meta.id, name: meta.name, size: meta.size, content: decodeIfBuffer(raw) });
                         } else {
                             missingIfcNames.push(name);
                         }
@@ -168,8 +170,8 @@
                     try {
                         const meta = await BIMStorage.getFile('ids', pg.idsFileName);
                         if (meta) {
-                            const content = await BIMStorage.getFileContent('ids', meta.id);
-                            idsFile = { id: meta.id, name: meta.name, size: meta.size, content };
+                            const raw = await BIMStorage.getFileContent('ids', meta.id);
+                            idsFile = { id: meta.id, name: meta.name, size: meta.size, content: decodeIfBuffer(raw) };
                         } else {
                             missingIdsName = pg.idsFileName;
                         }

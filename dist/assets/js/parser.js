@@ -943,6 +943,34 @@ document.addEventListener('DOMContentLoaded', function() {
             const filename = (this.idsData.title || 'specification')
                 .replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.ids';
             const xmlString = this.xmlGenerator.generateIDS(this.idsData);
+
+            // Folder mode: route through BIMSaveFile (writes back to disk)
+            const _isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+            if (_isFolderMode && window._currentIDSPath && window.BIMSaveFile) {
+                try {
+                    const result = await window.BIMSaveFile.save({
+                        type: 'ids',
+                        path: window._currentIDSPath,
+                        name: window._currentIDSName || (window._currentIDSPath.split('/').pop()),
+                        content: xmlString,
+                        folderPath: window._currentIDSFolder || ''
+                    });
+                    if (result.ok) {
+                        this.hasUnsavedChanges = false;
+                        this.showMessage(t('editor.idsDownloaded'), 'success');
+                        if (window.BIMStorageCardFolderStates && window.BIMStorageCardFolderStates.refresh) {
+                            window.BIMStorageCardFolderStates.refresh();
+                        }
+                    } else if (result.reason !== 'user_cancelled' && result.reason !== 'user_cancelled_conflict') {
+                        console.warn('IDS save failed:', result);
+                    }
+                    return;
+                } catch (e) {
+                    console.warn('IDS save errored:', e);
+                }
+            }
+
+            // IndexedDB / fallback: existing download flow
             await attemptDownloadIDS(xmlString, filename);
             this.hasUnsavedChanges = false;
             this.showMessage(t('editor.idsDownloaded'), 'success');
@@ -1011,7 +1039,8 @@ async function initIdsStorageDB() {
 
 // Open storage picker modal
 async function openStoragePicker() {
-    if (!idsStorageDB) {
+    const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+    if (!isFolderMode && !idsStorageDB) {
         idsStorageDB = await initIdsStorageDB();
     }
 
@@ -1038,6 +1067,43 @@ function toggleIdsStorageFolder(folderId) {
 
 // Render storage tree
 async function renderIdsStorageTree() {
+    // Folder mode: synthesize idsStorageData from BIMStorage backend's folder tree
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        const tree = window.BIMStorage.backend.getFolderTree('ids');
+        if (!tree) {
+            document.getElementById('idsStorageFileTree').innerHTML = `<p class="storage-empty-message">${escapeHtml(t('parser.storage.noFiles'))}</p>`;
+            idsStorageData = { folders: {}, files: {} };
+            return;
+        }
+        const folders = {};
+        const files = {};
+        function walk(node, parentId) {
+            const folderId = node.path || 'root';
+            folders[folderId] = {
+                id: folderId,
+                name: node.name || 'root',
+                parentId,
+                children: [],
+                files: node.files.map(f => f.path)
+            };
+            for (const f of node.files) {
+                files[f.path] = { id: f.path, name: f.name, size: f.size, folder: folderId };
+            }
+            for (const sub of node.subfolders) {
+                const subId = sub.path || 'root';
+                folders[folderId].children.push(subId);
+                walk(sub, folderId);
+            }
+        }
+        const rootNode = { ...tree, path: 'root' };
+        walk(rootNode, null);
+        idsStorageData = { folders, files };
+        const html = renderIdsStorageFolderRecursive('root', 0);
+        document.getElementById('idsStorageFileTree').innerHTML = html;
+        updateSelectedIdsFileName();
+        return;
+    }
+
     try {
         const transaction = idsStorageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
@@ -1185,6 +1251,31 @@ async function loadSelectedIdsFromStorage() {
     const fileMetadata = idsStorageData.files[selectedIdsFile];
     if (!fileMetadata) {
         alert(t('validator.error.fileNotFound'));
+        return;
+    }
+
+    // Folder mode: read via BIMStorage + decode + set save-target globals
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        try {
+            const buf = await window.BIMStorage.backend.getFileContent('ids', selectedIdsFile);
+            const decoder = new TextDecoder('utf-8');
+            const fileContent = (buf instanceof ArrayBuffer) ? decoder.decode(buf) : buf;
+            if (fileContent) {
+                // Set save-target globals so subsequent Save in IDS editor writes back to this file
+                window._currentIDSPath = selectedIdsFile;
+                window._currentIDSName = fileMetadata.name;
+                window._currentIDSFolder = selectedIdsFile.includes('/')
+                    ? selectedIdsFile.slice(0, selectedIdsFile.lastIndexOf('/'))
+                    : '';
+                closeIdsStoragePicker();
+                parseIDS(fileContent);
+            } else {
+                alert(t('validator.error.fileNotFound'));
+            }
+        } catch (e) {
+            console.error('Folder file load failed:', e);
+            alert(t('validator.error.fileNotFound'));
+        }
         return;
     }
 

@@ -879,6 +879,30 @@ async function exportModifiedIFC(fileInfo) {
             return;
         }
 
+        // Folder mode: route through BIMSaveFile (writes back to disk)
+        const _isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+        if (_isFolderMode && window._currentIFCPath && window.BIMSaveFile) {
+            try {
+                const result = await window.BIMSaveFile.save({
+                    type: 'ifc',
+                    path: window._currentIFCPath,
+                    name: window._currentIFCName || window._currentIFCPath.split('/').pop(),
+                    content: modifiedIfc,
+                    folderPath: window._currentIFCFolder || ''
+                });
+                if (result.ok) {
+                    if (window.BIMStorageCardFolderStates && window.BIMStorageCardFolderStates.refresh) {
+                        window.BIMStorageCardFolderStates.refresh();
+                    }
+                } else if (result.reason !== 'user_cancelled' && result.reason !== 'user_cancelled_conflict') {
+                    console.warn('IFC save failed:', result);
+                }
+                return;
+            } catch (e) {
+                console.warn('IFC save errored:', e);
+            }
+        }
+
         downloadModifiedIFC(modifiedIfc, fileInfo.fileName);
     } catch (error) {
         ErrorHandler.error(`${i18n.t('viewer.exportError')} ${error.message}`);
@@ -1300,6 +1324,39 @@ storageInitPromise = (async function() {
 })();
 
 async function loadStorageMetadata() {
+    // Folder backend mode: synthesize storageMetadata from BIMStorage folder tree
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        const tree = window.BIMStorage.backend.getFolderTree('ifc');
+        if (!tree) { storageMetadata = null; return; }
+        const folders = {};
+        const files = {};
+        function walk(node, parentId, folderId) {
+            const folder = {
+                id: folderId,
+                name: node.name || 'root',
+                parentId: parentId,
+                files: node.files.map(f => f.path),
+                children: node.subfolders.map(sub => sub.path || sub.name)
+            };
+            folders[folderId] = folder;
+            for (const f of node.files) {
+                files[f.path] = {
+                    id: f.path,
+                    name: f.name,
+                    size: f.size,
+                    folder: folderId,
+                    uploadDate: null
+                };
+            }
+            for (const sub of node.subfolders) {
+                walk(sub, folderId, sub.path || sub.name);
+            }
+        }
+        walk(tree, null, 'root');
+        storageMetadata = { folders, files };
+        return;
+    }
+
     try {
         const transaction = storageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
@@ -1355,7 +1412,8 @@ document.getElementById('loadFromStorageBtn').addEventListener('click', async ()
             await storageInitPromise;
         }
 
-        if (!storageDB) {
+        const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+        if (!isFolderMode && !storageDB) {
             ErrorHandler.error(i18n.t('viewer.storageNotInit'));
             return;
         }
@@ -1531,6 +1589,46 @@ function updateSelectedFilesCount() {
 async function loadSelectedFilesFromStorage() {
     if (selectedStorageFiles.size === 0) {
         ErrorHandler.warning(i18n.t('viewer.selectAtLeastOne'));
+        return;
+    }
+
+    // Folder backend mode: load file content via BIMStorage instead of IDB
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        try {
+            document.getElementById('loading').classList.add('show');
+            window.updateProgress(0, `${i18n.t('viewer.loadingFromStorage')} (0/${selectedStorageFiles.size})`);
+            closeStoragePickerModal();
+
+            const fileArray = Array.from(selectedStorageFiles);
+            const decoder = new TextDecoder('utf-8');
+            for (let i = 0; i < fileArray.length; i++) {
+                const fileId = fileArray[i];
+                const meta = storageMetadata && storageMetadata.files && storageMetadata.files[fileId];
+                if (!meta) continue;
+                if (i === 0) {
+                    window._currentIFCPath = fileId;
+                    window._currentIFCName = meta.name;
+                    window._currentIFCFolder = fileId.includes('/') ? fileId.slice(0, fileId.lastIndexOf('/')) : '';
+                }
+                const buf = await window.BIMStorage.backend.getFileContent('ifc', fileId);
+                if (buf) {
+                    // parseIFCAsync expects string content (IFC is a text format).
+                    // Local folder backend returns ArrayBuffer — decode to text.
+                    const text = (buf instanceof ArrayBuffer) ? decoder.decode(buf) : buf;
+                    await window.parseIFCAsync(text, meta.name, i + 1, fileArray.length);
+                }
+            }
+
+            document.getElementById('loading').classList.remove('show');
+            window.combineData();
+            window.updateUI();
+            window.dispatchEvent(new CustomEvent('ifc:fileSelected'));
+            selectedStorageFiles.clear();
+        } catch (e) {
+            console.warn('Folder file load failed:', e);
+            ErrorHandler.error(i18n.t('viewer.storageLoadError'));
+            document.getElementById('loading').classList.remove('show');
+        }
         return;
     }
 

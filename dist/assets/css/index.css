@@ -1658,3 +1658,256 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
 .about-card:nth-child(2) { animation-delay: 0.2s; }
 .about-card:nth-child(3) { animation-delay: 0.3s; }
 .about-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* === Local Folder first-launch popup === */
+.local-folder-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 9500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.local-folder-popup__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+.local-folder-popup__dialog {
+    position: relative;
+    background: var(--bg-primary, #fff);
+    border-radius: 16px;
+    padding: 32px 28px 24px;
+    max-width: 440px;
+    margin: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    text-align: center;
+}
+.local-folder-popup__icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+.local-folder-popup__title {
+    font-size: 1.4rem;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+.local-folder-popup__body {
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+.local-folder-popup__note {
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 20px;
+}
+.local-folder-popup__actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+.local-folder-popup__disable {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    text-decoration: underline;
+    cursor: pointer;
+}
+@media (max-width: 1023px) {
+    .local-folder-popup__dialog {
+        padding: 24px 20px 20px;
+    }
+    .local-folder-popup__actions {
+        flex-direction: column;
+    }
+    .local-folder-popup__actions .btn { width: 100%; min-height: 44px; }
+}
+
+/* === Folder mode banner on storage cards === */
+.folder-banner {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+    border: 1px solid var(--primary-light, #818cf8);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+.folder-banner__path {
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-all;
+    margin-bottom: 8px;
+}
+.folder-banner__readonly {
+    color: var(--warning, #f59e0b);
+    font-size: 0.8rem;
+    margin-top: 6px;
+}
+.folder-banner__count {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 6px;
+}
+.folder-banner__error {
+    color: var(--error, #ef4444);
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.folder-banner__actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.folder-banner__rescan {
+    width: 36px;
+    height: 36px;
+}
+.folder-banner__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+/* Folder tree (read-only browser of local files) */
+.folder-tree {
+    margin-top: 12px;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    border-radius: 6px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+.folder-tree__folder,
+.folder-tree__file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 0.9rem;
+}
+.folder-tree__folder {
+    background: var(--bg-secondary, #f9fafb);
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}
+.folder-tree__folder:hover {
+    background: var(--bg-tertiary, #f3f4f6);
+}
+.folder-tree__arrow {
+    flex-shrink: 0;
+    width: 12px;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    text-align: center;
+}
+.folder-tree__file {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.folder-tree__file:hover {
+    background: var(--bg-tertiary, #f3f4f6);
+}
+.folder-tree__icon {
+    flex-shrink: 0;
+}
+.folder-tree__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.folder-tree__size {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+.folder-tree__badge {
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--primary-color, #667eea);
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.folder-tree__badge--muted {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-tertiary);
+}
+.folder-tree__empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+/* === Save-to-folder dialog === */
+.save-to-folder-dialog__container {
+    max-width: 540px;
+    width: 95%;
+}
+.save-to-folder-dialog__file {
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+.save-to-folder-dialog__size {
+    color: var(--text-tertiary);
+    font-size: 0.9rem;
+    margin-left: 8px;
+}
+.save-to-folder-dialog__options {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.save-to-folder-dialog__option {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid var(--border-primary);
+}
+.save-to-folder-dialog__option:has(input:checked) {
+    border-color: var(--primary-color, #667eea);
+    background: rgba(102, 126, 234, 0.06);
+}
+.save-to-folder-dialog__option input[type="radio"] {
+    margin-top: 4px;
+}
+.save-to-folder-dialog__option > span {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+.save-to-folder-dialog__warn {
+    color: var(--warning, #f59e0b);
+    font-size: 0.85rem;
+}
+.save-to-folder-dialog__folder {
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+.save-to-folder-dialog__name {
+    margin-top: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    width: 100%;
+    box-sizing: border-box;
+}

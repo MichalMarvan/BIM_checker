@@ -687,3 +687,108 @@
     color: var(--primary-color, #667eea);
     font-variant-numeric: tabular-nums;
 }
+
+/* === Storage Backend section in AI Settings modal === */
+.storage-backend-section {
+    padding: 16px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-primary, #e5e7eb);
+}
+.storage-backend-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+.storage-backend-section__options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.storage-backend-section__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.storage-backend-section__option.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.storage-backend-section__status {
+    padding: 10px;
+    background: var(--bg-primary, #fff);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+.storage-backend-section__readonly {
+    color: var(--warning, #f59e0b);
+    font-size: 0.85rem;
+    margin-top: 6px;
+}
+.storage-backend-section__actions {
+    display: flex;
+    gap: 8px;
+}
+.storage-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.storage-projects__list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.storage-projects__empty {
+    margin: 0;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.9em;
+    font-style: italic;
+}
+.storage-project {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    transition: border-color 0.15s, background 0.15s;
+}
+.storage-project.is-active {
+    border-color: var(--primary-color, #667eea);
+    background: var(--bg-active, #f3f4ff);
+}
+.storage-project__main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    min-width: 0;
+}
+.storage-project__name {
+    font-weight: 600;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+.storage-project__folder {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.85em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.storage-project__rename,
+.storage-project__remove {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: 0.9em;
+}
+#storageAddProject {
+    align-self: flex-start;
+}

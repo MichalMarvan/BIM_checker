@@ -514,6 +514,79 @@ export const TOOL_DEFINITIONS = [
     {
         type: 'function',
         function: {
+            name: 'connect_local_folder',
+            description: 'Prompts the user to pick a folder on their PC; the app will then browse IFC/IDS files from that folder. Read-only in v1. Requires user gesture context (only works when invoked from a user-initiated chat message). Returns { ok, folderName } or { error }.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'disconnect_local_folder',
+            description: 'Disconnects the local folder and switches storage back to in-browser (IndexedDB). The folder handle is removed; user will need to pick a folder again to reconnect.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'rescan_local_folder',
+            description: 'Re-scans the connected local folder to pick up files added or removed by external tools (e.g., CDE sync). Returns { ok, scanned, limited, warning }.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_storage_info',
+            description: 'Returns information about the active storage backend: { backend: "indexedDB" | "localFolder", folderName?, ifcCount, idsCount, isReadOnly }.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'save_file_to_folder',
+            description: 'Save edited content back to a file in the connected local folder. Opens a save dialog; user picks overwrite vs save-as-copy. Requires localFolder backend. Returns { ok, mode, finalPath } or { error }.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    fileType: { type: 'string', enum: ['ifc', 'ids'] },
+                    path: { type: 'string', description: 'Original file path in the folder' },
+                    name: { type: 'string', description: 'Original file name' },
+                    content: { type: 'string', description: 'New content (UTF-8 string)' },
+                    folderPath: { type: 'string', description: 'Parent folder path for the file' }
+                },
+                required: ['fileType', 'path', 'name', 'content']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'check_folder_writable',
+            description: 'Returns whether the connected local folder is writable. Folder backend grants readwrite at connect; can return false if permission was revoked.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_file_mtime',
+            description: 'Returns the last-modified timestamp (Unix ms) of a file in the connected folder. Useful to detect external changes.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    fileType: { type: 'string', enum: ['ifc', 'ids'] },
+                    path: { type: 'string' }
+                },
+                required: ['fileType', 'path']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'list_presets',
             description: 'Lists all saved validation presets.',
             parameters: { type: 'object', properties: {} }

@@ -489,34 +489,46 @@ async function initStorageDB() {
 }
 
 // =======================
-// GLOBAL BIMStorage API
+// STORAGE BACKEND ABSTRACTION
 // =======================
-window.BIMStorage = {
-    ifcStorage: null,
-    idsStorage: null,
-    initialized: false,
+
+class IndexedDBStorageBackend {
+    constructor() {
+        this.kind = 'indexedDB';
+        this._ifcStorage = null;
+        this._idsStorage = null;
+        this.initialized = false;
+    }
+
+    isReadOnly() {
+        return false;
+    }
+
+    _storageFor(type) {
+        return type === 'ifc' ? this._ifcStorage : this._idsStorage;
+    }
 
     async init() {
         if (this.initialized) {
             return true;
         }
 
-        this.ifcStorage = new StorageManager('ifc_files');
-        this.idsStorage = new StorageManager('ids_files');
+        this._ifcStorage = new StorageManager('ifc_files');
+        this._idsStorage = new StorageManager('ids_files');
 
-        await this.ifcStorage.init();
-        await this.idsStorage.init();
+        await this._ifcStorage.init();
+        await this._idsStorage.init();
 
         this.initialized = true;
         return true;
-    },
+    }
 
     async saveFile(type, file, folderId = 'root') {
         if (!this.initialized) {
             await this.init();
         }
 
-        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        const storage = this._storageFor(type);
 
         // Check for duplicate file name and delete it first (overwrite behavior)
         const existingFile = await this.getFile(type, file.name);
@@ -525,45 +537,45 @@ window.BIMStorage = {
         }
 
         return await storage.addFile(file, folderId);
-    },
+    }
 
     async getFiles(type) {
         if (!this.initialized) {
             await this.init();
         }
 
-        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        const storage = this._storageFor(type);
         if (!storage.data) {
             await storage.load();
         }
 
         return Object.values(storage.data.files);
-    },
+    }
 
     async getFile(type, name) {
         const files = await this.getFiles(type);
         return files.find(f => f.name === name) || null;
-    },
+    }
 
     async getFileByName(type, name) {
         return await this.getFile(type, name);
-    },
+    }
 
     async getFileContent(type, fileId) {
         if (!this.initialized) {
             await this.init();
         }
 
-        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        const storage = this._storageFor(type);
         return await storage.getFileContent(fileId);
-    },
+    }
 
     async getFileWithContent(type, nameOrId) {
         if (!this.initialized) {
             await this.init();
         }
 
-        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        const storage = this._storageFor(type);
 
         // If it's a name, find the file ID first
         let fileId = nameOrId;
@@ -576,14 +588,14 @@ window.BIMStorage = {
         }
 
         return await storage.getFileWithContent(fileId);
-    },
+    }
 
     async deleteFile(type, nameOrId) {
         if (!this.initialized) {
             await this.init();
         }
 
-        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        const storage = this._storageFor(type);
 
         // If it's a name, find the file ID first
         if (typeof nameOrId === 'string' && !nameOrId.startsWith('file_')) {
@@ -595,14 +607,14 @@ window.BIMStorage = {
         }
 
         return await storage.deleteFile(nameOrId);
-    },
+    }
 
     async clearFiles(type) {
         if (!this.initialized) {
             await this.init();
         }
 
-        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        const storage = this._storageFor(type);
         if (!storage.data) {
             await storage.load();
         }
@@ -614,14 +626,162 @@ window.BIMStorage = {
         }
 
         return true;
-    },
+    }
 
     getStats(type) {
         if (!this.initialized) {
             return { fileCount: 0, totalSize: 0 };
         }
 
-        const storage = type === 'ifc' ? this.ifcStorage : this.idsStorage;
+        const storage = this._storageFor(type);
         return storage.getStats();
+    }
+
+    async listFolders(type) {
+        if (!this.initialized) {
+            await this.init();
+        }
+
+        const storage = this._storageFor(type);
+        if (!storage.metadata) {
+            await storage.loadMetadata();
+        }
+
+        return storage.metadata.folders;
+    }
+
+    async createFolder(type, name, parentId = 'root') {
+        if (!this.initialized) {
+            await this.init();
+        }
+
+        const storage = this._storageFor(type);
+        return await storage.createFolder(name, parentId);
+    }
+
+    async renameFolder(type, folderId, newName) {
+        if (!this.initialized) {
+            await this.init();
+        }
+
+        const storage = this._storageFor(type);
+        return await storage.renameFolder(folderId, newName);
+    }
+
+    async deleteFolder(type, folderId) {
+        if (!this.initialized) {
+            await this.init();
+        }
+
+        const storage = this._storageFor(type);
+        return await storage.deleteFolder(folderId);
+    }
+
+    async moveFile(type, fileId, targetFolderId) {
+        if (!this.initialized) {
+            await this.init();
+        }
+
+        const storage = this._storageFor(type);
+        return await storage.moveFile(fileId, targetFolderId);
+    }
+}
+
+// Module-level singleton for the IndexedDB backend
+const _indexedDBBackend = new IndexedDBStorageBackend();
+
+// Active backend (mutable — can be swapped via setBackend)
+let _activeBackend = _indexedDBBackend;
+
+// =======================
+// GLOBAL BIMStorage API
+// =======================
+window.BIMStorage = {
+    // Backend slot — read-only reference to active backend
+    get backend() {
+        return _activeBackend;
+    },
+
+    // Always-available reference to the IndexedDB backend
+    get indexedDBBackend() {
+        return _indexedDBBackend;
+    },
+
+    // Legacy direct storage references (backward compat)
+    get ifcStorage() {
+        return _indexedDBBackend._ifcStorage;
+    },
+
+    get idsStorage() {
+        return _indexedDBBackend._idsStorage;
+    },
+
+    get initialized() {
+        return _activeBackend.initialized;
+    },
+
+    setBackend(backend) {
+        _activeBackend = backend;
+        document.dispatchEvent(new CustomEvent('storage:backendChanged', { detail: { backend } }));
+    },
+
+    async init() {
+        return await _activeBackend.init();
+    },
+
+    async saveFile(type, file, folderId = 'root') {
+        return await _activeBackend.saveFile(type, file, folderId);
+    },
+
+    async getFiles(type) {
+        return await _activeBackend.getFiles(type);
+    },
+
+    async getFile(type, name) {
+        return await _activeBackend.getFile(type, name);
+    },
+
+    async getFileByName(type, name) {
+        return await _activeBackend.getFileByName(type, name);
+    },
+
+    async getFileContent(type, fileId) {
+        return await _activeBackend.getFileContent(type, fileId);
+    },
+
+    async getFileWithContent(type, nameOrId) {
+        return await _activeBackend.getFileWithContent(type, nameOrId);
+    },
+
+    async deleteFile(type, nameOrId) {
+        return await _activeBackend.deleteFile(type, nameOrId);
+    },
+
+    async clearFiles(type) {
+        return await _activeBackend.clearFiles(type);
+    },
+
+    getStats(type) {
+        return _activeBackend.getStats(type);
+    },
+
+    async listFolders(type) {
+        return await _activeBackend.listFolders(type);
+    },
+
+    async createFolder(type, name, parentId = 'root') {
+        return await _activeBackend.createFolder(type, name, parentId);
+    },
+
+    async renameFolder(type, folderId, newName) {
+        return await _activeBackend.renameFolder(type, folderId, newName);
+    },
+
+    async deleteFolder(type, folderId) {
+        return await _activeBackend.deleteFolder(type, folderId);
+    },
+
+    async moveFile(type, fileId, targetFolderId) {
+        return await _activeBackend.moveFile(type, fileId, targetFolderId);
     }
 };

@@ -274,6 +274,54 @@ Branch: i18n-cleanup-complete-en
 
 Trigger: external user feedback on LinkedIn about incomplete EN translation.
 
+## Local Folder Storage v1 (Read-only) ✅
+- [x] StorageBackend abstraction (`IndexedDBStorageBackend` + `LocalFolderStorageBackend`)
+- [x] FS Access API integration (`showDirectoryPicker`, recursive scan, `getFile`)
+- [x] `FileSystemDirectoryHandle` persistence in dedicated IndexedDB store
+- [x] Permission flow (granted / prompt / denied) with banner-based reconnect
+- [x] First-launch popup with onboarding state machine (null / dismissed / accepted / disabled, 7-day cooldown, max 3×)
+- [x] AI Settings modal: Storage Backend section with radio toggle + connect/change/disconnect buttons
+- [x] Homepage storage cards: 4 states (A IndexedDB / B granted / C reconnect / D unavailable)
+- [x] 4 new AI tools: `connect_local_folder`, `disconnect_local_folder`, `rescan_local_folder`, `get_storage_info` (60 total tools)
+- [x] Read-only guards on 7 AI write tools (`delete_file`, `create_folder`, `rename_folder`, `delete_folder`, `move_file`, `move_files_batch`, `replace_file_content`)
+- [x] Hard limit 2000 files + warning at 500
+- [x] ~30 new translation keys (CS + EN) under `storage.folder.*`, `storage.popup.*`, `settings.storage.*`, `ai.tool.localFolder.*`
+- [x] +33 new tests (740 → 773)
+
+Branch: local-folder-storage-v1
+
+v1 = read-only (browse files from disk). Write-back deferred to v2.
+Desktop Chromium only; mobile/Firefox/Safari fall back gracefully to IndexedDB.
+Use case: connect to a CDE-sync folder (OneDrive/SharePoint/Box) and validate/parse/view IFC/IDS files directly.
+
+## Local Folder Storage v2 (Write-back) ✅
+- [x] LocalFolderStorageBackend: `readwrite` permission at connect, `saveFileContent` + `writeNewFile`
+- [x] mtime tracking on read, external change detection at save with `force` bypass
+- [x] Auto-suffix on filename collision (`_v2`, `_v3`...)
+- [x] `BIMSaveToFolderDialog` component (overwrite/copy variant + conflict variant)
+- [x] `BIMSaveFile` helper — centralized save routing per backend
+- [x] IDS Editor save (`idsEditorCore.downloadIDS`) routed through helper in folder mode
+- [x] IFC Viewer edit save (`exportModifiedIFC`) routed through helper in folder mode
+- [x] 3 new AI tools (`save_file_to_folder`, `check_folder_writable`, `get_file_mtime`) — 63 total
+- [x] Delete/rename/create-folder remain blocked (read-only guards from v1 preserved)
+- [x] +23 new tests (773 → 796)
+
+Branch: local-folder-storage-v2 (stacked on v1; PR combines both for one merge).
+
+CDE workflow end-to-end: pull from cloud → edit in BIM_checker → save back → cloud picks up the change.
+
+---
+
+## Projects: multi-folder support ✅
+- [x] `BIMProjects` API (`list / get / add / rename / remove / setActive`) with persistent handles in IDB v2 schema
+- [x] Settings → Storage rewritten with project list, add/rename/remove, radio-switch active
+- [x] Live backend swap on switch (no navigation); confirm guard when editor has unsaved changes
+- [x] Auto-migration of legacy single-handle (one-shot, on first `list()` call)
+- [x] `LocalFolderStorageBackend.connect()` auto-registers project (dedup via `isSameEntry`)
+- [x] Save-target globals (`_currentIDS*` / `_currentIFC*`) reset on switch
+- [x] Validator pickers + last-session restore fixed for folder mode (path-based IDs preserved; `storage:backendChanged` re-applies session after async restore)
+- [x] `Stáhnout IDS` / `Export XLSX` buttons relabel to `Uložit do složky` in folder mode and write through folder backend
+
 ---
 
 ## K dokončení (TODO)
