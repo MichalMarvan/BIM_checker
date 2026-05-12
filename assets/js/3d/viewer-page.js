@@ -173,8 +173,7 @@ async function loadIfcFromStorage(fileMeta) {
         renderLoadedList();
 
         // Force a resize sync — covers the case where canvas was created
-        // before the container had layout dimensions (rare with our flex setup
-        // but cheap insurance, especially across mobile/tablet form factors).
+        // before the container had layout dimensions.
         try {
             const c = state.canvas;
             const container = document.getElementById('viewerContainer');
@@ -186,6 +185,43 @@ async function loadIfcFromStorage(fileMeta) {
                 if (typeof engine.resize === 'function') engine.resize(w, h);
             }
         } catch (e) { console.warn('[3d-viewer] resize sync failed:', e); }
+
+        // Shift this model's group to scene origin so geometry sits near (0,0,0).
+        // Civil IFCs (Czech S-JTSK etc.) place vertices at world coords ~10^6 m.
+        // WebGL vertex transform precision is f32 — at that magnitude, triangles
+        // jitter or vanish. Engine's federation auto-mode leaves the FIRST model
+        // at its world origin (expects building IFCs with origin near 0), so we
+        // do it ourselves here.
+        try {
+            const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
+            if (internal && internal.group) {
+                internal.group.updateMatrixWorld(true);
+                let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
+                for (const m of internal.meshes) {
+                    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+                    const b = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
+                    if (b.min.x < minX) minX = b.min.x;
+                    if (b.min.y < minY) minY = b.min.y;
+                    if (b.min.z < minZ) minZ = b.min.z;
+                    if (b.max.x > maxX) maxX = b.max.x;
+                    if (b.max.y > maxY) maxY = b.max.y;
+                    if (b.max.z > maxZ) maxZ = b.max.z;
+                }
+                if (Number.isFinite(minX)) {
+                    const cx = (minX + maxX) / 2;
+                    const cy = (minY + maxY) / 2;
+                    const cz = (minZ + maxZ) / 2;
+                    console.log('[3d-viewer] model world bbox center:', cx, cy, cz);
+                    // Shift group so bbox center ends up at world origin.
+                    // group.position is currently (0,0,0); subtract bbox center.
+                    internal.group.position.x -= cx;
+                    internal.group.position.y -= cy;
+                    internal.group.position.z -= cz;
+                    internal.group.updateMatrixWorld(true);
+                    console.log('[3d-viewer] group position after shift:', internal.group.position.toArray());
+                }
+            }
+        } catch (e) { console.warn('[3d-viewer] origin-shift failed:', e); }
 
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
