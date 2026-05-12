@@ -154,13 +154,29 @@ async function loadIfcFromStorage(fileMeta) {
         const modelId = await engine.loadIfc(buffer, { name: fileMeta.name });
         console.log('[3d-viewer] loadIfc resolved, modelId =', modelId);
         const stats = (typeof engine.getStats === 'function') ? engine.getStats(modelId) : null;
+        console.log('[3d-viewer] stats =', stats);
+
+        // Diagnostic: how many meshes were actually built by the geometry pipeline?
+        let meshCount = 0;
+        try {
+            const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
+            meshCount = internal && internal.meshes ? internal.meshes.length : 0;
+            console.log('[3d-viewer] meshes built:', meshCount, internal);
+        } catch (e) {
+            console.warn('[3d-viewer] mesh introspection failed:', e);
+        }
+
         state.loadedModels.set(modelId, { name: fileMeta.name, stats });
         renderLoadedList();
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
-            try { engine.fitAll(); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
+            try { engine.fitAll(); console.log('[3d-viewer] fitAll done'); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
         }
-        setStatus(`✓ ${fileMeta.name}${stats ? ` — ${stats.entityCount} entit` : ''}`, 'success');
+        if (meshCount === 0) {
+            setStatus(`⚠ ${fileMeta.name} — 0 mesh (geometrie tohoto IFC zatím není podporovaná)`, 'error');
+        } else {
+            setStatus(`✓ ${fileMeta.name}${stats ? ` — ${stats.entityCount} entit, ${meshCount} mesh` : ''}`, 'success');
+        }
         return modelId;
     } catch (e) {
         console.error('[3d-viewer] IFC load failed:', e);
