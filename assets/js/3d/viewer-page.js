@@ -10,6 +10,8 @@
  * a clear status error instead of a silently dead button.
  */
 
+console.log('[3d-viewer] module loaded — v58+ (lazy engine init)');
+
 const state = {
     engine: null,
     enginePromise: null,
@@ -218,7 +220,13 @@ async function openStoragePicker() {
 
 function wireUI() {
     const loadBtn = document.getElementById('viewer3dLoadBtn');
-    if (loadBtn) loadBtn.addEventListener('click', openStoragePicker);
+    console.log('[3d-viewer] wireUI: loadBtn =', loadBtn);
+    if (loadBtn) {
+        loadBtn.addEventListener('click', () => {
+            console.log('[3d-viewer] Load IFC clicked');
+            openStoragePicker();
+        });
+    }
 
     const closeBtn = document.getElementById('viewer3dPickerClose');
     if (closeBtn) closeBtn.addEventListener('click', () => {
