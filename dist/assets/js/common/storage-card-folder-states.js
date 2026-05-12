@@ -30,19 +30,25 @@
 
     function _renderTreeNode(node, type, depth) {
         if (!node) return '';
-        const indent = depth === 0 ? '' : ` style="padding-left:${depth * 14}px"`;
+        const hasContents = node.files.length > 0 || node.subfolders.length > 0;
+        const isCollapsed = depth >= 2; // Root and first level expanded by default
+        const padding = depth * 14;
         const badge = type === 'ifc'
             ? `<span class="folder-tree__badge">📐 ${node.ifcCount}</span>${node.idsCount > 0 ? `<span class="folder-tree__badge folder-tree__badge--muted">📋 ${node.idsCount}</span>` : ''}`
             : `<span class="folder-tree__badge">📋 ${node.idsCount}</span>${node.ifcCount > 0 ? `<span class="folder-tree__badge folder-tree__badge--muted">📐 ${node.ifcCount}</span>` : ''}`;
         let html = '';
-        // Root folder rendered as header only if it has files directly OR is the only node
-        if (depth > 0 || (node.files.length === 0 && node.subfolders.length === 1)) {
+        // Render folder header (always for depth > 0; root header only if multiple top-level dirs)
+        const renderFolderHeader = depth > 0 || (node.subfolders.length > 1 && node.files.length === 0) || node.files.length > 0;
+        if (renderFolderHeader) {
+            const arrow = hasContents ? (isCollapsed ? '▶' : '▼') : ' ';
             html += `
-                <div class="folder-tree__folder"${indent}>
+                <div class="folder-tree__folder ${isCollapsed ? 'is-collapsed' : ''}" style="padding-left:${padding}px" data-folder-path="${_escapeHtml(node.path)}">
+                    <span class="folder-tree__arrow">${arrow}</span>
                     <span class="folder-tree__icon">📁</span>
                     <span class="folder-tree__name">${_escapeHtml(node.name)}</span>
                     ${badge}
                 </div>
+                <div class="folder-tree__children" data-parent-path="${_escapeHtml(node.path)}" ${isCollapsed ? 'hidden' : ''}>
             `;
         }
         // Files in this folder
@@ -50,7 +56,8 @@
             const sizeKB = (file.size / 1024).toFixed(1);
             const filePadding = (depth + 1) * 14;
             html += `
-                <div class="folder-tree__file" style="padding-left:${filePadding}px" data-file-path="${_escapeHtml(file.path)}">
+                <div class="folder-tree__file" style="padding-left:${filePadding}px" data-file-path="${_escapeHtml(file.path)}" title="${_escapeHtml(file.path)}">
+                    <span class="folder-tree__arrow" aria-hidden="true"> </span>
                     <span class="folder-tree__icon">📄</span>
                     <span class="folder-tree__name">${_escapeHtml(file.name)}</span>
                     <span class="folder-tree__size">${sizeKB} KB</span>
@@ -61,6 +68,7 @@
         for (const sub of node.subfolders) {
             html += _renderTreeNode(sub, type, depth + 1);
         }
+        if (renderFolderHeader) html += `</div>`;
         return html;
     }
 
@@ -96,20 +104,44 @@
                 _refreshAll();
             }
         });
-        // Click handler for files
+        // Click handler for folder header — toggle expand/collapse
+        banner.querySelectorAll('.folder-tree__folder').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const folderPath = el.dataset.folderPath;
+                const children = banner.querySelector(`.folder-tree__children[data-parent-path="${CSS.escape(folderPath)}"]`);
+                if (!children) return;
+                const collapsed = el.classList.toggle('is-collapsed');
+                children.toggleAttribute('hidden', collapsed);
+                const arrow = el.querySelector('.folder-tree__arrow');
+                if (arrow) arrow.textContent = collapsed ? '▶' : '▼';
+            });
+        });
+        // Click handler for files — navigate to appropriate subpage with file pre-loaded
         banner.querySelectorAll('.folder-tree__file').forEach(el => {
             el.addEventListener('click', async () => {
                 const path = el.dataset.filePath;
                 const b = window.BIMStorage.backend;
                 if (!b || b.kind !== 'localFolder') return;
-                try {
-                    const content = await b.getFileContent(type, path);
-                    // Dispatch event for app to handle file open
-                    document.dispatchEvent(new CustomEvent('localFolderFileOpen', {
-                        detail: { type, path, name: el.querySelector('.folder-tree__name').textContent, content }
-                    }));
-                } catch (e) {
-                    console.warn('Failed to open file:', e);
+                const name = el.querySelector('.folder-tree__name').textContent;
+                // Stash request for the destination page to pick up after navigation
+                sessionStorage.setItem('openFromFolder', JSON.stringify({ type, path, name, at: Date.now() }));
+                // Dispatch event in case some on-page handler wants to handle in-place
+                document.dispatchEvent(new CustomEvent('localFolderFileOpen', {
+                    detail: { type, path, name }
+                }));
+                // Auto-navigate: IFC → viewer, IDS → parser
+                const here = (window.location.pathname || '').toLowerCase();
+                const isHomepage = !here.includes('/pages/');
+                if (isHomepage) {
+                    const target = type === 'ifc' ? 'pages/ifc-viewer-multi-file.html' : 'pages/ids-parser-visualizer.html';
+                    window.location.href = target;
+                } else {
+                    const target = type === 'ifc' ? './ifc-viewer-multi-file.html' : './ids-parser-visualizer.html';
+                    // Only navigate if we're on a different page than the target
+                    if (!here.endsWith(target.slice(2))) {
+                        window.location.href = target;
+                    }
                 }
             });
         });

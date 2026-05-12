@@ -1798,6 +1798,18 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
     background: var(--bg-secondary, #f9fafb);
     font-weight: 600;
     color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}
+.folder-tree__folder:hover {
+    background: var(--bg-tertiary, #f3f4f6);
+}
+.folder-tree__arrow {
+    flex-shrink: 0;
+    width: 12px;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    text-align: center;
 }
 .folder-tree__file {
     cursor: pointer;
