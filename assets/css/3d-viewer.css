@@ -1,172 +1,280 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
 
-/* 3D Viewer page layout */
+/* ===== 3D Viewer page layout — compact navbar (48px) + full-bleed canvas + floating toolbar ===== */
 
 body[data-page="viewer3d"] {
     margin: 0;
     overflow: hidden;
-}
-
-.viewer3d-main {
-    position: fixed;
-    top: 56px;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    height: 100vh;
     display: flex;
     flex-direction: column;
-    background: var(--bg-secondary, #f3f4f6);
+    background: var(--bg-primary);
 }
 
-.viewer3d-canvas-host {
+/* ===== Compact navbar ===== */
+.v3d-navbar {
+    height: 48px;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 1px solid var(--border-primary, #e5e7eb);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 12px;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+    z-index: 20;
+}
+
+.v3d-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text-primary);
+}
+.v3d-brand__icon {
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(135deg, #667eea, #5568d3);
+    border-radius: var(--radius-md, 0.5rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.v3d-brand__icon svg {
+    width: 16px;
+    height: 16px;
+    stroke: white;
+}
+.v3d-brand__text { display: flex; flex-direction: column; line-height: 1.1; }
+.v3d-brand__name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.v3d-brand__version { font-size: 9px; color: var(--text-tertiary); letter-spacing: 0.5px; text-transform: uppercase; }
+
+.v3d-file {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg-tertiary, #f3f4f6);
+    border-radius: var(--radius-sm, 0.375rem);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.v3d-file svg { width: 13px; height: 13px; color: var(--primary-color); }
+
+.v3d-navbar__spacer { flex: 1; }
+.v3d-navbar__actions { display: flex; align-items: center; gap: 6px; }
+.v3d-sep { width: 1px; height: 22px; background: var(--border-primary); margin: 0 2px; }
+
+.v3d-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm, 0.375rem);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+}
+.v3d-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+.v3d-btn--primary {
+    background: linear-gradient(135deg, #667eea, #5568d3);
+    color: white;
+    border-color: transparent;
+}
+.v3d-btn--primary:hover { color: white; opacity: 0.92; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
+
+.v3d-icon-btn {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 0.375rem);
+    cursor: pointer;
+    color: var(--text-tertiary);
+    transition: all 0.15s ease;
+}
+.v3d-icon-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--border-primary); }
+.v3d-icon-btn svg { width: 16px; height: 16px; }
+
+.v3d-lang {
+    display: flex;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm, 0.375rem);
+    overflow: hidden;
+}
+.v3d-lang__btn {
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    transition: all 0.12s;
+}
+.v3d-lang__btn:hover { color: var(--text-primary); }
+.v3d-lang__btn.active { background: var(--primary-color); color: white; }
+
+/* ===== Main viewer ===== */
+.v3d-main {
     flex: 1;
     position: relative;
     min-height: 0;
-    background: var(--bg-primary, #ffffff);
+    background: var(--bg-primary);
+    overflow: hidden;
 }
 
-.viewer3d-canvas-host canvas {
+.v3d-canvas-host {
+    position: absolute;
+    inset: 0;
+}
+.v3d-canvas-host canvas {
     display: block;
     width: 100%;
     height: 100%;
 }
 
-.viewer3d-status {
+/* ===== Floating tool toolbar (top-left over canvas) ===== */
+.v3d-toolbar {
     position: absolute;
-    bottom: 16px;
-    left: 16px;
-    z-index: 10;
-    padding: 8px 14px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid var(--border-primary, #e5e7eb);
-    border-radius: 8px;
-    font-size: 0.9em;
-    color: var(--text-primary);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    top: 10px;
+    left: 10px;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: calc(100% - 20px);
     pointer-events: none;
-    max-width: calc(100vw - 32px);
 }
 
-[data-theme="dark"] .viewer3d-status {
-    background: rgba(30, 30, 35, 0.95);
-    color: #e5e7eb;
+.v3d-toolbar__group {
+    display: flex;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm, 0.375rem);
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-sm);
+    pointer-events: auto;
 }
 
-.viewer3d-status[data-kind="error"] {
-    border-color: var(--error, #dc2626);
-    color: var(--error, #dc2626);
+[data-theme="dark"] .v3d-toolbar__group {
+    background: rgba(30, 30, 35, 0.92);
 }
 
-.viewer3d-status[data-kind="success"] {
-    border-color: var(--success, #16a34a);
-    color: var(--success, #16a34a);
+.v3d-tool {
+    width: 32px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    border-right: 1px solid var(--border-primary);
+    transition: all 0.12s;
+    position: relative;
 }
+.v3d-tool:last-child { border-right: none; }
+.v3d-tool:hover { background: rgba(102, 126, 234, 0.1); color: var(--primary-color); }
+.v3d-tool.active { background: rgba(102, 126, 234, 0.16); color: var(--primary-color); }
+.v3d-tool.is-disabled { opacity: 0.5; cursor: not-allowed; }
+.v3d-tool svg { width: 14px; height: 14px; }
 
-.viewer3d-loaded-list {
+/* ===== Floating status (bottom-left) ===== */
+.v3d-status {
     position: absolute;
-    top: 16px;
-    right: 16px;
-    z-index: 10;
+    bottom: 12px;
+    left: 12px;
+    z-index: 6;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm, 0.375rem);
+    font-size: 12px;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+    max-width: calc(100vw - 24px);
+    backdrop-filter: blur(6px);
+}
+[data-theme="dark"] .v3d-status { background: rgba(30, 30, 35, 0.92); color: #e5e7eb; }
+.v3d-status[data-kind="error"] { border-color: #dc2626; color: #dc2626; }
+.v3d-status[data-kind="success"] { border-color: #16a34a; color: #16a34a; }
+
+/* ===== Loaded-models chip stack (top-right) ===== */
+.v3d-loaded-list {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 6;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-width: 360px;
+    gap: 4px;
+    max-width: 320px;
 }
-
-.viewer3d-loaded-item {
+.v3d-loaded-item {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 6px 10px;
     background: rgba(255, 255, 255, 0.95);
-    border: 1px solid var(--border-primary, #e5e7eb);
-    border-radius: 8px;
-    font-size: 0.88em;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm, 0.375rem);
+    font-size: 12px;
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(6px);
 }
-
-[data-theme="dark"] .viewer3d-loaded-item {
-    background: rgba(30, 30, 35, 0.95);
-    color: #e5e7eb;
+[data-theme="dark"] .v3d-loaded-item { background: rgba(30, 30, 35, 0.92); color: #e5e7eb; }
+.v3d-loaded-item__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.v3d-loaded-item__stats { color: var(--text-tertiary); font-size: 10px; }
+.v3d-loaded-item__remove {
+    background: transparent; border: none; color: var(--text-tertiary);
+    cursor: pointer; padding: 2px 4px; font-size: 13px; border-radius: 3px;
+    line-height: 1;
 }
+.v3d-loaded-item__remove:hover { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
 
-.viewer3d-loaded-item__name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: 600;
-}
-
-.viewer3d-loaded-item__stats {
-    color: var(--text-secondary, #6b7280);
-    font-size: 0.85em;
-}
-
-.viewer3d-loaded-item__remove {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary, #6b7280);
-    cursor: pointer;
-    padding: 2px 6px;
-    font-size: 1em;
-    border-radius: 4px;
-}
-
-.viewer3d-loaded-item__remove:hover {
-    background: var(--error-bg, #fee2e2);
-    color: var(--error, #dc2626);
-}
-
-/* Storage picker */
-.viewer3d-picker-list {
+/* ===== Storage picker modal items ===== */
+.v3d-picker-list {
     display: flex;
     flex-direction: column;
     gap: 4px;
     max-height: 60vh;
     overflow-y: auto;
 }
-
-.viewer3d-picker-item {
+.v3d-picker-item {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 10px 12px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm, 0.375rem);
     cursor: pointer;
     border: 1px solid transparent;
     transition: background 0.12s, border-color 0.12s;
 }
-
-.viewer3d-picker-item:hover {
-    background: var(--bg-hover, #f3f4f6);
-    border-color: var(--primary-color, #667eea);
+.v3d-picker-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary-color);
 }
+[data-theme="dark"] .v3d-picker-item:hover { background: #2a2a30; }
+.v3d-picker-item__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.v3d-picker-item__size { color: var(--text-tertiary); font-size: 11px; }
 
-[data-theme="dark"] .viewer3d-picker-item:hover {
-    background: #2a2a30;
-}
-
-.viewer3d-picker-item__name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.viewer3d-picker-item__size {
-    color: var(--text-secondary, #6b7280);
-    font-size: 0.85em;
-}
-
+/* ===== Mobile ===== */
 @media (max-width: 768px) {
-    .viewer3d-main { top: 48px; }
-    .viewer3d-loaded-list {
-        top: auto;
-        bottom: 60px;
-        right: 8px;
-        left: 8px;
-        max-width: none;
-    }
+    .v3d-navbar { padding: 0 10px; gap: 8px; }
+    .v3d-brand__version { display: none; }
+    .v3d-file { display: none; }
+    .v3d-btn { padding: 4px 8px; font-size: 11px; }
+    .v3d-toolbar { top: auto; bottom: 56px; left: 8px; right: 8px; max-width: none; overflow-x: auto; }
+    .v3d-loaded-list { top: auto; bottom: 8px; right: 8px; left: 8px; max-width: none; }
+    .v3d-status { bottom: auto; top: 56px; }
 }

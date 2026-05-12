@@ -9,8 +9,6 @@
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <meta name="theme-color" content="#667eea">
     <link rel="stylesheet" href="../assets/css/common.css">
-    <link rel="stylesheet" href="../assets/css/mobile-nav.css">
-    <link rel="stylesheet" href="../assets/css/index.css">
     <link rel="stylesheet" href="../assets/css/3d-viewer.css">
     <script>
         (function() {
@@ -37,62 +35,144 @@
     </script>
 </head>
 <body data-page="viewer3d">
-    <header class="bim-mobile-topbar">
-        <a href="../index.html" class="bim-mobile-topbar__brand">
-            <span class="bim-mobile-topbar__icon">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- ===== COMPACT NAVBAR (48px) ===== -->
+    <nav class="v3d-navbar">
+        <a href="../index.html" class="v3d-brand">
+            <span class="v3d-brand__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                     <polyline points="9 22 9 12 15 12 15 22"/>
                 </svg>
             </span>
-            <span class="bim-mobile-topbar__name" data-i18n="app.title">BIM Checker</span>
+            <span class="v3d-brand__text">
+                <span class="v3d-brand__name">BIM Checker</span>
+                <span class="v3d-brand__version" data-i18n="viewer3d.versionLabel">3D Viewer · Alpha</span>
+            </span>
         </a>
-        <div class="bim-mobile-topbar__actions">
-            <div class="bim-mobile-topbar__lang">
-                <button class="lang-btn active" data-lang="cs">CZ</button>
-                <button class="lang-btn" data-lang="en">EN</button>
-            </div>
-        </div>
-    </header>
 
-    <nav class="navbar navbar-subpage">
-        <div class="navbar-container">
-            <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
-            <h1 class="page-title" data-i18n="viewer3d.title">3D Viewer</h1>
-            <div class="navbar-actions">
-                <button class="btn btn-primary" id="viewer3dLoadBtn" data-i18n="viewer3d.loadIfc">📂 Načíst IFC</button>
-                <div class="language-switcher">
-                    <button class="lang-btn active" data-lang="cs">CZ</button>
-                    <button class="lang-btn" data-lang="en">EN</button>
-                </div>
-                <button class="theme-toggle" id="themeToggle" title="Přepnout téma" data-i18n-title="theme.toggle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"/>
-                        <line x1="12" y1="1" x2="12" y2="3"/>
-                        <line x1="12" y1="21" x2="12" y2="23"/>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                        <line x1="1" y1="1" x2="3" y2="12"/>
-                        <line x1="21" y1="12" x2="23" y2="12"/>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                    </svg>
-                </button>
+        <div class="v3d-file" id="v3dFileInfo" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                <polyline points="13 2 13 9 20 9"/>
+            </svg>
+            <span id="v3dFileName">—</span>
+        </div>
+
+        <div class="v3d-navbar__spacer"></div>
+
+        <div class="v3d-navbar__actions">
+            <button class="v3d-btn v3d-btn--primary" id="viewer3dLoadBtn" data-i18n="viewer3d.loadIfc">📂 Načíst IFC</button>
+            <span class="v3d-sep"></span>
+            <div class="v3d-lang">
+                <button class="v3d-lang__btn active" data-lang="cs">CZ</button>
+                <button class="v3d-lang__btn" data-lang="en">EN</button>
             </div>
+            <button class="v3d-icon-btn" id="themeToggle" title="Přepnout téma" data-i18n-title="theme.toggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
         </div>
     </nav>
 
-    <main class="viewer3d-main">
-        <div id="viewerContainer" class="viewer3d-canvas-host"></div>
+    <!-- ===== MAIN VIEWER AREA ===== -->
+    <main class="v3d-main">
+        <div id="viewerContainer" class="v3d-canvas-host"></div>
 
-        <div class="viewer3d-status" id="viewer3dStatus">
-            <span data-i18n="viewer3d.empty">Žádný model — klikni na „Načíst IFC" pro výběr ze storage.</span>
+        <!-- Floating tool toolbar overlaid on canvas (top-left) -->
+        <div class="v3d-toolbar" id="v3dToolbar">
+            <div class="v3d-toolbar__group">
+                <button class="v3d-tool active" data-tool="select" title="Výběr objektů" data-i18n-title="viewer3d.tool.select">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="orbit" title="Orbitální navigace" data-i18n-title="viewer3d.tool.orbit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="measure" title="Měření" data-i18n-title="viewer3d.tool.measure">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M19 3v18M3 12h18"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="clip" title="Řez modelem" data-i18n-title="viewer3d.tool.clip">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="8" rx="1"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="16" y1="19" x2="16" y2="21"/><path d="M4 15h16"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="walk" title="Walk mode (WASD)" data-i18n-title="viewer3d.tool.walk">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="M14 6.5l1.5 4.5 3 1.5M9.5 21l1.5-7-2-3M11 14l-2 7M11 11l-3 1.5L6 17"/></svg>
+                </button>
+            </div>
+
+            <div class="v3d-toolbar__group">
+                <button class="v3d-tool" data-tool="search" title="Hledat objekty" data-i18n-title="viewer3d.tool.search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="color" title="Obarvit podle vlastnosti" data-i18n-title="viewer3d.tool.color">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="sets" title="Sady výběru" data-i18n-title="viewer3d.tool.sets">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-1.41-1.41A2 2 0 0 1 17 14.17V11a5 5 0 0 0-10 0v3.17a2 2 0 0 1-.59 1.42L5 17z"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="schedule" title="Tabulka prvků" data-i18n-title="viewer3d.tool.schedule">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="viewpoints" title="Uložené pohledy" data-i18n-title="viewer3d.tool.viewpoints">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
+            </div>
+
+            <div class="v3d-toolbar__group">
+                <button class="v3d-tool" data-tool="pins" title="Piny / markup" data-i18n-title="viewer3d.tool.pins">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="issues" title="Issues" data-i18n-title="viewer3d.tool.issues">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="screenshot" title="Screenshot" data-i18n-title="viewer3d.tool.screenshot">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="pdf" title="PDF report" data-i18n-title="viewer3d.tool.pdf">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="share" title="Sdílet pohled" data-i18n-title="viewer3d.tool.share">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                </button>
+            </div>
+
+            <div class="v3d-toolbar__group">
+                <button class="v3d-tool" data-tool="clash" title="Detekce kolizí" data-i18n-title="viewer3d.tool.clash">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="alignment" title="Alignment (LandXML)" data-i18n-title="viewer3d.tool.alignment">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21c2 0 4-2 4-4M8 17c0-2 2-4 4-4M12 13c2 0 4-2 4-4M16 9c0-2 2-4 4-4"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="diff" title="Diff dvou verzí" data-i18n-title="viewer3d.tool.diff">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="ask" title="Ask Anything (RAG)" data-i18n-title="viewer3d.tool.ask">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="timeline" title="4D Timeline" data-i18n-title="viewer3d.tool.timeline">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </button>
+            </div>
+
+            <div class="v3d-toolbar__group">
+                <button class="v3d-tool" data-tool="three-tiles" title="Export 3D Tiles (Cesium)" data-i18n-title="viewer3d.tool.threeTiles">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </button>
+                <button class="v3d-tool" data-tool="ids-templates" title="IDS šablony" data-i18n-title="viewer3d.tool.idsTemplates">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>
+                </button>
+            </div>
         </div>
 
-        <div class="viewer3d-loaded-list" id="viewer3dLoadedList" hidden></div>
+        <!-- Floating status -->
+        <div class="v3d-status" id="viewer3dStatus">
+            <span data-i18n="viewer3d.empty">Žádný model — klikni na „Načíst IFC".</span>
+        </div>
+
+        <!-- Loaded-models chip stack -->
+        <div class="v3d-loaded-list" id="viewer3dLoadedList" hidden></div>
     </main>
 
-    <!-- Storage picker modal -->
+    <!-- ===== STORAGE PICKER MODAL ===== -->
     <div class="modal-overlay" id="viewer3dPickerModal">
         <div class="modal-container">
             <div class="modal-header">
@@ -100,7 +180,7 @@
                 <button class="modal-close" id="viewer3dPickerClose">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="viewer3dPickerList" class="viewer3d-picker-list">
+                <div id="viewer3dPickerList" class="v3d-picker-list">
                     <p class="storage-empty-message" data-i18n="viewer3d.pickerEmpty">Žádné soubory ve storage.</p>
                 </div>
             </div>

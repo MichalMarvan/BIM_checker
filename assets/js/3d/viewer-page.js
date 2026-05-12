@@ -71,19 +71,35 @@ function renderLoadedList() {
     if (state.loadedModels.size === 0) {
         list.hidden = true;
         list.innerHTML = '';
+        updateFileChip(null);
         return;
     }
     list.hidden = false;
     list.innerHTML = Array.from(state.loadedModels.entries()).map(([modelId, info]) => `
-        <div class="viewer3d-loaded-item" data-model-id="${modelId}">
-            <span class="viewer3d-loaded-item__name">📦 ${escapeHtml(info.name)}</span>
-            <span class="viewer3d-loaded-item__stats">${info.stats ? `${info.stats.entityCount} entit` : ''}</span>
-            <button class="viewer3d-loaded-item__remove" data-model-id="${modelId}" title="${t('viewer3d.removeModel') || 'Odebrat'}">✕</button>
+        <div class="v3d-loaded-item" data-model-id="${modelId}">
+            <span class="v3d-loaded-item__name">📦 ${escapeHtml(info.name)}</span>
+            <span class="v3d-loaded-item__stats">${info.stats ? `${info.stats.entityCount}` : ''}</span>
+            <button class="v3d-loaded-item__remove" data-model-id="${modelId}" title="${t('viewer3d.removeModel') || 'Odebrat'}">✕</button>
         </div>
     `).join('');
-    list.querySelectorAll('.viewer3d-loaded-item__remove').forEach(btn => {
+    list.querySelectorAll('.v3d-loaded-item__remove').forEach(btn => {
         btn.addEventListener('click', () => removeModel(btn.dataset.modelId));
     });
+    // Update navbar file chip with the most recently loaded model's name
+    const lastEntry = Array.from(state.loadedModels.values()).pop();
+    updateFileChip(lastEntry ? lastEntry.name : null);
+}
+
+function updateFileChip(name) {
+    const chip = document.getElementById('v3dFileInfo');
+    const label = document.getElementById('v3dFileName');
+    if (!chip || !label) return;
+    if (name) {
+        label.textContent = name;
+        chip.hidden = false;
+    } else {
+        chip.hidden = true;
+    }
 }
 
 function escapeHtml(s) {
@@ -191,6 +207,18 @@ function wireUI() {
     const modal = document.getElementById('viewer3dPickerModal');
     if (modal) modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.remove('active');
+    });
+
+    // Toolbar tool buttons (visual scaffold for Phase 0; not yet wired to engine features)
+    document.querySelectorAll('.v3d-tool').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tool = btn.dataset.tool;
+            // Toggle active visually (mutually exclusive within row)
+            document.querySelectorAll('.v3d-tool').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const label = btn.title || tool;
+            setStatus(`${label} — ${t('viewer3d.comingSoon') || 'tool přijde v dalším iteration'}`, 'info');
+        });
     });
 }
 
