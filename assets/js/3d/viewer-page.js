@@ -16,7 +16,10 @@ const state = {
     engine: null,
     enginePromise: null,
     canvas: null,
-    loadedModels: new Map() // modelId → { name, stats }
+    loadedModels: new Map(),  // modelId → { name, stats }
+    federationAnchor: null    // [x, y, z] world coords of FIRST model's bbox center
+                              // Subsequent loads shift by the SAME anchor so models
+                              // keep their real-world relative positions.
 };
 
 function t(key) {
@@ -195,6 +198,9 @@ async function loadIfcFromStorage(fileMeta) {
         try {
             const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
             if (internal && internal.group) {
+                // Compute world bbox center BEFORE we touch group.position.
+                // Reset any prior position so updateMatrixWorld reflects raw geometry.
+                internal.group.position.set(0, 0, 0);
                 internal.group.updateMatrixWorld(true);
                 let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
                 for (const m of internal.meshes) {
@@ -212,16 +218,25 @@ async function loadIfcFromStorage(fileMeta) {
                     const cy = (minY + maxY) / 2;
                     const cz = (minZ + maxZ) / 2;
                     console.log('[3d-viewer] model world bbox center:', cx, cy, cz);
-                    // Shift group so bbox center ends up at world origin.
-                    // group.position is currently (0,0,0); subtract bbox center.
-                    internal.group.position.x -= cx;
-                    internal.group.position.y -= cy;
-                    internal.group.position.z -= cz;
+
+                    // Federation: first loaded model defines the shared anchor.
+                    // All subsequent models shift by the SAME amount so their real-
+                    // world relative positions are preserved (two civil IFCs sharing
+                    // S-JTSK origin will land at their actual relative spots, not
+                    // overlapping at origin).
+                    if (!state.federationAnchor) {
+                        state.federationAnchor = [cx, cy, cz];
+                        console.log('[3d-viewer] federation anchor set:', state.federationAnchor);
+                    }
+                    const [ax, ay, az] = state.federationAnchor;
+                    internal.group.position.x = -ax;
+                    internal.group.position.y = -ay;
+                    internal.group.position.z = -az;
                     internal.group.updateMatrixWorld(true);
-                    console.log('[3d-viewer] group position after shift:', internal.group.position.toArray());
+                    console.log('[3d-viewer] group position after federation shift:', internal.group.position.toArray());
                 }
             }
-        } catch (e) { console.warn('[3d-viewer] origin-shift failed:', e); }
+        } catch (e) { console.warn('[3d-viewer] federation shift failed:', e); }
 
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
@@ -271,10 +286,13 @@ function removeModel(modelId) {
         try { state.engine.removeModel(modelId); } catch (e) { console.warn('removeModel failed:', e); }
     }
     state.loadedModels.delete(modelId);
-    renderLoadedList();
+    // When the scene is empty, drop the federation anchor so the next loaded
+    // model starts a fresh federation at its own origin.
     if (state.loadedModels.size === 0) {
+        state.federationAnchor = null;
         setStatus(t('viewer3d.empty') || 'Žádný model');
     }
+    renderLoadedList();
 }
 
 // In-memory state for picker tree
