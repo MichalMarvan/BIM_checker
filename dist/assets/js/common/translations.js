@@ -70,6 +70,7 @@ const translations = {
         'storage.folder.useDB': '💾 Použít prohlížeč',
         'storage.folder.unavailable': '⚠ Složka nedostupná',
         'storage.folder.reconnect': '📂 Znovu připojit',
+        'storage.folder.noMatching': 'Ve složce nejsou žádné odpovídající soubory.',
 
         // === TLAČÍTKA ===
         'btn.back': 'Domů',
@@ -1204,6 +1205,7 @@ const translations = {
         'storage.folder.useDB': '💾 Use browser',
         'storage.folder.unavailable': '⚠ Folder unavailable',
         'storage.folder.reconnect': '📂 Reconnect',
+        'storage.folder.noMatching': 'No matching files in this folder.',
 
         // === BUTTONS ===
         'btn.back': 'Home',

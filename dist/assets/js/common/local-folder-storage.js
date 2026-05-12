@@ -87,11 +87,27 @@ class LocalFolderStorageBackend {
         let limited = false;
         const cache = this._fileCache;
         cache.clear();
+        // Build folder tree map: path → { name, parentPath, files: [], subfolders: [], ifcCount, idsCount }
+        const folderMap = new Map();
+        folderMap.set('', { name: this.rootName || 'root', path: '', parentPath: null, files: [], subfolders: [], ifcCount: 0, idsCount: 0 });
+
+        const ensureFolder = (folderPath) => {
+            if (folderMap.has(folderPath)) return folderMap.get(folderPath);
+            const parts = folderPath.split('/').filter(Boolean);
+            const name = parts[parts.length - 1] || this.rootName || 'root';
+            const parentPath = parts.slice(0, -1).join('/');
+            const node = { name, path: folderPath, parentPath, files: [], subfolders: [], ifcCount: 0, idsCount: 0 };
+            folderMap.set(folderPath, node);
+            const parent = ensureFolder(parentPath);
+            if (!parent.subfolders.includes(folderPath)) parent.subfolders.push(folderPath);
+            return node;
+        };
 
         const walk = async (dirHandle, prefix) => {
             for await (const entry of dirHandle.values()) {
                 if (scanned >= maxFiles) { limited = true; return; }
                 const path = prefix + entry.name;
+                const parentFolderPath = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix;
                 if (entry.kind === 'file') {
                     const ext = entry.name.toLowerCase().split('.').pop();
                     if (ext === 'ifc' || ext === 'ids' || ext === 'xml') {
@@ -101,12 +117,23 @@ class LocalFolderStorageBackend {
                             const file = await entry.getFile();
                             size = file.size;
                         } catch (_) { /* ignore */ }
-                        const record = { path, name: entry.name, type, size, handle: entry };
+                        const record = { path, name: entry.name, type, size, handle: entry, folderPath: parentFolderPath };
                         files.push(record);
                         cache.set(path, record);
+                        // Add to folder tree
+                        const folder = ensureFolder(parentFolderPath);
+                        folder.files.push(record);
+                        // Propagate counts up the tree
+                        let cursor = folder;
+                        while (cursor) {
+                            if (type === 'ifc') cursor.ifcCount++;
+                            else cursor.idsCount++;
+                            cursor = cursor.parentPath !== null ? folderMap.get(cursor.parentPath) : null;
+                        }
                         scanned++;
                     }
                 } else if (entry.kind === 'directory') {
+                    ensureFolder(path);
                     await walk(entry, path + '/');
                     if (limited) return;
                 }
@@ -114,6 +141,7 @@ class LocalFolderStorageBackend {
         };
 
         await walk(this.root, '');
+        this._folderTree = folderMap;
 
         return {
             files,
@@ -121,6 +149,39 @@ class LocalFolderStorageBackend {
             limited,
             warning: scanned > 500
         };
+    }
+
+    /**
+     * Returns a tree representation filtered for a specific file type (ifc / ids).
+     * Only folders that contain at least one file of the requested type
+     * (directly or in a descendant) are included.
+     */
+    getFolderTree(type) {
+        if (!this._folderTree) return null;
+        const countKey = type === 'ifc' ? 'ifcCount' : 'idsCount';
+        const buildNode = (path) => {
+            const node = this._folderTree.get(path);
+            if (!node) return null;
+            if (node[countKey] === 0) return null;
+            const files = node.files
+                .filter(f => f.type === type)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(f => ({ name: f.name, path: f.path, size: f.size }));
+            const subfolders = node.subfolders
+                .map(p => buildNode(p))
+                .filter(Boolean)
+                .sort((a, b) => a.name.localeCompare(b.name));
+            return {
+                name: node.name,
+                path: node.path,
+                files,
+                subfolders,
+                ifcCount: node.ifcCount,
+                idsCount: node.idsCount,
+                count: node[countKey]
+            };
+        };
+        return buildNode('');
     }
 
     async getFiles(type) {

@@ -1768,3 +1768,74 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
     width: 36px;
     height: 36px;
 }
+.folder-banner__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+/* Folder tree (read-only browser of local files) */
+.folder-tree {
+    margin-top: 12px;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    border-radius: 6px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+.folder-tree__folder,
+.folder-tree__file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 0.9rem;
+}
+.folder-tree__folder {
+    background: var(--bg-secondary, #f9fafb);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.folder-tree__file {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.folder-tree__file:hover {
+    background: var(--bg-tertiary, #f3f4f6);
+}
+.folder-tree__icon {
+    flex-shrink: 0;
+}
+.folder-tree__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.folder-tree__size {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+.folder-tree__badge {
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--primary-color, #667eea);
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.folder-tree__badge--muted {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-tertiary);
+}
+.folder-tree__empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-style: italic;
+    font-size: 0.85rem;
+}
