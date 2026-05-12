@@ -93,7 +93,7 @@
                 <div class="folder-banner__path" title="${_escapeHtml(folderName)}">📁 ${_escapeHtml(folderName)}</div>
                 <button class="btn-icon-modern folder-banner__rescan" title="${t('storage.folder.rescan')}">🔄</button>
             </div>
-            <div class="folder-banner__readonly" data-i18n="storage.folder.readOnlyHint">⚠ Read-only — edits stay in the browser for now</div>
+            <div class="folder-banner__readonly" data-i18n="storage.folder.readOnlyHint">✏ File edits save back to disk (folder delete/rename not supported yet)</div>
             ${treeHtml}
         `;
         banner.querySelector('.folder-banner__rescan').addEventListener('click', async () => {

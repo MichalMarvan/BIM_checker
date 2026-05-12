@@ -1835,6 +1835,37 @@ function setupIfcTreeEventListeners() {
 
 // Render IFC storage tree
 async function renderIfcStorageTree() {
+    // Folder backend mode: always rebuild from current tree (handles late backend restore)
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        const tree = window.BIMStorage.backend.getFolderTree('ifc');
+        const folders = {};
+        const files = {};
+        function walk(node, parentId, folderId) {
+            folders[folderId] = {
+                id: folderId,
+                name: node.name || 'root',
+                parentId,
+                files: node.files.map(f => f.path),
+                children: node.subfolders.map(sub => sub.path || sub.name)
+            };
+            for (const f of node.files) {
+                files[f.path] = { id: f.path, name: f.name, size: f.size, folder: folderId, uploadDate: null };
+            }
+            for (const sub of node.subfolders) walk(sub, folderId, sub.path || sub.name);
+        }
+        if (tree) walk(tree, null, 'root');
+        ifcMetadata = { folders, files };
+        ifcStorageData = ifcMetadata;
+        if (!tree || Object.keys(files).length === 0) {
+            document.getElementById('ifcStorageTree').innerHTML = '<p class="storage-empty-message">' + t('validator.storage.noIfcFiles') + '</p>';
+        } else {
+            document.getElementById('ifcStorageTree').innerHTML = renderIfcFolderRecursive('root', 0);
+        }
+        document.getElementById('ifcSelectedCount').textContent = selectedIfcFiles.size;
+        setupIfcTreeEventListeners();
+        return;
+    }
+
     // Use pre-loaded metadata if available (instant!)
     if (ifcMetadata) {
         ifcStorageData = ifcMetadata;
@@ -2204,6 +2235,37 @@ function setupIdsTreeEventListeners() {
 
 // Render IDS storage tree (similar to IFC, but single-select)
 async function renderIdsStorageTree() {
+    // Folder backend mode: always rebuild from current tree (handles late backend restore)
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        const tree = window.BIMStorage.backend.getFolderTree('ids');
+        const folders = {};
+        const files = {};
+        function walk(node, parentId, folderId) {
+            folders[folderId] = {
+                id: folderId,
+                name: node.name || 'root',
+                parentId,
+                files: node.files.map(f => f.path),
+                children: node.subfolders.map(sub => sub.path || sub.name)
+            };
+            for (const f of node.files) {
+                files[f.path] = { id: f.path, name: f.name, size: f.size, folder: folderId, uploadDate: null };
+            }
+            for (const sub of node.subfolders) walk(sub, folderId, sub.path || sub.name);
+        }
+        if (tree) walk(tree, null, 'root');
+        idsMetadata = { folders, files };
+        idsStorageData = idsMetadata;
+        if (!tree || Object.keys(files).length === 0) {
+            document.getElementById('idsStorageTree').innerHTML = '<p class="storage-empty-message">' + t('validator.storage.noIdsFiles') + '</p>';
+        } else {
+            document.getElementById('idsStorageTree').innerHTML = renderIdsFolderRecursive('root', 0);
+        }
+        updateIdsSelectedName();
+        setupIdsTreeEventListeners();
+        return;
+    }
+
     // Use pre-loaded metadata if available (instant!)
     if (idsMetadata) {
         idsStorageData = idsMetadata;

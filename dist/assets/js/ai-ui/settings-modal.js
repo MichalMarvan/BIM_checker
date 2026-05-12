@@ -41,7 +41,7 @@ function _renderStorageBackendSection() {
                 <div class="storage-backend-section__status">
                     <div>📂 <strong>${folderName}</strong></div>
                     <div>${ifcCount} IFC, ${idsCount} IDS</div>
-                    <div class="storage-backend-section__readonly" data-i18n="settings.storage.readOnly">⚠ Read-only mode (write coming in v2)</div>
+                    <div class="storage-backend-section__readonly" data-i18n="settings.storage.readOnly">✏ Full read/write — file edits are saved back</div>
                 </div>
                 <div class="storage-backend-section__actions">
                     <button class="btn btn-secondary" id="storageBackendChangeFolder" data-i18n="settings.storage.changeFolder">Change folder</button>
