@@ -175,6 +175,14 @@ async function loadIfcFromStorage(fileMeta) {
         state.loadedModels.set(modelId, { name: fileMeta.name, stats });
         renderLoadedList();
 
+        // Log what georef data this IFC actually carries — federation strategy
+        // depends on whether the file has IfcMapConversion vs IfcSite refs vs
+        // nothing (geometry baked at world coords).
+        try {
+            const coords = typeof engine.getCoords === 'function' ? engine.getCoords(modelId) : null;
+            console.log('[3d-viewer] getCoords:', coords);
+        } catch (e) { console.warn('[3d-viewer] getCoords failed:', e); }
+
         // Force a resize sync — covers the case where canvas was created
         // before the container had layout dimensions.
         try {
@@ -195,48 +203,63 @@ async function loadIfcFromStorage(fileMeta) {
         // jitter or vanish. Engine's federation auto-mode leaves the FIRST model
         // at its world origin (expects building IFCs with origin near 0), so we
         // do it ourselves here.
+        // Federation strategy:
+        //   1) If THIS model has IfcMapConversion, use the engine's native
+        //      real-coords flow with an auto false-origin = first model's E/N/H.
+        //      This is the canonical IFC4+ way: each model carries its own world
+        //      offset, false-origin keeps f32 precision sane.
+        //   2) Else (geometry baked at world coords, no MapConversion — common
+        //      in Czech civil practice), fall back to a shared bbox-center anchor
+        //      so all subsequent models keep their real-world delta relative to
+        //      the first.
         try {
-            const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
-            if (internal && internal.group) {
-                // Compute world bbox center BEFORE we touch group.position.
-                // Reset any prior position so updateMatrixWorld reflects raw geometry.
-                internal.group.position.set(0, 0, 0);
-                internal.group.updateMatrixWorld(true);
-                let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
-                for (const m of internal.meshes) {
-                    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-                    const b = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
-                    if (b.min.x < minX) minX = b.min.x;
-                    if (b.min.y < minY) minY = b.min.y;
-                    if (b.min.z < minZ) minZ = b.min.z;
-                    if (b.max.x > maxX) maxX = b.max.x;
-                    if (b.max.y > maxY) maxY = b.max.y;
-                    if (b.max.z > maxZ) maxZ = b.max.z;
+            const coords = engine.getCoords && engine.getCoords(modelId);
+            const hasMc = !!(coords && coords.mapConversion);
+            if (hasMc) {
+                // Set falseOrigin once from the very first MapConversion-carrying
+                // model, then re-apply real-coords transform so the new model is
+                // placed at its (E - falseOrigin, N - falseOrigin, H - falseOrigin).
+                if (!state.federationAnchor) {
+                    const mc = coords.mapConversion;
+                    state.federationAnchor = [mc.eastings || 0, mc.northings || 0, mc.orthogonalHeight || 0];
+                    console.log('[3d-viewer] federation anchor (MapConversion-based):', state.federationAnchor);
                 }
-                if (Number.isFinite(minX)) {
-                    const cx = (minX + maxX) / 2;
-                    const cy = (minY + maxY) / 2;
-                    const cz = (minZ + maxZ) / 2;
-                    console.log('[3d-viewer] model world bbox center:', cx, cy, cz);
-
-                    // Federation: first loaded model defines the shared anchor.
-                    // All subsequent models shift by the SAME amount so their real-
-                    // world relative positions are preserved (two civil IFCs sharing
-                    // S-JTSK origin will land at their actual relative spots, not
-                    // overlapping at origin).
-                    if (!state.federationAnchor) {
-                        state.federationAnchor = [cx, cy, cz];
-                        console.log('[3d-viewer] federation anchor set:', state.federationAnchor);
-                    }
-                    const [ax, ay, az] = state.federationAnchor;
-                    internal.group.position.x = -ax;
-                    internal.group.position.y = -ay;
-                    internal.group.position.z = -az;
+                engine.setRealWorldCoords(true, { falseOrigin: state.federationAnchor });
+                console.log('[3d-viewer] applied setRealWorldCoords with falseOrigin');
+            } else {
+                // No MapConversion → manual shared-anchor shift on the viewer group.
+                const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
+                if (internal && internal.group) {
+                    internal.group.position.set(0, 0, 0);
                     internal.group.updateMatrixWorld(true);
-                    console.log('[3d-viewer] group position after federation shift:', internal.group.position.toArray());
+                    let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
+                    for (const m of internal.meshes) {
+                        if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+                        const b = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
+                        if (b.min.x < minX) minX = b.min.x;
+                        if (b.min.y < minY) minY = b.min.y;
+                        if (b.min.z < minZ) minZ = b.min.z;
+                        if (b.max.x > maxX) maxX = b.max.x;
+                        if (b.max.y > maxY) maxY = b.max.y;
+                        if (b.max.z > maxZ) maxZ = b.max.z;
+                    }
+                    if (Number.isFinite(minX)) {
+                        const cx = (minX + maxX) / 2;
+                        const cy = (minY + maxY) / 2;
+                        const cz = (minZ + maxZ) / 2;
+                        console.log('[3d-viewer] model world bbox center:', cx, cy, cz);
+                        if (!state.federationAnchor) {
+                            state.federationAnchor = [cx, cy, cz];
+                            console.log('[3d-viewer] federation anchor (bbox-based, no MapConversion):', state.federationAnchor);
+                        }
+                        const [ax, ay, az] = state.federationAnchor;
+                        internal.group.position.set(-ax, -ay, -az);
+                        internal.group.updateMatrixWorld(true);
+                        console.log('[3d-viewer] group position after manual shift:', internal.group.position.toArray());
+                    }
                 }
             }
-        } catch (e) { console.warn('[3d-viewer] federation shift failed:', e); }
+        } catch (e) { console.warn('[3d-viewer] federation failed:', e); }
 
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
