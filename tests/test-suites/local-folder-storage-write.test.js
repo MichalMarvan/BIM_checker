@@ -47,8 +47,11 @@ describe('LocalFolderStorageBackend.saveFileContent', () => {
     it('saveFileContent records new mtime after write', async () => {
         await backend.scan();
         await backend.getFileContent('ifc', 'wall.ifc');
+        // Simulate disk mtime advancing because of the write (force=true to skip
+        // conflict check — the test scenario is about post-write mtime recording,
+        // not external-change detection which is covered in conflict-detect suite).
         mtimeNow = 2000;
-        const result = await backend.saveFileContent('ifc', 'wall.ifc', 'new');
+        const result = await backend.saveFileContent('ifc', 'wall.ifc', 'new', { force: true });
         expect(result.ok).toBe(true);
         expect(result.mtime).toBe(2000);
     });

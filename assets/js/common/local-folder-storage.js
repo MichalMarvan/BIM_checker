@@ -237,12 +237,12 @@ class LocalFolderStorageBackend {
             || Array.from(this._fileCache.values()).find(r => r.name === path && r.type === type);
         if (!record) return { error: 'file_not_found', message: 'File handle missing — rescan the folder' };
 
-        let conflictInfo = null;
+        // Conflict detection: bail BEFORE writing if file changed externally.
         if (!force && this._readMtimes.has(record.path)) {
             const currentFile = await record.handle.getFile();
             const knownMtime = this._readMtimes.get(record.path);
             if (currentFile.lastModified > knownMtime) {
-                conflictInfo = {
+                return {
                     error: 'conflict_external_change',
                     currentMtime: currentFile.lastModified,
                     knownMtime,
@@ -258,7 +258,7 @@ class LocalFolderStorageBackend {
             const newFile = await record.handle.getFile();
             this._readMtimes.set(record.path, newFile.lastModified);
             record.size = newFile.size;
-            return { ok: true, mtime: newFile.lastModified, size: newFile.size, ...conflictInfo };
+            return { ok: true, mtime: newFile.lastModified, size: newFile.size };
         } catch (e) {
             return { error: 'write_failed', message: e.message };
         }
