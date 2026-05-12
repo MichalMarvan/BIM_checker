@@ -3,6 +3,13 @@
 import * as helpers from './_helpers.js';
 function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
+function _readOnlyGuard() {
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.isReadOnly && window.BIMStorage.backend.isReadOnly()) {
+        return { error: 'read_only_backend', message: t('ai.tool.localFolder.readOnly') };
+    }
+    return null;
+}
+
 function _buildFolderPath(foldersMap, folderId) {
     const names = [];
     let cur = foldersMap[folderId];
@@ -114,6 +121,7 @@ export async function list_storage_folders(args) {
 }
 
 export async function delete_file_from_storage(args) {
+    const _g = _readOnlyGuard(); if (_g) return _g;
     helpers.validateArgs(args, {
         type: { required: true, enum: ['ifc', 'ids'] },
         name: { required: true }
@@ -129,6 +137,7 @@ export async function delete_file_from_storage(args) {
 }
 
 export async function create_folder(args) {
+    const _g = _readOnlyGuard(); if (_g) return _g;
     helpers.validateArgs(args, {
         type: { required: true, enum: ['ifc', 'ids'] },
         name: { required: true }
@@ -145,6 +154,7 @@ export async function create_folder(args) {
 }
 
 export async function rename_folder(args) {
+    const _g = _readOnlyGuard(); if (_g) return _g;
     helpers.validateArgs(args, {
         type: { required: true, enum: ['ifc', 'ids'] },
         folderName: { required: true },
@@ -162,6 +172,7 @@ export async function rename_folder(args) {
 }
 
 export async function delete_folder(args) {
+    const _g = _readOnlyGuard(); if (_g) return _g;
     helpers.validateArgs(args, {
         type: { required: true, enum: ['ifc', 'ids'] },
         folderName: { required: true }
@@ -183,6 +194,7 @@ export async function delete_folder(args) {
 }
 
 export async function move_file(args) {
+    const _g = _readOnlyGuard(); if (_g) return _g;
     helpers.validateArgs(args, {
         type: { required: true, enum: ['ifc', 'ids'] },
         fileName: { required: true },
@@ -201,6 +213,7 @@ export async function move_file(args) {
 }
 
 export async function move_files_batch(args) {
+    const _g = _readOnlyGuard(); if (_g) return _g;
     helpers.validateArgs(args, {
         type: { required: true, enum: ['ifc', 'ids'] },
         fileNames: { required: true },
@@ -315,6 +328,7 @@ export async function get_file_summary(args) {
 }
 
 export async function replace_file_content(args) {
+    const _g = _readOnlyGuard(); if (_g) return _g;
     helpers.validateArgs(args, {
         type: { required: true, enum: ['ifc', 'ids'] },
         name: { required: true },

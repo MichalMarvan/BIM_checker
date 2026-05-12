@@ -1071,6 +1071,7 @@ const translations = {
         'ai.tool.storage.deleteFileConfirm': 'Smazat soubor \'{name}\' z úložiště?',
         'ai.tool.storage.deleteFolderConfirm': 'Smazat složku \'{name}\' ({fileCount} souborů + podsložky)?',
         'ai.tool.storage.replaceContentConfirm': 'Přepsat obsah \'{name}\'?{warning}',
+        'ai.tool.localFolder.readOnly': 'Lokální složka je read-only ve v1 — zápis přijde v další verzi.',
         'chat.emptyConversation': '(prázdná konverzace)',
 
         // === BUG REPORT ===
@@ -2176,6 +2177,7 @@ const translations = {
         'ai.tool.storage.deleteFileConfirm': 'Delete file \'{name}\' from storage?',
         'ai.tool.storage.deleteFolderConfirm': 'Delete folder \'{name}\' ({fileCount} files + subfolders)?',
         'ai.tool.storage.replaceContentConfirm': 'Replace content of \'{name}\'?{warning}',
+        'ai.tool.localFolder.readOnly': 'Local folder is read-only in v1 — write support coming in next version.',
         'chat.emptyConversation': '(empty conversation)',
 
         // === BUG REPORT ===
