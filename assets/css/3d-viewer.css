@@ -259,6 +259,7 @@ body[data-page="viewer3d"] {
 .v3d-tree-folder {
     display: flex;
     align-items: center;
+    gap: 8px;
     padding: 3px 6px;
     border-radius: 4px;
     cursor: pointer;
@@ -267,10 +268,19 @@ body[data-page="viewer3d"] {
 }
 .v3d-tree-folder:hover { background: var(--bg-tertiary, #f3f4f6); }
 [data-theme="dark"] .v3d-tree-folder:hover { background: #2a2a30; }
+.v3d-folder-check {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+    accent-color: var(--primary-color, #667eea);
+}
 .v3d-folder-toggle {
     display: inline-flex; align-items: center; gap: 5px;
     color: var(--text-primary);
     font-size: 12px;
+    flex: 1;
+    cursor: pointer;
 }
 .v3d-tree-arrow {
     display: inline-block;

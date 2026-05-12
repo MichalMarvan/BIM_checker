@@ -401,12 +401,17 @@ function renderPickerFolderRecursive(folderId, level) {
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
     const safeId = escAttr(folderId);
-    const count = getAllFilesInFolder(folderId).length;
+    const allInFolder = getAllFilesInFolder(folderId);
+    const count = allInFolder.length;
+    const checkedCount = allInFolder.filter(fid => pickerState.selected.has(fid)).length;
+    const allChecked = count > 0 && checkedCount === count;
+    const someChecked = checkedCount > 0 && checkedCount < count;
 
     let html = '';
     if (folderId !== 'root') {
         html += `
             <div class="v3d-tree-folder" style="padding-left: ${level * 14}px;">
+                <input type="checkbox" class="v3d-folder-check" data-folder-id="${safeId}" ${allChecked ? 'checked' : ''} ${someChecked ? 'data-indeterminate="1"' : ''}>
                 <span data-folder-id="${safeId}" class="v3d-folder-toggle">
                     <span class="v3d-tree-arrow">${arrow}</span>
                     <span class="v3d-tree-name">📁 ${escapeHtml(folder.name)}</span>
@@ -450,6 +455,11 @@ function refreshPickerSelectionCount() {
 }
 
 function attachPickerTreeListeners(listEl, modal) {
+    // Apply :indeterminate state on partial-folder checkboxes (cannot set via HTML attribute)
+    listEl.querySelectorAll('.v3d-folder-check[data-indeterminate="1"]').forEach(input => {
+        input.indeterminate = true;
+    });
+
     listEl.querySelectorAll('.v3d-folder-toggle').forEach(el => {
         el.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -461,6 +471,25 @@ function attachPickerTreeListeners(listEl, modal) {
             attachPickerTreeListeners(listEl, modal);
         });
     });
+
+    listEl.querySelectorAll('.v3d-folder-check').forEach(input => {
+        input.addEventListener('click', (e) => e.stopPropagation());
+        input.addEventListener('change', (e) => {
+            e.stopPropagation();
+            const folderId = input.dataset.folderId;
+            if (!folderId) return;
+            const allInFolder = getAllFilesInFolder(folderId);
+            const allChecked = allInFolder.length > 0 && allInFolder.every(fid => pickerState.selected.has(fid));
+            if (allChecked) {
+                allInFolder.forEach(fid => pickerState.selected.delete(fid));
+            } else {
+                allInFolder.forEach(fid => pickerState.selected.add(fid));
+            }
+            listEl.innerHTML = renderPickerFolderRecursive('root', 0);
+            attachPickerTreeListeners(listEl, modal);
+            refreshPickerSelectionCount();
+        });
+    });
     listEl.querySelectorAll('.v3d-picker-check').forEach(input => {
         input.addEventListener('change', (e) => {
             e.stopPropagation();
@@ -468,6 +497,9 @@ function attachPickerTreeListeners(listEl, modal) {
             if (!fileId) return;
             if (input.checked) pickerState.selected.add(fileId);
             else pickerState.selected.delete(fileId);
+            // Re-render so parent folder checkbox reflects the new aggregate state
+            listEl.innerHTML = renderPickerFolderRecursive('root', 0);
+            attachPickerTreeListeners(listEl, modal);
             refreshPickerSelectionCount();
         });
     });
