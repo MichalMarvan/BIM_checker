@@ -93,7 +93,6 @@
                 <div class="folder-banner__path" title="${_escapeHtml(folderName)}">📁 ${_escapeHtml(folderName)}</div>
                 <button class="btn-icon-modern folder-banner__rescan" title="${t('storage.folder.rescan')}">🔄</button>
             </div>
-            <div class="folder-banner__count">${count} ${type === 'ifc' ? 'IFC' : 'IDS'}</div>
             <div class="folder-banner__readonly" data-i18n="storage.folder.readOnlyHint">⚠ Read-only — edits stay in the browser for now</div>
             ${treeHtml}
         `;
