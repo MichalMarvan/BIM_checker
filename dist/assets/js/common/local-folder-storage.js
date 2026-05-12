@@ -21,6 +21,7 @@ class LocalFolderStorageBackend {
         this.root = rootDirHandle;
         this.rootName = rootDirHandle ? rootDirHandle.name : null;
         this._fileCache = new Map();
+        this._readMtimes = new Map();
         this._initialized = !!rootDirHandle;
     }
 
@@ -202,6 +203,7 @@ class LocalFolderStorageBackend {
             || Array.from(this._fileCache.values()).find(r => r.name === fileId && r.type === type);
         if (!record) throw new Error(`File not found in local folder: ${fileId}`);
         const file = await record.handle.getFile();
+        this._readMtimes.set(record.path, file.lastModified);
         return await file.arrayBuffer();
     }
 
@@ -220,6 +222,46 @@ class LocalFolderStorageBackend {
 
     async listFolders(_type) {
         return [];
+    }
+
+    /**
+     * Save edited content back to an existing file.
+     * Detects external changes via mtime mismatch (unless force=true).
+     * When a conflict is detected (and force=false), the result includes
+     * { error: 'conflict_external_change', currentMtime, knownMtime } alongside
+     * { ok: true } — the write still proceeds so callers can inspect both outcomes.
+     * Use force=true to suppress conflict info entirely.
+     */
+    async saveFileContent(type, path, content, { force = false } = {}) {
+        const record = this._fileCache.get(path)
+            || Array.from(this._fileCache.values()).find(r => r.name === path && r.type === type);
+        if (!record) return { error: 'file_not_found', message: 'File handle missing — rescan the folder' };
+
+        let conflictInfo = null;
+        if (!force && this._readMtimes.has(record.path)) {
+            const currentFile = await record.handle.getFile();
+            const knownMtime = this._readMtimes.get(record.path);
+            if (currentFile.lastModified > knownMtime) {
+                conflictInfo = {
+                    error: 'conflict_external_change',
+                    currentMtime: currentFile.lastModified,
+                    knownMtime,
+                    message: 'File was modified externally since you opened it'
+                };
+            }
+        }
+
+        try {
+            const writable = await record.handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            const newFile = await record.handle.getFile();
+            this._readMtimes.set(record.path, newFile.lastModified);
+            record.size = newFile.size;
+            return { ok: true, mtime: newFile.lastModified, size: newFile.size, ...conflictInfo };
+        } catch (e) {
+            return { error: 'write_failed', message: e.message };
+        }
     }
 
     _readOnlyError() {
