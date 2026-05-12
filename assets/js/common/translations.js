@@ -1104,6 +1104,10 @@ const translations = {
         'ai.tool.localFolder.unsupported': 'Tvůj prohlížeč nepodporuje propojení s místní složkou. Použij Chrome nebo Edge na desktop.',
         'ai.tool.localFolder.userCancelled': 'Uživatel zrušil výběr složky.',
         'ai.tool.localFolder.notConnected': 'Není připojená žádná místní složka.',
+        'ai.tool.localFolder.saved': 'Soubor uložen.',
+        'ai.tool.localFolder.savedAsCopy': 'Soubor uložen jako kopie: {name}',
+        'ai.tool.localFolder.overwritten': 'Soubor přepsán: {path}',
+        'ai.tool.localFolder.conflictDetected': 'Soubor byl externě změněn. Použij Save as copy nebo Force overwrite.',
         'chat.emptyConversation': '(prázdná konverzace)',
 
         // === BUG REPORT ===
@@ -2249,6 +2253,10 @@ const translations = {
         'ai.tool.localFolder.unsupported': 'Your browser does not support local folder integration. Use Chrome or Edge on desktop.',
         'ai.tool.localFolder.userCancelled': 'User cancelled folder selection.',
         'ai.tool.localFolder.notConnected': 'No local folder connected.',
+        'ai.tool.localFolder.saved': 'File saved.',
+        'ai.tool.localFolder.savedAsCopy': 'File saved as copy: {name}',
+        'ai.tool.localFolder.overwritten': 'File overwritten: {path}',
+        'ai.tool.localFolder.conflictDetected': 'File was externally modified. Use Save as copy or Force overwrite.',
         'chat.emptyConversation': '(empty conversation)',
 
         // === BUG REPORT ===

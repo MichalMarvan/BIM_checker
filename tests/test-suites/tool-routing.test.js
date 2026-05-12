@@ -9,18 +9,18 @@ describe('tool-catalog', () => {
         defs = await import('../../assets/js/ai/tool-defs.js');
     });
 
-    it('TOOL_CATEGORIES covers exactly all 60 tool names from TOOL_DEFINITIONS', async () => {
+    it('TOOL_CATEGORIES covers exactly all 63 tool names from TOOL_DEFINITIONS', async () => {
         const catalogNames = new Set(catalog.getAllToolNames());
         const defNames = new Set(defs.TOOL_DEFINITIONS.map(d => d.function.name));
-        expect(catalogNames.size).toBe(60);
-        expect(defNames.size).toBe(60);
+        expect(catalogNames.size).toBe(63);
+        expect(defNames.size).toBe(63);
         let missing = 0;
         for (const n of defNames) if (!catalogNames.has(n)) missing++;
         expect(missing).toBe(0);
     });
 
-    it('TOTAL_TOOLS equals 60', async () => {
-        expect(catalog.TOTAL_TOOLS).toBe(60);
+    it('TOTAL_TOOLS equals 63', async () => {
+        expect(catalog.TOTAL_TOOLS).toBe(63);
     });
 
     it('getCategoryForTool returns correct category for known tool', async () => {
@@ -87,12 +87,12 @@ describe('chat-panel tool filtering', () => {
         defs = await import('../../assets/js/ai/tool-defs.js');
     });
 
-    it('filter passes all 60 tools when enabledTools is null', async () => {
+    it('filter passes all 63 tools when enabledTools is null', async () => {
         const enabledTools = null;
         const filteredTools = (enabledTools && Array.isArray(enabledTools))
             ? defs.TOOL_DEFINITIONS.filter(t => enabledTools.includes(t.function.name))
             : defs.TOOL_DEFINITIONS;
-        expect(filteredTools.length).toBe(60);
+        expect(filteredTools.length).toBe(63);
     });
 
     it('filter restricts to whitelist when enabledTools is array', async () => {

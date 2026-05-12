@@ -427,6 +427,60 @@ async function tool_get_storage_info(_args) {
     };
 }
 
+async function tool_save_file_to_folder(args) {
+    const backend = window.BIMStorage.backend;
+    if (!backend || backend.kind !== 'localFolder') {
+        return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
+    }
+    if (!window.BIMSaveFile) {
+        return { error: 'feature_unavailable', message: 'BIMSaveFile helper not loaded' };
+    }
+    const result = await window.BIMSaveFile.save({
+        type: args.fileType,
+        path: args.path,
+        name: args.name,
+        content: args.content,
+        folderPath: args.folderPath || ''
+    });
+    if (result.ok) {
+        return {
+            ok: true,
+            mode: result.mode,
+            finalPath: result.finalPath,
+            finalName: result.finalName || args.name
+        };
+    }
+    return { error: result.reason || 'save_failed', message: result.message };
+}
+
+async function tool_check_folder_writable(_args) {
+    const backend = window.BIMStorage.backend;
+    if (!backend) return { writable: false, reason: 'no_backend' };
+    if (backend.kind !== 'localFolder') return { writable: false, reason: 'not_folder_mode' };
+    if (!backend.root) return { writable: false, reason: 'no_handle' };
+    try {
+        const perm = await backend.root.queryPermission({ mode: 'readwrite' });
+        return { writable: perm === 'granted', permission: perm };
+    } catch (e) {
+        return { writable: false, reason: 'query_failed', message: e.message };
+    }
+}
+
+async function tool_get_file_mtime(args) {
+    const backend = window.BIMStorage.backend;
+    if (!backend || backend.kind !== 'localFolder') {
+        return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
+    }
+    const record = backend._fileCache && backend._fileCache.get(args.path);
+    if (!record) return { error: 'file_not_found', message: 'File not in cache — rescan' };
+    try {
+        const file = await record.handle.getFile();
+        return { mtime: file.lastModified, size: file.size, name: record.name };
+    } catch (e) {
+        return { error: 'read_failed', message: e.message };
+    }
+}
+
 export function register(registerFn) {
     registerFn('list_storage_files', list_storage_files);
     registerFn('list_storage_folders', list_storage_folders);
@@ -444,4 +498,7 @@ export function register(registerFn) {
     registerFn('disconnect_local_folder', tool_disconnect_local_folder);
     registerFn('rescan_local_folder', tool_rescan_local_folder);
     registerFn('get_storage_info', tool_get_storage_info);
+    registerFn('save_file_to_folder', tool_save_file_to_folder);
+    registerFn('check_folder_writable', tool_check_folder_writable);
+    registerFn('get_file_mtime', tool_get_file_mtime);
 }

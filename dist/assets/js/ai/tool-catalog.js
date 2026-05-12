@@ -54,7 +54,10 @@ export const TOOL_CATEGORIES = [
             { name: 'connect_local_folder', labelKey: 'ai.tool.connect_local_folder.label' },
             { name: 'disconnect_local_folder', labelKey: 'ai.tool.disconnect_local_folder.label' },
             { name: 'rescan_local_folder', labelKey: 'ai.tool.rescan_local_folder.label' },
-            { name: 'get_storage_info', labelKey: 'ai.tool.get_storage_info.label' }
+            { name: 'get_storage_info', labelKey: 'ai.tool.get_storage_info.label' },
+            { name: 'save_file_to_folder', labelKey: 'ai.tool.save_file_to_folder.label' },
+            { name: 'check_folder_writable', labelKey: 'ai.tool.check_folder_writable.label' },
+            { name: 'get_file_mtime', labelKey: 'ai.tool.get_file_mtime.label' }
         ]
     },
     {
