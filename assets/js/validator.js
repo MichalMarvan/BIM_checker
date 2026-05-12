@@ -11,6 +11,15 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Escape for use inside an HTML attribute value (data-*, etc).
+// Preserves all characters losslessly so dataset reads back the original via HTML parser decode.
+function escapeAttr(text) {
+    if (text === null || text === undefined) return '';
+    return String(text).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
 let ifcFiles = [];
 let idsFiles = [];
 let validationResults = null;
@@ -2017,8 +2026,8 @@ function renderIfcFolderRecursive(folderId, level) {
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
 
-    // Sanitize folderId to prevent XSS (only allow alphanumeric, underscore, hyphen)
-    const safeFolderId = String(folderId).replace(/[^a-zA-Z0-9_-]/g, '');
+    // HTML-escape for attribute; preserves '/' and '.' so folder-mode paths survive round-trip via dataset
+    const safeFolderId = escapeAttr(folderId);
 
     let html = '';
 
@@ -2054,8 +2063,7 @@ function renderIfcFolderRecursive(folderId, level) {
                     return;
                 }
 
-                // Sanitize fileId
-                const safeFileId = String(fileId).replace(/[^a-zA-Z0-9_-]/g, '');
+                const safeFileId = escapeAttr(fileId);
                 const isSelected = selectedIfcFiles.has(fileId);
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
@@ -2366,8 +2374,8 @@ function renderIdsFolderRecursive(folderId, level) {
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
 
-    // Sanitize folderId to prevent XSS (only allow alphanumeric, underscore, hyphen)
-    const safeFolderId = String(folderId).replace(/[^a-zA-Z0-9_-]/g, '');
+    // HTML-escape for attribute; preserves '/' and '.' so folder-mode paths survive round-trip via dataset
+    const safeFolderId = escapeAttr(folderId);
 
     let html = '';
 
@@ -2397,8 +2405,7 @@ function renderIdsFolderRecursive(folderId, level) {
                     return;
                 }
 
-                // Sanitize fileId
-                const safeFileId = String(fileId).replace(/[^a-zA-Z0-9_-]/g, '');
+                const safeFileId = escapeAttr(fileId);
                 const isSelected = selectedIdsFile === fileId;
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
