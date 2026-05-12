@@ -1851,3 +1851,63 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
     font-style: italic;
     font-size: 0.85rem;
 }
+
+/* === Save-to-folder dialog === */
+.save-to-folder-dialog__container {
+    max-width: 540px;
+    width: 95%;
+}
+.save-to-folder-dialog__file {
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+.save-to-folder-dialog__size {
+    color: var(--text-tertiary);
+    font-size: 0.9rem;
+    margin-left: 8px;
+}
+.save-to-folder-dialog__options {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.save-to-folder-dialog__option {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid var(--border-primary);
+}
+.save-to-folder-dialog__option:has(input:checked) {
+    border-color: var(--primary-color, #667eea);
+    background: rgba(102, 126, 234, 0.06);
+}
+.save-to-folder-dialog__option input[type="radio"] {
+    margin-top: 4px;
+}
+.save-to-folder-dialog__option > span {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+.save-to-folder-dialog__warn {
+    color: var(--warning, #f59e0b);
+    font-size: 0.85rem;
+}
+.save-to-folder-dialog__folder {
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+.save-to-folder-dialog__name {
+    margin-top: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    width: 100%;
+    box-sizing: border-box;
+}
