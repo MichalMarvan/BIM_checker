@@ -54,8 +54,11 @@ function setupCanvas() {
     canvas.style.height = '100%';
     canvas.style.display = 'block';
     const rect = container.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.floor(rect.width));
-    canvas.height = Math.max(1, Math.floor(rect.height));
+    const w = Math.max(1, Math.floor(rect.width));
+    const h = Math.max(1, Math.floor(rect.height));
+    canvas.width = w;
+    canvas.height = h;
+    console.log('[3d-viewer] canvas created:', w, '×', h, '(container rect:', rect.width, '×', rect.height, ')');
     container.appendChild(canvas);
     state.canvas = canvas;
     return canvas;
@@ -168,10 +171,36 @@ async function loadIfcFromStorage(fileMeta) {
 
         state.loadedModels.set(modelId, { name: fileMeta.name, stats });
         renderLoadedList();
+
+        // Force a resize sync — covers the case where canvas was created
+        // before the container had layout dimensions (rare with our flex setup
+        // but cheap insurance, especially across mobile/tablet form factors).
+        try {
+            const c = state.canvas;
+            const container = document.getElementById('viewerContainer');
+            if (c && container) {
+                const r = container.getBoundingClientRect();
+                const w = Math.max(1, Math.floor(r.width));
+                const h = Math.max(1, Math.floor(r.height));
+                console.log('[3d-viewer] post-load resize sync:', w, '×', h);
+                if (typeof engine.resize === 'function') engine.resize(w, h);
+            }
+        } catch (e) { console.warn('[3d-viewer] resize sync failed:', e); }
+
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
             try { engine.fitAll(); console.log('[3d-viewer] fitAll done'); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
         }
+
+        // Diagnostic: log camera position + bounding box after fitAll
+        try {
+            const v = engine._viewer;
+            if (v && v._camera) {
+                console.log('[3d-viewer] camera position:', v._camera.position.toArray());
+                console.log('[3d-viewer] controls target:', v._controls && v._controls.target ? v._controls.target.toArray() : null);
+            }
+        } catch (e) { /* ignore */ }
+
         if (meshCount === 0) {
             setStatus(`⚠ ${fileMeta.name} — 0 mesh (geometrie tohoto IFC zatím není podporovaná)`, 'error');
         } else {
