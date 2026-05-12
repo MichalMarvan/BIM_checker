@@ -1234,6 +1234,24 @@ function _exportToXLSX() {
 
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary', true);
 
+    // Folder mode: write report directly into connected folder root
+    const backend = window.BIMStorage && window.BIMStorage.backend;
+    if (backend && backend.kind === 'localFolder') {
+        try {
+            const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+            backend.writeNewFile('ids', '', 'ids-validation-results.xlsx', buf).then(result => {
+                if (result && result.error) {
+                    ErrorHandler.error(t('validator.export.failed') + ' ' + (result.message || result.error));
+                } else if (result && result.ok) {
+                    ErrorHandler.success(t('validator.reportSavedToFolder') + ' ' + result.finalName);
+                }
+            });
+        } catch (e) {
+            ErrorHandler.error(t('validator.export.failed') + ' ' + (e.message || e));
+        }
+        return;
+    }
+
     // Generate and download
     XLSX.writeFile(wb, 'ids-validation-results.xlsx');
 }
@@ -1278,6 +1296,15 @@ if (collapseAllBtn) {
 
 if (exportBtn) {
     exportBtn.addEventListener('click', exportToXLSX);
+    const updateExportLabel = () => {
+        const isFolder = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+        const key = isFolder ? 'validator.saveReportToFolder' : 'validator.exportExcel';
+        exportBtn.setAttribute('data-i18n', key);
+        exportBtn.innerHTML = '📥 ' + t(key);
+    };
+    updateExportLabel();
+    document.addEventListener('storage:backendChanged', updateExportLabel);
+    window.addEventListener('languageChanged', updateExportLabel);
 }
 
 if (newValidationBtn) {

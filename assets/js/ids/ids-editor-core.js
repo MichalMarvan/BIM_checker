@@ -36,10 +36,19 @@ class IDSEditorCore {
             toggleEditBtn.addEventListener('click', () => this.toggleEditMode());
         }
 
-        // Download IDS button
+        // Download/Save IDS button — label adapts to folder vs IDB backend
         const downloadBtn = document.getElementById('downloadIdsBtn');
         if (downloadBtn) {
             downloadBtn.addEventListener('click', () => this.downloadIDS());
+            const updateLabel = () => {
+                const isFolder = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+                const key = isFolder ? 'parser.saveToFolder' : 'parser.download';
+                downloadBtn.setAttribute('data-i18n', key);
+                downloadBtn.innerHTML = '💾 ' + t(key);
+            };
+            updateLabel();
+            document.addEventListener('storage:backendChanged', updateLabel);
+            window.addEventListener('languageChanged', updateLabel);
         }
 
         // Warn before leaving with unsaved changes
@@ -897,15 +906,52 @@ class IDSEditorCore {
     }
 
     /**
-     * Download IDS
+     * Download IDS (IDB mode) or save back to connected folder (folder mode).
      */
-    downloadIDS() {
+    async downloadIDS() {
         if (!this.idsData) {
             alert(t('editor.noDataToSave'));
             return;
         }
 
         const filename = (this.idsData.title || 'specification').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.ids';
+        const backend = window.BIMStorage && window.BIMStorage.backend;
+        const isFolderMode = backend && backend.kind === 'localFolder';
+
+        if (isFolderMode) {
+            const xml = this.xmlGenerator.generateIDS(this.idsData);
+            const path = window._currentIDSPath;
+            const folderPath = window._currentIDSFolder || '';
+            const name = window._currentIDSName || filename;
+
+            try {
+                if (path && window.BIMSaveFile) {
+                    const result = await window.BIMSaveFile.save({ type: 'ids', path, name, content: xml, folderPath });
+                    if (result.ok) {
+                        this.hasUnsavedChanges = false;
+                        this.showMessage(t('editor.idsSavedToFolder') + ' ' + (result.finalName || result.finalPath || name), 'success');
+                    } else if (result.reason !== 'user_cancelled' && result.reason !== 'user_cancelled_conflict') {
+                        this.showMessage(t('editor.idsSaveFailed') + ' ' + (result.message || result.reason), 'error');
+                    }
+                } else {
+                    const result = await backend.writeNewFile('ids', '', filename, xml);
+                    if (result.error) {
+                        this.showMessage(t('editor.idsSaveFailed') + ' ' + (result.message || result.error), 'error');
+                    } else {
+                        this.hasUnsavedChanges = false;
+                        window._currentIDSPath = result.path;
+                        window._currentIDSName = result.finalName;
+                        window._currentIDSFolder = '';
+                        this.showMessage(t('editor.idsSavedToFolder') + ' ' + result.finalName, 'success');
+                    }
+                }
+            } catch (e) {
+                console.error('IDS save (folder mode) failed:', e);
+                this.showMessage(t('editor.idsSaveFailed') + ' ' + (e.message || e), 'error');
+            }
+            return;
+        }
+
         this.xmlGenerator.downloadIDS(this.idsData, filename);
         this.hasUnsavedChanges = false;
         this.showMessage(t('editor.idsDownloaded'), 'success');
