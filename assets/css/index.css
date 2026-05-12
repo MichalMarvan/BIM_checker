@@ -1727,3 +1727,44 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
     }
     .local-folder-popup__actions .btn { width: 100%; min-height: 44px; }
 }
+
+/* === Folder mode banner on storage cards === */
+.folder-banner {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+    border: 1px solid var(--primary-light, #818cf8);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+.folder-banner__path {
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-all;
+    margin-bottom: 8px;
+}
+.folder-banner__readonly {
+    color: var(--warning, #f59e0b);
+    font-size: 0.8rem;
+    margin-top: 6px;
+}
+.folder-banner__count {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 6px;
+}
+.folder-banner__error {
+    color: var(--error, #ef4444);
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.folder-banner__actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.folder-banner__rescan {
+    width: 36px;
+    height: 36px;
+}

@@ -7,6 +7,26 @@
  * Dependencies: storage.js (IndexedDBStorage, StorageManager)
  */
 
+// Restore previously-selected storage backend on page load
+(async () => {
+    const preferred = localStorage.getItem('activeBackend');
+    if (preferred === 'localFolder' && window.LocalFolderStorageBackend && window.LocalFolderStorageBackend.isSupported()) {
+        const lf = new window.LocalFolderStorageBackend();
+        const result = await lf.restoreFromIndexedDB();
+        if (result.state === 'connected') {
+            await lf.scan();
+            window.BIMStorage.setBackend(lf);
+        } else if (result.state === 'needs_permission') {
+            lf._pendingPermission = true;
+            lf._pendingFolderName = result.name;
+            window.BIMStorage.setBackend(lf);
+        } else if (result.state === 'denied') {
+            window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
+            if (window.BIMStorageCardFolderStates) window.BIMStorageCardFolderStates.refresh();
+        }
+    }
+})();
+
 // =======================
 // FILE PANEL
 // =======================

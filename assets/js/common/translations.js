@@ -63,6 +63,13 @@ const translations = {
         'storage.popup.try': 'Zkusit teď',
         'storage.popup.later': 'Možná později',
         'storage.popup.never': '✕ Neukazovat znovu',
+        'storage.folder.rescan': 'Obnovit',
+        'storage.folder.readOnlyHint': '⚠ Read-only — úpravy budou zatím v prohlížeči',
+        'storage.folder.connectPrompt': 'Připojit místní složku?',
+        'storage.folder.connect': '📂 Připojit',
+        'storage.folder.useDB': '💾 Použít prohlížeč',
+        'storage.folder.unavailable': '⚠ Složka nedostupná',
+        'storage.folder.reconnect': '📂 Znovu připojit',
 
         // === TLAČÍTKA ===
         'btn.back': 'Domů',
@@ -1190,6 +1197,13 @@ const translations = {
         'storage.popup.try': 'Try now',
         'storage.popup.later': 'Maybe later',
         'storage.popup.never': '✕ Don\'t show again',
+        'storage.folder.rescan': 'Refresh',
+        'storage.folder.readOnlyHint': '⚠ Read-only — edits stay in the browser for now',
+        'storage.folder.connectPrompt': 'Connect a local folder?',
+        'storage.folder.connect': '📂 Connect',
+        'storage.folder.useDB': '💾 Use browser',
+        'storage.folder.unavailable': '⚠ Folder unavailable',
+        'storage.folder.reconnect': '📂 Reconnect',
 
         // === BUTTONS ===
         'btn.back': 'Home',
