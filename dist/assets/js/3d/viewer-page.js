@@ -4,13 +4,15 @@
 /**
  * 3D Viewer page bootstrap.
  * Wires the BIM_checker UI shell (storage picker, navbar) to the IFC engine.
- * Phase 0: pick IFC from BIMStorage → engine.loadIfc(arrayBuffer) → render.
+ *
+ * Engine is loaded LAZILY on first IFC load so a top-level import failure
+ * (CDN, missing module, etc.) doesn't break the UI / picker. The user gets
+ * a clear status error instead of a silently dead button.
  */
-
-import { IfcEngine } from './ifc-engine/index.js';
 
 const state = {
     engine: null,
+    enginePromise: null,
     canvas: null,
     loadedModels: new Map() // modelId → { name, stats }
 };
@@ -19,9 +21,31 @@ function t(key) {
     return (window.i18n && window.i18n.t) ? window.i18n.t(key) : key;
 }
 
+function setStatus(msg, kind = 'info') {
+    const el = document.getElementById('viewer3dStatus');
+    if (!el) return;
+    el.textContent = msg;
+    el.dataset.kind = kind;
+    el.hidden = !msg;
+}
+
+function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = String(s ?? '');
+    return d.innerHTML;
+}
+
+function formatBytes(b) {
+    if (!b) return '0 B';
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function setupCanvas() {
     const container = document.getElementById('viewerContainer');
     if (!container) throw new Error('viewerContainer not found');
+    if (state.canvas) return state.canvas;
 
     const canvas = document.createElement('canvas');
     canvas.style.width = '100%';
@@ -35,34 +59,56 @@ function setupCanvas() {
     return canvas;
 }
 
-function initEngine() {
-    const canvas = setupCanvas();
-    state.engine = new IfcEngine({ canvas });
+/**
+ * Lazy-load the IFC engine on first use. Cached promise so subsequent calls
+ * reuse the same instance. Any import-time failure (CDN, deep submodule)
+ * surfaces here, not at page load, so the UI / picker stays alive.
+ */
+function getEngine() {
+    if (state.enginePromise) return state.enginePromise;
+    state.enginePromise = (async () => {
+        setStatus(t('viewer3d.initEngine') || 'Inicializuji 3D engine…');
+        const mod = await import('./ifc-engine/index.js');
+        const canvas = setupCanvas();
+        const engine = new mod.IfcEngine({ canvas });
 
-    if (typeof ResizeObserver !== 'undefined') {
-        const container = document.getElementById('viewerContainer');
-        const ro = new ResizeObserver(() => {
-            const r = container.getBoundingClientRect();
-            const w = Math.max(1, Math.floor(r.width));
-            const h = Math.max(1, Math.floor(r.height));
-            if (canvas.width !== w || canvas.height !== h) {
-                canvas.width = w;
-                canvas.height = h;
-                state.engine.resize(w, h);
-            }
-        });
-        ro.observe(container);
-    }
+        if (typeof ResizeObserver !== 'undefined') {
+            const container = document.getElementById('viewerContainer');
+            const ro = new ResizeObserver(() => {
+                const r = container.getBoundingClientRect();
+                const w = Math.max(1, Math.floor(r.width));
+                const h = Math.max(1, Math.floor(r.height));
+                if (canvas.width !== w || canvas.height !== h) {
+                    canvas.width = w;
+                    canvas.height = h;
+                    if (typeof engine.resize === 'function') engine.resize(w, h);
+                }
+            });
+            ro.observe(container);
+        }
 
-    window.__engine = state.engine;
+        state.engine = engine;
+        window.__engine = engine;
+        return engine;
+    })().catch(err => {
+        state.enginePromise = null;
+        console.error('[3D viewer] engine init failed:', err);
+        setStatus(`✗ Engine init: ${err.message || err}`, 'error');
+        throw err;
+    });
+    return state.enginePromise;
 }
 
-function setStatus(msg, kind = 'info') {
-    const el = document.getElementById('viewer3dStatus');
-    if (!el) return;
-    el.textContent = msg;
-    el.dataset.kind = kind;
-    el.hidden = !msg;
+function updateFileChip(name) {
+    const chip = document.getElementById('v3dFileInfo');
+    const label = document.getElementById('v3dFileName');
+    if (!chip || !label) return;
+    if (name) {
+        label.textContent = name;
+        chip.hidden = false;
+    } else {
+        chip.hidden = true;
+    }
 }
 
 function renderLoadedList() {
@@ -85,35 +131,15 @@ function renderLoadedList() {
     list.querySelectorAll('.v3d-loaded-item__remove').forEach(btn => {
         btn.addEventListener('click', () => removeModel(btn.dataset.modelId));
     });
-    // Update navbar file chip with the most recently loaded model's name
     const lastEntry = Array.from(state.loadedModels.values()).pop();
     updateFileChip(lastEntry ? lastEntry.name : null);
 }
 
-function updateFileChip(name) {
-    const chip = document.getElementById('v3dFileInfo');
-    const label = document.getElementById('v3dFileName');
-    if (!chip || !label) return;
-    if (name) {
-        label.textContent = name;
-        chip.hidden = false;
-    } else {
-        chip.hidden = true;
-    }
-}
-
-function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = String(s ?? '');
-    return d.innerHTML;
-}
-
 async function loadIfcFromStorage(fileMeta) {
     try {
-        setStatus(t('viewer3d.loading') || `Načítám ${fileMeta.name}…`);
+        setStatus(`${t('viewer3d.loading') || 'Načítám'} ${fileMeta.name}…`);
         const raw = await window.BIMStorage.getFileContent('ifc', fileMeta.id);
-        if (!raw) throw new Error('No content');
-        // Engine accepts ArrayBuffer or Uint8Array
+        if (!raw) throw new Error('Empty file content');
         let buffer;
         if (raw instanceof ArrayBuffer) {
             buffer = raw;
@@ -124,11 +150,12 @@ async function loadIfcFromStorage(fileMeta) {
         } else {
             buffer = raw;
         }
-        const modelId = await state.engine.loadIfc(buffer, { name: fileMeta.name });
-        const stats = state.engine.getStats(modelId);
+        const engine = await getEngine();
+        const modelId = await engine.loadIfc(buffer, { name: fileMeta.name });
+        const stats = (typeof engine.getStats === 'function') ? engine.getStats(modelId) : null;
         state.loadedModels.set(modelId, { name: fileMeta.name, stats });
         renderLoadedList();
-        setStatus(`✓ ${fileMeta.name} — ${stats ? stats.entityCount : '?'} entit`, 'success');
+        setStatus(`✓ ${fileMeta.name}${stats ? ` — ${stats.entityCount} entit` : ''}`, 'success');
     } catch (e) {
         console.error('IFC load failed:', e);
         setStatus(`✗ ${e.message || e}`, 'error');
@@ -139,11 +166,8 @@ async function loadIfcFromStorage(fileMeta) {
 }
 
 function removeModel(modelId) {
-    if (!state.engine) return;
-    try {
-        state.engine.removeModel(modelId);
-    } catch (e) {
-        console.warn('removeModel failed:', e);
+    if (state.engine && typeof state.engine.removeModel === 'function') {
+        try { state.engine.removeModel(modelId); } catch (e) { console.warn('removeModel failed:', e); }
     }
     state.loadedModels.delete(modelId);
     renderLoadedList();
@@ -171,12 +195,12 @@ async function openStoragePicker() {
             return;
         }
         listEl.innerHTML = files.map(f => `
-            <div class="viewer3d-picker-item" data-file-id="${escapeHtml(f.id)}">
-                <span class="viewer3d-picker-item__name">📄 ${escapeHtml(f.name)}</span>
-                <span class="viewer3d-picker-item__size">${formatBytes(f.size)}</span>
+            <div class="v3d-picker-item" data-file-id="${escapeHtml(f.id)}">
+                <span class="v3d-picker-item__name">📄 ${escapeHtml(f.name)}</span>
+                <span class="v3d-picker-item__size">${formatBytes(f.size)}</span>
             </div>
         `).join('');
-        listEl.querySelectorAll('.viewer3d-picker-item').forEach(item => {
+        listEl.querySelectorAll('.v3d-picker-item').forEach(item => {
             item.addEventListener('click', () => {
                 const fileId = item.dataset.fileId;
                 const meta = files.find(f => String(f.id) === fileId);
@@ -190,13 +214,6 @@ async function openStoragePicker() {
         console.error('Picker load failed:', e);
         listEl.innerHTML = `<p class="storage-error-message">${escapeHtml(e.message || String(e))}</p>`;
     }
-}
-
-function formatBytes(b) {
-    if (!b) return '0 B';
-    if (b < 1024) return `${b} B`;
-    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-    return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function wireUI() {
@@ -213,11 +230,9 @@ function wireUI() {
         if (e.target === modal) modal.classList.remove('active');
     });
 
-    // Toolbar tool buttons (visual scaffold for Phase 0; not yet wired to engine features)
     document.querySelectorAll('.v3d-tool').forEach(btn => {
         btn.addEventListener('click', () => {
             const tool = btn.dataset.tool;
-            // Toggle active visually (mutually exclusive within row)
             document.querySelectorAll('.v3d-tool').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             const label = btn.title || tool;
@@ -227,9 +242,8 @@ function wireUI() {
 }
 
 function boot() {
-    initEngine();
     wireUI();
-    setStatus(t('viewer3d.empty') || 'Žádný model — klikni na „Načíst IFC" pro výběr.');
+    setStatus(t('viewer3d.empty') || 'Žádný model — klikni na „Načíst IFC".');
 }
 
 if (document.readyState === 'loading') {
