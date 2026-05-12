@@ -161,7 +161,11 @@ async function openStoragePicker() {
     modal.classList.add('active');
 
     try {
-        const files = await window.BIMStorage.listFiles('ifc');
+        if (!window.BIMStorage) throw new Error('BIMStorage not initialized');
+        if (typeof window.BIMStorage.init === 'function') {
+            try { await window.BIMStorage.init(); } catch (_) { /* ignore */ }
+        }
+        const files = await window.BIMStorage.getFiles('ifc');
         if (!files || files.length === 0) {
             listEl.innerHTML = `<p class="storage-empty-message" data-i18n="viewer3d.pickerEmpty">${escapeHtml(t('viewer3d.pickerEmpty') || 'Žádné IFC soubory ve storage.')}</p>`;
             return;
