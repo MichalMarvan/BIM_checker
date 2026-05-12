@@ -7,12 +7,12 @@ describe('settings tool picker (state logic)', () => {
         catalog = await import('../../assets/js/ai/tool-catalog.js');
     });
 
-    it('null enabledTools means all 56 enabled', async () => {
+    it('null enabledTools means all 60 enabled', async () => {
         const enabledTools = null;
         const enabledSet = enabledTools === null || enabledTools === undefined
             ? new Set(catalog.TOOL_CATEGORIES.flatMap(c => c.tools.map(t => t.name)))
             : new Set(enabledTools);
-        expect(enabledSet.size).toBe(56);
+        expect(enabledSet.size).toBe(60);
     });
 
     it('subset enabledTools restricts to those names', async () => {

@@ -354,6 +354,79 @@ export async function replace_file_content(args) {
     return { replaced: true, oldSize, newSize };
 }
 
+// === LocalFolder backend tools ===
+
+async function tool_connect_local_folder(_args) {
+    if (!window.LocalFolderStorageBackend) {
+        return { error: 'feature_unavailable', message: 'Local folder backend not loaded' };
+    }
+    if (!window.LocalFolderStorageBackend.isSupported()) {
+        return { error: 'browser_unsupported', message: t('ai.tool.localFolder.unsupported') };
+    }
+    try {
+        const lf = new window.LocalFolderStorageBackend();
+        const name = await lf.connect();
+        await lf.scan();
+        window.BIMStorage.setBackend(lf);
+        localStorage.setItem('activeBackend', 'localFolder');
+        return { ok: true, folderName: name };
+    } catch (e) {
+        if (e && e.name === 'AbortError') {
+            return { error: 'user_cancelled', message: t('ai.tool.localFolder.userCancelled') };
+        }
+        return { error: 'connect_failed', message: e.message };
+    }
+}
+
+async function tool_disconnect_local_folder(_args) {
+    const current = window.BIMStorage.backend;
+    if (!current || current.kind !== 'localFolder') {
+        return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
+    }
+    await current.disconnect();
+    window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
+    localStorage.setItem('activeBackend', 'indexedDB');
+    return { ok: true };
+}
+
+async function tool_rescan_local_folder(_args) {
+    const current = window.BIMStorage.backend;
+    if (!current || current.kind !== 'localFolder') {
+        return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
+    }
+    const result = await current.scan();
+    return {
+        ok: true,
+        scanned: result.scanned,
+        limited: result.limited,
+        warning: result.warning
+    };
+}
+
+async function tool_get_storage_info(_args) {
+    const b = window.BIMStorage.backend;
+    if (!b) return { backend: 'unknown' };
+    if (b.kind === 'localFolder') {
+        const ifcs = b.getStats ? b.getStats('ifc') : { count: 0 };
+        const idss = b.getStats ? b.getStats('ids') : { count: 0 };
+        return {
+            backend: 'localFolder',
+            folderName: b.rootName || null,
+            ifcCount: ifcs.count,
+            idsCount: idss.count,
+            isReadOnly: b.isReadOnly()
+        };
+    }
+    const ifcs = b.getStats('ifc');
+    const idss = b.getStats('ids');
+    return {
+        backend: 'indexedDB',
+        ifcCount: ifcs.count,
+        idsCount: idss.count,
+        isReadOnly: false
+    };
+}
+
 export function register(registerFn) {
     registerFn('list_storage_files', list_storage_files);
     registerFn('list_storage_folders', list_storage_folders);
@@ -367,4 +440,8 @@ export function register(registerFn) {
     registerFn('get_file_snippet', get_file_snippet);
     registerFn('get_file_summary', get_file_summary);
     registerFn('replace_file_content', replace_file_content);
+    registerFn('connect_local_folder', tool_connect_local_folder);
+    registerFn('disconnect_local_folder', tool_disconnect_local_folder);
+    registerFn('rescan_local_folder', tool_rescan_local_folder);
+    registerFn('get_storage_info', tool_get_storage_info);
 }

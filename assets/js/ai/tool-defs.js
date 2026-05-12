@@ -514,6 +514,38 @@ export const TOOL_DEFINITIONS = [
     {
         type: 'function',
         function: {
+            name: 'connect_local_folder',
+            description: 'Prompts the user to pick a folder on their PC; the app will then browse IFC/IDS files from that folder. Read-only in v1. Requires user gesture context (only works when invoked from a user-initiated chat message). Returns { ok, folderName } or { error }.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'disconnect_local_folder',
+            description: 'Disconnects the local folder and switches storage back to in-browser (IndexedDB). The folder handle is removed; user will need to pick a folder again to reconnect.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'rescan_local_folder',
+            description: 'Re-scans the connected local folder to pick up files added or removed by external tools (e.g., CDE sync). Returns { ok, scanned, limited, warning }.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_storage_info',
+            description: 'Returns information about the active storage backend: { backend: "indexedDB" | "localFolder", folderName?, ifcCount, idsCount, isReadOnly }.',
+            parameters: { type: 'object', properties: {}, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'list_presets',
             description: 'Lists all saved validation presets.',
             parameters: { type: 'object', properties: {} }

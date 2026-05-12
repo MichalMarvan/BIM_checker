@@ -965,6 +965,10 @@ const translations = {
         'ai.tool.get_file_snippet.label': 'Náhled obsahu',
         'ai.tool.get_file_summary.label': 'Souhrn souboru',
         'ai.tool.replace_file_content.label': 'Přepsat obsah',
+        'ai.tool.connect_local_folder.label': 'Připojit místní složku',
+        'ai.tool.disconnect_local_folder.label': 'Odpojit místní složku',
+        'ai.tool.rescan_local_folder.label': 'Znovu načíst složku',
+        'ai.tool.get_storage_info.label': 'Info o úložišti',
         'ai.tool.list_presets.label': 'Seznam presetů',
         'ai.tool.save_preset.label': 'Uložit preset',
         'ai.tool.delete_preset.label': 'Smazat preset',
@@ -1072,6 +1076,9 @@ const translations = {
         'ai.tool.storage.deleteFolderConfirm': 'Smazat složku \'{name}\' ({fileCount} souborů + podsložky)?',
         'ai.tool.storage.replaceContentConfirm': 'Přepsat obsah \'{name}\'?{warning}',
         'ai.tool.localFolder.readOnly': 'Lokální složka je read-only ve v1 — zápis přijde v další verzi.',
+        'ai.tool.localFolder.unsupported': 'Tvůj prohlížeč nepodporuje propojení s místní složkou. Použij Chrome nebo Edge na desktop.',
+        'ai.tool.localFolder.userCancelled': 'Uživatel zrušil výběr složky.',
+        'ai.tool.localFolder.notConnected': 'Není připojená žádná místní složka.',
         'chat.emptyConversation': '(prázdná konverzace)',
 
         // === BUG REPORT ===
@@ -2071,6 +2078,10 @@ const translations = {
         'ai.tool.get_file_snippet.label': 'File content preview',
         'ai.tool.get_file_summary.label': 'File summary',
         'ai.tool.replace_file_content.label': 'Replace content',
+        'ai.tool.connect_local_folder.label': 'Connect local folder',
+        'ai.tool.disconnect_local_folder.label': 'Disconnect local folder',
+        'ai.tool.rescan_local_folder.label': 'Rescan local folder',
+        'ai.tool.get_storage_info.label': 'Storage info',
         'ai.tool.list_presets.label': 'List presets',
         'ai.tool.save_preset.label': 'Save preset',
         'ai.tool.delete_preset.label': 'Delete preset',
@@ -2178,6 +2189,9 @@ const translations = {
         'ai.tool.storage.deleteFolderConfirm': 'Delete folder \'{name}\' ({fileCount} files + subfolders)?',
         'ai.tool.storage.replaceContentConfirm': 'Replace content of \'{name}\'?{warning}',
         'ai.tool.localFolder.readOnly': 'Local folder is read-only in v1 — write support coming in next version.',
+        'ai.tool.localFolder.unsupported': 'Your browser does not support local folder integration. Use Chrome or Edge on desktop.',
+        'ai.tool.localFolder.userCancelled': 'User cancelled folder selection.',
+        'ai.tool.localFolder.notConnected': 'No local folder connected.',
         'chat.emptyConversation': '(empty conversation)',
 
         // === BUG REPORT ===
