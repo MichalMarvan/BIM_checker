@@ -312,6 +312,18 @@ CDE workflow end-to-end: pull from cloud → edit in BIM_checker → save back �
 
 ---
 
+## Projects: multi-folder support ✅
+- [x] `BIMProjects` API (`list / get / add / rename / remove / setActive`) with persistent handles in IDB v2 schema
+- [x] Settings → Storage rewritten with project list, add/rename/remove, radio-switch active
+- [x] Live backend swap on switch (no navigation); confirm guard when editor has unsaved changes
+- [x] Auto-migration of legacy single-handle (one-shot, on first `list()` call)
+- [x] `LocalFolderStorageBackend.connect()` auto-registers project (dedup via `isSameEntry`)
+- [x] Save-target globals (`_currentIDS*` / `_currentIFC*`) reset on switch
+- [x] Validator pickers + last-session restore fixed for folder mode (path-based IDs preserved; `storage:backendChanged` re-applies session after async restore)
+- [x] `Stáhnout IDS` / `Export XLSX` buttons relabel to `Uložit do složky` in folder mode and write through folder backend
+
+---
+
 ## K dokončení (TODO)
 
 ### Vysoká priorita

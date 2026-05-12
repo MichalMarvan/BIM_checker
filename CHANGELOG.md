@@ -6,23 +6,34 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Local folder write-back (v2)** — desktop Chromium users can save edited IFC/IDS files directly to the connected folder
+- **Projects: multiple local folders** — Settings → Storage lists local folders as named projects; radio-switch active project live, with confirm-on-unsaved guard. Editors, viewers, and validator pickers follow the active project. Legacy single-folder users are auto-migrated on first load.
 - `LocalFolderStorageBackend.saveFileContent` — overwrite existing file with mtime conflict detection (`force` bypass option)
 - `LocalFolderStorageBackend.writeNewFile` — create new file with auto-suffix (`_v2`, `_v3`...) on name collision
 - `BIMSaveToFolderDialog` — reusable save dialog with overwrite/copy choices and conflict-resolution variant
 - `BIMSaveFile` — centralized save helper routing per active backend (IDB → direct save; folder → dialog + FS write)
+- `BIMProjects` API (`list / get / add / rename / remove / setActive / getActive`) with persistent handles in IDB v2 schema
 - 3 new AI tools: `save_file_to_folder`, `check_folder_writable`, `get_file_mtime` (60 → 63 total)
 - IDS Editor (`downloadIDS`) + IFC Viewer (`exportModifiedIFC`) save buttons route through `BIMSaveFile` in folder mode
+- IDS Editor "Stáhnout IDS" + Validator "Export XLSX" buttons relabel to "Uložit do složky" in folder mode and write to disk via folder backend
 - mtime tracking on file read; external change detection at save with force-bypass and copy-instead options
 - +23 regression tests (773 → 796)
 
 ### Changed
 - `showDirectoryPicker` now requests `mode: 'readwrite'` (was `'read'` in v1)
 - `LocalFolderStorageBackend.isReadOnly()` returns `false` (was `true` in v1)
+- IDB schema for `bim-checker-fs-handles` bumped v1 → v2 with new `projects` store; legacy `handles.root` migrated on first `BIMProjects.list()`
+- Read-only banners and i18n strings updated to reflect full read/write
 - v1 read-only guards preserved for delete/rename/create-folder operations (those remain blocked)
-- SW cache bumped v48 → v49
+- SW cache bumped v48 → v54 across the combined v1+v2+projects effort
+
+### Fixed
+- Validator IFC/IDS pickers in folder mode: second-level folders now expand and files can be (de)selected — `data-folder-id` / `data-file-id` no longer strip `/` and `.` from path-based IDs
+- Validator last-session restore in folder mode: hydrate decodes ArrayBuffer → UTF-8, and re-applies on `storage:backendChanged` (covers async backend restore and project switching)
+- Parser IDS storage picker now honors folder backend (previously only IDB)
+- Folder mode picker rebuilds metadata on each open so late async backend restore is reflected immediately
 
 ### Notes
-- v2 ships together with v1 in a single combined merge to master.
+- v1 + v2 + projects ship together in a single combined merge to master.
 - CDE workflow end-to-end: pull from cloud → edit in BIM_checker → save back → cloud picks up the change.
 
 ## [0.11.0] - 2026-05-12
