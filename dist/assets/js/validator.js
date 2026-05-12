@@ -2383,6 +2383,9 @@ async function confirmIdsSelection() {
             // IDS content is XML text; folder backend returns ArrayBuffer — decode.
             const decoder = new TextDecoder('utf-8');
             const fileContent = (idsBuf instanceof ArrayBuffer) ? decoder.decode(idsBuf) : idsBuf;
+            window._currentIDSPath = selectedIdsFile;
+            window._currentIDSName = fileMetadata.name;
+            window._currentIDSFolder = selectedIdsFile.includes('/') ? selectedIdsFile.slice(0, selectedIdsFile.lastIndexOf('/')) : '';
             const group = validationGroups[currentGroupIndex];
             group.idsFile = {
                 ...fileMetadata,

@@ -943,6 +943,34 @@ document.addEventListener('DOMContentLoaded', function() {
             const filename = (this.idsData.title || 'specification')
                 .replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.ids';
             const xmlString = this.xmlGenerator.generateIDS(this.idsData);
+
+            // Folder mode: route through BIMSaveFile (writes back to disk)
+            const _isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+            if (_isFolderMode && window._currentIDSPath && window.BIMSaveFile) {
+                try {
+                    const result = await window.BIMSaveFile.save({
+                        type: 'ids',
+                        path: window._currentIDSPath,
+                        name: window._currentIDSName || (window._currentIDSPath.split('/').pop()),
+                        content: xmlString,
+                        folderPath: window._currentIDSFolder || ''
+                    });
+                    if (result.ok) {
+                        this.hasUnsavedChanges = false;
+                        this.showMessage(t('editor.idsDownloaded'), 'success');
+                        if (window.BIMStorageCardFolderStates && window.BIMStorageCardFolderStates.refresh) {
+                            window.BIMStorageCardFolderStates.refresh();
+                        }
+                    } else if (result.reason !== 'user_cancelled' && result.reason !== 'user_cancelled_conflict') {
+                        console.warn('IDS save failed:', result);
+                    }
+                    return;
+                } catch (e) {
+                    console.warn('IDS save errored:', e);
+                }
+            }
+
+            // IndexedDB / fallback: existing download flow
             await attemptDownloadIDS(xmlString, filename);
             this.hasUnsavedChanges = false;
             this.showMessage(t('editor.idsDownloaded'), 'success');

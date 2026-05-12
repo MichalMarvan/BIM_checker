@@ -62,6 +62,9 @@
         if (req.type === 'ifc' && typeof window.handleFiles === 'function') {
             window.handleFiles([file]);
         } else if (req.type === 'ids' && typeof window.handleFile === 'function') {
+            window._currentIDSPath = req.path;
+            window._currentIDSFolder = req.path.includes('/') ? req.path.slice(0, req.path.lastIndexOf('/')) : '';
+            window._currentIDSName = req.name;
             window.handleFile(file);
         } else {
             console.warn('[folder-file-autoload] no handler for type:', req.type);
