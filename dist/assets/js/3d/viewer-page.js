@@ -79,6 +79,10 @@ function getEngine() {
         const mod = await import('./ifc-engine/index.js');
         const canvas = setupCanvas();
         const engine = new mod.IfcEngine({ canvas });
+        // Switch federation to 'manual' so engine's auto-recompute on every
+        // addModel doesn't reset previously-positioned models back to their
+        // (huge) S-JTSK world coords. We feed our own offsets via setModelOffset.
+        try { engine.setFederationMode('manual'); } catch (e) { console.warn('[3d-viewer] setFederationMode failed:', e); }
 
         if (typeof ResizeObserver !== 'undefined') {
             const container = document.getElementById('viewerContainer');
@@ -203,20 +207,20 @@ async function loadIfcFromStorage(fileMeta) {
         // jitter or vanish. Engine's federation auto-mode leaves the FIRST model
         // at its world origin (expects building IFCs with origin near 0), so we
         // do it ourselves here.
-        // Federation strategy (= @thatopen autoCoordinate behavior):
-        // Each model is shifted so its OWN bbox center sits at scene (0,0,0).
-        // This is the "building federation" pattern — different disciplines of
-        // the same site overlay naturally. For civil IFCs whose IfcSite anchors
-        // sit at different S-JTSK origins (file 1 site (-751800,-1041200), file 2
-        // site (-752000,-1040600)) the per-file content visually collapses to a
-        // shared local frame instead of being placed at the literal real-world
-        // delta (205m apart for SO112201 vs SO112402 here).
+        // Federation: shared anchor = FIRST model's world bbox center, so all
+        // subsequent models keep real-world relative positions. Two civil IFCs
+        // sharing S-JTSK origin land where they really are (e.g. 205m apart for
+        // SO112201 vs SO112402 in D214); two same-site discipline models overlap
+        // naturally because their bbox centers coincide.
         //
-        // Cross-CRS or true real-world placement comes later via
-        // engine.setRealWorldCoords + IfcMapConversion or proj4js reprojection.
+        // We push the offset through engine.setModelOffset (manual mode set at
+        // boot) so engine's auto _recomputeFederation on subsequent loads doesn't
+        // reset us back to world coords.
         try {
             const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
             if (internal && internal.group) {
+                // Reset position before measuring so updateMatrixWorld reflects
+                // raw parser output (engine may have applied a federation offset already).
                 internal.group.position.set(0, 0, 0);
                 internal.group.updateMatrixWorld(true);
                 let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
@@ -235,12 +239,22 @@ async function loadIfcFromStorage(fileMeta) {
                     const cy = (minY + maxY) / 2;
                     const cz = (minZ + maxZ) / 2;
                     console.log('[3d-viewer] model world bbox center:', cx, cy, cz);
-                    internal.group.position.set(-cx, -cy, -cz);
+                    if (!state.federationAnchor) {
+                        state.federationAnchor = [cx, cy, cz];
+                        console.log('[3d-viewer] federation anchor set:', state.federationAnchor);
+                    }
+                    const [ax, ay, az] = state.federationAnchor;
+                    const offset = [-ax, -ay, -az];
+                    if (typeof engine.setModelOffset === 'function') {
+                        engine.setModelOffset(modelId, offset);
+                        console.log('[3d-viewer] engine.setModelOffset:', offset);
+                    } else {
+                        internal.group.position.set(-ax, -ay, -az);
+                    }
                     internal.group.updateMatrixWorld(true);
-                    console.log('[3d-viewer] group position after collapse-to-origin:', internal.group.position.toArray());
                 }
             }
-        } catch (e) { console.warn('[3d-viewer] federation collapse failed:', e); }
+        } catch (e) { console.warn('[3d-viewer] federation failed:', e); }
 
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
