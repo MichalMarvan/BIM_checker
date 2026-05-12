@@ -294,6 +294,22 @@ v1 = read-only (browse files from disk). Write-back deferred to v2.
 Desktop Chromium only; mobile/Firefox/Safari fall back gracefully to IndexedDB.
 Use case: connect to a CDE-sync folder (OneDrive/SharePoint/Box) and validate/parse/view IFC/IDS files directly.
 
+## Local Folder Storage v2 (Write-back) ✅
+- [x] LocalFolderStorageBackend: `readwrite` permission at connect, `saveFileContent` + `writeNewFile`
+- [x] mtime tracking on read, external change detection at save with `force` bypass
+- [x] Auto-suffix on filename collision (`_v2`, `_v3`...)
+- [x] `BIMSaveToFolderDialog` component (overwrite/copy variant + conflict variant)
+- [x] `BIMSaveFile` helper — centralized save routing per backend
+- [x] IDS Editor save (`idsEditorCore.downloadIDS`) routed through helper in folder mode
+- [x] IFC Viewer edit save (`exportModifiedIFC`) routed through helper in folder mode
+- [x] 3 new AI tools (`save_file_to_folder`, `check_folder_writable`, `get_file_mtime`) — 63 total
+- [x] Delete/rename/create-folder remain blocked (read-only guards from v1 preserved)
+- [x] +23 new tests (773 → 796)
+
+Branch: local-folder-storage-v2 (stacked on v1; PR combines both for one merge).
+
+CDE workflow end-to-end: pull from cloud → edit in BIM_checker → save back → cloud picks up the change.
+
 ---
 
 ## K dokončení (TODO)

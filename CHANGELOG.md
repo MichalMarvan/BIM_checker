@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0] - 2026-05-12
+
+### Added
+- **Local folder write-back (v2)** — desktop Chromium users can save edited IFC/IDS files directly to the connected folder
+- `LocalFolderStorageBackend.saveFileContent` — overwrite existing file with mtime conflict detection (`force` bypass option)
+- `LocalFolderStorageBackend.writeNewFile` — create new file with auto-suffix (`_v2`, `_v3`...) on name collision
+- `BIMSaveToFolderDialog` — reusable save dialog with overwrite/copy choices and conflict-resolution variant
+- `BIMSaveFile` — centralized save helper routing per active backend (IDB → direct save; folder → dialog + FS write)
+- 3 new AI tools: `save_file_to_folder`, `check_folder_writable`, `get_file_mtime` (60 → 63 total)
+- IDS Editor (`downloadIDS`) + IFC Viewer (`exportModifiedIFC`) save buttons route through `BIMSaveFile` in folder mode
+- mtime tracking on file read; external change detection at save with force-bypass and copy-instead options
+- +23 regression tests (773 → 796)
+
+### Changed
+- `showDirectoryPicker` now requests `mode: 'readwrite'` (was `'read'` in v1)
+- `LocalFolderStorageBackend.isReadOnly()` returns `false` (was `true` in v1)
+- v1 read-only guards preserved for delete/rename/create-folder operations (those remain blocked)
+- SW cache bumped v48 → v49
+
+### Notes
+- v2 ships together with v1 in a single combined merge to master.
+- CDE workflow end-to-end: pull from cloud → edit in BIM_checker → save back → cloud picks up the change.
+
 ## [0.11.0] - 2026-05-12
 
 ### Added
