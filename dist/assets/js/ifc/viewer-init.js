@@ -1576,13 +1576,17 @@ async function loadSelectedFilesFromStorage() {
             closeStoragePickerModal();
 
             const fileArray = Array.from(selectedStorageFiles);
+            const decoder = new TextDecoder('utf-8');
             for (let i = 0; i < fileArray.length; i++) {
                 const fileId = fileArray[i];
                 const meta = storageMetadata && storageMetadata.files && storageMetadata.files[fileId];
                 if (!meta) continue;
                 const buf = await window.BIMStorage.backend.getFileContent('ifc', fileId);
                 if (buf) {
-                    await window.parseIFCAsync(buf, meta.name, i + 1, fileArray.length);
+                    // parseIFCAsync expects string content (IFC is a text format).
+                    // Local folder backend returns ArrayBuffer — decode to text.
+                    const text = (buf instanceof ArrayBuffer) ? decoder.decode(buf) : buf;
+                    await window.parseIFCAsync(text, meta.name, i + 1, fileArray.length);
                 }
             }
 

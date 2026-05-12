@@ -2046,11 +2046,14 @@ async function confirmIfcSelection() {
         try {
             const files = [];
             const meta = ifcStorageData || ifcMetadata;
+            const decoder = new TextDecoder('utf-8');
             for (const fileId of selectedIfcFiles) {
                 const fileMetadata = meta && meta.files && meta.files[fileId];
                 if (!fileMetadata) continue;
-                const fileContent = await window.BIMStorage.backend.getFileContent('ifc', fileId);
-                if (fileContent) {
+                const buf = await window.BIMStorage.backend.getFileContent('ifc', fileId);
+                if (buf) {
+                    // IFC content is text; folder backend returns ArrayBuffer — decode.
+                    const fileContent = (buf instanceof ArrayBuffer) ? decoder.decode(buf) : buf;
                     files.push({
                         ...fileMetadata,
                         content: fileContent
@@ -2372,11 +2375,14 @@ async function confirmIdsSelection() {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
                 return;
             }
-            const fileContent = await window.BIMStorage.backend.getFileContent('ids', selectedIdsFile);
-            if (!fileContent) {
+            const idsBuf = await window.BIMStorage.backend.getFileContent('ids', selectedIdsFile);
+            if (!idsBuf) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
                 return;
             }
+            // IDS content is XML text; folder backend returns ArrayBuffer — decode.
+            const decoder = new TextDecoder('utf-8');
+            const fileContent = (idsBuf instanceof ArrayBuffer) ? decoder.decode(idsBuf) : idsBuf;
             const group = validationGroups[currentGroupIndex];
             group.idsFile = {
                 ...fileMetadata,
