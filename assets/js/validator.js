@@ -3144,6 +3144,12 @@ window.addEventListener('ai:applyLastSession', () => {
     _applyLastSession();
 });
 
+// Re-apply last session when backend swaps (folder restore finishes async after first apply,
+// or user switches between IDB / folder projects in Settings).
+document.addEventListener('storage:backendChanged', () => {
+    _applyLastSession();
+});
+
 window.addEventListener('beforeunload', () => {
     if (typeof ValidationPresets !== 'undefined') {
         ValidationPresets.flushLastSession();
