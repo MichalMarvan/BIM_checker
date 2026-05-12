@@ -57,6 +57,12 @@ const translations = {
         'storage.dropZone.ifc': 'Přetáhněte IFC soubory sem',
         'storage.dropZone.ids': 'Přetáhněte IDS soubory sem',
         'storage.dropHint': 'nebo klikněte pro výběr',
+        'storage.popup.title': 'Nová funkce: místní složka',
+        'storage.popup.body': 'Tvůj prohlížeč podporuje propojení s místní složkou. Můžeš BIM_checker připojit ke složce na PC (např. CDE-sync) a procházet IFC/IDS soubory přímo z disku bez nahrávání.',
+        'storage.popup.note': 'v1 = read-only (zápis přijde později)',
+        'storage.popup.try': 'Zkusit teď',
+        'storage.popup.later': 'Možná později',
+        'storage.popup.never': '✕ Neukazovat znovu',
 
         // === TLAČÍTKA ===
         'btn.back': 'Domů',
@@ -1171,6 +1177,12 @@ const translations = {
         'storage.dropZone.ifc': 'Drop IFC files here',
         'storage.dropZone.ids': 'Drop IDS files here',
         'storage.dropHint': 'or click to select',
+        'storage.popup.title': 'New feature: local folder',
+        'storage.popup.body': 'Your browser supports connecting to a local folder. You can link BIM_checker to a folder on your PC (e.g., a CDE-sync folder) and browse IFC/IDS files directly from disk without uploading.',
+        'storage.popup.note': 'v1 = read-only (write support coming later)',
+        'storage.popup.try': 'Try now',
+        'storage.popup.later': 'Maybe later',
+        'storage.popup.never': '✕ Don\'t show again',
 
         // === BUTTONS ===
         'btn.back': 'Home',
