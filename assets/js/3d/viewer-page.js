@@ -178,6 +178,152 @@ function removeModel(modelId) {
     }
 }
 
+// In-memory state for picker tree
+const pickerState = {
+    folders: {},   // folderId → { id, name, parentId, children: [folderId], files: [fileId] }
+    files: {},     // fileId → { id, name, size, folder }
+    expanded: new Set(['root'])
+};
+
+function escAttr(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/** Build unified {folders, files} from active BIMStorage backend. */
+async function buildPickerTree() {
+    const backend = window.BIMStorage && window.BIMStorage.backend;
+    if (!backend) throw new Error('BIMStorage backend not ready');
+
+    // Folder mode — walk getFolderTree('ifc')
+    if (backend.kind === 'localFolder' && typeof backend.getFolderTree === 'function') {
+        const tree = backend.getFolderTree('ifc');
+        const folders = {};
+        const files = {};
+        function walk(node, parentId, folderId) {
+            folders[folderId] = {
+                id: folderId,
+                name: node.name || 'root',
+                parentId,
+                children: node.subfolders.map(sub => sub.path || sub.name),
+                files: node.files.map(f => f.path)
+            };
+            for (const f of node.files) {
+                files[f.path] = { id: f.path, name: f.name, size: f.size, folder: folderId };
+            }
+            for (const sub of node.subfolders) walk(sub, folderId, sub.path || sub.name);
+        }
+        if (tree) walk(tree, null, 'root');
+        return { folders, files };
+    }
+
+    // IDB mode — read structure from BIMStorage.ifcStorage
+    if (window.BIMStorage.ifcStorage && typeof window.BIMStorage.ifcStorage.loadMetadata === 'function') {
+        await window.BIMStorage.ifcStorage.loadMetadata();
+        const meta = window.BIMStorage.ifcStorage.metadata;
+        if (meta && meta.folders) {
+            const folders = {};
+            const files = {};
+            for (const fId in meta.folders) {
+                const f = meta.folders[fId];
+                folders[fId] = {
+                    id: fId,
+                    name: f.name,
+                    parentId: f.parent,
+                    children: Array.isArray(f.children) ? [...f.children] : [],
+                    files: Array.isArray(f.files) ? [...f.files] : []
+                };
+            }
+            // metadata.files only carries metadata after explicit load; fall back to getFiles for raw list
+            const list = await window.BIMStorage.getFiles('ifc');
+            for (const f of list) {
+                files[f.id] = { id: f.id, name: f.name, size: f.size, folder: f.folderId || 'root' };
+            }
+            return { folders, files };
+        }
+    }
+
+    // Fallback flat list (no folders) — synthesize a single root folder
+    const list = await window.BIMStorage.getFiles('ifc');
+    const folders = { root: { id: 'root', name: t('storage.rootFolder') || 'Root', parentId: null, children: [], files: list.map(f => f.id) } };
+    const files = {};
+    for (const f of list) files[f.id] = { id: f.id, name: f.name, size: f.size, folder: 'root' };
+    return { folders, files };
+}
+
+function getAllFilesInFolder(folderId) {
+    const folder = pickerState.folders[folderId];
+    if (!folder) return [];
+    let acc = [...folder.files];
+    for (const childId of folder.children) acc = acc.concat(getAllFilesInFolder(childId));
+    return acc;
+}
+
+function renderPickerFolderRecursive(folderId, level) {
+    const folder = pickerState.folders[folderId];
+    if (!folder) return '';
+    const isExpanded = pickerState.expanded.has(folderId);
+    const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
+    const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
+    const safeId = escAttr(folderId);
+    const count = getAllFilesInFolder(folderId).length;
+
+    let html = '';
+    if (folderId !== 'root') {
+        html += `
+            <div class="tree-folder-header v3d-tree-folder" style="padding-left: ${level * 18}px;">
+                <span data-folder-id="${safeId}" class="tree-folder-arrow v3d-folder-toggle">${arrow}</span>
+                <span data-folder-id="${safeId}" class="tree-folder-name v3d-folder-toggle">
+                    📁 ${escapeHtml(folder.name)}
+                    ${count > 0 ? `<span class="tree-folder-count">(${count})</span>` : ''}
+                </span>
+            </div>
+        `;
+    }
+
+    if (isExpanded || folderId === 'root') {
+        for (const childId of folder.children) {
+            html += renderPickerFolderRecursive(childId, level + (folderId === 'root' ? 0 : 1));
+        }
+        for (const fileId of folder.files) {
+            const file = pickerState.files[fileId];
+            if (!file) continue;
+            const safeFileId = escAttr(fileId);
+            const indent = (folderId === 'root') ? level * 18 : (level + 1) * 18;
+            html += `
+                <div class="tree-file-item v3d-picker-file" data-file-id="${safeFileId}" style="padding-left: ${indent + 6}px;">
+                    <span class="v3d-picker-file__name">📄 ${escapeHtml(file.name)}</span>
+                    <span class="v3d-picker-file__size">${formatBytes(file.size)}</span>
+                </div>
+            `;
+        }
+    }
+    return html;
+}
+
+function attachPickerTreeListeners(listEl, modal) {
+    listEl.querySelectorAll('.v3d-folder-toggle').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const folderId = el.dataset.folderId;
+            if (!folderId) return;
+            if (pickerState.expanded.has(folderId)) pickerState.expanded.delete(folderId);
+            else pickerState.expanded.add(folderId);
+            listEl.innerHTML = renderPickerFolderRecursive('root', 0);
+            attachPickerTreeListeners(listEl, modal);
+        });
+    });
+    listEl.querySelectorAll('.v3d-picker-file').forEach(item => {
+        item.addEventListener('click', () => {
+            const fileId = item.dataset.fileId;
+            const meta = pickerState.files[fileId];
+            if (meta) {
+                modal.classList.remove('show');
+                loadIfcFromStorage(meta);
+            }
+        });
+    });
+}
+
 async function openStoragePicker() {
     const modal = document.getElementById('viewer3dPickerModal');
     const listEl = document.getElementById('viewer3dPickerList');
@@ -191,27 +337,18 @@ async function openStoragePicker() {
         if (typeof window.BIMStorage.init === 'function') {
             try { await window.BIMStorage.init(); } catch (_) { /* ignore */ }
         }
-        const files = await window.BIMStorage.getFiles('ifc');
-        if (!files || files.length === 0) {
+        const tree = await buildPickerTree();
+        pickerState.folders = tree.folders;
+        pickerState.files = tree.files;
+        // Auto-expand all top-level so the file tree is visible by default
+        for (const fId of Object.keys(tree.folders)) pickerState.expanded.add(fId);
+
+        if (Object.keys(tree.files).length === 0) {
             listEl.innerHTML = `<p class="storage-empty-message" data-i18n="viewer3d.pickerEmpty">${escapeHtml(t('viewer3d.pickerEmpty') || 'Žádné IFC soubory ve storage.')}</p>`;
             return;
         }
-        listEl.innerHTML = files.map(f => `
-            <div class="v3d-picker-item" data-file-id="${escapeHtml(f.id)}">
-                <span class="v3d-picker-item__name">📄 ${escapeHtml(f.name)}</span>
-                <span class="v3d-picker-item__size">${formatBytes(f.size)}</span>
-            </div>
-        `).join('');
-        listEl.querySelectorAll('.v3d-picker-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const fileId = item.dataset.fileId;
-                const meta = files.find(f => String(f.id) === fileId);
-                if (meta) {
-                    modal.classList.remove('show');
-                    loadIfcFromStorage(meta);
-                }
-            });
-        });
+        listEl.innerHTML = renderPickerFolderRecursive('root', 0);
+        attachPickerTreeListeners(listEl, modal);
     } catch (e) {
         console.error('Picker load failed:', e);
         listEl.innerHTML = `<p class="storage-error-message">${escapeHtml(e.message || String(e))}</p>`;
