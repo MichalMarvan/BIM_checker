@@ -264,6 +264,70 @@ class LocalFolderStorageBackend {
         }
     }
 
+    /**
+     * Write a NEW file (used for "Save as copy"). Auto-suffixes name on collision.
+     */
+    async writeNewFile(type, folderPath, fileName, content) {
+        try {
+            const dirHandle = await this._resolveDirHandle(folderPath);
+            const finalName = await this._resolveUniqueName(dirHandle, fileName);
+            const fileHandle = await dirHandle.getFileHandle(finalName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            const fullPath = folderPath ? `${folderPath}/${finalName}` : finalName;
+            const ext = finalName.toLowerCase().split('.').pop();
+            const fileType = ext === 'ifc' ? 'ifc' : 'ids';
+            const file = await fileHandle.getFile();
+            this._fileCache.set(fullPath, {
+                path: fullPath,
+                name: finalName,
+                type: fileType,
+                size: file.size,
+                handle: fileHandle,
+                folderPath
+            });
+            this._readMtimes.set(fullPath, file.lastModified);
+            return { ok: true, path: fullPath, finalName, size: file.size };
+        } catch (e) {
+            return { error: 'write_failed', message: e.message };
+        }
+    }
+
+    async _resolveDirHandle(folderPath) {
+        if (!folderPath || folderPath === '' || folderPath === 'root') return this.root;
+        const parts = folderPath.split('/').filter(Boolean);
+        let cursor = this.root;
+        for (const part of parts) {
+            cursor = await cursor.getDirectoryHandle(part);
+        }
+        return cursor;
+    }
+
+    async _resolveUniqueName(dirHandle, desiredName) {
+        const dotIdx = desiredName.lastIndexOf('.');
+        const base = dotIdx > 0 ? desiredName.slice(0, dotIdx) : desiredName;
+        const ext = dotIdx > 0 ? desiredName.slice(dotIdx) : '';
+        // Check if exact name is free
+        try {
+            await dirHandle.getFileHandle(desiredName);
+        } catch (e) {
+            if (e.name === 'NotFoundError') return desiredName;
+            throw e;
+        }
+        // Try _v2..v99
+        for (let n = 2; n < 100; n++) {
+            const candidate = `${base}_v${n}${ext}`;
+            try {
+                await dirHandle.getFileHandle(candidate);
+            } catch (e) {
+                if (e.name === 'NotFoundError') return candidate;
+                throw e;
+            }
+        }
+        throw new Error('Could not find unique name (tried _v2..v99)');
+    }
+
     _readOnlyError() {
         return { error: 'read_only_backend', message: 'Local folder is read-only in v1' };
     }
