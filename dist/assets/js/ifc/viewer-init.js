@@ -879,6 +879,30 @@ async function exportModifiedIFC(fileInfo) {
             return;
         }
 
+        // Folder mode: route through BIMSaveFile (writes back to disk)
+        const _isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+        if (_isFolderMode && window._currentIFCPath && window.BIMSaveFile) {
+            try {
+                const result = await window.BIMSaveFile.save({
+                    type: 'ifc',
+                    path: window._currentIFCPath,
+                    name: window._currentIFCName || window._currentIFCPath.split('/').pop(),
+                    content: modifiedIfc,
+                    folderPath: window._currentIFCFolder || ''
+                });
+                if (result.ok) {
+                    if (window.BIMStorageCardFolderStates && window.BIMStorageCardFolderStates.refresh) {
+                        window.BIMStorageCardFolderStates.refresh();
+                    }
+                } else if (result.reason !== 'user_cancelled' && result.reason !== 'user_cancelled_conflict') {
+                    console.warn('IFC save failed:', result);
+                }
+                return;
+            } catch (e) {
+                console.warn('IFC save errored:', e);
+            }
+        }
+
         downloadModifiedIFC(modifiedIfc, fileInfo.fileName);
     } catch (error) {
         ErrorHandler.error(`${i18n.t('viewer.exportError')} ${error.message}`);
@@ -1581,6 +1605,11 @@ async function loadSelectedFilesFromStorage() {
                 const fileId = fileArray[i];
                 const meta = storageMetadata && storageMetadata.files && storageMetadata.files[fileId];
                 if (!meta) continue;
+                if (i === 0) {
+                    window._currentIFCPath = fileId;
+                    window._currentIFCName = meta.name;
+                    window._currentIFCFolder = fileId.includes('/') ? fileId.slice(0, fileId.lastIndexOf('/')) : '';
+                }
                 const buf = await window.BIMStorage.backend.getFileContent('ifc', fileId);
                 if (buf) {
                     // parseIFCAsync expects string content (IFC is a text format).

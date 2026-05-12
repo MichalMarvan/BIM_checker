@@ -60,6 +60,9 @@
 
         // Dispatch to page-specific handler
         if (req.type === 'ifc' && typeof window.handleFiles === 'function') {
+            window._currentIFCPath = req.path;
+            window._currentIFCFolder = req.path.includes('/') ? req.path.slice(0, req.path.lastIndexOf('/')) : '';
+            window._currentIFCName = req.name;
             window.handleFiles([file]);
         } else if (req.type === 'ids' && typeof window.handleFile === 'function') {
             window._currentIDSPath = req.path;
