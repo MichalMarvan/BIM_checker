@@ -733,3 +733,62 @@
     display: flex;
     gap: 8px;
 }
+.storage-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.storage-projects__list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.storage-projects__empty {
+    margin: 0;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.9em;
+    font-style: italic;
+}
+.storage-project {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    transition: border-color 0.15s, background 0.15s;
+}
+.storage-project.is-active {
+    border-color: var(--primary-color, #667eea);
+    background: var(--bg-active, #f3f4ff);
+}
+.storage-project__main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    min-width: 0;
+}
+.storage-project__name {
+    font-weight: 600;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+.storage-project__folder {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.85em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.storage-project__rename,
+.storage-project__remove {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: 0.9em;
+}
+#storageAddProject {
+    align-self: flex-start;
+}

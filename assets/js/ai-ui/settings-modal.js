@@ -15,14 +15,33 @@ import { AGENT_PRESETS, getPreset, resolvePreset } from '../ai/agent-presets.js'
 let _modal = null;
 const _state = { view: 'list', editingId: null, modelsCache: {} };
 
-function _renderStorageBackendSection() {
+async function _renderStorageBackendSection() {
     const supported = !!(window.LocalFolderStorageBackend && window.LocalFolderStorageBackend.isSupported());
     const backend = window.BIMStorage && window.BIMStorage.backend;
     const isFolder = backend && backend.kind === 'localFolder';
-    const folderName = isFolder ? (backend.rootName || '?') : null;
     const ifcCount = backend && backend.getStats ? backend.getStats('ifc').count : 0;
     const idsCount = backend && backend.getStats ? backend.getStats('ids').count : 0;
     const tr = (k) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : k;
+
+    const projects = (window.BIMProjects && supported) ? await window.BIMProjects.list() : [];
+    const activeId = window.BIMProjects ? window.BIMProjects.getActiveId() : null;
+
+    const projectsListHtml = projects.length === 0 ? `
+        <p class="storage-projects__empty" data-i18n="settings.storage.noProjects">No projects yet — add one below.</p>
+    ` : projects.map(p => {
+        const isActive = p.id === activeId && isFolder;
+        return `
+            <div class="storage-project ${isActive ? 'is-active' : ''}" data-project-id="${escapeHtml(p.id)}">
+                <label class="storage-project__main">
+                    <input type="radio" name="activeProject" value="${escapeHtml(p.id)}" ${isActive ? 'checked' : ''}>
+                    <span class="storage-project__name">${escapeHtml(p.name)}</span>
+                    <span class="storage-project__folder">📁 ${escapeHtml(p.handle && p.handle.name ? p.handle.name : '?')}</span>
+                </label>
+                <button class="btn btn-sm btn-secondary storage-project__rename" data-id="${escapeHtml(p.id)}" title="${tr('settings.storage.renameProject')}">✏</button>
+                <button class="btn btn-sm btn-danger storage-project__remove" data-id="${escapeHtml(p.id)}" title="${tr('settings.storage.removeProject')}">🗑</button>
+            </div>
+        `;
+    }).join('');
 
     return `
         <section class="storage-backend-section">
@@ -34,37 +53,87 @@ function _renderStorageBackendSection() {
                 </label>
                 <label class="storage-backend-section__option ${supported ? '' : 'is-disabled'}" title="${supported ? '' : tr('settings.storage.unsupportedTooltip')}">
                     <input type="radio" name="storageBackend" value="localFolder" ${isFolder ? 'checked' : ''} ${supported ? '' : 'disabled'}>
-                    <span data-i18n="settings.storage.localFolder">Local folder</span>
+                    <span data-i18n="settings.storage.localFolder">Local projects</span>
                 </label>
             </div>
-            ${isFolder ? `
-                <div class="storage-backend-section__status">
-                    <div>📂 <strong>${folderName}</strong></div>
-                    <div>${ifcCount} IFC, ${idsCount} IDS</div>
-                    <div class="storage-backend-section__readonly" data-i18n="settings.storage.readOnly">✏ Full read/write — file edits are saved back</div>
-                </div>
-                <div class="storage-backend-section__actions">
-                    <button class="btn btn-secondary" id="storageBackendChangeFolder" data-i18n="settings.storage.changeFolder">Change folder</button>
-                    <button class="btn btn-danger" id="storageBackendDisconnect" data-i18n="settings.storage.disconnect">Disconnect</button>
+            ${supported ? `
+                <div class="storage-projects">
+                    <div class="storage-projects__list">
+                        ${projectsListHtml}
+                    </div>
+                    ${isFolder ? `
+                        <div class="storage-backend-section__status">
+                            ${ifcCount} IFC, ${idsCount} IDS
+                            <span class="storage-backend-section__readonly" data-i18n="settings.storage.readOnly">✏ Full read/write — file edits are saved back</span>
+                        </div>
+                    ` : ''}
+                    <button class="btn btn-primary" id="storageAddProject" data-i18n="settings.storage.addProject">+ Add project</button>
                 </div>
             ` : ''}
         </section>
     `;
 }
 
+function _hasUnsavedChanges() {
+    try {
+        if (window.idsEditorCore && window.idsEditorCore.hasUnsavedChanges) return true;
+        if (window.ViewerState && window.ViewerState.modifications && window.ViewerState.modifications.size > 0) return true;
+    } catch (_) { /* ignore */ }
+    return false;
+}
+
+function _confirmDestructiveSwitch() {
+    if (!_hasUnsavedChanges()) return true;
+    const msg = (window.i18n && window.i18n.t)
+        ? window.i18n.t('settings.storage.unsavedSwitchWarn')
+        : 'Discard unsaved changes and switch project?';
+    return window.confirm(msg);
+}
+
+async function _activateProject(projectId) {
+    if (!window.BIMProjects) return false;
+    const record = await window.BIMProjects.get(projectId);
+    if (!record || !record.handle) return false;
+    try {
+        const perm = await record.handle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+            const ask = await record.handle.requestPermission({ mode: 'readwrite' });
+            if (ask !== 'granted') return false;
+        }
+    } catch (e) {
+        console.warn('Permission check failed:', e);
+        return false;
+    }
+    const lf = new window.LocalFolderStorageBackend(record.handle);
+    await lf.scan();
+    await window.BIMProjects.setActive(projectId);
+    window.BIMStorage.setBackend(lf);
+    window._currentIDSPath = window._currentIDSName = window._currentIDSFolder = undefined;
+    window._currentIFCPath = window._currentIFCName = window._currentIFCFolder = undefined;
+    return true;
+}
+
 function _bindStorageBackendEvents(modalEl) {
     const indexedDBRadio = modalEl.querySelector('input[name="storageBackend"][value="indexedDB"]');
     const localFolderRadio = modalEl.querySelector('input[name="storageBackend"][value="localFolder"]');
-    const changeBtn = modalEl.querySelector('#storageBackendChangeFolder');
-    const disconnectBtn = modalEl.querySelector('#storageBackendDisconnect');
+    const addBtn = modalEl.querySelector('#storageAddProject');
+    const projectRadios = modalEl.querySelectorAll('input[name="activeProject"]');
+    const renameBtns = modalEl.querySelectorAll('.storage-project__rename');
+    const removeBtns = modalEl.querySelectorAll('.storage-project__remove');
 
     if (indexedDBRadio) {
         indexedDBRadio.addEventListener('change', async () => {
             if (!indexedDBRadio.checked) return;
             const cur = window.BIMStorage && window.BIMStorage.backend;
             if (cur && cur.kind === 'localFolder') {
+                if (!_confirmDestructiveSwitch()) {
+                    if (localFolderRadio) localFolderRadio.checked = true;
+                    return;
+                }
                 window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
                 localStorage.setItem('activeBackend', 'indexedDB');
+                window._currentIDSPath = window._currentIDSName = window._currentIDSFolder = undefined;
+                window._currentIFCPath = window._currentIFCName = window._currentIFCFolder = undefined;
             }
             _refreshStorageBackendSection(modalEl);
         });
@@ -74,52 +143,102 @@ function _bindStorageBackendEvents(modalEl) {
         localFolderRadio.addEventListener('change', async () => {
             if (!localFolderRadio.checked) return;
             if (!window.LocalFolderStorageBackend || !window.LocalFolderStorageBackend.isSupported()) return;
-            try {
-                const lf = new window.LocalFolderStorageBackend();
-                await lf.connect();
-                await lf.scan();
-                window.BIMStorage.setBackend(lf);
-                localStorage.setItem('activeBackend', 'localFolder');
-                _refreshStorageBackendSection(modalEl);
-            } catch (e) {
-                if (e && e.name !== 'AbortError') console.warn('Connect failed:', e);
+            if (!_confirmDestructiveSwitch()) {
                 if (indexedDBRadio) indexedDBRadio.checked = true;
+                return;
             }
-        });
-    }
-
-    if (changeBtn) {
-        changeBtn.addEventListener('click', async () => {
-            try {
-                const lf = new window.LocalFolderStorageBackend();
-                await lf.connect();
-                await lf.scan();
-                window.BIMStorage.setBackend(lf);
+            const projects = window.BIMProjects ? await window.BIMProjects.list() : [];
+            const activeId = window.BIMProjects && window.BIMProjects.getActiveId();
+            const target = activeId && projects.find(p => p.id === activeId) ? activeId : (projects[0] && projects[0].id);
+            if (target) {
+                const ok = await _activateProject(target);
+                if (!ok && indexedDBRadio) indexedDBRadio.checked = true;
                 _refreshStorageBackendSection(modalEl);
-            } catch (e) {
-                if (e && e.name !== 'AbortError') console.warn('Change folder failed:', e);
+                return;
             }
+            // No projects yet — prompt to add one
+            await _addProjectFlow(modalEl);
+            const stillNoActive = !(window.BIMProjects && window.BIMProjects.getActiveId());
+            if (stillNoActive && indexedDBRadio) indexedDBRadio.checked = true;
+            _refreshStorageBackendSection(modalEl);
         });
     }
 
-    if (disconnectBtn) {
-        disconnectBtn.addEventListener('click', async () => {
-            const cur = window.BIMStorage && window.BIMStorage.backend;
-            if (cur && cur.kind === 'localFolder') {
-                await cur.disconnect();
+    if (addBtn) {
+        addBtn.addEventListener('click', () => _addProjectFlow(modalEl));
+    }
+
+    projectRadios.forEach(radio => {
+        radio.addEventListener('change', async () => {
+            if (!radio.checked) return;
+            if (!_confirmDestructiveSwitch()) {
+                _refreshStorageBackendSection(modalEl);
+                return;
+            }
+            const ok = await _activateProject(radio.value);
+            if (!ok) {
+                console.warn('Failed to activate project', radio.value);
+            }
+            _refreshStorageBackendSection(modalEl);
+        });
+    });
+
+    renameBtns.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const id = btn.dataset.id;
+            const record = await window.BIMProjects.get(id);
+            if (!record) return;
+            const newName = window.prompt(t('settings.storage.renamePrompt'), record.name);
+            if (newName && newName.trim() && newName !== record.name) {
+                await window.BIMProjects.rename(id, newName.trim());
+                _refreshStorageBackendSection(modalEl);
+            }
+        });
+    });
+
+    removeBtns.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const id = btn.dataset.id;
+            const record = await window.BIMProjects.get(id);
+            if (!record) return;
+            const wasActive = window.BIMProjects.getActiveId() === id;
+            if (wasActive && !_confirmDestructiveSwitch()) return;
+            if (!window.confirm(t('settings.storage.removeConfirm') + ' ' + record.name)) return;
+            await window.BIMProjects.remove(id);
+            if (wasActive) {
                 window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
-                localStorage.setItem('activeBackend', 'indexedDB');
-                _refreshStorageBackendSection(modalEl);
+                window._currentIDSPath = window._currentIDSName = window._currentIDSFolder = undefined;
+                window._currentIFCPath = window._currentIFCName = window._currentIFCFolder = undefined;
             }
+            _refreshStorageBackendSection(modalEl);
         });
-    }
+    });
 }
 
-function _refreshStorageBackendSection(modalEl) {
+async function _addProjectFlow(modalEl) {
+    if (!window.LocalFolderStorageBackend || !window.LocalFolderStorageBackend.isSupported()) return;
+    let handle;
+    try {
+        handle = await window.showDirectoryPicker({ id: 'bim-checker-root', mode: 'readwrite' });
+    } catch (e) {
+        if (e && e.name !== 'AbortError') console.warn('Folder pick failed:', e);
+        return;
+    }
+    const defaultName = handle.name || 'Project';
+    const name = window.prompt(t('settings.storage.namePrompt'), defaultName);
+    if (name === null) return;
+    const record = await window.BIMProjects.add(name.trim() || defaultName, handle);
+    await _activateProject(record.id);
+    _refreshStorageBackendSection(modalEl);
+}
+
+async function _refreshStorageBackendSection(modalEl) {
     const old = modalEl.querySelector('.storage-backend-section');
     if (!old) return;
     const tmp = document.createElement('div');
-    tmp.innerHTML = _renderStorageBackendSection();
+    tmp.innerHTML = await _renderStorageBackendSection();
     old.replaceWith(tmp.firstElementChild);
     if (window.i18n && window.i18n.updatePage) window.i18n.updatePage();
     _bindStorageBackendEvents(modalEl);
@@ -166,7 +285,7 @@ async function _renderListView() {
     body.innerHTML = '';
 
     const storageTmp = document.createElement('div');
-    storageTmp.innerHTML = _renderStorageBackendSection();
+    storageTmp.innerHTML = await _renderStorageBackendSection();
     body.appendChild(storageTmp.firstElementChild);
     _bindStorageBackendEvents(_modal);
     if (window.i18n && window.i18n.updatePage) window.i18n.updatePage();

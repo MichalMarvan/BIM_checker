@@ -40,6 +40,20 @@ class LocalFolderStorageBackend {
         if (window.BIMFsHandleStore) {
             await window.BIMFsHandleStore.saveRootHandle(handle);
         }
+        // Auto-register as project (idempotent reuse if same handle is already known) and mark active.
+        if (window.BIMProjects) {
+            try {
+                const existing = await window.BIMProjects.list();
+                let match = null;
+                for (const p of existing) {
+                    if (p.handle && p.handle.isSameEntry && await p.handle.isSameEntry(handle)) { match = p; break; }
+                }
+                const record = match ? match : await window.BIMProjects.add(handle.name || 'Project', handle);
+                await window.BIMProjects.setActive(record.id);
+            } catch (e) {
+                console.warn('Project register failed:', e);
+            }
+        }
         return handle.name;
     }
 
