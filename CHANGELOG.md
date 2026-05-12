@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0] - 2026-05-12
+
+### Added
+- **Local PC folder as storage backend (read-only v1)** — desktop Chromium users can connect a folder on disk and browse IFC/IDS files directly. Enables CDE-sync workflow (OneDrive/SharePoint/Box → BIM_checker).
+- `StorageBackend` abstraction in `assets/js/common/storage.js` — `IndexedDBStorageBackend` (default) and `LocalFolderStorageBackend` (opt-in)
+- `assets/js/common/local-folder-storage.js` — File System Access API wrapper (recursive scan, permission flow, read-only stubs)
+- `assets/js/common/fs-handle-store.js` — `FileSystemDirectoryHandle` persistence in dedicated IndexedDB store
+- `assets/js/common/first-launch-popup.js` — onboarding popup with state machine (null / dismissed / accepted / disabled, 7-day cooldown, max 3×)
+- `assets/js/common/storage-card-folder-states.js` — homepage card rendering for 4 folder states (A/B/C/D)
+- AI Settings modal: Storage Backend section (radio toggle + connect/change/disconnect)
+- 4 new AI tools: `connect_local_folder`, `disconnect_local_folder`, `rescan_local_folder`, `get_storage_info` (total 56 → 60)
+- ~30 new translation keys (CS + EN) under `storage.folder.*`, `storage.popup.*`, `settings.storage.*`, `ai.tool.localFolder.*`
+- +33 regression tests (740 → 773)
+
+### Changed
+- 7 AI write tools (`delete_file`, `delete_folder`, `create_folder`, `rename_folder`, `move_file`, `move_files_batch`, `replace_file_content`) now refuse with `{ error: 'read_only_backend' }` when local folder backend is active
+- Tool catalog `TOTAL_TOOLS` auto-updates from 56 → 60
+- SW cache bumped v46 → v47
+
+### Notes
+- **v1 is read-only.** Write-back to disk (overwrite / save as copy) deferred to v2.
+- Mobile / Firefox / Safari fall back to default IndexedDB backend transparently. Settings radio shows disabled "Requires Chrome / Edge on desktop".
+- Browser support detection via `'showDirectoryPicker' in window`.
+- Hard limit 2000 files per scan; warning at 500.
+
 ## [0.10.6] - 2026-05-11
 
 ### Added

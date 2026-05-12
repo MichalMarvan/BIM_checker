@@ -274,6 +274,26 @@ Branch: i18n-cleanup-complete-en
 
 Trigger: external user feedback on LinkedIn about incomplete EN translation.
 
+## Local Folder Storage v1 (Read-only) ✅
+- [x] StorageBackend abstraction (`IndexedDBStorageBackend` + `LocalFolderStorageBackend`)
+- [x] FS Access API integration (`showDirectoryPicker`, recursive scan, `getFile`)
+- [x] `FileSystemDirectoryHandle` persistence in dedicated IndexedDB store
+- [x] Permission flow (granted / prompt / denied) with banner-based reconnect
+- [x] First-launch popup with onboarding state machine (null / dismissed / accepted / disabled, 7-day cooldown, max 3×)
+- [x] AI Settings modal: Storage Backend section with radio toggle + connect/change/disconnect buttons
+- [x] Homepage storage cards: 4 states (A IndexedDB / B granted / C reconnect / D unavailable)
+- [x] 4 new AI tools: `connect_local_folder`, `disconnect_local_folder`, `rescan_local_folder`, `get_storage_info` (60 total tools)
+- [x] Read-only guards on 7 AI write tools (`delete_file`, `create_folder`, `rename_folder`, `delete_folder`, `move_file`, `move_files_batch`, `replace_file_content`)
+- [x] Hard limit 2000 files + warning at 500
+- [x] ~30 new translation keys (CS + EN) under `storage.folder.*`, `storage.popup.*`, `settings.storage.*`, `ai.tool.localFolder.*`
+- [x] +33 new tests (740 → 773)
+
+Branch: local-folder-storage-v1
+
+v1 = read-only (browse files from disk). Write-back deferred to v2.
+Desktop Chromium only; mobile/Firefox/Safari fall back gracefully to IndexedDB.
+Use case: connect to a CDE-sync folder (OneDrive/SharePoint/Box) and validate/parse/view IFC/IDS files directly.
+
 ---
 
 ## K dokončení (TODO)
