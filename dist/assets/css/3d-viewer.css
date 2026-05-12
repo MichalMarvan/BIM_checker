@@ -1,0 +1,172 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2025 Michal Marvan */
+
+/* 3D Viewer page layout */
+
+body[data-page="viewer3d"] {
+    margin: 0;
+    overflow: hidden;
+}
+
+.viewer3d-main {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary, #f3f4f6);
+}
+
+.viewer3d-canvas-host {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    background: var(--bg-primary, #ffffff);
+}
+
+.viewer3d-canvas-host canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.viewer3d-status {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 10;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    border-radius: 8px;
+    font-size: 0.9em;
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    pointer-events: none;
+    max-width: calc(100vw - 32px);
+}
+
+[data-theme="dark"] .viewer3d-status {
+    background: rgba(30, 30, 35, 0.95);
+    color: #e5e7eb;
+}
+
+.viewer3d-status[data-kind="error"] {
+    border-color: var(--error, #dc2626);
+    color: var(--error, #dc2626);
+}
+
+.viewer3d-status[data-kind="success"] {
+    border-color: var(--success, #16a34a);
+    color: var(--success, #16a34a);
+}
+
+.viewer3d-loaded-list {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 360px;
+}
+
+.viewer3d-loaded-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    border-radius: 8px;
+    font-size: 0.88em;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+[data-theme="dark"] .viewer3d-loaded-item {
+    background: rgba(30, 30, 35, 0.95);
+    color: #e5e7eb;
+}
+
+.viewer3d-loaded-item__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.viewer3d-loaded-item__stats {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.85em;
+}
+
+.viewer3d-loaded-item__remove {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 1em;
+    border-radius: 4px;
+}
+
+.viewer3d-loaded-item__remove:hover {
+    background: var(--error-bg, #fee2e2);
+    color: var(--error, #dc2626);
+}
+
+/* Storage picker */
+.viewer3d-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.viewer3d-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.viewer3d-picker-item:hover {
+    background: var(--bg-hover, #f3f4f6);
+    border-color: var(--primary-color, #667eea);
+}
+
+[data-theme="dark"] .viewer3d-picker-item:hover {
+    background: #2a2a30;
+}
+
+.viewer3d-picker-item__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.viewer3d-picker-item__size {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.85em;
+}
+
+@media (max-width: 768px) {
+    .viewer3d-main { top: 48px; }
+    .viewer3d-loaded-list {
+        top: auto;
+        bottom: 60px;
+        right: 8px;
+        left: 8px;
+        max-width: none;
+    }
+}

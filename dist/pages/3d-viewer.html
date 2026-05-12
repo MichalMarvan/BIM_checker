@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Copyright (C) 2025 Michal Marvan -->
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title data-i18n="page.title.viewer3d">BIM Checker — 3D Viewer</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <meta name="theme-color" content="#667eea">
+    <link rel="stylesheet" href="../assets/css/common.css">
+    <link rel="stylesheet" href="../assets/css/mobile-nav.css">
+    <link rel="stylesheet" href="../assets/css/index.css">
+    <link rel="stylesheet" href="../assets/css/3d-viewer.css">
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            var lang = localStorage.getItem('bim_checker_language') || 'cs';
+            document.documentElement.lang = lang;
+            document.documentElement.setAttribute('data-lang', lang);
+        })();
+    </script>
+    <style>
+        html:not(.i18n-ready) [data-i18n] { opacity: 0; }
+        html.i18n-ready [data-i18n] { opacity: 1; transition: opacity 0.15s ease; }
+    </style>
+
+    <!-- Import map: resolves bare 'three' specifier used by the IFC engine -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://esm.sh/three@0.182.0/build/three.module.js",
+            "three/examples/jsm/controls/OrbitControls.js": "https://esm.sh/three@0.182.0/examples/jsm/controls/OrbitControls.js"
+        }
+    }
+    </script>
+</head>
+<body data-page="viewer3d">
+    <header class="bim-mobile-topbar">
+        <a href="../index.html" class="bim-mobile-topbar__brand">
+            <span class="bim-mobile-topbar__icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </span>
+            <span class="bim-mobile-topbar__name" data-i18n="app.title">BIM Checker</span>
+        </a>
+        <div class="bim-mobile-topbar__actions">
+            <div class="bim-mobile-topbar__lang">
+                <button class="lang-btn active" data-lang="cs">CZ</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="navbar navbar-subpage">
+        <div class="navbar-container">
+            <a href="../index.html" class="back-home-btn" data-i18n="btn.back">← Domů</a>
+            <h1 class="page-title" data-i18n="viewer3d.title">3D Viewer</h1>
+            <div class="navbar-actions">
+                <button class="btn btn-primary" id="viewer3dLoadBtn" data-i18n="viewer3d.loadIfc">📂 Načíst IFC</button>
+                <div class="language-switcher">
+                    <button class="lang-btn active" data-lang="cs">CZ</button>
+                    <button class="lang-btn" data-lang="en">EN</button>
+                </div>
+                <button class="theme-toggle" id="themeToggle" title="Přepnout téma" data-i18n-title="theme.toggle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="1" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="viewer3d-main">
+        <div id="viewerContainer" class="viewer3d-canvas-host"></div>
+
+        <div class="viewer3d-status" id="viewer3dStatus">
+            <span data-i18n="viewer3d.empty">Žádný model — klikni na „Načíst IFC" pro výběr ze storage.</span>
+        </div>
+
+        <div class="viewer3d-loaded-list" id="viewer3dLoadedList" hidden></div>
+    </main>
+
+    <!-- Storage picker modal -->
+    <div class="modal-overlay" id="viewer3dPickerModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 data-i18n="viewer3d.pickerTitle">Vybrat IFC ze storage</h2>
+                <button class="modal-close" id="viewer3dPickerClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="viewer3dPickerList" class="viewer3d-picker-list">
+                    <p class="storage-empty-message" data-i18n="viewer3d.pickerEmpty">Žádné soubory ve storage.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared core -->
+    <script src="../assets/js/common/translations.js"></script>
+    <script src="../assets/js/common/i18n.js"></script>
+    <script src="../assets/js/common/theme.js"></script>
+    <script src="../assets/js/common/error-handler.js"></script>
+    <script src="../assets/js/common/storage.js"></script>
+    <script src="../assets/js/common/local-folder-storage.js"></script>
+    <script src="../assets/js/common/storage-backend-restore.js"></script>
+    <script type="module" src="../assets/js/common/fs-handle-store.js"></script>
+
+    <!-- 3D viewer bootstrap (ESM, uses import map for three) -->
+    <script type="module" src="../assets/js/3d/viewer-page.js"></script>
+</body>
+</html>
