@@ -15,6 +15,116 @@ import { AGENT_PRESETS, getPreset, resolvePreset } from '../ai/agent-presets.js'
 let _modal = null;
 const _state = { view: 'list', editingId: null, modelsCache: {} };
 
+function _renderStorageBackendSection() {
+    const supported = !!(window.LocalFolderStorageBackend && window.LocalFolderStorageBackend.isSupported());
+    const backend = window.BIMStorage && window.BIMStorage.backend;
+    const isFolder = backend && backend.kind === 'localFolder';
+    const folderName = isFolder ? (backend.rootName || '?') : null;
+    const ifcCount = backend && backend.getStats ? backend.getStats('ifc').count : 0;
+    const idsCount = backend && backend.getStats ? backend.getStats('ids').count : 0;
+    const tr = (k) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : k;
+
+    return `
+        <section class="storage-backend-section">
+            <h3 data-i18n="settings.storage.title">📁 Storage</h3>
+            <div class="storage-backend-section__options">
+                <label class="storage-backend-section__option">
+                    <input type="radio" name="storageBackend" value="indexedDB" ${!isFolder ? 'checked' : ''}>
+                    <span data-i18n="settings.storage.indexedDB">In browser (default)</span>
+                </label>
+                <label class="storage-backend-section__option ${supported ? '' : 'is-disabled'}" title="${supported ? '' : tr('settings.storage.unsupportedTooltip')}">
+                    <input type="radio" name="storageBackend" value="localFolder" ${isFolder ? 'checked' : ''} ${supported ? '' : 'disabled'}>
+                    <span data-i18n="settings.storage.localFolder">Local folder</span>
+                </label>
+            </div>
+            ${isFolder ? `
+                <div class="storage-backend-section__status">
+                    <div>📂 <strong>${folderName}</strong></div>
+                    <div>${ifcCount} IFC, ${idsCount} IDS</div>
+                    <div class="storage-backend-section__readonly" data-i18n="settings.storage.readOnly">⚠ Read-only mode (write coming in v2)</div>
+                </div>
+                <div class="storage-backend-section__actions">
+                    <button class="btn btn-secondary" id="storageBackendChangeFolder" data-i18n="settings.storage.changeFolder">Change folder</button>
+                    <button class="btn btn-danger" id="storageBackendDisconnect" data-i18n="settings.storage.disconnect">Disconnect</button>
+                </div>
+            ` : ''}
+        </section>
+    `;
+}
+
+function _bindStorageBackendEvents(modalEl) {
+    const indexedDBRadio = modalEl.querySelector('input[name="storageBackend"][value="indexedDB"]');
+    const localFolderRadio = modalEl.querySelector('input[name="storageBackend"][value="localFolder"]');
+    const changeBtn = modalEl.querySelector('#storageBackendChangeFolder');
+    const disconnectBtn = modalEl.querySelector('#storageBackendDisconnect');
+
+    if (indexedDBRadio) {
+        indexedDBRadio.addEventListener('change', async () => {
+            if (!indexedDBRadio.checked) return;
+            const cur = window.BIMStorage && window.BIMStorage.backend;
+            if (cur && cur.kind === 'localFolder') {
+                window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
+                localStorage.setItem('activeBackend', 'indexedDB');
+            }
+            _refreshStorageBackendSection(modalEl);
+        });
+    }
+
+    if (localFolderRadio) {
+        localFolderRadio.addEventListener('change', async () => {
+            if (!localFolderRadio.checked) return;
+            if (!window.LocalFolderStorageBackend || !window.LocalFolderStorageBackend.isSupported()) return;
+            try {
+                const lf = new window.LocalFolderStorageBackend();
+                await lf.connect();
+                await lf.scan();
+                window.BIMStorage.setBackend(lf);
+                localStorage.setItem('activeBackend', 'localFolder');
+                _refreshStorageBackendSection(modalEl);
+            } catch (e) {
+                if (e && e.name !== 'AbortError') console.warn('Connect failed:', e);
+                if (indexedDBRadio) indexedDBRadio.checked = true;
+            }
+        });
+    }
+
+    if (changeBtn) {
+        changeBtn.addEventListener('click', async () => {
+            try {
+                const lf = new window.LocalFolderStorageBackend();
+                await lf.connect();
+                await lf.scan();
+                window.BIMStorage.setBackend(lf);
+                _refreshStorageBackendSection(modalEl);
+            } catch (e) {
+                if (e && e.name !== 'AbortError') console.warn('Change folder failed:', e);
+            }
+        });
+    }
+
+    if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', async () => {
+            const cur = window.BIMStorage && window.BIMStorage.backend;
+            if (cur && cur.kind === 'localFolder') {
+                await cur.disconnect();
+                window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
+                localStorage.setItem('activeBackend', 'indexedDB');
+                _refreshStorageBackendSection(modalEl);
+            }
+        });
+    }
+}
+
+function _refreshStorageBackendSection(modalEl) {
+    const old = modalEl.querySelector('.storage-backend-section');
+    if (!old) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = _renderStorageBackendSection();
+    old.replaceWith(tmp.firstElementChild);
+    if (window.i18n && window.i18n.updatePage) window.i18n.updatePage();
+    _bindStorageBackendEvents(modalEl);
+}
+
 export async function open() {
     if (!_modal) _injectModal();
     await _renderListView();
@@ -54,6 +164,12 @@ async function _renderListView() {
     const body = _modal.querySelector('#aiSettingsBody');
     const agents = await storage.listAgents();
     body.innerHTML = '';
+
+    const storageTmp = document.createElement('div');
+    storageTmp.innerHTML = _renderStorageBackendSection();
+    body.appendChild(storageTmp.firstElementChild);
+    _bindStorageBackendEvents(_modal);
+    if (window.i18n && window.i18n.updatePage) window.i18n.updatePage();
 
     const heading = document.createElement('h3');
     heading.textContent = t('ai.settings.agentsHeading');

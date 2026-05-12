@@ -687,3 +687,49 @@
     color: var(--primary-color, #667eea);
     font-variant-numeric: tabular-nums;
 }
+
+/* === Storage Backend section in AI Settings modal === */
+.storage-backend-section {
+    padding: 16px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-primary, #e5e7eb);
+}
+.storage-backend-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+.storage-backend-section__options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.storage-backend-section__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.storage-backend-section__option.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.storage-backend-section__status {
+    padding: 10px;
+    background: var(--bg-primary, #fff);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+.storage-backend-section__readonly {
+    color: var(--warning, #f59e0b);
+    font-size: 0.85rem;
+    margin-top: 6px;
+}
+.storage-backend-section__actions {
+    display: flex;
+    gap: 8px;
+}
