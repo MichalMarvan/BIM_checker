@@ -184,7 +184,7 @@ async function openStoragePicker() {
     if (!modal || !listEl) return;
 
     listEl.innerHTML = `<p class="storage-empty-message">${escapeHtml(t('viewer3d.pickerLoading') || 'Načítám…')}</p>`;
-    modal.classList.add('active');
+    modal.classList.add('show');
 
     try {
         if (!window.BIMStorage) throw new Error('BIMStorage not initialized');
@@ -207,7 +207,7 @@ async function openStoragePicker() {
                 const fileId = item.dataset.fileId;
                 const meta = files.find(f => String(f.id) === fileId);
                 if (meta) {
-                    modal.classList.remove('active');
+                    modal.classList.remove('show');
                     loadIfcFromStorage(meta);
                 }
             });
@@ -230,12 +230,12 @@ function wireUI() {
 
     const closeBtn = document.getElementById('viewer3dPickerClose');
     if (closeBtn) closeBtn.addEventListener('click', () => {
-        document.getElementById('viewer3dPickerModal').classList.remove('active');
+        document.getElementById('viewer3dPickerModal').classList.remove('show');
     });
 
     const modal = document.getElementById('viewer3dPickerModal');
     if (modal) modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.classList.remove('active');
+        if (e.target === modal) modal.classList.remove('show');
     });
 
     document.querySelectorAll('.v3d-tool').forEach(btn => {
