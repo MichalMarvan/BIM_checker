@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-const CACHE_VERSION = 'bim-checker-v47';
+const CACHE_VERSION = 'bim-checker-v48';
 const ASSETS_TO_CACHE = [
     './index.html',
     './assets/og-image-v2.png',
@@ -28,6 +28,8 @@ const ASSETS_TO_CACHE = [
     './assets/js/common/local-folder-storage.js',
     './assets/js/common/first-launch-popup.js',
     './assets/js/common/storage-card-folder-states.js',
+    './assets/js/common/storage-backend-restore.js',
+    './assets/js/common/folder-file-autoload.js',
     './assets/js/common/theme.js',
     './assets/js/common/utils.js',
     './assets/js/common/components.js',

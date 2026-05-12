@@ -1300,6 +1300,39 @@ storageInitPromise = (async function() {
 })();
 
 async function loadStorageMetadata() {
+    // Folder backend mode: synthesize storageMetadata from BIMStorage folder tree
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        const tree = window.BIMStorage.backend.getFolderTree('ifc');
+        if (!tree) { storageMetadata = null; return; }
+        const folders = {};
+        const files = {};
+        function walk(node, parentId, folderId) {
+            const folder = {
+                id: folderId,
+                name: node.name || 'root',
+                parentId: parentId,
+                files: node.files.map(f => f.path),
+                children: node.subfolders.map(sub => sub.path || sub.name)
+            };
+            folders[folderId] = folder;
+            for (const f of node.files) {
+                files[f.path] = {
+                    id: f.path,
+                    name: f.name,
+                    size: f.size,
+                    folder: folderId,
+                    uploadDate: null
+                };
+            }
+            for (const sub of node.subfolders) {
+                walk(sub, folderId, sub.path || sub.name);
+            }
+        }
+        walk(tree, null, 'root');
+        storageMetadata = { folders, files };
+        return;
+    }
+
     try {
         const transaction = storageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
@@ -1355,7 +1388,8 @@ document.getElementById('loadFromStorageBtn').addEventListener('click', async ()
             await storageInitPromise;
         }
 
-        if (!storageDB) {
+        const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+        if (!isFolderMode && !storageDB) {
             ErrorHandler.error(i18n.t('viewer.storageNotInit'));
             return;
         }
@@ -1531,6 +1565,37 @@ function updateSelectedFilesCount() {
 async function loadSelectedFilesFromStorage() {
     if (selectedStorageFiles.size === 0) {
         ErrorHandler.warning(i18n.t('viewer.selectAtLeastOne'));
+        return;
+    }
+
+    // Folder backend mode: load file content via BIMStorage instead of IDB
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        try {
+            document.getElementById('loading').classList.add('show');
+            window.updateProgress(0, `${i18n.t('viewer.loadingFromStorage')} (0/${selectedStorageFiles.size})`);
+            closeStoragePickerModal();
+
+            const fileArray = Array.from(selectedStorageFiles);
+            for (let i = 0; i < fileArray.length; i++) {
+                const fileId = fileArray[i];
+                const meta = storageMetadata && storageMetadata.files && storageMetadata.files[fileId];
+                if (!meta) continue;
+                const buf = await window.BIMStorage.backend.getFileContent('ifc', fileId);
+                if (buf) {
+                    await window.parseIFCAsync(buf, meta.name, i + 1, fileArray.length);
+                }
+            }
+
+            document.getElementById('loading').classList.remove('show');
+            window.combineData();
+            window.updateUI();
+            window.dispatchEvent(new CustomEvent('ifc:fileSelected'));
+            selectedStorageFiles.clear();
+        } catch (e) {
+            console.warn('Folder file load failed:', e);
+            ErrorHandler.error(i18n.t('viewer.storageLoadError'));
+            document.getElementById('loading').classList.remove('show');
+        }
         return;
     }
 

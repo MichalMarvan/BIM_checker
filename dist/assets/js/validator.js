@@ -1761,7 +1761,8 @@ async function openIfcStoragePicker(groupIndex) {
         });
     }
 
-    if (!storageDB) {
+    const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+    if (!isFolderMode && !storageDB) {
         storageDB = await initStorageDB();
     }
 
@@ -2040,6 +2041,39 @@ function toggleIfcFileSelection(fileId) {
 
 // Confirm IFC selection
 async function confirmIfcSelection() {
+    // Folder backend mode: load content via BIMStorage
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        try {
+            const files = [];
+            const meta = ifcStorageData || ifcMetadata;
+            for (const fileId of selectedIfcFiles) {
+                const fileMetadata = meta && meta.files && meta.files[fileId];
+                if (!fileMetadata) continue;
+                const fileContent = await window.BIMStorage.backend.getFileContent('ifc', fileId);
+                if (fileContent) {
+                    files.push({
+                        ...fileMetadata,
+                        content: fileContent
+                    });
+                }
+            }
+            const targetGroup = validationGroups[currentGroupIndex];
+            targetGroup.ifcFiles = files;
+            if (targetGroup.missingIfcNames && targetGroup.missingIfcNames.length > 0) {
+                const newNames = new Set(files.map(f => f.name));
+                targetGroup.missingIfcNames = targetGroup.missingIfcNames.filter(n => !newNames.has(n));
+            }
+            closeIfcStorageModal();
+            renderValidationGroups();
+            updateValidateButton();
+            window.dispatchEvent(new CustomEvent('validator:ifcLoaded'));
+        } catch (e) {
+            console.error('Error loading IFC files (folder mode):', e);
+            ErrorHandler.error(t('validator.error.storageLoad'));
+        }
+        return;
+    }
+
     try {
         // Load metadata structure
         const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
@@ -2105,7 +2139,8 @@ async function openIdsStoragePicker(groupIndex) {
     currentGroupIndex = groupIndex;
     selectedIdsFile = null;
 
-    if (!storageDB) {
+    const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
+    if (!isFolderMode && !storageDB) {
         storageDB = await initStorageDB();
     }
 
@@ -2325,6 +2360,40 @@ function updateIdsSelectedName() {
 async function confirmIdsSelection() {
     if (!selectedIdsFile) {
         ErrorHandler.error(t('validator.error.selectIds'));
+        return;
+    }
+
+    // Folder backend mode: load content via BIMStorage
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        try {
+            const meta = idsStorageData || idsMetadata;
+            const fileMetadata = meta && meta.files && meta.files[selectedIdsFile];
+            if (!fileMetadata) {
+                ErrorHandler.error(t('validator.error.fileNotFound'));
+                return;
+            }
+            const fileContent = await window.BIMStorage.backend.getFileContent('ids', selectedIdsFile);
+            if (!fileContent) {
+                ErrorHandler.error(t('validator.error.fileNotFound'));
+                return;
+            }
+            const group = validationGroups[currentGroupIndex];
+            group.idsFile = {
+                ...fileMetadata,
+                content: fileContent
+            };
+            if (group.missingIdsName && group.idsFile && group.missingIdsName === group.idsFile.name) {
+                group.missingIdsName = null;
+            }
+            closeIdsStorageModal();
+            renderValidationGroups();
+            updateValidateButton();
+            validateIDSFileXSD(currentGroupIndex);
+            window.dispatchEvent(new CustomEvent('validator:idsLoaded'));
+        } catch (e) {
+            console.error('Error loading IDS file (folder mode):', e);
+            ErrorHandler.error(t('validator.error.storageLoad'));
+        }
         return;
     }
 
@@ -2771,6 +2840,47 @@ window.selectIdsFile = selectIdsFile;
 
 // Pre-load storage metadata on page load for instant modal opening
 (async function preloadStorageMetadata() {
+    // Folder backend mode: synthesize metadata from BIMStorage folder tree
+    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
+        function buildMetaFromTree(tree) {
+            if (!tree) return null;
+            const folders = {};
+            const files = {};
+            function walk(node, parentId, folderId) {
+                folders[folderId] = {
+                    id: folderId,
+                    name: node.name || 'root',
+                    parentId: parentId,
+                    files: node.files.map(f => f.path),
+                    children: node.subfolders.map(sub => sub.path || sub.name)
+                };
+                for (const f of node.files) {
+                    files[f.path] = {
+                        id: f.path,
+                        name: f.name,
+                        size: f.size,
+                        folder: folderId,
+                        uploadDate: null
+                    };
+                }
+                for (const sub of node.subfolders) {
+                    walk(sub, folderId, sub.path || sub.name);
+                }
+            }
+            walk(tree, null, 'root');
+            return { folders, files };
+        }
+
+        const ifcTree = window.BIMStorage.backend.getFolderTree('ifc');
+        ifcMetadata = buildMetaFromTree(ifcTree);
+        if (ifcMetadata) console.log('✓ IFC storage metadata pre-loaded (folder mode)');
+
+        const idsTree = window.BIMStorage.backend.getFolderTree('ids');
+        idsMetadata = buildMetaFromTree(idsTree);
+        if (idsMetadata) console.log('✓ IDS storage metadata pre-loaded (folder mode)');
+        return;
+    }
+
     try {
         if (!storageDB) {
             storageDB = await initStorageDB();
