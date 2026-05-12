@@ -203,63 +203,44 @@ async function loadIfcFromStorage(fileMeta) {
         // jitter or vanish. Engine's federation auto-mode leaves the FIRST model
         // at its world origin (expects building IFCs with origin near 0), so we
         // do it ourselves here.
-        // Federation strategy:
-        //   1) If THIS model has IfcMapConversion, use the engine's native
-        //      real-coords flow with an auto false-origin = first model's E/N/H.
-        //      This is the canonical IFC4+ way: each model carries its own world
-        //      offset, false-origin keeps f32 precision sane.
-        //   2) Else (geometry baked at world coords, no MapConversion — common
-        //      in Czech civil practice), fall back to a shared bbox-center anchor
-        //      so all subsequent models keep their real-world delta relative to
-        //      the first.
+        // Federation strategy (= @thatopen autoCoordinate behavior):
+        // Each model is shifted so its OWN bbox center sits at scene (0,0,0).
+        // This is the "building federation" pattern — different disciplines of
+        // the same site overlay naturally. For civil IFCs whose IfcSite anchors
+        // sit at different S-JTSK origins (file 1 site (-751800,-1041200), file 2
+        // site (-752000,-1040600)) the per-file content visually collapses to a
+        // shared local frame instead of being placed at the literal real-world
+        // delta (205m apart for SO112201 vs SO112402 here).
+        //
+        // Cross-CRS or true real-world placement comes later via
+        // engine.setRealWorldCoords + IfcMapConversion or proj4js reprojection.
         try {
-            const coords = engine.getCoords && engine.getCoords(modelId);
-            const hasMc = !!(coords && coords.mapConversion);
-            if (hasMc) {
-                // Set falseOrigin once from the very first MapConversion-carrying
-                // model, then re-apply real-coords transform so the new model is
-                // placed at its (E - falseOrigin, N - falseOrigin, H - falseOrigin).
-                if (!state.federationAnchor) {
-                    const mc = coords.mapConversion;
-                    state.federationAnchor = [mc.eastings || 0, mc.northings || 0, mc.orthogonalHeight || 0];
-                    console.log('[3d-viewer] federation anchor (MapConversion-based):', state.federationAnchor);
+            const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
+            if (internal && internal.group) {
+                internal.group.position.set(0, 0, 0);
+                internal.group.updateMatrixWorld(true);
+                let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
+                for (const m of internal.meshes) {
+                    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+                    const b = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
+                    if (b.min.x < minX) minX = b.min.x;
+                    if (b.min.y < minY) minY = b.min.y;
+                    if (b.min.z < minZ) minZ = b.min.z;
+                    if (b.max.x > maxX) maxX = b.max.x;
+                    if (b.max.y > maxY) maxY = b.max.y;
+                    if (b.max.z > maxZ) maxZ = b.max.z;
                 }
-                engine.setRealWorldCoords(true, { falseOrigin: state.federationAnchor });
-                console.log('[3d-viewer] applied setRealWorldCoords with falseOrigin');
-            } else {
-                // No MapConversion → manual shared-anchor shift on the viewer group.
-                const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
-                if (internal && internal.group) {
-                    internal.group.position.set(0, 0, 0);
+                if (Number.isFinite(minX)) {
+                    const cx = (minX + maxX) / 2;
+                    const cy = (minY + maxY) / 2;
+                    const cz = (minZ + maxZ) / 2;
+                    console.log('[3d-viewer] model world bbox center:', cx, cy, cz);
+                    internal.group.position.set(-cx, -cy, -cz);
                     internal.group.updateMatrixWorld(true);
-                    let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
-                    for (const m of internal.meshes) {
-                        if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-                        const b = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
-                        if (b.min.x < minX) minX = b.min.x;
-                        if (b.min.y < minY) minY = b.min.y;
-                        if (b.min.z < minZ) minZ = b.min.z;
-                        if (b.max.x > maxX) maxX = b.max.x;
-                        if (b.max.y > maxY) maxY = b.max.y;
-                        if (b.max.z > maxZ) maxZ = b.max.z;
-                    }
-                    if (Number.isFinite(minX)) {
-                        const cx = (minX + maxX) / 2;
-                        const cy = (minY + maxY) / 2;
-                        const cz = (minZ + maxZ) / 2;
-                        console.log('[3d-viewer] model world bbox center:', cx, cy, cz);
-                        if (!state.federationAnchor) {
-                            state.federationAnchor = [cx, cy, cz];
-                            console.log('[3d-viewer] federation anchor (bbox-based, no MapConversion):', state.federationAnchor);
-                        }
-                        const [ax, ay, az] = state.federationAnchor;
-                        internal.group.position.set(-ax, -ay, -az);
-                        internal.group.updateMatrixWorld(true);
-                        console.log('[3d-viewer] group position after manual shift:', internal.group.position.toArray());
-                    }
+                    console.log('[3d-viewer] group position after collapse-to-origin:', internal.group.position.toArray());
                 }
             }
-        } catch (e) { console.warn('[3d-viewer] federation failed:', e); }
+        } catch (e) { console.warn('[3d-viewer] federation collapse failed:', e); }
 
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
