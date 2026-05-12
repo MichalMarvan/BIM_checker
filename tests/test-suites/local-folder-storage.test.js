@@ -50,8 +50,8 @@ describe('LocalFolderStorageBackend', () => {
         expect(backend.kind).toBe('localFolder');
     });
 
-    it('isReadOnly returns true in v1', () => {
-        expect(backend.isReadOnly()).toBe(true);
+    it('isReadOnly returns false in v2 (writable)', () => {
+        expect(backend.isReadOnly()).toBe(false);
     });
 
     it('scan walks recursively and filters by extension', async () => {

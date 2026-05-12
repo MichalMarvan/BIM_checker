@@ -56,7 +56,7 @@ describe('AI write tools refuse on LocalFolder backend', () => {
         window.BIMStorage.setBackend(originalBackend);
     });
 
-    it('BIMStorage.backend.isReadOnly returns true when LocalFolder active', () => {
-        expect(window.BIMStorage.backend.isReadOnly()).toBe(true);
+    it('BIMStorage.backend.isReadOnly returns false in v2 when LocalFolder active', () => {
+        expect(window.BIMStorage.backend.isReadOnly()).toBe(false);
     });
 });

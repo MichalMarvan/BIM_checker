@@ -24,7 +24,7 @@ class LocalFolderStorageBackend {
         this._initialized = !!rootDirHandle;
     }
 
-    isReadOnly() { return true; }
+    isReadOnly() { return false; }
 
     async init() { return this._initialized; }
 
@@ -32,7 +32,7 @@ class LocalFolderStorageBackend {
         if (!LocalFolderStorageBackend.isSupported()) {
             throw new Error('File System Access API not supported in this browser');
         }
-        const handle = await window.showDirectoryPicker({ id: 'bim-checker-root', mode: 'read' });
+        const handle = await window.showDirectoryPicker({ id: 'bim-checker-root', mode: 'readwrite' });
         this.root = handle;
         this.rootName = handle.name;
         this._initialized = true;
@@ -46,7 +46,7 @@ class LocalFolderStorageBackend {
         if (!window.BIMFsHandleStore) return { state: 'no_handle' };
         const handle = await window.BIMFsHandleStore.loadRootHandle();
         if (!handle) return { state: 'no_handle' };
-        const perm = await handle.queryPermission({ mode: 'read' });
+        const perm = await handle.queryPermission({ mode: 'readwrite' });
         if (perm === 'granted') {
             this.root = handle;
             this.rootName = handle.name;
@@ -60,7 +60,7 @@ class LocalFolderStorageBackend {
     }
 
     async requestPermissionAgain(handle) {
-        const perm = await handle.requestPermission({ mode: 'read' });
+        const perm = await handle.requestPermission({ mode: 'readwrite' });
         if (perm === 'granted') {
             this.root = handle;
             this.rootName = handle.name;
