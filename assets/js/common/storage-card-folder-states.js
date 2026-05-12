@@ -231,6 +231,21 @@
         if (banner) banner.remove();
     }
 
+    function _formatBytes(bytes) {
+        if (!bytes) return '0 KB';
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function _updateStatsBox(boxId, count, totalBytes) {
+        const box = document.getElementById(boxId);
+        if (!box) return;
+        const values = box.querySelectorAll('.stat-value');
+        if (values.length >= 1) values[0].textContent = count;
+        if (values.length >= 2) values[1].textContent = _formatBytes(totalBytes);
+    }
+
     async function _refreshAll() {
         const backend = window.BIMStorage && window.BIMStorage.backend;
         const ifcCard = _findCard('ifc');
@@ -244,6 +259,10 @@
 
         const ifcStats = backend.getStats('ifc');
         const idsStats = backend.getStats('ids');
+
+        // Update the bottom stats badges (Souborů / Velikost)
+        _updateStatsBox('ifcStats', ifcStats.count, ifcStats.totalBytes);
+        _updateStatsBox('idsStats', idsStats.count, idsStats.totalBytes);
 
         if (backend._initialized && backend.root) {
             const ifcTree = backend.getFolderTree ? backend.getFolderTree('ifc') : null;
