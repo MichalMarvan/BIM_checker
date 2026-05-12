@@ -138,33 +138,51 @@ function renderLoadedList() {
 }
 
 async function loadIfcFromStorage(fileMeta) {
+    console.log('[3d-viewer] loadIfcFromStorage:', fileMeta.name);
     try {
         setStatus(`${t('viewer3d.loading') || 'Načítám'} ${fileMeta.name}…`);
         const raw = await window.BIMStorage.getFileContent('ifc', fileMeta.id);
         if (!raw) throw new Error('Empty file content');
         let buffer;
-        if (raw instanceof ArrayBuffer) {
-            buffer = raw;
-        } else if (typeof raw === 'string') {
-            buffer = new TextEncoder().encode(raw).buffer;
-        } else if (raw && raw.buffer instanceof ArrayBuffer) {
-            buffer = raw.buffer;
-        } else {
-            buffer = raw;
-        }
+        if (raw instanceof ArrayBuffer) buffer = raw;
+        else if (typeof raw === 'string') buffer = new TextEncoder().encode(raw).buffer;
+        else if (raw && raw.buffer instanceof ArrayBuffer) buffer = raw.buffer;
+        else buffer = raw;
+        console.log('[3d-viewer] buffer ready, requesting engine…');
         const engine = await getEngine();
+        console.log('[3d-viewer] engine ready, calling loadIfc…');
         const modelId = await engine.loadIfc(buffer, { name: fileMeta.name });
+        console.log('[3d-viewer] loadIfc resolved, modelId =', modelId);
         const stats = (typeof engine.getStats === 'function') ? engine.getStats(modelId) : null;
         state.loadedModels.set(modelId, { name: fileMeta.name, stats });
         renderLoadedList();
+        // Frame the camera on whatever is now in the scene
+        if (typeof engine.fitAll === 'function') {
+            try { engine.fitAll(); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
+        }
         setStatus(`✓ ${fileMeta.name}${stats ? ` — ${stats.entityCount} entit` : ''}`, 'success');
+        return modelId;
     } catch (e) {
-        console.error('IFC load failed:', e);
+        console.error('[3d-viewer] IFC load failed:', e);
         setStatus(`✗ ${e.message || e}`, 'error');
         if (window.ErrorHandler && window.ErrorHandler.error) {
             window.ErrorHandler.error((t('viewer3d.loadFailed') || 'Načtení selhalo') + ': ' + (e.message || e));
         }
+        throw e;
     }
+}
+
+async function loadSelectedFromPicker() {
+    const ids = Array.from(pickerState.selected);
+    if (ids.length === 0) return;
+    const modal = document.getElementById('viewer3dPickerModal');
+    if (modal) modal.classList.remove('show');
+    for (const fileId of ids) {
+        const meta = pickerState.files[fileId];
+        if (!meta) continue;
+        try { await loadIfcFromStorage(meta); } catch (_) { /* keep going through the batch */ }
+    }
+    pickerState.selected.clear();
 }
 
 function removeModel(modelId) {
@@ -182,7 +200,8 @@ function removeModel(modelId) {
 const pickerState = {
     folders: {},   // folderId → { id, name, parentId, children: [folderId], files: [fileId] }
     files: {},     // fileId → { id, name, size, folder }
-    expanded: new Set(['root'])
+    expanded: new Set(['root']),
+    selected: new Set()   // fileIds checked for loading
 };
 
 function escAttr(s) {
@@ -270,11 +289,11 @@ function renderPickerFolderRecursive(folderId, level) {
     let html = '';
     if (folderId !== 'root') {
         html += `
-            <div class="tree-folder-header v3d-tree-folder" style="padding-left: ${level * 18}px;">
-                <span data-folder-id="${safeId}" class="tree-folder-arrow v3d-folder-toggle">${arrow}</span>
-                <span data-folder-id="${safeId}" class="tree-folder-name v3d-folder-toggle">
-                    📁 ${escapeHtml(folder.name)}
-                    ${count > 0 ? `<span class="tree-folder-count">(${count})</span>` : ''}
+            <div class="v3d-tree-folder" style="padding-left: ${level * 14}px;">
+                <span data-folder-id="${safeId}" class="v3d-folder-toggle">
+                    <span class="v3d-tree-arrow">${arrow}</span>
+                    <span class="v3d-tree-name">📁 ${escapeHtml(folder.name)}</span>
+                    ${count > 0 ? `<span class="v3d-tree-count">(${count})</span>` : ''}
                 </span>
             </div>
         `;
@@ -288,16 +307,29 @@ function renderPickerFolderRecursive(folderId, level) {
             const file = pickerState.files[fileId];
             if (!file) continue;
             const safeFileId = escAttr(fileId);
-            const indent = (folderId === 'root') ? level * 18 : (level + 1) * 18;
+            const indent = (folderId === 'root') ? level * 14 : (level + 1) * 14;
+            const checked = pickerState.selected.has(fileId) ? 'checked' : '';
             html += `
-                <div class="tree-file-item v3d-picker-file" data-file-id="${safeFileId}" style="padding-left: ${indent + 6}px;">
+                <label class="v3d-picker-file" data-file-id="${safeFileId}" style="padding-left: ${indent + 18}px;">
+                    <input type="checkbox" class="v3d-picker-check" data-file-id="${safeFileId}" ${checked}>
                     <span class="v3d-picker-file__name">📄 ${escapeHtml(file.name)}</span>
                     <span class="v3d-picker-file__size">${formatBytes(file.size)}</span>
-                </div>
+                </label>
             `;
         }
     }
     return html;
+}
+
+function refreshPickerSelectionCount() {
+    const btn = document.getElementById('v3dPickerConfirm');
+    const count = pickerState.selected.size;
+    if (btn) {
+        btn.disabled = count === 0;
+        btn.textContent = count === 0
+            ? (t('viewer3d.pickerConfirm') || 'Načíst vybrané')
+            : `${t('viewer3d.pickerConfirm') || 'Načíst vybrané'} (${count})`;
+    }
 }
 
 function attachPickerTreeListeners(listEl, modal) {
@@ -312,13 +344,24 @@ function attachPickerTreeListeners(listEl, modal) {
             attachPickerTreeListeners(listEl, modal);
         });
     });
-    listEl.querySelectorAll('.v3d-picker-file').forEach(item => {
-        item.addEventListener('click', () => {
-            const fileId = item.dataset.fileId;
-            const meta = pickerState.files[fileId];
-            if (meta) {
-                modal.classList.remove('show');
-                loadIfcFromStorage(meta);
+    listEl.querySelectorAll('.v3d-picker-check').forEach(input => {
+        input.addEventListener('change', (e) => {
+            e.stopPropagation();
+            const fileId = input.dataset.fileId;
+            if (!fileId) return;
+            if (input.checked) pickerState.selected.add(fileId);
+            else pickerState.selected.delete(fileId);
+            refreshPickerSelectionCount();
+        });
+    });
+    // Click on file row (outside checkbox) toggles too
+    listEl.querySelectorAll('.v3d-picker-file').forEach(row => {
+        row.addEventListener('click', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            const check = row.querySelector('.v3d-picker-check');
+            if (check) {
+                check.checked = !check.checked;
+                check.dispatchEvent(new Event('change'));
             }
         });
     });
@@ -345,10 +388,12 @@ async function openStoragePicker() {
 
         if (Object.keys(tree.files).length === 0) {
             listEl.innerHTML = `<p class="storage-empty-message" data-i18n="viewer3d.pickerEmpty">${escapeHtml(t('viewer3d.pickerEmpty') || 'Žádné IFC soubory ve storage.')}</p>`;
+            refreshPickerSelectionCount();
             return;
         }
         listEl.innerHTML = renderPickerFolderRecursive('root', 0);
         attachPickerTreeListeners(listEl, modal);
+        refreshPickerSelectionCount();
     } catch (e) {
         console.error('Picker load failed:', e);
         listEl.innerHTML = `<p class="storage-error-message">${escapeHtml(e.message || String(e))}</p>`;
@@ -369,6 +414,15 @@ function wireUI() {
     if (closeBtn) closeBtn.addEventListener('click', () => {
         document.getElementById('viewer3dPickerModal').classList.remove('show');
     });
+
+    const cancelBtn = document.getElementById('v3dPickerCancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => {
+        document.getElementById('viewer3dPickerModal').classList.remove('show');
+        pickerState.selected.clear();
+    });
+
+    const confirmBtn = document.getElementById('v3dPickerConfirm');
+    if (confirmBtn) confirmBtn.addEventListener('click', loadSelectedFromPicker);
 
     const modal = document.getElementById('viewer3dPickerModal');
     if (modal) modal.addEventListener('click', (e) => {
