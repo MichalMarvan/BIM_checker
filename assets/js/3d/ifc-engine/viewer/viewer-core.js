@@ -58,7 +58,10 @@ const DEFAULT_MATERIAL = new THREE.MeshStandardMaterial({
 // thin black LineSegments overlay per mesh. Makes geometry stand out without
 // noisy wireframe. Edges fade out when camera is far from target so distant
 // views aren't visually crowded.
-const EDGE_THRESHOLD_DEG = 30;
+// 45° instead of 30° hides tessellation seams from triangulated civil/IFC
+// geometry (where every triangle would otherwise spawn an edge line),
+// keeping only real corner edges visible.
+const EDGE_THRESHOLD_DEG = 45;
 const EDGE_COLOR = 0x000000;
 const EDGE_MAX_OPACITY = 0.85;
 // Fade thresholds — distances are in scene units. Updated per fitAll based on

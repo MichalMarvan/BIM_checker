@@ -42,21 +42,102 @@ function resolveCoords(entityIndex, expressId) {
 // -------------------- Face / Shell utilities --------------------
 
 /**
- * Push triangulated polygon (fan-triangulation) to the position/index arrays.
- * Polygon = array of [x,y,z]. Caller passes accumulated arrays.
+ * Newell's method: stable polygon normal for non-planar / slightly-twisted faces.
  */
-function pushFanTriangulatedPolygon(polygon, positions, indices) {
+function computePolygonNormal(polygon) {
+  let nx = 0, ny = 0, nz = 0;
+  const n = polygon.length;
+  for (let i = 0; i < n; i++) {
+    const a = polygon[i], b = polygon[(i + 1) % n];
+    nx += (a[1] - b[1]) * (a[2] + b[2]);
+    ny += (a[2] - b[2]) * (a[0] + b[0]);
+    nz += (a[0] - b[0]) * (a[1] + b[1]);
+  }
+  const len = Math.hypot(nx, ny, nz);
+  if (len < 1e-12) return [0, 0, 1];
+  return [nx / len, ny / len, nz / len];
+}
+
+/**
+ * Triangulate a (possibly concave, possibly non-planar) 3D polygon by
+ * projecting it onto its own best-fit plane, running THREE.ShapeUtils
+ * earcut, and lifting indices back. Returns triangle index list i.e.
+ * [i0, j0, k0, i1, j1, k1, ...] into the original polygon array.
+ *
+ * Triangle-only polygons skip the earcut path (fast path).
+ */
+function triangulatePolygon3D(polygon) {
+  if (polygon.length < 3) return null;
+  if (polygon.length === 3) return [0, 1, 2];
+  if (polygon.length === 4) {
+    // Quad — try the diagonal that keeps both triangles roughly convex.
+    // Cheap approximation: just split 0-1-2 and 0-2-3. Works for most rectangular faces.
+    return [0, 1, 2, 0, 2, 3];
+  }
+
+  const normal = computePolygonNormal(polygon);
+  // Build 2D basis (u, v) perpendicular to normal
+  const z = new THREE.Vector3(normal[0], normal[1], normal[2]);
+  const ref = Math.abs(z.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  const u = new THREE.Vector3().crossVectors(z, ref).normalize();
+  const v = new THREE.Vector3().crossVectors(z, u);
+
+  const flat = polygon.map(p => new THREE.Vector2(
+    u.x * p[0] + u.y * p[1] + u.z * p[2],
+    v.x * p[0] + v.y * p[1] + v.z * p[2]
+  ));
+
+  // ShapeUtils.triangulateShape expects CCW outer contour. Reverse if CW.
+  if (THREE.ShapeUtils.isClockWise(flat)) flat.reverse();
+  const tris = THREE.ShapeUtils.triangulateShape(flat, []);
+  if (!tris || tris.length === 0) {
+    // Fallback to fan if earcut fails (very degenerate input)
+    const out = [];
+    for (let i = 1; i < polygon.length - 1; i++) out.push(0, i, i + 1);
+    return out;
+  }
+
+  // If we reversed the polygon during projection, the triangle indices refer
+  // to the reversed list. Remap them back to original order.
+  if (flat.length === polygon.length && tris.length > 0) {
+    // Check if reversal happened: shapeUtils mutates passed array; reversed = polygon[i] ↔ flat[len-1-i]
+    // Detect by comparing first projected point in reversed list
+    const reversed = (flat[0].x !== (u.x * polygon[0][0] + u.y * polygon[0][1] + u.z * polygon[0][2])
+                   || flat[0].y !== (v.x * polygon[0][0] + v.y * polygon[0][1] + v.z * polygon[0][2]));
+    if (reversed) {
+      const N = polygon.length;
+      const out = [];
+      for (const t of tris) out.push(N - 1 - t[0], N - 1 - t[1], N - 1 - t[2]);
+      return out;
+    }
+  }
+
+  const out = [];
+  for (const t of tris) out.push(t[0], t[1], t[2]);
+  return out;
+}
+
+/**
+ * Push a polygon to the position/index arrays using a proper concave-safe
+ * triangulator (Newell + 2D earcut projection). Falls back to fan triangulation
+ * if earcut returns nothing.
+ */
+function pushTriangulatedPolygon(polygon, positions, indices) {
   if (polygon.length < 3) return;
+  const tris = triangulatePolygon3D(polygon);
+  if (!tris || tris.length === 0) return;
   const baseIndex = positions.length / 3;
   for (const v of polygon) positions.push(v[0], v[1], v[2]);
-  for (let i = 1; i < polygon.length - 1; i++) {
-    indices.push(baseIndex, baseIndex + i, baseIndex + i + 1);
-  }
+  for (const i of tris) indices.push(baseIndex + i);
 }
 
 /**
  * Walk a IfcClosedShell → push its triangulated face polygons to position/index arrays.
  * Used by FacetedBrep and ShellBasedSurfaceModel.
+ *
+ * Respects IfcFaceOuterBound / IfcFaceBound Orientation flag (.T. or .F.).
+ * When .F., the polygon's winding is reversed so face normals stay consistent
+ * after triangulation.
  */
 function appendClosedShell(entityIndex, shellId, positions, indices) {
   const shell = entityIndex.byExpressId(shellId);
@@ -76,6 +157,8 @@ function appendClosedShell(entityIndex, shellId, positions, indices) {
       if (!bound) continue;
       const boundParts = splitParams(bound.params);
       const loopRef = parseRef(boundParts[0]);
+      // Orientation: .T. (true, default) keeps polygon winding; .F. reverses.
+      const orientation = (boundParts[1] || '.T.').trim();
       const loop = entityIndex.byExpressId(loopRef);
       if (!loop || loop.type !== 'IFCPOLYLOOP') continue;
       const loopParts = splitParams(loop.params);
@@ -89,7 +172,8 @@ function appendClosedShell(entityIndex, shellId, positions, indices) {
         const coords = inner.split(',').map(s => parseFloat(s.trim()));
         if (coords.length === 3) polygon.push(coords);
       }
-      pushFanTriangulatedPolygon(polygon, positions, indices);
+      if (orientation === '.F.') polygon.reverse();
+      pushTriangulatedPolygon(polygon, positions, indices);
     }
   }
 }
@@ -209,7 +293,7 @@ export function polygonalFaceSetToGeometry(entityIndex, expressId) {
       if (!Number.isFinite(i) || i < 1 || i > allPoints.length) continue;
       polygon.push(allPoints[i - 1]);
     }
-    pushFanTriangulatedPolygon(polygon, positions, indices);
+    pushTriangulatedPolygon(polygon, positions, indices);
   }
   return geometryFromPositionsIndices(positions, indices);
 }
