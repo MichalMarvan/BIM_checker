@@ -207,22 +207,22 @@ async function loadIfcFromStorage(fileMeta) {
         // jitter or vanish. Engine's federation auto-mode leaves the FIRST model
         // at its world origin (expects building IFCs with origin near 0), so we
         // do it ourselves here.
-        // Federation: shared anchor = FIRST model's world bbox center, so all
-        // subsequent models keep real-world relative positions. Two civil IFCs
-        // sharing S-JTSK origin land where they really are (e.g. 205m apart for
-        // SO112201 vs SO112402 in D214); two same-site discipline models overlap
-        // naturally because their bbox centers coincide.
+        // Federation + WebGL f32 precision fix:
+        // Bake the federation shift directly into each geometry's vertex buffer
+        // and reset all mesh / group transforms to identity. Reason: GPU vertex
+        // shaders use f32. If mesh.matrixWorld carries translations on order of
+        // 10^6 (S-JTSK / large world coords), `modelMatrix × vertex` overflows
+        // f32 precision → triangles "wave" + jitter when the camera rotates.
+        // By baking the shift into vertices, mesh.matrix stays identity and the
+        // buffer values are small (near origin), keeping everything f32-safe.
         //
-        // We push the offset through engine.setModelOffset (manual mode set at
-        // boot) so engine's auto _recomputeFederation on subsequent loads doesn't
-        // reset us back to world coords.
+        // Trade-off: cannot trivially switch federation modes after load
+        // (each load bakes once); a reload would be required to re-center.
         try {
             const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
             if (internal && internal.group) {
-                // Reset position before measuring so updateMatrixWorld reflects
-                // raw parser output (engine may have applied a federation offset already).
-                internal.group.position.set(0, 0, 0);
                 internal.group.updateMatrixWorld(true);
+                // Measure raw world bbox (with engine transforms applied)
                 let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
                 for (const m of internal.meshes) {
                     if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
@@ -244,17 +244,48 @@ async function loadIfcFromStorage(fileMeta) {
                         console.log('[3d-viewer] federation anchor set:', state.federationAnchor);
                     }
                     const [ax, ay, az] = state.federationAnchor;
-                    const offset = [-ax, -ay, -az];
-                    if (typeof engine.setModelOffset === 'function') {
-                        engine.setModelOffset(modelId, offset);
-                        console.log('[3d-viewer] engine.setModelOffset:', offset);
-                    } else {
-                        internal.group.position.set(-ax, -ay, -az);
-                    }
+                    // Get a fresh Matrix4 by cloning an existing one (avoids re-importing three)
+                    const shift = internal.group.matrix.clone().identity().makeTranslation(-ax, -ay, -az);
+
+                    // Bake (shift × currentWorldMatrix) into every object's geometry.
+                    // After this, each mesh / lineset has identity transform and
+                    // its buffer holds scene-local (small) coordinates.
+                    const visited = new Set();
+                    internal.group.traverse(obj => {
+                        if (!obj.geometry) return;
+                        if (visited.has(obj.geometry.uuid)) {
+                            // Two meshes may share a buffer (rare but possible) — skip second pass
+                            return;
+                        }
+                        visited.add(obj.geometry.uuid);
+                        const total = shift.clone().multiply(obj.matrixWorld);
+                        obj.geometry.applyMatrix4(total);
+                        obj.geometry.computeBoundingBox();
+                        // Some materials rely on vertex normals — recompute after a
+                        // potentially rotation-bearing transform was baked in.
+                        if (obj.geometry.attributes && obj.geometry.attributes.position && obj.geometry.attributes.normal) {
+                            obj.geometry.computeVertexNormals();
+                        }
+                        obj.matrix.identity();
+                        obj.matrixAutoUpdate = true;
+                        obj.position.set(0, 0, 0);
+                        obj.rotation.set(0, 0, 0);
+                        obj.scale.set(1, 1, 1);
+                        obj.updateMatrix();
+                    });
+
+                    // Group also resets — its IFC→Three rotation and the federation
+                    // translation are already baked into the geometries above.
+                    internal.group.position.set(0, 0, 0);
+                    internal.group.rotation.set(0, 0, 0);
+                    internal.group.scale.set(1, 1, 1);
+                    internal.group.matrixAutoUpdate = true;
+                    internal.group.updateMatrix();
                     internal.group.updateMatrixWorld(true);
+                    console.log('[3d-viewer] baked', visited.size, 'geometries to scene-local frame');
                 }
             }
-        } catch (e) { console.warn('[3d-viewer] federation failed:', e); }
+        } catch (e) { console.warn('[3d-viewer] federation bake failed:', e); }
 
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
