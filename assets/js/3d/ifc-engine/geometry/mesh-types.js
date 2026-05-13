@@ -183,7 +183,66 @@ function geometryFromPositionsIndices(positions, indices) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
+  return geom;
+}
+
+/**
+ * Merge coincident vertices in-place via a spatial hash (O(n) instead of
+ * O(n²)). Polygons in IFC are stored without shared vertices across faces;
+ * after triangulation each face contributes its own vertices. Merging makes
+ * computeVertexNormals() smooth across former polygon boundaries — curved
+ * surfaces (tessellated cylinders, retaining walls, road profiles) stop
+ * showing the discrete-panel "wrinkled" look and look properly smooth.
+ *
+ * Sharp corners (e.g. 90° wall edges) get slightly rounded by this, which
+ * is fine for civil/building rendering; the edge-line overlay still picks
+ * them out visually.
+ *
+ * tolerance is in geometry units (metres for these files).
+ */
+export function mergeVerticesInPlace(geom, tolerance = 1e-4) {
+  const posAttr = geom.attributes.position;
+  if (!posAttr) return geom;
+  const positions = posAttr.array;
+  const vertexCount = positions.length / 3;
+  if (vertexCount === 0) return geom;
+
+  const scale = 1 / tolerance;
+  const newPositions = [];
+  const hashToNew = new Map();
+  const oldToNew = new Int32Array(vertexCount);
+
+  for (let i = 0; i < vertexCount; i++) {
+    const x = positions[i * 3];
+    const y = positions[i * 3 + 1];
+    const z = positions[i * 3 + 2];
+    const hash = `${Math.round(x * scale)}|${Math.round(y * scale)}|${Math.round(z * scale)}`;
+    let newIdx = hashToNew.get(hash);
+    if (newIdx === undefined) {
+      newIdx = newPositions.length / 3;
+      newPositions.push(x, y, z);
+      hashToNew.set(hash, newIdx);
+    }
+    oldToNew[i] = newIdx;
+  }
+  if (newPositions.length === positions.length) return geom; // nothing merged
+
+  let newIndexArray;
+  const oldIndex = geom.index ? geom.index.array : null;
+  if (oldIndex) {
+    newIndexArray = new Uint32Array(oldIndex.length);
+    for (let i = 0; i < oldIndex.length; i++) newIndexArray[i] = oldToNew[oldIndex[i]];
+  } else {
+    newIndexArray = new Uint32Array(vertexCount);
+    for (let i = 0; i < vertexCount; i++) newIndexArray[i] = oldToNew[i];
+  }
+
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(newPositions), 3));
+  geom.setIndex(new THREE.BufferAttribute(newIndexArray, 1));
+  // Existing normal / uv attributes become invalid after vertex merge — drop them.
+  geom.deleteAttribute('normal');
   return geom;
 }
 
@@ -217,6 +276,7 @@ export function triangulatedFaceSetToGeometry(entityIndex, expressId) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(positionArr, 3));
   geom.setIndex(new THREE.BufferAttribute(indexArr, 1));
+  mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   return geom;
 }
@@ -594,6 +654,7 @@ export function extrudedAreaSolidToGeometry(entityIndex, expressId) {
     geom.applyMatrix4(m);
   }
 
+  mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   geom.computeBoundingBox();
   return geom;
