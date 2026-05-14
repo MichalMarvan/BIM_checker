@@ -1067,6 +1067,43 @@ const translations = {
         'ai.endpoint.loadModelsBtn': '↻ Načíst dostupné modely',
         'ai.endpoint.loadModelsFailed': 'Nelze načíst modely. Zadejte ručně.',
 
+        'ai.agent.testConnBtn': '⚡ Otestovat spojení',
+        'ai.agent.testConn.noEndpoint': 'Nejprve zadej endpoint URL.',
+        'ai.agent.testConn.modelsFound': 'nalezeno modelů: {n}',
+        'ai.agent.testConn.showSetup': 'Jak to spravit →',
+        'ai.agent.testConn.mixedContent': 'Tvůj prohlížeč (Firefox/Safari) blokuje připojení na http://localhost z HTTPS stránky. Použij Chrome nebo Edge.',
+        'ai.agent.testConn.corsOrDown': 'Nelze se připojit k Ollamě. Buď neběží, nebo nepovoluje tuto doménu (CORS).',
+
+        'ai.ollamaSetup.title': 'Připojení k lokální Ollamě',
+        'ai.ollamaSetup.intro': 'Aby tvůj prohlížeč mohl mluvit s Ollamou na tvém počítači, je potřeba Ollamě říct, že má povolit tuto webovou aplikaci. Stačí jednou nastavit proměnnou OLLAMA_ORIGINS a restartovat Ollamu.',
+        'ai.ollamaSetup.browserWarn': 'Používáš prohlížeč, který blokuje připojení na http://localhost z HTTPS stránek. Doporučujeme Chrome, Edge, Brave nebo Operu.',
+        'ai.ollamaSetup.tab.windows': 'Windows',
+        'ai.ollamaSetup.tab.macos': 'macOS',
+        'ai.ollamaSetup.tab.linux': 'Linux',
+        'ai.ollamaSetup.copy': 'Kopírovat',
+        'ai.ollamaSetup.copied': '✓ Zkopírováno',
+        'ai.ollamaSetup.endpointHint': 'V nastavení agenta nech endpoint:',
+
+        'ai.ollamaSetup.windows.title': 'Windows — PowerShell',
+        'ai.ollamaSetup.windows.step1': 'Otevři PowerShell (klikni na Start, napiš „powershell").',
+        'ai.ollamaSetup.windows.step2': 'Vlož a spusť tento příkaz:',
+        'ai.ollamaSetup.windows.step3': 'V systray klikni pravým na ikonu Ollamy → Quit, pak ji spusť znovu.',
+
+        'ai.ollamaSetup.macos.title': 'macOS — Terminál',
+        'ai.ollamaSetup.macos.step1': 'Otevři Terminál (Cmd+mezerník, napiš „terminal").',
+        'ai.ollamaSetup.macos.step2': 'Vlož a spusť tento příkaz:',
+        'ai.ollamaSetup.macos.step3': 'V menu baru klikni na ikonu Ollamy → Quit, pak ji spusť znovu.',
+
+        'ai.ollamaSetup.linux.title': 'Linux — systemd',
+        'ai.ollamaSetup.linux.step1': 'Otevři terminál a spusť:',
+        'ai.ollamaSetup.linux.step2': 'V editoru přidej do sekce [Service] řádek Environment="OLLAMA_ORIGINS=...", ulož a zavři.',
+        'ai.ollamaSetup.linux.step3': 'Restartuj službu:',
+
+        'ai.ollamaSetup.banner.mixedContent.title': '⚠ Tvůj prohlížeč blokuje připojení',
+        'ai.ollamaSetup.banner.mixedContent.body': 'Firefox a Safari momentálně neumožňují HTTPS stránce mluvit s http://localhost. Tohle nastavení nepomůže — potřebuješ přepnout do Chromu, Edge, Brave nebo Opery.',
+        'ai.ollamaSetup.banner.corsOrDown.title': 'Ollama tě nechce pustit',
+        'ai.ollamaSetup.banner.corsOrDown.body': 'Buď Ollama vůbec neběží, nebo běží, ale nemá v proměnné OLLAMA_ORIGINS tuto doménu. Postupuj podle návodu níž.',
+
         // AI tool responses (Phase i18n cleanup)
         'ai.tool.validator.viewerOnly': 'Výsledky validace jsou viditelné jen na stránce Validator.',
         'ai.tool.validator.notRun': 'Validace nebyla spuštěna nebo výsledky chybí.',
@@ -2228,6 +2265,43 @@ const translations = {
         'ai.endpoint.fail': '✗ Connection failed: {error}',
         'ai.endpoint.loadModelsBtn': '↻ Load available models',
         'ai.endpoint.loadModelsFailed': 'Cannot load models. Enter manually.',
+
+        'ai.agent.testConnBtn': '⚡ Test connection',
+        'ai.agent.testConn.noEndpoint': 'Enter an endpoint URL first.',
+        'ai.agent.testConn.modelsFound': '{n} models found',
+        'ai.agent.testConn.showSetup': 'How to fix →',
+        'ai.agent.testConn.mixedContent': 'Your browser (Firefox/Safari) blocks connections to http://localhost from HTTPS pages. Use Chrome or Edge.',
+        'ai.agent.testConn.corsOrDown': 'Cannot reach Ollama. Either it is not running, or it does not allow this domain (CORS).',
+
+        'ai.ollamaSetup.title': 'Connect to local Ollama',
+        'ai.ollamaSetup.intro': 'For your browser to talk to Ollama running on your computer, you need to tell Ollama to allow this web app. Set the OLLAMA_ORIGINS environment variable once and restart Ollama.',
+        'ai.ollamaSetup.browserWarn': 'Your browser blocks http://localhost connections from HTTPS pages. We recommend Chrome, Edge, Brave or Opera.',
+        'ai.ollamaSetup.tab.windows': 'Windows',
+        'ai.ollamaSetup.tab.macos': 'macOS',
+        'ai.ollamaSetup.tab.linux': 'Linux',
+        'ai.ollamaSetup.copy': 'Copy',
+        'ai.ollamaSetup.copied': '✓ Copied',
+        'ai.ollamaSetup.endpointHint': 'In agent settings keep the endpoint as:',
+
+        'ai.ollamaSetup.windows.title': 'Windows — PowerShell',
+        'ai.ollamaSetup.windows.step1': 'Open PowerShell (click Start, type "powershell").',
+        'ai.ollamaSetup.windows.step2': 'Paste and run this command:',
+        'ai.ollamaSetup.windows.step3': 'In the system tray, right-click the Ollama icon → Quit, then start it again.',
+
+        'ai.ollamaSetup.macos.title': 'macOS — Terminal',
+        'ai.ollamaSetup.macos.step1': 'Open Terminal (Cmd+Space, type "terminal").',
+        'ai.ollamaSetup.macos.step2': 'Paste and run this command:',
+        'ai.ollamaSetup.macos.step3': 'In the menu bar, click the Ollama icon → Quit, then launch it again.',
+
+        'ai.ollamaSetup.linux.title': 'Linux — systemd',
+        'ai.ollamaSetup.linux.step1': 'Open a terminal and run:',
+        'ai.ollamaSetup.linux.step2': 'In the editor add a line Environment="OLLAMA_ORIGINS=..." under [Service], save and close.',
+        'ai.ollamaSetup.linux.step3': 'Restart the service:',
+
+        'ai.ollamaSetup.banner.mixedContent.title': '⚠ Your browser blocks the connection',
+        'ai.ollamaSetup.banner.mixedContent.body': 'Firefox and Safari do not currently let an HTTPS page talk to http://localhost. The setup below will not help — you need to switch to Chrome, Edge, Brave or Opera.',
+        'ai.ollamaSetup.banner.corsOrDown.title': 'Ollama is refusing the connection',
+        'ai.ollamaSetup.banner.corsOrDown.body': 'Either Ollama is not running, or it is running but does not list this domain in OLLAMA_ORIGINS. Follow the instructions below.',
 
         // AI tool responses (Phase i18n cleanup)
         'ai.tool.validator.viewerOnly': 'Validation results are only visible on the Validator page.',

@@ -792,3 +792,131 @@
 #storageAddProject {
     align-self: flex-start;
 }
+
+/* --- Test connection status (agent form) --- */
+.agent-form__conn-status {
+    font-size: 0.9em;
+    padding: 6px 10px;
+    border-radius: 4px;
+    line-height: 1.4;
+    display: none;
+}
+.agent-form__conn-status.is-pending,
+.agent-form__conn-status.is-ok,
+.agent-form__conn-status.is-error {
+    display: block;
+}
+.agent-form__conn-status.is-pending {
+    color: var(--text-secondary, #666);
+    background: var(--bg-secondary, #f5f5f5);
+}
+.agent-form__conn-status.is-ok {
+    color: #1b6e2e;
+    background: #e6f4e8;
+}
+.agent-form__conn-status.is-error {
+    color: #8a1f1f;
+    background: #fbecec;
+}
+.agent-form__conn-setup-link {
+    background: none;
+    border: 0;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+    padding: 0 0 0 4px;
+}
+
+/* --- Ollama setup modal --- */
+.ollama-setup-modal .modal-container { max-width: 640px; }
+.ollama-setup__intro {
+    margin: 0 0 12px;
+    color: var(--text-secondary, #555);
+    line-height: 1.45;
+}
+.ollama-setup__banner {
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin: 0 0 14px;
+    line-height: 1.4;
+}
+.ollama-setup__banner.is-firefox { background: #fff4e0; border-left: 3px solid #d98e1f; }
+.ollama-setup__banner.is-cors    { background: #eef4fb; border-left: 3px solid #2867b0; }
+.ollama-setup__banner strong { display: block; margin-bottom: 4px; }
+.ollama-setup__banner p { margin: 0; font-size: 0.92em; }
+.ollama-setup__browser-warn {
+    padding: 8px 10px;
+    background: #fff4e0;
+    border-radius: 4px;
+    margin: 0 0 12px;
+    font-size: 0.9em;
+}
+.ollama-setup__tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-color, #ddd);
+    margin-bottom: 14px;
+}
+.ollama-setup__tab {
+    background: none;
+    border: 0;
+    padding: 8px 14px;
+    cursor: pointer;
+    font: inherit;
+    color: var(--text-secondary, #555);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.ollama-setup__tab.is-active {
+    color: var(--text-primary, #111);
+    border-bottom-color: var(--accent, #2867b0);
+    font-weight: 500;
+}
+.ollama-setup__panel h4 { margin: 0 0 10px; }
+.ollama-setup__steps {
+    margin: 0 0 12px;
+    padding-left: 20px;
+    line-height: 1.5;
+}
+.ollama-setup__steps li { margin-bottom: 4px; }
+.ollama-setup__code-wrap {
+    position: relative;
+    margin: 10px 0;
+}
+.ollama-setup__code {
+    background: #1e1e1e;
+    color: #e6e6e6;
+    padding: 12px 12px 12px 12px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre;
+}
+.ollama-setup__copy {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 0;
+    border-radius: 3px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+.ollama-setup__copy:hover { background: rgba(255,255,255,0.25); }
+.ollama-setup__hint {
+    font-size: 0.9em;
+    color: var(--text-secondary, #555);
+    margin: 12px 0 0;
+}
+.ollama-setup__hint code {
+    background: var(--bg-secondary, #f3f3f3);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.95em;
+}

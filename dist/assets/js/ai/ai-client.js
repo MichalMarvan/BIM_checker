@@ -5,6 +5,37 @@
  * Supports streaming via Server-Sent Events. Maps HTTP errors to structured codes.
  */
 
+const LOCAL_HOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i;
+
+function _isLocalEndpoint(endpoint) {
+    return typeof endpoint === 'string' && LOCAL_HOST_RE.test(endpoint);
+}
+
+function _browserBlocksHttpLocalhostFor(ua) {
+    if (!ua) return false;
+    const isChromium = /Chrome\/|Chromium\/|Edg\//.test(ua) && !/Firefox\//.test(ua);
+    return !isChromium;
+}
+
+/**
+ * Classify a fetch() failure (no response) into an actionable code.
+ * Only call this when fetch threw before producing a Response.
+ * `ctx` overrides allow deterministic tests: { protocol, userAgent }.
+ */
+export function classifyFetchFailure(endpoint, err, ctx) {
+    const protocol = (ctx && ctx.protocol) || (typeof location !== 'undefined' ? location.protocol : '');
+    const ua = (ctx && ctx.userAgent) || (typeof navigator !== 'undefined' ? navigator.userAgent : '');
+    const httpEndpoint = typeof endpoint === 'string' && endpoint.startsWith('http://');
+    const onHttps = protocol === 'https:';
+    const local = _isLocalEndpoint(endpoint);
+    if (httpEndpoint && onHttps && _browserBlocksHttpLocalhostFor(ua)) {
+        return 'mixed_content';
+    }
+    if (local) return 'cors_or_down';
+    if (err && /abort/i.test(err.name || '')) return 'aborted';
+    return 'network';
+}
+
 export async function chatCompletion(endpoint, apiKey, model, messages, tools, options = {}) {
     const { temperature = 0.7, maxTokens, signal, onStream } = options;
     const url = `${endpoint.replace(/\/+$/, '')}/chat/completions`;
@@ -17,12 +48,21 @@ export async function chatCompletion(endpoint, apiKey, model, messages, tools, o
     if (maxTokens) body.max_tokens = maxTokens;
     if (onStream) body.stream = true;
 
-    const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal
-    });
+    let res;
+    try {
+        res = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
+            signal
+        });
+    } catch (fetchErr) {
+        const code = classifyFetchFailure(endpoint, fetchErr);
+        const err = new Error(fetchErr.message || 'fetch failed');
+        err.code = code;
+        err.cause = fetchErr;
+        throw err;
+    }
 
     if (!res.ok) {
         const errText = await res.text().catch(() => res.statusText);
@@ -100,8 +140,24 @@ export async function fetchModels(endpoint, apiKey) {
     const headers = {};
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
-    if (!res.ok) throw new Error(`Failed to fetch models (${res.status})`);
+    let res;
+    try {
+        res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+    } catch (fetchErr) {
+        const code = classifyFetchFailure(endpoint, fetchErr);
+        const err = new Error(fetchErr.message || 'fetch failed');
+        err.code = code;
+        err.cause = fetchErr;
+        throw err;
+    }
+    if (!res.ok) {
+        const err = new Error(`Failed to fetch models (${res.status})`);
+        err.status = res.status;
+        if (res.status === 401 || res.status === 403) err.code = 'auth';
+        else if (res.status >= 500) err.code = 'server';
+        else err.code = 'http';
+        throw err;
+    }
 
     const data = await res.json();
     return (data.data || data.models || []).map(m => m.id || m.name || m).sort();
@@ -112,6 +168,6 @@ export async function testConnection(endpoint, apiKey) {
         const models = await fetchModels(endpoint, apiKey);
         return { ok: true, models };
     } catch (err) {
-        return { ok: false, error: err.message };
+        return { ok: false, error: err.message, code: err.code || 'unknown', status: err.status };
     }
 }
