@@ -829,6 +829,9 @@
 }
 
 /* --- Ollama setup modal --- */
+/* Same rationale as .ai-settings-modal.active above — homepage only ships
+   .modal-overlay.show, so we need this explicit .active display fallback. */
+.ollama-setup-modal.active { display: flex; }
 .ollama-setup-modal .modal-container { max-width: 640px; }
 .ollama-setup__intro {
     margin: 0 0 12px;
