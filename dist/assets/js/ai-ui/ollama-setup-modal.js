@@ -37,7 +37,8 @@ function _instructionsFor(os, origin) {
             steps: [
                 t('ai.ollamaSetup.windows.step1'),
                 t('ai.ollamaSetup.windows.step2'),
-                t('ai.ollamaSetup.windows.step3')
+                t('ai.ollamaSetup.windows.step3'),
+                t('ai.ollamaSetup.windows.step4')
             ],
             code: `[Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "${origin}", "User")`
         };
@@ -48,7 +49,8 @@ function _instructionsFor(os, origin) {
             steps: [
                 t('ai.ollamaSetup.macos.step1'),
                 t('ai.ollamaSetup.macos.step2'),
-                t('ai.ollamaSetup.macos.step3')
+                t('ai.ollamaSetup.macos.step3'),
+                t('ai.ollamaSetup.macos.step4')
             ],
             code: `launchctl setenv OLLAMA_ORIGINS "${origin}"`
         };
@@ -58,7 +60,8 @@ function _instructionsFor(os, origin) {
         steps: [
             t('ai.ollamaSetup.linux.step1'),
             t('ai.ollamaSetup.linux.step2'),
-            t('ai.ollamaSetup.linux.step3')
+            t('ai.ollamaSetup.linux.step3'),
+            t('ai.ollamaSetup.linux.step4')
         ],
         code: `sudo systemctl edit ollama\n# Add inside [Service]:\nEnvironment="OLLAMA_ORIGINS=${origin}"\n# Save, then:\nsudo systemctl restart ollama`
     };
