@@ -88,15 +88,39 @@ function parseIDS(xmlString) {
     runXSDValidation(xmlString);
 }
 
+let _idsAutoFixSkip = false;
+
 async function runXSDValidation(xmlString) {
     const banner = document.getElementById('xsdValidationBanner');
     if (!banner || typeof window.IDSXSDValidator === 'undefined') return;
     banner.style.display = 'none';
     try {
         const result = await IDSXSDValidator.validate(xmlString);
-        if (!result.valid) {
-            showXSDBanner(result.errors);
+        if (result.valid) return;
+
+        if (!_idsAutoFixSkip
+            && typeof window.IDSAutoFix !== 'undefined'
+            && typeof window.IDSAutoFixModal !== 'undefined'
+            && currentIDSData && currentIDSData.doc) {
+
+            const descriptors = IDSAutoFix.analyze(currentIDSData.doc, result.errors);
+            const anyFixable = descriptors.some(d => d.fixable);
+            if (anyFixable) {
+                const choice = await IDSAutoFixModal.show(descriptors);
+                if (choice.action === 'fix' && choice.selectedIds.length > 0) {
+                    const fixedXml = IDSAutoFix.applyFixes(currentIDSData.doc, choice.selectedIds, descriptors);
+                    _idsAutoFixSkip = true;
+                    try {
+                        parseIDS(fixedXml);
+                        if (window.ErrorHandler && typeof window.ErrorHandler.success === 'function') {
+                            window.ErrorHandler.success(t('editor.autoFix.applied').replace('{n}', choice.selectedIds.length));
+                        }
+                    } finally { _idsAutoFixSkip = false; }
+                    return;
+                }
+            }
         }
+        showXSDBanner(result.errors);
     } catch (e) {
         console.warn('XSD validation skipped:', e);
     }
@@ -694,171 +718,168 @@ function hideError() {
 
 function loadSampleIDS() {
     const sampleXML = `<?xml version="1.0" encoding="UTF-8"?>
-<ids:ids xmlns:ids="http://standards.buildingsmart.org/IDS" 
-         xmlns:xs="http://www.w3.org/2001/XMLSchema" 
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <ids:info>
-        <ids:title>Sample IDS — Complex Requirements</ids:title>
-        <ids:copyright>BuildingSMART</ids:copyright>
-        <ids:version>1.0</ids:version>
-        <ids:description>Example IDS file with various requirement types including regex</ids:description>
-        <ids:author>BIM Checker — IDS Visualizer</ids:author>
-        <ids:date>2024-01-01</ids:date>
-        <ids:purpose>Demonstration</ids:purpose>
-    </ids:info>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+    <info>
+        <title>Sample IDS — Complex Requirements</title>
+        <copyright>BuildingSMART</copyright>
+        <version>1.0</version>
+        <description>Example IDS file with various requirement types including regex</description>
+        <author>info@bim-checker.example</author>
+        <date>2024-01-01</date>
+        <purpose>Demonstration</purpose>
+    </info>
 
-    <ids:specifications>
-        <ids:specification name="Wall fire safety properties" ifcVersion="IFC4">
-            <ids:applicability>
-                <ids:entity>
-                    <ids:name>
-                        <ids:simpleValue>IfcWall</ids:simpleValue>
-                    </ids:name>
-                </ids:entity>
-            </ids:applicability>
-            <ids:requirements>
-                <ids:property cardinality="required">
-                    <ids:propertySet>
-                        <ids:simpleValue>Pset_WallCommon</ids:simpleValue>
-                    </ids:propertySet>
-                    <ids:name>
-                        <ids:simpleValue>FireRating</ids:simpleValue>
-                    </ids:name>
-                    <ids:value>
-                        <ids:restriction>
-                            <ids:options>
-                                <ids:option>REI30</ids:option>
-                                <ids:option>REI60</ids:option>
-                                <ids:option>REI90</ids:option>
-                                <ids:option>REI120</ids:option>
-                            </ids:options>
-                        </ids:restriction>
-                    </ids:value>
-                </ids:property>
-            </ids:requirements>
-        </ids:specification>
+    <specifications>
+        <specification name="Wall fire safety properties" ifcVersion="IFC4">
+            <applicability>
+                <entity>
+                    <name>
+                        <simpleValue>IfcWall</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <property cardinality="required">
+                    <propertySet>
+                        <simpleValue>Pset_WallCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>FireRating</simpleValue>
+                    </baseName>
+                    <value>
+                        <xs:restriction base="xs:string">
+                            <xs:enumeration value="REI30"/>
+                            <xs:enumeration value="REI60"/>
+                            <xs:enumeration value="REI90"/>
+                            <xs:enumeration value="REI120"/>
+                        </xs:restriction>
+                    </value>
+                </property>
+            </requirements>
+        </specification>
 
-        <ids:specification name="Room coding" ifcVersion="IFC4">
-            <ids:applicability>
-                <ids:entity>
-                    <ids:name>
-                        <ids:simpleValue>IfcSpace</ids:simpleValue>
-                    </ids:name>
-                </ids:entity>
-            </ids:applicability>
-            <ids:requirements>
-                <ids:attribute cardinality="required">
-                    <ids:name>
-                        <ids:simpleValue>Name</ids:simpleValue>
-                    </ids:name>
-                    <ids:value>
-                        <ids:restriction>
-                            <ids:pattern>^[A-Z]{3}\\d{3}$</ids:pattern>
-                        </ids:restriction>
-                    </ids:value>
-                </ids:attribute>
-                <ids:property cardinality="required">
-                    <ids:propertySet>
-                        <ids:simpleValue>Pset_SpaceCommon</ids:simpleValue>
-                    </ids:propertySet>
-                    <ids:name>
-                        <ids:simpleValue>Reference</ids:simpleValue>
-                    </ids:name>
-                    <ids:value>
-                        <ids:restriction>
-                            <ids:pattern>^\\d{2}-[A-Z]{2}-\\d{4}$</ids:pattern>
-                        </ids:restriction>
-                    </ids:value>
-                </ids:property>
-            </ids:requirements>
-        </ids:specification>
+        <specification name="Room coding" ifcVersion="IFC4">
+            <applicability>
+                <entity>
+                    <name>
+                        <simpleValue>IfcSpace</simpleValue>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <attribute cardinality="required">
+                    <name>
+                        <simpleValue>Name</simpleValue>
+                    </name>
+                    <value>
+                        <xs:restriction base="xs:string">
+                            <xs:pattern value="^[A-Z]{3}\\d{3}$"/>
+                        </xs:restriction>
+                    </value>
+                </attribute>
+                <property cardinality="required">
+                    <propertySet>
+                        <simpleValue>Pset_SpaceCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>Reference</simpleValue>
+                    </baseName>
+                    <value>
+                        <xs:restriction base="xs:string">
+                            <xs:pattern value="^\\d{2}-[A-Z]{2}-\\d{4}$"/>
+                        </xs:restriction>
+                    </value>
+                </property>
+            </requirements>
+        </specification>
 
-        <ids:specification name="Load-bearing walls" ifcVersion="IFC4">
-            <ids:applicability>
-                <ids:entity>
-                    <ids:name>
-                        <ids:simpleValue>IfcWall</ids:simpleValue>
-                    </ids:name>
-                </ids:entity>
-                <ids:property>
-                    <ids:propertySet>
-                        <ids:simpleValue>Pset_WallCommon</ids:simpleValue>
-                    </ids:propertySet>
-                    <ids:name>
-                        <ids:simpleValue>LoadBearing</ids:simpleValue>
-                    </ids:name>
-                    <ids:value>
-                        <ids:simpleValue>TRUE</ids:simpleValue>
-                    </ids:value>
-                </ids:property>
-            </ids:applicability>
-            <ids:requirements>
-                <ids:material cardinality="required">
-                    <ids:value>
-                        <ids:restriction>
-                            <ids:options>
-                                <ids:option>Concrete</ids:option>
-                                <ids:option>Reinforced concrete</ids:option>
-                                <ids:option>Brick</ids:option>
-                            </ids:options>
-                        </ids:restriction>
-                    </ids:value>
-                </ids:material>
-                <ids:property cardinality="required">
-                    <ids:propertySet>
-                        <ids:simpleValue>Pset_WallCommon</ids:simpleValue>
-                    </ids:propertySet>
-                    <ids:name>
-                        <ids:simpleValue>ThermalTransmittance</ids:simpleValue>
-                    </ids:name>
-                    <ids:value>
-                        <ids:restriction>
-                            <ids:maxInclusive>0.3</ids:maxInclusive>
-                        </ids:restriction>
-                    </ids:value>
-                </ids:property>
-            </ids:requirements>
-        </ids:specification>
+        <specification name="Load-bearing walls" ifcVersion="IFC4">
+            <applicability>
+                <entity>
+                    <name>
+                        <simpleValue>IfcWall</simpleValue>
+                    </name>
+                </entity>
+                <property>
+                    <propertySet>
+                        <simpleValue>Pset_WallCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>LoadBearing</simpleValue>
+                    </baseName>
+                    <value>
+                        <simpleValue>TRUE</simpleValue>
+                    </value>
+                </property>
+            </applicability>
+            <requirements>
+                <material cardinality="required">
+                    <value>
+                        <xs:restriction base="xs:string">
+                            <xs:enumeration value="Concrete"/>
+                            <xs:enumeration value="Reinforced concrete"/>
+                            <xs:enumeration value="Brick"/>
+                        </xs:restriction>
+                    </value>
+                </material>
+                <property cardinality="required">
+                    <propertySet>
+                        <simpleValue>Pset_WallCommon</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>ThermalTransmittance</simpleValue>
+                    </baseName>
+                    <value>
+                        <xs:restriction base="xs:double">
+                            <xs:maxInclusive value="0.3"/>
+                        </xs:restriction>
+                    </value>
+                </property>
+            </requirements>
+        </specification>
 
-        <ids:specification name="Equipment identification" ifcVersion="IFC4">
-            <ids:applicability>
-                <ids:entity>
-                    <ids:name>
-                        <ids:restriction>
-                            <ids:pattern>^IfcFlow.*Terminal$</ids:pattern>
-                        </ids:restriction>
-                    </ids:name>
-                </ids:entity>
-            </ids:applicability>
-            <ids:requirements>
-                <ids:attribute cardinality="required">
-                    <ids:name>
-                        <ids:simpleValue>Tag</ids:simpleValue>
-                    </ids:name>
-                    <ids:value>
-                        <ids:restriction>
-                            <ids:pattern>^[A-Z]{2}-\\d{4}-[A-Z]\\d{2}$</ids:pattern>
-                        </ids:restriction>
-                    </ids:value>
-                </ids:attribute>
-                <ids:property cardinality="optional">
-                    <ids:propertySet>
-                        <ids:simpleValue>Pset_ManufacturerTypeInformation</ids:simpleValue>
-                    </ids:propertySet>
-                    <ids:name>
-                        <ids:simpleValue>ModelReference</ids:simpleValue>
-                    </ids:name>
-                    <ids:value>
-                        <ids:restriction>
-                            <ids:minLength>5</ids:minLength>
-                            <ids:maxLength>20</ids:maxLength>
-                        </ids:restriction>
-                    </ids:value>
-                </ids:property>
-            </ids:requirements>
-        </ids:specification>
-    </ids:specifications>
-</ids:ids>`;
+        <specification name="Equipment identification" ifcVersion="IFC4">
+            <applicability>
+                <entity>
+                    <name>
+                        <xs:restriction base="xs:string">
+                            <xs:pattern value="^IfcFlow.*Terminal$"/>
+                        </xs:restriction>
+                    </name>
+                </entity>
+            </applicability>
+            <requirements>
+                <attribute cardinality="required">
+                    <name>
+                        <simpleValue>Tag</simpleValue>
+                    </name>
+                    <value>
+                        <xs:restriction base="xs:string">
+                            <xs:pattern value="^[A-Z]{2}-\\d{4}-[A-Z]\\d{2}$"/>
+                        </xs:restriction>
+                    </value>
+                </attribute>
+                <property cardinality="optional">
+                    <propertySet>
+                        <simpleValue>Pset_ManufacturerTypeInformation</simpleValue>
+                    </propertySet>
+                    <baseName>
+                        <simpleValue>ModelReference</simpleValue>
+                    </baseName>
+                    <value>
+                        <xs:restriction base="xs:string">
+                            <xs:minLength value="5"/>
+                            <xs:maxLength value="20"/>
+                        </xs:restriction>
+                    </value>
+                </property>
+            </requirements>
+        </specification>
+    </specifications>
+</ids>`;
 
     parseIDS(sampleXML);
 }
@@ -918,6 +939,30 @@ async function attemptDownloadIDS(xmlString, filename) {
             performDownload(xmlString, filename);
             return;
         }
+
+        // Offer auto-fix before falling back to the "proceed anyway" dialog.
+        if (typeof IDSAutoFix !== 'undefined' && typeof IDSAutoFixModal !== 'undefined') {
+            const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
+            const descriptors = IDSAutoFix.analyze(doc, result.errors);
+            if (descriptors.some(d => d.fixable)) {
+                const choice = await IDSAutoFixModal.show(descriptors);
+                if (choice.action === 'fix' && choice.selectedIds.length > 0) {
+                    const fixedXml = IDSAutoFix.applyFixes(doc, choice.selectedIds, descriptors);
+                    if (window.ErrorHandler && typeof window.ErrorHandler.success === 'function') {
+                        window.ErrorHandler.success(t('editor.autoFix.applied').replace('{n}', choice.selectedIds.length));
+                    }
+                    const r2 = await IDSXSDValidator.validate(fixedXml);
+                    if (r2.valid) {
+                        performDownload(fixedXml, filename);
+                        return;
+                    }
+                    const proceed2 = await showXSDExportModal(r2.errors);
+                    if (proceed2) performDownload(fixedXml, filename);
+                    return;
+                }
+            }
+        }
+
         const proceed = await showXSDExportModal(result.errors);
         if (proceed) performDownload(xmlString, filename);
     } catch (e) {
