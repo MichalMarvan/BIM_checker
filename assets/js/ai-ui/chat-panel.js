@@ -217,10 +217,44 @@ async function _refreshMessages() {
 
     const msgs = await storage.listMessages(_state.threadId);
     for (const m of msgs) {
-        if (m.role === 'system' || m.role === 'tool') continue;
-        _appendBubble(m.role, m.content || '');
+        if (m.role === 'system') continue;
+        if (m.role === 'tool') {
+            _appendToolResultBubble(m.content || '');
+            continue;
+        }
+        // Render text content first (may be empty for tool-only assistant turns)
+        if (m.content) {
+            _appendBubble(m.role, m.content);
+        }
+        // Then render the tool-call summary for assistant messages that invoked tools
+        if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+            _appendToolCallBubble(m.tool_calls);
+        }
     }
     main.scrollTop = main.scrollHeight;
+}
+
+function _appendToolCallBubble(toolCalls) {
+    const main = _panel.querySelector('#chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-panel__msg chat-panel__msg--toolcall';
+    const names = toolCalls.map(tc => tc.function?.name).filter(Boolean).join(', ');
+    div.textContent = `🔧 ${t('ai.chat.toolCalling')}: ${names}`;
+    main.appendChild(div);
+    return div;
+}
+
+function _appendToolResultBubble(jsonContent) {
+    const main = _panel.querySelector('#chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-panel__msg chat-panel__msg--toolresult';
+    let parsed = null;
+    try { parsed = JSON.parse(jsonContent); } catch {}
+    const isError = parsed && typeof parsed === 'object' && parsed.error;
+    const preview = (typeof jsonContent === 'string') ? jsonContent.slice(0, 120) : '';
+    div.textContent = `${isError ? '❌' : '✓'} ${t('ai.chat.toolReturned')}: ${preview}`;
+    main.appendChild(div);
+    return div;
 }
 
 function _appendBubble(role, content) {
