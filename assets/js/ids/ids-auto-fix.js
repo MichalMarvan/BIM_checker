@@ -231,5 +231,29 @@ window.IDSAutoFix = (function () {
         }
     });
 
+    classifiers.push({
+        id: 'missing-spec-name',
+        test(err) {
+            const msg = (err.message || err.rawMessage || '').toLowerCase();
+            return msg.includes('specification') && msg.includes("'name'");
+        },
+        build(err) {
+            return {
+                id: 'missing-spec-name-' + (err.loc ? err.loc.lineNumber : 'x'),
+                category: 'missing-spec-name',
+                label: 'editor.autoFix.fix.missingSpecName',
+                before: null,
+                after: 'name="Specification N"',
+                lineNumber: err.loc ? err.loc.lineNumber : null,
+                fixable: true,
+                apply(doc) {
+                    Array.from(doc.querySelectorAll('specification')).forEach((n, i) => {
+                        if (!n.getAttribute('name')) n.setAttribute('name', 'Specification ' + (i + 1));
+                    });
+                }
+            };
+        }
+    });
+
     return { analyze, applyFixes, _classifiers: classifiers };
 })();

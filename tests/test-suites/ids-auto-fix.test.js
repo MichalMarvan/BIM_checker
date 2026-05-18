@@ -201,3 +201,32 @@ describe('IDSAutoFix: missing-ifc-version', () => {
         expect(doc.querySelector('specification').getAttribute('ifcVersion')).toBe('IFC4');
     });
 });
+
+describe('IDSAutoFix: missing-spec-name', () => {
+    const xml = `<ids xmlns="http://standards.buildingsmart.org/IDS">
+        <info><title>t</title></info>
+        <specifications>
+            <specification ifcVersion="IFC4">
+                <applicability><entity><name><simpleValue>IfcWall</simpleValue></name></entity></applicability>
+                <requirements/>
+            </specification>
+            <specification ifcVersion="IFC4">
+                <applicability><entity><name><simpleValue>IfcSlab</simpleValue></name></entity></applicability>
+                <requirements/>
+            </specification>
+        </specifications></ids>`;
+
+    it('names unnamed specs by 1-based index', () => {
+        const doc = makeDoc(xml);
+        const errs = [
+            makeErr("Element 'specification': The attribute 'name' is required but missing.", 4),
+            makeErr("Element 'specification': The attribute 'name' is required but missing.", 8)
+        ];
+        const ds = IDSAutoFix.analyze(doc, errs);
+        expect(ds[0].fixable).toBe(true);
+        IDSAutoFix.applyFixes(doc, ds.map(d => d.id), ds);
+        const specs = doc.querySelectorAll('specification');
+        expect(specs[0].getAttribute('name')).toBe('Specification 1');
+        expect(specs[1].getAttribute('name')).toBe('Specification 2');
+    });
+});
