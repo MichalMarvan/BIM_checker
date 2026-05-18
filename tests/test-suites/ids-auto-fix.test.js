@@ -164,3 +164,20 @@ describe('IDSAutoFix: cardinality-on-applicability', () => {
         expect(doc.querySelector('requirements > property').getAttribute('cardinality')).toBe('required');
     });
 });
+
+describe('IDSAutoFix: missing-title', () => {
+    const xml = `<ids xmlns="http://standards.buildingsmart.org/IDS">
+        <info><version>1.0</version></info></ids>`;
+
+    it('inserts <title> as first child of <info>', () => {
+        const doc = makeDoc(xml);
+        const errs = [makeErr("Element 'info': Missing child element(s). Expected is ( title ).", 2)];
+        const ds = IDSAutoFix.analyze(doc, errs);
+        expect(ds[0].fixable).toBe(true);
+        expect(ds[0].category).toBe('missing-title');
+        IDSAutoFix.applyFixes(doc, [ds[0].id], ds);
+        const info = doc.querySelector('info');
+        expect(info.firstElementChild.tagName).toBe('title');
+        expect(info.querySelector('title').textContent).toBe('Untitled IDS');
+    });
+});

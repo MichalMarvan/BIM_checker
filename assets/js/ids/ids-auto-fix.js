@@ -176,5 +176,33 @@ window.IDSAutoFix = (function () {
         }
     });
 
+    classifiers.push({
+        id: 'missing-title',
+        test(err, xmlDoc) {
+            const msg = (err.message || err.rawMessage || '').toLowerCase();
+            if (!msg.includes("'info'") || !msg.includes('title')) return false;
+            return !xmlDoc.querySelector('info > title');
+        },
+        build(err, xmlDoc) {
+            return {
+                id: 'missing-title',
+                category: 'missing-title',
+                label: 'editor.autoFix.fix.missingTitle',
+                before: null,
+                after: '<title>Untitled IDS</title>',
+                lineNumber: err.loc ? err.loc.lineNumber : null,
+                fixable: true,
+                apply(doc) {
+                    const info = doc.querySelector('info');
+                    if (!info || info.querySelector('title')) return;
+                    const ns = doc.documentElement.namespaceURI || null;
+                    const title = ns ? doc.createElementNS(ns, 'title') : doc.createElement('title');
+                    title.textContent = 'Untitled IDS';
+                    info.insertBefore(title, info.firstChild);
+                }
+            };
+        }
+    });
+
     return { analyze, applyFixes, _classifiers: classifiers };
 })();
