@@ -170,7 +170,7 @@ window.IDSAutoFix = (function () {
                 fixable: true,
                 apply(doc) {
                     doc.querySelectorAll('applicability > [cardinality]')
-                        .forEach(n => { if (APPLICABILITY_FACETS.includes(n.tagName)) n.removeAttribute('cardinality'); });
+                        .forEach(n => { if (APPLICABILITY_FACETS.includes(n.localName)) n.removeAttribute('cardinality'); });
                 }
             };
         }
@@ -185,7 +185,7 @@ window.IDSAutoFix = (function () {
         },
         build(err, xmlDoc) {
             return {
-                id: 'missing-title',
+                id: 'missing-title-' + (err.loc ? err.loc.lineNumber : 'x'),
                 category: 'missing-title',
                 label: 'editor.autoFix.fix.missingTitle',
                 before: null,
@@ -237,7 +237,10 @@ window.IDSAutoFix = (function () {
             const msg = (err.message || err.rawMessage || '').toLowerCase();
             return msg.includes('specification') && msg.includes("'name'");
         },
-        build(err) {
+        build(err, xmlDoc) {
+            const node = Array.from(xmlDoc.querySelectorAll('specification'))
+                .find(n => !n.getAttribute('name'));
+            if (!node) return null;
             return {
                 id: 'missing-spec-name-' + (err.loc ? err.loc.lineNumber : 'x'),
                 category: 'missing-spec-name',
