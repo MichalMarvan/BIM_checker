@@ -694,6 +694,7 @@ function applyPsetRename() {
 
     closeRenamePsetModal();
     window.updateSelectedCount();
+    window.buildTable();
     ErrorHandler.success(`PropertySet "${oldName}" ${i18n.t('viewer.psetWillBeRenamed')} "${newName}" (${count} ${i18n.t('viewer.entities')}) ${i18n.t('viewer.atExport')}`);
 }
 
@@ -739,6 +740,60 @@ function closeRenamePropertyModal() {
     document.getElementById('oldPropertyName').value = '';
     document.getElementById('oldPropertyName').disabled = true;
     document.getElementById('newPropertyName').value = '';
+    const valuesList = document.getElementById('renamePropValuesList');
+    if (valuesList) {
+        valuesList.style.display = 'none';
+        valuesList.innerHTML = '';
+    }
+}
+
+function updatePropertyValuesList() {
+    const state = window.ViewerState;
+    const psetName = document.getElementById('renamePropPsetName').value;
+    const propName = document.getElementById('oldPropertyName').value;
+    const container = document.getElementById('renamePropValuesList');
+    if (!container) return;
+
+    if (!psetName || !propName) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    const valueCounts = new Map();
+    let emptyCount = 0;
+    for (const guid of state.selectedEntities) {
+        const entity = state.allData.find(e => e.guid === guid);
+        if (!entity || !entity.propertySets[psetName]) continue;
+        const value = entity.propertySets[psetName][propName];
+        if (value === undefined || value === null || value === '') {
+            emptyCount++;
+        } else {
+            const key = String(value);
+            valueCounts.set(key, (valueCounts.get(key) || 0) + 1);
+        }
+    }
+
+    const sorted = Array.from(valueCounts.entries()).sort((a, b) => b[1] - a[1]);
+    const header = i18n.t('viewer.renameProp.valuesFound') || 'Hodnoty v této property:';
+    const emptyLabel = i18n.t('viewer.renameProp.emptyValue') || '(prázdné)';
+
+    if (sorted.length === 0 && emptyCount === 0) {
+        container.innerHTML = `<div class="values-empty">${window.escapeHtml(i18n.t('viewer.renameProp.noValues') || 'Žádné hodnoty')}</div>`;
+        container.style.display = 'block';
+        return;
+    }
+
+    let html = `<div class="values-header">${window.escapeHtml(header)}</div><ul>`;
+    for (const [value, count] of sorted) {
+        html += `<li><span class="value-text">${window.escapeHtml(value)}</span><span class="value-count">${count}×</span></li>`;
+    }
+    if (emptyCount > 0) {
+        html += `<li><span class="value-text"><em>${window.escapeHtml(emptyLabel)}</em></span><span class="value-count">${emptyCount}×</span></li>`;
+    }
+    html += '</ul>';
+    container.innerHTML = html;
+    container.style.display = 'block';
 }
 
 function updatePropertyDropdown() {
@@ -769,6 +824,13 @@ function updatePropertyDropdown() {
     });
 
     propDropdown.disabled = false;
+
+    // Reset the values panel — it re-renders once user picks a property
+    const valuesList = document.getElementById('renamePropValuesList');
+    if (valuesList) {
+        valuesList.style.display = 'none';
+        valuesList.innerHTML = '';
+    }
 }
 
 function applyPropertyRename() {
@@ -820,12 +882,14 @@ function applyPropertyRename() {
 
     closeRenamePropertyModal();
     window.updateSelectedCount();
+    window.buildTable();
     ErrorHandler.success(`Property "${oldPropName}" ${i18n.t('viewer.inPset')} "${psetName}" ${i18n.t('viewer.propertyWillBeRenamed')} "${newPropName}" (${count} ${i18n.t('viewer.entities')}) ${i18n.t('viewer.atExport')}`);
 }
 
 window.closeRenamePropertyModal = closeRenamePropertyModal;
 window.updatePropertyDropdown = updatePropertyDropdown;
 window.applyPropertyRename = applyPropertyRename;
+window.updatePropertyValuesList = updatePropertyValuesList;
 
 // =======================
 // EXPORT IFC

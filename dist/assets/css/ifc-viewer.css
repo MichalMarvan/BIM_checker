@@ -1130,3 +1130,66 @@
         min-height: 44px;
     }
 }
+
+/* IFC Viewer — rename indicators in table headers */
+.pset-header .rename-old,
+.prop-header .rename-old {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+.pset-header .rename-arrow,
+.prop-header .rename-arrow {
+    color: #10b981;
+    font-weight: 600;
+}
+.pset-header .rename-new,
+.prop-header .rename-new {
+    color: #10b981;
+    font-weight: 600;
+}
+
+/* IFC Viewer — value distribution list in Rename Property modal */
+.rename-prop-values-list {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #f8f9fa;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.9em;
+}
+.rename-prop-values-list .values-header {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #4a5568;
+}
+.rename-prop-values-list .values-empty {
+    color: #a0aec0;
+    font-style: italic;
+}
+.rename-prop-values-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.rename-prop-values-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #edf2f7;
+}
+.rename-prop-values-list li:last-child {
+    border-bottom: none;
+}
+.rename-prop-values-list .value-text {
+    font-family: var(--font-mono, monospace);
+    color: #2d3748;
+    word-break: break-word;
+    padding-right: 8px;
+}
+.rename-prop-values-list .value-count {
+    color: #718096;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}

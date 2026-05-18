@@ -433,6 +433,49 @@ function stopAutoScroll() {
 // TABLE BUILDING
 // =======================
 
+function findPsetRename(psetName) {
+    const state = window.ViewerState;
+    const newNames = new Set();
+    for (const guid in state.modifications) {
+        const newName = state.modifications[guid]?.renamedPsets?.[psetName];
+        if (newName !== undefined) newNames.add(newName);
+    }
+    if (newNames.size === 0) return null;
+    if (newNames.size === 1) return [...newNames][0];
+    return null; // divergent renames — treat as no consistent rename to avoid misleading the user
+}
+
+function findPropertyRename(psetName, propName) {
+    const state = window.ViewerState;
+    const newNames = new Set();
+    for (const guid in state.modifications) {
+        const newName = state.modifications[guid]?.renamedProperties?.[psetName]?.[propName];
+        if (newName !== undefined) newNames.add(newName);
+    }
+    if (newNames.size === 0) return null;
+    if (newNames.size === 1) return [...newNames][0];
+    return null;
+}
+
+function renderRenameLabel(parent, oldName, newName) {
+    if (!newName) {
+        parent.textContent = oldName;
+        return;
+    }
+    const oldEl = document.createElement('span');
+    oldEl.textContent = oldName;
+    oldEl.className = 'rename-old';
+    const arrow = document.createElement('span');
+    arrow.textContent = ' → ';
+    arrow.className = 'rename-arrow';
+    const newEl = document.createElement('span');
+    newEl.textContent = newName;
+    newEl.className = 'rename-new';
+    parent.appendChild(oldEl);
+    parent.appendChild(arrow);
+    parent.appendChild(newEl);
+}
+
 function buildTable() {
     const state = window.ViewerState;
     const headerPset = document.getElementById('headerRowPset');
@@ -501,7 +544,7 @@ function buildTable() {
         for (const col of lockedCols) {
             const psetTh = document.createElement('th');
             psetTh.className = 'pset-header sticky-col';
-            psetTh.textContent = col.psetName;
+            renderRenameLabel(psetTh, col.psetName, findPsetRename(col.psetName));
             psetTh.style.left = currentLeft + 'px';
             psetTh.style.width = '120px';
 
@@ -536,7 +579,7 @@ function buildTable() {
     for (const psetName of Object.keys(unlockedGrouped)) {
         const psetTh = document.createElement('th');
         psetTh.className = 'pset-header';
-        psetTh.textContent = psetName;
+        renderRenameLabel(psetTh, psetName, findPsetRename(psetName));
         psetTh.colSpan = unlockedGrouped[psetName].length;
         headerPset.appendChild(psetTh);
     }
@@ -556,7 +599,7 @@ function buildTable() {
         wrapper.style.gap = '5px';
 
         const label = document.createElement('span');
-        label.textContent = col.propName;
+        renderRenameLabel(label, col.propName, findPropertyRename(col.psetName, col.propName));
         label.style.flex = '1';
         label.addEventListener('click', () => sortByProperty(col.psetName, col.propName));
 
@@ -589,7 +632,7 @@ function buildTable() {
         wrapper.style.gap = '5px';
 
         const label = document.createElement('span');
-        label.textContent = col.propName;
+        renderRenameLabel(label, col.propName, findPropertyRename(col.psetName, col.propName));
         label.style.flex = '1';
         label.addEventListener('click', () => sortByProperty(col.psetName, col.propName));
 
