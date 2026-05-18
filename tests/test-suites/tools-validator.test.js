@@ -150,8 +150,8 @@ describe('tools/tool-validator (write)', () => {
         const result = await validatorTools.run_validation({});
         expect(result.navigating).toBe(true);
         expect(localStorage.getItem('bim_validator_autorun')).toBe('1');
-        // Cancel the deferred navigation so it doesn't destroy the test context
-        if (validatorTools.run_validation._timer) clearTimeout(validatorTools.run_validation._timer);
+        expect(typeof result._navigateTo).toBe('string');
+        expect(result._navigateTo.includes('ids-ifc-validator')).toBe(true);
         try { localStorage.removeItem('bim_validator_autorun'); } catch (e) {}
     });
 

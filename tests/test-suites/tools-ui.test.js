@@ -26,12 +26,13 @@ describe('tools/tool-ui', () => {
         expect(result.page).toBe('validator');
     });
 
-    it('navigate_to_page returns navigating with target', async () => {
+    it('navigate_to_page returns navigating with target and _navigateTo URL', async () => {
         const result = await uiTools.navigate_to_page({ page: 'validator' });
-        clearTimeout(result._timer);
         expect(result.navigating).toBe(true);
         expect(result.target).toBe('validator');
         expect(typeof result.warning).toBe('string');
+        expect(typeof result._navigateTo).toBe('string');
+        expect(result._navigateTo.includes('ids-ifc-validator')).toBe(true);
     });
 
     it('navigate_to_page throws on invalid page', async () => {

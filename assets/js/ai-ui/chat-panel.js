@@ -267,6 +267,10 @@ async function _send() {
 
     const MAX_ITERATIONS = 5;
     let iteration = 0;
+    // Pending navigation requested by a tool — fired after the assistant's
+    // wrap-up reply is persisted to storage. Setting window.location.href
+    // mid-stream kills the in-flight storage.appendMessage write.
+    let pendingNavigation = null;
 
     try {
         let messages = [];
@@ -344,19 +348,27 @@ async function _send() {
                     name: tc.function?.name,
                     arguments: parsedArgs
                 });
+                // Capture deferred-navigation request and strip it from the payload
+                // before it gets persisted / shown to the LLM.
+                let cleanResult = toolResult;
+                if (toolResult && typeof toolResult === 'object' && toolResult._navigateTo) {
+                    pendingNavigation = toolResult._navigateTo;
+                    cleanResult = { ...toolResult };
+                    delete cleanResult._navigateTo;
+                }
                 const toolMsg = {
                     role: 'tool',
                     tool_call_id: tc.id,
                     name: tc.function?.name,
-                    content: JSON.stringify(toolResult)
+                    content: JSON.stringify(cleanResult)
                 };
                 await storage.appendMessage(_state.threadId, toolMsg);
                 messages.push(toolMsg);
 
                 const resultBubble = document.createElement('div');
                 resultBubble.className = 'chat-panel__msg chat-panel__msg--toolresult';
-                const isError = toolResult?.error;
-                resultBubble.textContent = `${isError ? '❌' : '✓'} ${t('ai.chat.toolReturned')}: ${JSON.stringify(toolResult).slice(0, 120)}`;
+                const isError = cleanResult?.error;
+                resultBubble.textContent = `${isError ? '❌' : '✓'} ${t('ai.chat.toolReturned')}: ${JSON.stringify(cleanResult).slice(0, 120)}`;
                 _panel.querySelector('#chatMessages').appendChild(resultBubble);
             }
             _panel.querySelector('#chatMessages').scrollTop = 1e9;
@@ -389,6 +401,14 @@ async function _send() {
     } finally {
         _state.busy = false;
         _state.abort = null;
+        // Now that the user message, tool result, and assistant reply have all
+        // been persisted, perform any tool-requested navigation. The microtask
+        // delay lets the final-message bubble paint before reload.
+        if (pendingNavigation) {
+            const url = pendingNavigation;
+            pendingNavigation = null;
+            setTimeout(() => { window.location.href = url; }, 50);
+        }
     }
 }
 

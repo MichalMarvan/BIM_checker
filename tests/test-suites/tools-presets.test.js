@@ -121,8 +121,8 @@ describe('tool-presets', () => {
             const r = await presetTools.apply_preset({ presetName: 'ApplyByName_t' });
             expect(r.applied).toBe(true);
             expect(r.navigating).toBe(true);
-            // Cancel pending navigation so test doesn't blow up the runner
-            if (presetTools.load_preset._timer) clearTimeout(presetTools.load_preset._timer);
+            expect(typeof r._navigateTo).toBe('string');
+            expect(r._navigateTo.includes('ids-ifc-validator')).toBe(true);
         } finally {
             window.ValidationPresets.delete(id);
             helpers._setCurrentPageForTest(null);

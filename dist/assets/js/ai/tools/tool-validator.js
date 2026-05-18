@@ -83,12 +83,11 @@ export async function run_validation() {
         const targetUrl = (location.pathname.includes('/pages/'))
             ? './ids-ifc-validator.html'
             : './pages/ids-ifc-validator.html';
-        // Defer navigation so the tool result reaches the LLM/UI before reload.
-        // Timer is exposed for tests to cancel before it fires.
-        run_validation._timer = setTimeout(() => { window.location.href = targetUrl; }, 150);
+        // Chat panel navigates after the whole exchange is persisted.
         return {
             navigating: true,
-            message: t('ai.tool.validator.switchingToValidator')
+            message: t('ai.tool.validator.switchingToValidator'),
+            _navigateTo: targetUrl
         };
     }
     if (typeof window.validateAll !== 'function') return { error: 'validator_not_ready' };

@@ -70,8 +70,8 @@ async function _applyPresetToLastSession(presetId, andNavigate) {
         const targetUrl = (location.pathname.includes('/pages/'))
             ? './ids-ifc-validator.html'
             : './pages/ids-ifc-validator.html';
-        load_preset._timer = setTimeout(() => { window.location.href = targetUrl; }, 150);
-        return { applied: true, navigating: true, presetId };
+        // Chat panel navigates after the whole exchange is persisted.
+        return { applied: true, navigating: true, presetId, _navigateTo: targetUrl };
     }
     return { applied: true, presetId, appliedTo: onValidator ? 'live UI' : 'last-session preset' };
 }

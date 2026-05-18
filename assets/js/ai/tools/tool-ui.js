@@ -18,12 +18,14 @@ export async function navigate_to_page(args) {
     helpers.validateArgs(args, {
         page: { required: true, enum: Object.keys(PATH_MAP) }
     });
-    const timer = setTimeout(() => { window.location.href = PATH_MAP[args.page]; }, 100);
+    // Chat panel performs the actual navigation after the whole exchange
+    // (including the assistant's wrap-up reply) is persisted. Doing it here
+    // with setTimeout used to kill the final-message write mid-flight.
     return {
         navigating: true,
         target: args.page,
         warning: t('ai.tool.ui.pageRedirect'),
-        _timer: timer
+        _navigateTo: PATH_MAP[args.page]
     };
 }
 
