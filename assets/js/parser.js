@@ -110,7 +110,12 @@ async function runXSDValidation(xmlString) {
                 if (choice.action === 'fix' && choice.selectedIds.length > 0) {
                     const fixedXml = IDSAutoFix.applyFixes(currentIDSData.doc, choice.selectedIds, descriptors);
                     _idsAutoFixSkip = true;
-                    try { parseIDS(fixedXml); } finally { _idsAutoFixSkip = false; }
+                    try {
+                        parseIDS(fixedXml);
+                        if (window.ErrorHandler && typeof window.ErrorHandler.success === 'function') {
+                            window.ErrorHandler.success(t('editor.autoFix.applied').replace('{n}', choice.selectedIds.length));
+                        }
+                    } finally { _idsAutoFixSkip = false; }
                     return;
                 }
             }

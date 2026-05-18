@@ -62,6 +62,8 @@ const ASSETS_TO_CACHE = [
     './assets/js/ids/ids-excel-template.js',
     './assets/js/ids/ids-editor-core.js',
     './assets/js/ids/ids-editor-modals.js',
+    './assets/js/ids/ids-auto-fix.js',
+    './assets/js/ids/ids-auto-fix-modal.js',
     './assets/js/ifc/ifc-pset-utils.js',
     './assets/js/ifc/viewer-core.js',
     './assets/js/ifc/viewer-parser.js',
