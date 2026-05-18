@@ -52,5 +52,33 @@ window.IDSAutoFix = (function () {
         return new XMLSerializer().serializeToString(xmlDoc);
     }
 
+    classifiers.push({
+        id: 'author-not-email',
+        test(err) {
+            const msg = (err.message || err.rawMessage || '').toLowerCase();
+            return msg.includes('author') && msg.includes('pattern');
+        },
+        build(err, xmlDoc) {
+            const node = xmlDoc.querySelector('author');
+            if (!node) return null;
+            const before = node.textContent;
+            const after = 'noreply@example.com';
+            if (before === after) return null;
+            return {
+                id: 'author-not-email-' + (err.loc ? err.loc.lineNumber : 'x'),
+                category: 'author-not-email',
+                label: 'editor.autoFix.fix.authorNotEmail',
+                before,
+                after,
+                lineNumber: err.loc ? err.loc.lineNumber : null,
+                fixable: true,
+                apply(doc) {
+                    const n = doc.querySelector('author');
+                    if (n) n.textContent = after;
+                }
+            };
+        }
+    });
+
     return { analyze, applyFixes, _classifiers: classifiers };
 })();

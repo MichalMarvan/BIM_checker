@@ -29,3 +29,30 @@ describe('IDSAutoFix module surface', () => {
         expect(descriptors[0].lineNumber).toBe(1);
     });
 });
+
+describe('IDSAutoFix: author-not-email', () => {
+    const xml = `<ids xmlns="http://standards.buildingsmart.org/IDS">
+        <info><title>t</title><author>Michal Marvan</author></info></ids>`;
+
+    it('classifies an author pattern violation as fixable', () => {
+        const doc = makeDoc(xml);
+        const errs = [makeErr(
+            "Element '{http://standards.buildingsmart.org/IDS}author': [facet 'pattern'] The value 'Michal Marvan' is not accepted by the pattern '[^@]+@[^\\.]+\\..+'.",
+            2
+        )];
+        const ds = IDSAutoFix.analyze(doc, errs);
+        expect(ds.length).toBe(1);
+        expect(ds[0].fixable).toBe(true);
+        expect(ds[0].category).toBe('author-not-email');
+        expect(ds[0].before).toBe('Michal Marvan');
+        expect(ds[0].after).toBe('noreply@example.com');
+    });
+
+    it('applyFixes replaces the author text node', () => {
+        const doc = makeDoc(xml);
+        const errs = [makeErr("Element 'author': [facet 'pattern']", 2)];
+        const ds = IDSAutoFix.analyze(doc, errs);
+        IDSAutoFix.applyFixes(doc, [ds[0].id], ds);
+        expect(doc.querySelector('author').textContent).toBe('noreply@example.com');
+    });
+});
