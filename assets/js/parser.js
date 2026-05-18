@@ -88,15 +88,34 @@ function parseIDS(xmlString) {
     runXSDValidation(xmlString);
 }
 
+let _idsAutoFixSkip = false;
+
 async function runXSDValidation(xmlString) {
     const banner = document.getElementById('xsdValidationBanner');
     if (!banner || typeof window.IDSXSDValidator === 'undefined') return;
     banner.style.display = 'none';
     try {
         const result = await IDSXSDValidator.validate(xmlString);
-        if (!result.valid) {
-            showXSDBanner(result.errors);
+        if (result.valid) return;
+
+        if (!_idsAutoFixSkip
+            && typeof window.IDSAutoFix !== 'undefined'
+            && typeof window.IDSAutoFixModal !== 'undefined'
+            && currentIDSData && currentIDSData.doc) {
+
+            const descriptors = IDSAutoFix.analyze(currentIDSData.doc, result.errors);
+            const anyFixable = descriptors.some(d => d.fixable);
+            if (anyFixable) {
+                const choice = await IDSAutoFixModal.show(descriptors);
+                if (choice.action === 'fix' && choice.selectedIds.length > 0) {
+                    const fixedXml = IDSAutoFix.applyFixes(currentIDSData.doc, choice.selectedIds, descriptors);
+                    _idsAutoFixSkip = true;
+                    try { parseIDS(fixedXml); } finally { _idsAutoFixSkip = false; }
+                    return;
+                }
+            }
         }
+        showXSDBanner(result.errors);
     } catch (e) {
         console.warn('XSD validation skipped:', e);
     }
