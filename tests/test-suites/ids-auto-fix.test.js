@@ -230,3 +230,43 @@ describe('IDSAutoFix: missing-spec-name', () => {
         expect(specs[1].getAttribute('name')).toBe('Specification 2');
     });
 });
+
+describe('IDSAutoFix: combined fixture', () => {
+    it('applies all known fixes in one pass', () => {
+        const xml = `<ids xmlns="http://standards.buildingsmart.org/IDS">
+            <info><author>Not Email</author><date>5.6.2024</date></info>
+            <specifications>
+                <specification>
+                    <applicability>
+                        <entity cardinality="required"><name><simpleValue>IfcWall</simpleValue></name></entity>
+                        <property cardinality="optional">
+                            <propertySet><simpleValue>Pset_X</simpleValue></propertySet>
+                            <baseName><simpleValue>Y</simpleValue></baseName>
+                        </property>
+                    </applicability>
+                    <requirements/>
+                </specification>
+            </specifications></ids>`;
+        const doc = makeDoc(xml);
+        const errs = [
+            makeErr("Element 'info': Missing child element(s). Expected is ( title ).", 2),
+            makeErr("Element 'author': [facet 'pattern']", 2),
+            makeErr("Element 'date': '5.6.2024' is not a valid value of the atomic type 'xs:date'.", 2),
+            makeErr("Element 'specification': The attribute 'name' is required but missing.", 4),
+            makeErr("Element 'specification': The attribute 'ifcVersion' is required but missing.", 4),
+            makeErr("Element 'entity', attribute 'cardinality': The attribute 'cardinality' is not allowed.", 6),
+            makeErr("Element 'property', attribute 'cardinality': The attribute 'cardinality' is not allowed.", 7)
+        ];
+        const ds = IDSAutoFix.analyze(doc, errs);
+        const fixable = ds.filter(d => d.fixable);
+        expect(fixable.length).toBe(7);
+        IDSAutoFix.applyFixes(doc, fixable.map(d => d.id), ds);
+        expect(doc.querySelector('info > title').textContent).toBe('Untitled IDS');
+        expect(doc.querySelector('author').textContent).toBe('noreply@example.com');
+        expect(doc.querySelector('date').textContent).toBe('2024-06-05');
+        expect(doc.querySelector('specification').getAttribute('name')).toBe('Specification 1');
+        expect(doc.querySelector('specification').getAttribute('ifcVersion')).toBe('IFC4');
+        expect(doc.querySelector('entity').hasAttribute('cardinality')).toBe(false);
+        expect(doc.querySelector('applicability > property').hasAttribute('cardinality')).toBe(false);
+    });
+});
