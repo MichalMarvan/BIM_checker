@@ -85,3 +85,26 @@ describe('IDSAutoFix: date-bad-format', () => {
         expect(ds[0].fixable).toBe(false);
     });
 });
+
+describe('IDSAutoFix: cardinality-on-entity', () => {
+    const xml = `<ids xmlns="http://standards.buildingsmart.org/IDS">
+        <info><title>t</title></info>
+        <specifications>
+            <specification name="s" ifcVersion="IFC4">
+                <applicability>
+                    <entity cardinality="required"><name><simpleValue>IfcWall</simpleValue></name></entity>
+                </applicability>
+                <requirements/>
+            </specification>
+        </specifications></ids>`;
+
+    it('classifies and removes the cardinality attribute', () => {
+        const doc = makeDoc(xml);
+        const errs = [makeErr("Element 'entity', attribute 'cardinality': The attribute 'cardinality' is not allowed.", 5)];
+        const ds = IDSAutoFix.analyze(doc, errs);
+        expect(ds[0].fixable).toBe(true);
+        expect(ds[0].category).toBe('cardinality-on-entity');
+        IDSAutoFix.applyFixes(doc, [ds[0].id], ds);
+        expect(doc.querySelector('entity').hasAttribute('cardinality')).toBe(false);
+    });
+});

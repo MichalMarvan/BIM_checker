@@ -121,5 +121,29 @@ window.IDSAutoFix = (function () {
         }
     });
 
+    classifiers.push({
+        id: 'cardinality-on-entity',
+        test(err) {
+            const msg = (err.message || err.rawMessage || '').toLowerCase();
+            return msg.includes("'entity'") && msg.includes('cardinality');
+        },
+        build(err, xmlDoc) {
+            const node = xmlDoc.querySelector('entity[cardinality]');
+            if (!node) return null;
+            return {
+                id: 'cardinality-on-entity-' + (err.loc ? err.loc.lineNumber : 'x'),
+                category: 'cardinality-on-entity',
+                label: 'editor.autoFix.fix.cardinalityOnEntity',
+                before: 'cardinality="' + node.getAttribute('cardinality') + '"',
+                after: '(removed)',
+                lineNumber: err.loc ? err.loc.lineNumber : null,
+                fixable: true,
+                apply(doc) {
+                    doc.querySelectorAll('entity[cardinality]').forEach(n => n.removeAttribute('cardinality'));
+                }
+            };
+        }
+    });
+
     return { analyze, applyFixes, _classifiers: classifiers };
 })();
