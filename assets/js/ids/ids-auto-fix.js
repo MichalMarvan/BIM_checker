@@ -80,5 +80,46 @@ window.IDSAutoFix = (function () {
         }
     });
 
+    function reformatDate(s) {
+        if (typeof s !== 'string') return null;
+        const trimmed = s.trim();
+        let m;
+        m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(trimmed);          // D.M.YYYY
+        if (m) return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+        m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);          // D/M/YYYY
+        if (m) return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+        m = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(trimmed);          // YYYY/M/D
+        if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+        return null;
+    }
+
+    classifiers.push({
+        id: 'date-bad-format',
+        test(err) {
+            const msg = (err.message || err.rawMessage || '').toLowerCase();
+            return msg.includes("'date'") && msg.includes('xs:date');
+        },
+        build(err, xmlDoc) {
+            const node = xmlDoc.querySelector('date');
+            if (!node) return null;
+            const before = node.textContent;
+            const after = reformatDate(before);
+            return {
+                id: 'date-bad-format-' + (err.loc ? err.loc.lineNumber : 'x'),
+                category: 'date-bad-format',
+                label: 'editor.autoFix.fix.dateBadFormat',
+                before,
+                after,
+                lineNumber: err.loc ? err.loc.lineNumber : null,
+                fixable: !!after,
+                apply(doc) {
+                    if (!after) return;
+                    const n = doc.querySelector('date');
+                    if (n) n.textContent = after;
+                }
+            };
+        }
+    });
+
     return { analyze, applyFixes, _classifiers: classifiers };
 })();
