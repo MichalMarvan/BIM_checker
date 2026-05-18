@@ -721,7 +721,7 @@ function loadSampleIDS() {
         <ids:copyright>BuildingSMART</ids:copyright>
         <ids:version>1.0</ids:version>
         <ids:description>Example IDS file with various requirement types including regex</ids:description>
-        <ids:author>BIM Checker — IDS Visualizer</ids:author>
+        <ids:author>info@bim-checker.example</ids:author>
         <ids:date>2024-01-01</ids:date>
         <ids:purpose>Demonstration</ids:purpose>
     </ids:info>
