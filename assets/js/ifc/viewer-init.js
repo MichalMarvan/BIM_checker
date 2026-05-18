@@ -1658,10 +1658,13 @@ async function loadSelectedFilesFromStorage() {
                     const contentStore = contentTransaction.objectStore('storage');
                     const contentRequest = contentStore.get(`ifc_files_file_${fileId}`);
 
-                    const fileContent = await new Promise((resolve, reject) => {
+                    const rawContent = await new Promise((resolve, reject) => {
                         contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
                         contentRequest.onerror = () => reject(contentRequest.error);
                     });
+
+                    // Stored content is gzipped; decompress (legacy data passes through).
+                    const fileContent = await window.Compression.decompress(rawContent);
 
                     if (fileContent) {
                         await window.parseIFCAsync(fileContent, fileMetadata.name, i + 1, fileArray.length);

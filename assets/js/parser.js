@@ -1285,10 +1285,14 @@ async function loadSelectedIdsFromStorage() {
         const contentStore = contentTransaction.objectStore('storage');
         const contentRequest = contentStore.get(`ids_files_file_${selectedIdsFile}`);
 
-        const fileContent = await new Promise((resolve, reject) => {
+        const rawContent = await new Promise((resolve, reject) => {
             contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
             contentRequest.onerror = () => reject(contentRequest.error);
         });
+
+        // Content is gzipped via Compression module on save; decompress here.
+        // Compression.decompress passes plain-text/legacy data through unchanged.
+        const fileContent = await window.Compression.decompress(rawContent);
 
         if (fileContent) {
             closeIdsStoragePicker();

@@ -2166,10 +2166,13 @@ async function confirmIfcSelection() {
                     const contentStore = contentTransaction.objectStore('storage');
                     const contentRequest = contentStore.get(`ifc_files_file_${fileId}`);
 
-                    const fileContent = await new Promise((resolve, reject) => {
+                    const rawContent = await new Promise((resolve, reject) => {
                         contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
                         contentRequest.onerror = () => reject(contentRequest.error);
                     });
+
+                    // Stored content is gzipped; decompress (legacy data passes through).
+                    const fileContent = await window.Compression.decompress(rawContent);
 
                     if (fileContent) {
                         files.push({
@@ -2527,10 +2530,13 @@ async function confirmIdsSelection() {
             const contentStore = contentTransaction.objectStore('storage');
             const contentRequest = contentStore.get(`ids_files_file_${selectedIdsFile}`);
 
-            const fileContent = await new Promise((resolve, reject) => {
+            const rawContent = await new Promise((resolve, reject) => {
                 contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
                 contentRequest.onerror = () => reject(contentRequest.error);
             });
+
+            // Stored content is gzipped; decompress (legacy data passes through).
+            const fileContent = await window.Compression.decompress(rawContent);
 
             if (!fileContent) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
