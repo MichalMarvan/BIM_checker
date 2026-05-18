@@ -204,5 +204,32 @@ window.IDSAutoFix = (function () {
         }
     });
 
+    classifiers.push({
+        id: 'missing-ifc-version',
+        test(err) {
+            const msg = (err.message || err.rawMessage || '').toLowerCase();
+            return msg.includes('specification') && msg.includes('ifcversion');
+        },
+        build(err, xmlDoc) {
+            const node = Array.from(xmlDoc.querySelectorAll('specification'))
+                .find(n => !n.getAttribute('ifcVersion'));
+            if (!node) return null;
+            return {
+                id: 'missing-ifc-version-' + (err.loc ? err.loc.lineNumber : 'x'),
+                category: 'missing-ifc-version',
+                label: 'editor.autoFix.fix.missingIfcVersion',
+                before: null,
+                after: 'ifcVersion="IFC4"',
+                lineNumber: err.loc ? err.loc.lineNumber : null,
+                fixable: true,
+                apply(doc) {
+                    doc.querySelectorAll('specification').forEach(n => {
+                        if (!n.getAttribute('ifcVersion')) n.setAttribute('ifcVersion', 'IFC4');
+                    });
+                }
+            };
+        }
+    });
+
     return { analyze, applyFixes, _classifiers: classifiers };
 })();

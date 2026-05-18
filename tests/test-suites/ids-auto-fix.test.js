@@ -181,3 +181,23 @@ describe('IDSAutoFix: missing-title', () => {
         expect(info.querySelector('title').textContent).toBe('Untitled IDS');
     });
 });
+
+describe('IDSAutoFix: missing-ifc-version', () => {
+    const xml = `<ids xmlns="http://standards.buildingsmart.org/IDS">
+        <info><title>t</title></info>
+        <specifications>
+            <specification name="s">
+                <applicability><entity><name><simpleValue>IfcWall</simpleValue></name></entity></applicability>
+                <requirements/>
+            </specification>
+        </specifications></ids>`;
+
+    it('sets ifcVersion to IFC4 when missing', () => {
+        const doc = makeDoc(xml);
+        const errs = [makeErr("Element 'specification': The attribute 'ifcVersion' is required but missing.", 4)];
+        const ds = IDSAutoFix.analyze(doc, errs);
+        expect(ds[0].fixable).toBe(true);
+        IDSAutoFix.applyFixes(doc, [ds[0].id], ds);
+        expect(doc.querySelector('specification').getAttribute('ifcVersion')).toBe('IFC4');
+    });
+});
