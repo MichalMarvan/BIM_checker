@@ -51,6 +51,10 @@ function handleFile(file) {
     reader.onload = function(e) {
         try {
             parseIDS(e.target.result);
+            // Persist to BIMStorage so AI tools + storage cards see this file
+            if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
+                window.BIMStorage.persistDropped('ids', file, e.target.result);
+            }
         } catch (error) {
             showError(t('parser.error.parsingError') + ' ' + error.message);
         }

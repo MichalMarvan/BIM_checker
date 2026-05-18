@@ -25,6 +25,10 @@ async function handleFiles(files) {
             const file = ifcFiles[i];
             const content = await window.readFileAsync(file);
             await window.parseIFCAsync(content, file.name, i + 1, ifcFiles.length);
+            // Also persist to BIMStorage so AI tools + storage cards see this file
+            if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
+                window.BIMStorage.persistDropped('ifc', file, content);
+            }
         }
 
         document.getElementById('loading').classList.remove('show');
