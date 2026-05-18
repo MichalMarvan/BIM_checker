@@ -145,5 +145,36 @@ window.IDSAutoFix = (function () {
         }
     });
 
+    const APPLICABILITY_FACETS = ['entity','partOf','classification','attribute','property','material'];
+
+    classifiers.push({
+        id: 'cardinality-on-applicability',
+        test(err, xmlDoc) {
+            const msg = (err.message || err.rawMessage || '').toLowerCase();
+            if (!msg.includes('cardinality') || !msg.includes('not allowed')) return false;
+            if (msg.includes("'entity'")) return false; // handled by cardinality-on-entity
+            // Confirm the offending element lives inside <applicability>.
+            const found = xmlDoc.querySelector('applicability > [cardinality]');
+            return !!found;
+        },
+        build(err, xmlDoc) {
+            const node = xmlDoc.querySelector('applicability > [cardinality]');
+            if (!node) return null;
+            return {
+                id: 'cardinality-on-applicability-' + (err.loc ? err.loc.lineNumber : 'x'),
+                category: 'cardinality-on-applicability',
+                label: 'editor.autoFix.fix.cardinalityOnApplicability',
+                before: `<${node.tagName} cardinality="${node.getAttribute('cardinality')}">`,
+                after: `<${node.tagName}>`,
+                lineNumber: err.loc ? err.loc.lineNumber : null,
+                fixable: true,
+                apply(doc) {
+                    doc.querySelectorAll('applicability > [cardinality]')
+                        .forEach(n => { if (APPLICABILITY_FACETS.includes(n.tagName)) n.removeAttribute('cardinality'); });
+                }
+            };
+        }
+    });
+
     return { analyze, applyFixes, _classifiers: classifiers };
 })();

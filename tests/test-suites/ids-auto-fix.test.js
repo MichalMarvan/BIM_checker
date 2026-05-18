@@ -108,3 +108,59 @@ describe('IDSAutoFix: cardinality-on-entity', () => {
         expect(doc.querySelector('entity').hasAttribute('cardinality')).toBe(false);
     });
 });
+
+describe('IDSAutoFix: cardinality-on-applicability', () => {
+    const xml = `<ids xmlns="http://standards.buildingsmart.org/IDS">
+        <info><title>t</title></info>
+        <specifications>
+            <specification name="s" ifcVersion="IFC4">
+                <applicability>
+                    <entity><name><simpleValue>IfcWall</simpleValue></name></entity>
+                    <property cardinality="optional">
+                        <propertySet><simpleValue>Pset_WallCommon</simpleValue></propertySet>
+                        <baseName><simpleValue>LoadBearing</simpleValue></baseName>
+                    </property>
+                </applicability>
+                <requirements/>
+            </specification>
+        </specifications></ids>`;
+
+    it('removes cardinality on applicability child facet', () => {
+        const doc = makeDoc(xml);
+        const errs = [makeErr("Element 'property', attribute 'cardinality': The attribute 'cardinality' is not allowed.", 7)];
+        const ds = IDSAutoFix.analyze(doc, errs);
+        expect(ds[0].fixable).toBe(true);
+        expect(ds[0].category).toBe('cardinality-on-applicability');
+        IDSAutoFix.applyFixes(doc, [ds[0].id], ds);
+        const prop = doc.querySelector('applicability > property');
+        expect(prop.hasAttribute('cardinality')).toBe(false);
+    });
+
+    it('does NOT remove cardinality on requirements facets', () => {
+        const xml2 = `<ids xmlns="http://standards.buildingsmart.org/IDS">
+            <info><title>t</title></info>
+            <specifications>
+                <specification name="s" ifcVersion="IFC4">
+                    <applicability><entity><name><simpleValue>IfcWall</simpleValue></name></entity></applicability>
+                    <requirements>
+                        <property cardinality="required">
+                            <propertySet><simpleValue>Pset_WallCommon</simpleValue></propertySet>
+                            <baseName><simpleValue>FireRating</simpleValue></baseName>
+                        </property>
+                    </requirements>
+                </specification>
+            </specifications></ids>`;
+        const doc = makeDoc(xml2);
+        // No error fired by xmllint for this case; the apply must not touch <requirements> children.
+        const ds = [{
+            id: 'cardinality-on-applicability-x',
+            category: 'cardinality-on-applicability',
+            fixable: true,
+            apply(d) {
+                d.querySelectorAll('applicability > [cardinality]').forEach(n => n.removeAttribute('cardinality'));
+            }
+        }];
+        IDSAutoFix.applyFixes(doc, ['cardinality-on-applicability-x'], ds);
+        expect(doc.querySelector('requirements > property').getAttribute('cardinality')).toBe('required');
+    });
+});
