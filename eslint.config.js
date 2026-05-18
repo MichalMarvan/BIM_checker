@@ -65,6 +65,8 @@ export default [
                 IFCHierarchy: 'readonly',
                 IfcParams: 'readonly',
                 IDSXSDValidator: 'readonly',
+                IDSAutoFix: 'readonly',
+                IDSAutoFixModal: 'readonly',
                 // Phase 2: IFC viewer editing correctness
                 IfcPsetUtils: 'readonly',
                 parseIFCStructure: 'readonly',
