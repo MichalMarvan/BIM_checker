@@ -733,6 +733,17 @@ window.BIMStorage = {
         return await _activeBackend.saveFile(type, file, folderId);
     },
 
+    // Fire-and-forget persistence for files brought in via drag-drop / file picker.
+    // Silently no-ops in read-only backends (e.g., LocalFolder rejects saveFile).
+    // Use this whenever a page accepts a file outside the homepage Storage UI so the
+    // AI tools and storage cards can find it later.
+    persistDropped(type, file, content) {
+        if (!_activeBackend) return;
+        _activeBackend.saveFile(type, { name: file.name, size: file.size, content }).catch(err => {
+            console.warn('[BIMStorage.persistDropped] failed:', type, file.name, err && err.message || err);
+        });
+    },
+
     async getFiles(type) {
         return await _activeBackend.getFiles(type);
     },

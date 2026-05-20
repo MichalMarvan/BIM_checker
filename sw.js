@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-const CACHE_VERSION = 'bim-checker-v74';
+const CACHE_VERSION = 'bim-checker-v75';
 const ASSETS_TO_CACHE = [
     './index.html',
     './assets/og-image-v2.png',
@@ -62,6 +62,8 @@ const ASSETS_TO_CACHE = [
     './assets/js/ids/ids-excel-template.js',
     './assets/js/ids/ids-editor-core.js',
     './assets/js/ids/ids-editor-modals.js',
+    './assets/js/ids/ids-auto-fix.js',
+    './assets/js/ids/ids-auto-fix-modal.js',
     './assets/js/ifc/ifc-pset-utils.js',
     './assets/js/ifc/viewer-core.js',
     './assets/js/ifc/viewer-parser.js',
@@ -110,6 +112,7 @@ const ASSETS_TO_CACHE = [
     './assets/js/ai-ui/chat-panel.js',
     './assets/js/ai-ui/chat-heads.js',
     './assets/js/ai-ui/chat-i18n-helpers.js',
+    './assets/js/ai-ui/ollama-setup-modal.js',
     './assets/css/ai-chat.css'
 ];
 

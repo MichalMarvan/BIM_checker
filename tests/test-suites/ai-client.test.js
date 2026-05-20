@@ -102,4 +102,79 @@ describe('ai-client', () => {
         expect(result.ok).toBe(false);
         expect(typeof result.error).toBe('string');
     });
+
+    it('classifyFetchFailure: HTTPS page + Firefox UA + http://localhost → mixed_content', () => {
+        const code = client.classifyFetchFailure(
+            'http://localhost:11434/v1',
+            new TypeError('Failed to fetch'),
+            { protocol: 'https:', userAgent: 'Mozilla/5.0 Firefox/124.0' }
+        );
+        expect(code).toBe('mixed_content');
+    });
+
+    it('classifyFetchFailure: HTTPS page + Chrome UA + http://localhost → cors_or_down (Chromium allows localhost)', () => {
+        const code = client.classifyFetchFailure(
+            'http://localhost:11434/v1',
+            new TypeError('Failed to fetch'),
+            { protocol: 'https:', userAgent: 'Mozilla/5.0 Chrome/124.0' }
+        );
+        expect(code).toBe('cors_or_down');
+    });
+
+    it('classifyFetchFailure: HTTP page + http://localhost → cors_or_down (no mixed content possible)', () => {
+        const code = client.classifyFetchFailure(
+            'http://localhost:11434/v1',
+            new TypeError('Failed to fetch'),
+            { protocol: 'http:', userAgent: 'Mozilla/5.0 Firefox/124.0' }
+        );
+        expect(code).toBe('cors_or_down');
+    });
+
+    it('classifyFetchFailure: remote HTTPS endpoint → network', () => {
+        const code = client.classifyFetchFailure(
+            'https://api.example.com/v1',
+            new TypeError('Failed to fetch'),
+            { protocol: 'https:', userAgent: 'Mozilla/5.0 Chrome/124.0' }
+        );
+        expect(code).toBe('network');
+    });
+
+    it('classifyFetchFailure: AbortError → aborted', () => {
+        const abortErr = new Error('aborted');
+        abortErr.name = 'AbortError';
+        const code = client.classifyFetchFailure(
+            'https://api.example.com/v1',
+            abortErr,
+            { protocol: 'https:', userAgent: 'Mozilla/5.0 Chrome/124.0' }
+        );
+        expect(code).toBe('aborted');
+    });
+
+    it('fetchModels attaches err.code when fetch throws TypeError', async () => {
+        window.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+        let err;
+        try { await client.fetchModels('http://localhost:11434/v1', ''); }
+        catch (e) { err = e; }
+        expect(err !== undefined).toBe(true);
+        const validCodes = ['mixed_content', 'cors_or_down', 'network'];
+        expect(validCodes.includes(err.code)).toBe(true);
+    });
+
+    it('testConnection returns structured code on fetch-level failure', async () => {
+        window.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+        const result = await client.testConnection('http://localhost:11434/v1', '');
+        expect(result.ok).toBe(false);
+        const validCodes = ['mixed_content', 'cors_or_down', 'network'];
+        expect(validCodes.includes(result.code)).toBe(true);
+    });
+
+    it('chatCompletion attaches err.code when fetch throws', async () => {
+        window.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+        let err;
+        try { await client.chatCompletion('http://localhost:11434/v1', '', 'm', [{ role: 'user', content: 'hi' }], []); }
+        catch (e) { err = e; }
+        expect(err !== undefined).toBe(true);
+        const validCodes = ['mixed_content', 'cors_or_down', 'network'];
+        expect(validCodes.includes(err.code)).toBe(true);
+    });
 });

@@ -7,10 +7,11 @@
 
 import * as storage from '../ai/chat-storage.js';
 import { PROVIDERS } from '../ai/providers.js';
-import { fetchModels } from '../ai/ai-client.js';
+import { fetchModels, testConnection } from '../ai/ai-client.js';
 import { t, onLanguageChange } from './chat-i18n-helpers.js';
 import { TOOL_CATEGORIES, TOTAL_TOOLS } from '../ai/tool-catalog.js';
 import { AGENT_PRESETS, getPreset, resolvePreset } from '../ai/agent-presets.js';
+import * as ollamaSetup from './ollama-setup-modal.js';
 
 let _modal = null;
 const _state = { view: 'list', editingId: null, modelsCache: {} };
@@ -384,7 +385,9 @@ async function _renderFormView(agentId) {
                     <select id="agentModelSelect" style="display:none"></select>
                     <input type="text" id="agentModelText" value="${escapeAttr(agent.model || '')}" placeholder="model id">
                     <button type="button" id="agentLoadModelsBtn">${t('ai.agent.modelLoadBtn')}</button>
+                    <button type="button" id="agentTestConnBtn">${t('ai.agent.testConnBtn')}</button>
                 </div>
+                <div class="agent-form__conn-status" id="agentConnStatus"></div>
             </div>
             <div class="agent-form__row">
                 <label>${t('ai.agent.tempLabel')}<span class="agent-form__temp-display" id="tempDisplay">${agent.temperature.toFixed(2)}</span></label>
@@ -420,6 +423,7 @@ async function _renderFormView(agentId) {
     });
     body.querySelector('#agentCancelBtn').addEventListener('click', () => _renderListView());
     body.querySelector('#agentLoadModelsBtn').addEventListener('click', () => _loadModelsIntoForm());
+    body.querySelector('#agentTestConnBtn').addEventListener('click', () => _testConnectionFromForm());
     body.querySelector('#agentForm').addEventListener('submit', (e) => {
         e.preventDefault();
         _saveFromForm();
@@ -459,11 +463,72 @@ async function _loadModelsIntoForm() {
         select.addEventListener('change', () => { text.value = select.value; });
         if (current) select.value = current;
     } catch (e) {
-        if (typeof ErrorHandler !== 'undefined') {
-            ErrorHandler.error(t('ai.endpoint.loadModelsFailed'));
-        }
+        _renderConnStatusFromError(e, baseUrl);
         console.warn('Failed to load models:', e);
     }
+}
+
+async function _testConnectionFromForm() {
+    const provider = _modal.querySelector('#agentProvider').value;
+    const baseUrl = _modal.querySelector('#agentEndpoint').value || PROVIDERS[provider].endpoint;
+    const apiKey = _modal.querySelector('#agentApiKey').value;
+    const status = _modal.querySelector('#agentConnStatus');
+    if (!baseUrl) {
+        status.className = 'agent-form__conn-status is-error';
+        status.textContent = t('ai.agent.testConn.noEndpoint');
+        return;
+    }
+    status.className = 'agent-form__conn-status is-pending';
+    status.textContent = t('ai.endpoint.connecting');
+    const t0 = Date.now();
+    const result = await testConnection(baseUrl, apiKey);
+    const elapsed = Date.now() - t0;
+    if (result.ok) {
+        status.className = 'agent-form__conn-status is-ok';
+        status.textContent = t('ai.endpoint.ok').replace('{latencyMs}', String(elapsed))
+            + ' — ' + t('ai.agent.testConn.modelsFound').replace('{n}', String(result.models.length));
+        return;
+    }
+    _renderConnStatusFromError({ code: result.code, status: result.status, message: result.error }, baseUrl);
+}
+
+function _renderConnStatusFromError(err, endpoint) {
+    const status = _modal.querySelector('#agentConnStatus');
+    if (!status) return;
+    status.className = 'agent-form__conn-status is-error';
+    const code = err && err.code;
+    let msgKey = 'ai.error.unknown';
+    let showSetupLink = false;
+    let setupReason = 'manual';
+
+    if (code === 'mixed_content') {
+        msgKey = 'ai.agent.testConn.mixedContent';
+        showSetupLink = true;
+        setupReason = 'mixed_content';
+    } else if (code === 'cors_or_down') {
+        msgKey = 'ai.agent.testConn.corsOrDown';
+        showSetupLink = true;
+        setupReason = 'cors_or_down';
+    } else if (code === 'auth') {
+        msgKey = 'ai.error.invalidApiKey';
+    } else if (code === 'rate_limit') {
+        msgKey = 'ai.error.rateLimit';
+    } else if (code === 'server') {
+        msgKey = 'ai.error.providerDown';
+    } else if (code === 'network') {
+        msgKey = 'ai.error.network';
+    }
+
+    const baseMsg = t(msgKey).replace('{message}', err && err.message ? err.message : '');
+    if (showSetupLink) {
+        const linkText = t('ai.agent.testConn.showSetup');
+        status.innerHTML = `${escapeHtml(baseMsg)} <button type="button" class="agent-form__conn-setup-link">${escapeHtml(linkText)}</button>`;
+        const btn = status.querySelector('.agent-form__conn-setup-link');
+        btn.addEventListener('click', () => ollamaSetup.open({ reason: setupReason }));
+    } else {
+        status.textContent = baseMsg;
+    }
+    void endpoint;
 }
 
 async function _saveFromForm() {

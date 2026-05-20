@@ -279,6 +279,25 @@
         </div>
     </div>
 
+    <!-- IDS Auto-Fix Modal -->
+    <div id="idsAutoFixModal" class="modal-overlay" style="display:none">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="idsAutoFixTitle"></h2>
+                <button type="button" class="modal-close" id="idsAutoFixClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="idsAutoFixIntro"></p>
+                <ul class="ids-auto-fix-list" id="idsAutoFixList"></ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="idsAutoFixIgnore"></button>
+                <button type="button" class="btn btn-secondary" id="idsAutoFixFixSelected"></button>
+                <button type="button" class="btn btn-primary" id="idsAutoFixFixAll"></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Storage Picker Modal -->
     <div id="idsStorageModal" class="modal-overlay">
         <div class="modal-container">
@@ -327,6 +346,8 @@
     <script src="../assets/js/ids/bsdd-api.js"></script>
     <script src="../assets/js/ids/bsdd-autocomplete.js"></script>
     <script src="../assets/js/ids/ids-xml-generator.js"></script>
+    <script src="../assets/js/ids/ids-auto-fix.js"></script>
+    <script src="../assets/js/ids/ids-auto-fix-modal.js"></script>
     <script src="../assets/js/ids/ids-editor-modals.js"></script>
     <script src="../assets/js/ids/ids-editor-core.js"></script>
     <script src="../assets/js/vendor/xlsx.full.min.js"></script>

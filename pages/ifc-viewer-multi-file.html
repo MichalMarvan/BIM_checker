@@ -459,9 +459,10 @@
                 </div>
                 <div class="form-group">
                     <label data-i18n="viewer.oldPropName"></label>
-                    <select id="oldPropertyName" class="form-select" disabled>
+                    <select id="oldPropertyName" class="form-select" onchange="updatePropertyValuesList()" disabled>
                         <option value="" data-i18n="viewer.selectProp"></option>
                     </select>
+                    <div id="renamePropValuesList" class="rename-prop-values-list" style="display:none"></div>
                 </div>
                 <div class="form-group">
                     <label data-i18n="viewer.newPropName"></label>

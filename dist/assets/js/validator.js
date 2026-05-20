@@ -128,6 +128,18 @@ function handleIFCFiles(files) {
     ifcFiles = ifcFiles_filtered;
     updateIFCFileList();
     updateValidateButton();
+
+    // Persist each IFC to BIMStorage (fire-and-forget) so AI tools + storage cards see them.
+    // Reads each file once specifically for this — done async so the UI is unblocked.
+    if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
+        for (const file of ifcFiles_filtered) {
+            file.text().then(content => {
+                window.BIMStorage.persistDropped('ifc', file, content);
+            }).catch(err => {
+                console.warn('[handleIFCFiles] read failed for persist:', file.name, err);
+            });
+        }
+    }
 }
 
 function handleIDSFiles(files) {
@@ -150,6 +162,9 @@ function handleIDSFiles(files) {
                     fileName: file.name,
                     data: idsData
                 });
+            }
+            if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
+                window.BIMStorage.persistDropped('ids', file, e.target.result);
             }
             processed++;
 
@@ -1724,6 +1739,9 @@ async function handleIfcDrop(files, groupIndex) {
             size: file.size,
             content: content
         });
+        if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
+            window.BIMStorage.persistDropped('ifc', file, content);
+        }
         if (group.missingIfcNames && group.missingIfcNames.includes(file.name)) {
             group.missingIfcNames = group.missingIfcNames.filter(n => n !== file.name);
         }
@@ -1763,6 +1781,9 @@ async function handleIdsDrop(files, groupIndex) {
         size: file.size,
         content: content
     };
+    if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
+        window.BIMStorage.persistDropped('ids', file, content);
+    }
     if (group.missingIdsName === file.name) {
         group.missingIdsName = null;
     }
@@ -2166,10 +2187,13 @@ async function confirmIfcSelection() {
                     const contentStore = contentTransaction.objectStore('storage');
                     const contentRequest = contentStore.get(`ifc_files_file_${fileId}`);
 
-                    const fileContent = await new Promise((resolve, reject) => {
+                    const rawContent = await new Promise((resolve, reject) => {
                         contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
                         contentRequest.onerror = () => reject(contentRequest.error);
                     });
+
+                    // Stored content is gzipped; decompress (legacy data passes through).
+                    const fileContent = await window.Compression.decompress(rawContent);
 
                     if (fileContent) {
                         files.push({
@@ -2527,10 +2551,13 @@ async function confirmIdsSelection() {
             const contentStore = contentTransaction.objectStore('storage');
             const contentRequest = contentStore.get(`ids_files_file_${selectedIdsFile}`);
 
-            const fileContent = await new Promise((resolve, reject) => {
+            const rawContent = await new Promise((resolve, reject) => {
                 contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
                 contentRequest.onerror = () => reject(contentRequest.error);
             });
+
+            // Stored content is gzipped; decompress (legacy data passes through).
+            const fileContent = await window.Compression.decompress(rawContent);
 
             if (!fileContent) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
