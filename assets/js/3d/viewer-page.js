@@ -604,12 +604,24 @@ function wireUI() {
     });
 
     document.querySelectorAll('.v3d-tool').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const tool = btn.dataset.tool;
-            document.querySelectorAll('.v3d-tool').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const label = btn.title || tool;
-            setStatus(`${label} — ${t('viewer3d.comingSoon') || 'tool přijde v dalším iteration'}`, 'info');
+            try {
+                const [{ togglePanel }, panels] = await Promise.all([
+                    import('./ui/panel-manager.js'),
+                    import('./panels/index.js'),
+                ]);
+                panels.ensureRegistered();
+                if (panels.requiresEngine(tool)) {
+                    const engine = await getEngine();
+                    await togglePanel(tool, engine, { state, t, setStatus });
+                } else {
+                    await togglePanel(tool, null, { state, t, setStatus });
+                }
+            } catch (err) {
+                console.error('[3d-viewer] panel toggle failed:', err);
+                setStatus(`✗ Panel: ${err.message || err}`, 'error');
+            }
         });
     });
 }
