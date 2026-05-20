@@ -145,4 +145,110 @@ export const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'get_entity_types',
+      description: 'Vrátí mapu IFC typů a počty entit v daném modelu (nebo napříč federací). Použij k zjištění co model obsahuje, ještě před search_entities.',
+      parameters: {
+        type: 'object',
+        properties: {
+          modelId: { type: 'string', description: 'Volitelně omez na jeden model.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'filter_by_property',
+      description: 'Najde entity podle hodnoty PropertySetu. Operátory: eq, ne, contains, gt, lt, gte, lte, exists, notExists. Příklad: { pset: "Pset_WallCommon", property: "FireRating", op: "eq", value: "REI 60" }.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pset: { type: 'string', description: 'Název PropertySetu (např. Pset_WallCommon).' },
+          property: { type: 'string', description: 'Název property uvnitř PSetu.' },
+          op: { type: 'string', enum: ['eq', 'ne', 'contains', 'gt', 'lt', 'gte', 'lte', 'exists', 'notExists'], description: 'Operátor porovnání.' },
+          value: { description: 'Hodnota k porovnání (string nebo number).' },
+          entityType: { type: 'string', description: 'Volitelně — omez na IFC typ (např. IFCWALL).' },
+          modelId: { type: 'string', description: 'Volitelně — jen jeden model.' },
+        },
+        required: ['property', 'op'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_section_plane',
+      description: 'Vytvoří řez modelem. Specifikuj bod a normálu roviny. Pro osu Z: point=[0,0,h], normal=[0,0,1]. Vrátí planeId pro pozdější update/remove.',
+      parameters: {
+        type: 'object',
+        properties: {
+          point: { type: 'array', items: { type: 'number' }, description: 'Bod na rovině [x,y,z].' },
+          normal: { type: 'array', items: { type: 'number' }, description: 'Normálový vektor [x,y,z].' },
+        },
+        required: ['point', 'normal'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'clear_section',
+      description: 'Smaže všechny řezové roviny a obnoví neořezané zobrazení modelu.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'measure_distance',
+      description: 'Změří vzdálenost mezi dvěma 3D body. Vrátí { value, unit } v metrech.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p1: { type: 'array', items: { type: 'number' }, description: '[x,y,z]' },
+          p2: { type: 'array', items: { type: 'number' }, description: '[x,y,z]' },
+        },
+        required: ['p1', 'p2'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_ids_validation',
+      description: 'Spustí IDS validaci proti uživatelem nahranému IDS XML v UI panelu. Vrátí { pass, fail, specifications: [...] }. Uživatel musí mít IDS XML načtený přes IDS panel.',
+      parameters: {
+        type: 'object',
+        properties: {
+          failuresOnly: { type: 'boolean', description: 'Vrátí jen failed checks.' },
+          limit: { type: 'integer', description: 'Max počet záznamů.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'detect_clashes',
+      description: 'Detekuje kolize mezi objekty modelu. Vrací seznam kolizí (hard / clearance / duplicate).',
+      parameters: {
+        type: 'object',
+        properties: {
+          method: { type: 'string', enum: ['bbox', 'mesh'], description: 'Metoda: rychlé bbox vs přesné mesh-BVH.' },
+          clearanceMm: { type: 'number', description: 'Tolerance pro clearance (mm).' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_model_stats',
+      description: 'Vrátí celkové statistiky všech načtených modelů: počet modelů, entit, typů.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
 ];

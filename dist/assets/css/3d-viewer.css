@@ -333,6 +333,123 @@ body[data-page="viewer3d"] {
     pointer-events: none;
 }
 
+/* ===== Floating right-side panel system ===== */
+.v3d-panel-host {
+    position: fixed;
+    top: 56px;
+    right: 8px;
+    bottom: 8px;
+    width: min(360px, calc(100vw - 16px));
+    z-index: 30;
+    pointer-events: none;
+    display: flex;
+}
+.v3d-panel-host[hidden] { display: none; }
+.v3d-panel {
+    background: var(--bg-secondary, #ffffff);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    border-radius: var(--radius-md, 0.5rem);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    overflow: hidden;
+    animation: v3dPanelIn 0.18s ease;
+}
+@keyframes v3dPanelIn {
+    from { transform: translateX(8px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+[data-theme="dark"] .v3d-panel {
+    background: #1f2230;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+.v3d-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-primary, #e5e7eb);
+    background: var(--bg-tertiary, #f3f4f6);
+    flex-shrink: 0;
+}
+[data-theme="dark"] .v3d-panel__header { background: #15161f; border-color: rgba(255,255,255,0.06); }
+.v3d-panel__title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.v3d-panel__close {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.v3d-panel__close:hover { background: rgba(0, 0, 0, 0.06); color: var(--text-primary); }
+.v3d-panel__body {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+.v3d-panel__error { color: #b91c1c; font-size: 12px; }
+.v3d-panel__section { margin-bottom: 14px; }
+.v3d-panel__section h4 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+}
+.v3d-panel__field { margin-bottom: 8px; }
+.v3d-panel__field label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; }
+.v3d-panel__input,
+.v3d-panel__select {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 12px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+.v3d-panel__row { display: flex; gap: 6px; align-items: center; }
+.v3d-panel__row .v3d-panel__input,
+.v3d-panel__row .v3d-panel__select { flex: 1; }
+.v3d-panel__list { list-style: none; padding: 0; margin: 0; }
+.v3d-panel__list li {
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+.v3d-panel__list li:hover { background: rgba(102, 126, 234, 0.08); }
+.v3d-panel__hint { font-size: 11px; color: var(--text-tertiary); margin: 4px 0 0; }
+.v3d-panel__pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.v3d-pill {
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    background: var(--bg-tertiary, #f3f4f6);
+    color: var(--text-secondary);
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+.v3d-pill.active { background: rgba(102, 126, 234, 0.16); color: var(--primary-color); border-color: rgba(102,126,234,0.4); }
+.v3d-pill:hover { border-color: var(--primary-color); }
+
 /* ===== Mobile ===== */
 @media (max-width: 768px) {
     .v3d-navbar { padding: 0 10px; gap: 8px; }
@@ -342,4 +459,5 @@ body[data-page="viewer3d"] {
     .v3d-toolbar { top: auto; bottom: 56px; left: 8px; right: 8px; max-width: none; overflow-x: auto; }
     .v3d-loaded-list { top: auto; bottom: 8px; right: 8px; left: 8px; max-width: none; }
     .v3d-status { bottom: auto; top: 56px; }
+    .v3d-panel-host { top: auto; bottom: 96px; right: 8px; left: 8px; width: auto; height: 50vh; }
 }
