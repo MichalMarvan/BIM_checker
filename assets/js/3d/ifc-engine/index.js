@@ -1230,12 +1230,23 @@ export class IfcEngine {
       this._applyRealWorldCoords();
       return;
     }
+    // bboxCenter from getCoords is in IFC-local units (mm for D222-style files).
+    // Federation offsets feed group.position which lives in scene metres after
+    // group.scale (= lengthScale) is applied to children. To keep things
+    // consistent across mixed-unit models we scale the bboxCenter into metres
+    // here before handing it to computeOffsets.
     const modelsCoords = new Map();
     for (const modelId of this._models.keys()) {
-      modelsCoords.set(modelId, this.getCoords(modelId) || { bboxCenter: null });
+      const raw = this.getCoords(modelId) || { bboxCenter: null };
+      const ls = this._models.get(modelId)?.meta?.lengthScale || 1;
+      const c = raw.bboxCenter;
+      const scaled = c ? [c[0] * ls, c[1] * ls, c[2] * ls] : null;
+      modelsCoords.set(modelId, { ...raw, bboxCenter: scaled });
     }
     const offsets = computeOffsets(modelsCoords, this._federationMode, this._manualOffsets);
     for (const [modelId, offset] of offsets) {
+      // offset is already in scene metres (bboxCenter was pre-scaled above);
+      // group.position lives in metres too, so pass through unchanged.
       this._viewer.applyFederationOffset(modelId, offset);
     }
   }
