@@ -836,6 +836,109 @@ export function extrudedAreaSolidToGeometry(entityIndex, expressId) {
   return geom;
 }
 
+/**
+ * 2D-pattern CSG for IfcBooleanResult(.DIFFERENCE., Extruded, Extruded).
+ *
+ * Covers the dominant Tekla pattern: a plate (rectangle extrusion) minus a
+ * bolt-hole (circle extrusion) along the same axis. When both operands extrude
+ * along their local Z and second's local Z maps to first's local Z in world
+ * space, we can transform second's profile into first's profile coordinate
+ * frame, add it as a hole, and re-extrude. The result is a single ExtrudeGeometry
+ * with a real opening — no shader-level discard, no external CSG library.
+ *
+ * Returns BufferGeometry (in the parent product's local frame, like
+ * extrudedAreaSolidToGeometry) or null when the pattern doesn't fit.
+ */
+export function tryExtrudedDifference2D(entityIndex, firstId, secondId) {
+  const e1 = entityIndex.byExpressId(firstId);
+  const e2 = entityIndex.byExpressId(secondId);
+  if (!e1 || !e2) return null;
+  if (e1.type !== 'IFCEXTRUDEDAREASOLID' || e2.type !== 'IFCEXTRUDEDAREASOLID') return null;
+
+  const p1 = splitParams(e1.params);
+  const p2 = splitParams(e2.params);
+  const profile1Id = parseRef(p1[0]);
+  const profile2Id = parseRef(p2[0]);
+  const pos1Id = parseRef(p1[1]);
+  const pos2Id = parseRef(p2[1]);
+  const dir1Id = parseRef(p1[2]);
+  const dir2Id = parseRef(p2[2]);
+  const depth1 = parseFloatScalar(p1[3]);
+  if (!profile1Id || !profile2Id || !depth1) return null;
+
+  const profile1 = resolveProfilePoints(entityIndex, profile1Id);
+  const profile2 = resolveProfilePoints(entityIndex, profile2Id);
+  if (!profile1 || !profile2 || profile1.outer.length < 3 || profile2.outer.length < 3) return null;
+
+  // Direction vectors are in each solid's LOCAL frame; default = +Z.
+  const dir1 = dir1Id ? resolveCoords(entityIndex, dir1Id) : [0, 0, 1];
+  const dir2 = dir2Id ? resolveCoords(entityIndex, dir2Id) : [0, 0, 1];
+  const d1 = new THREE.Vector3(dir1[0] || 0, dir1[1] || 0, dir1[2] || 0);
+  const d2 = new THREE.Vector3(dir2[0] || 0, dir2[1] || 0, dir2[2] || 0);
+  if (d1.lengthSq() < 1e-12) d1.set(0, 0, 1); else d1.normalize();
+  if (d2.lengthSq() < 1e-12) d2.set(0, 0, 1); else d2.normalize();
+
+  // Compute relative matrix: takes points from second's local frame into first's local frame.
+  // Identity if either has no position attribute.
+  const m1 = pos1Id ? placement3DToMatrix(entityIndex, pos1Id) : new THREE.Matrix4();
+  const m2 = pos2Id ? placement3DToMatrix(entityIndex, pos2Id) : new THREE.Matrix4();
+  const m1inv = new THREE.Matrix4().copy(m1).invert();
+  const rel = new THREE.Matrix4().multiplyMatrices(m1inv, m2);
+
+  // The 2D-Boolean shortcut only works if second's extrusion axis (in first's
+  // local frame, after applying `rel`) is the same as first's extrusion axis.
+  const d2InFirstFrame = d2.clone().transformDirection(rel);
+  if (d2InFirstFrame.dot(d1) < 0.9999) return null;
+
+  // Translation + rotation in the plane perpendicular to d1. For d1 = +Z this
+  // reduces to (tx, ty) translation and a rotation by (cosA, sinA) around Z.
+  // We only support that common case; non-Z extrusion axes fall back.
+  if (Math.abs(d1.z - 1) > 1e-3) return null;
+
+  const tx = rel.elements[12];
+  const ty = rel.elements[13];
+  const cosA = rel.elements[0];
+  const sinA = rel.elements[1];
+
+  // Transform second.outer into first's profile frame, then REVERSE the
+  // winding so it acts as a hole inside the THREE.Shape.
+  const holePoints = profile2.outer.map(([x, y]) => [
+    cosA * x - sinA * y + tx,
+    sinA * x + cosA * y + ty
+  ]).reverse();
+
+  // Build the augmented THREE.Shape: outer from first, holes = first's existing + new.
+  const shape = new THREE.Shape();
+  shape.moveTo(profile1.outer[0][0], profile1.outer[0][1]);
+  for (let i = 1; i < profile1.outer.length; i++) shape.lineTo(profile1.outer[i][0], profile1.outer[i][1]);
+  shape.closePath();
+  const allHoles = [...profile1.holes, holePoints];
+  for (const hole of allHoles) {
+    if (hole.length < 3) continue;
+    const path = new THREE.Path();
+    path.moveTo(hole[0][0], hole[0][1]);
+    for (let i = 1; i < hole.length; i++) path.lineTo(hole[i][0], hole[i][1]);
+    path.closePath();
+    shape.holes.push(path);
+  }
+
+  let geom;
+  try {
+    geom = new THREE.ExtrudeGeometry(shape, { depth: depth1, bevelEnabled: false, curveSegments: 12, steps: 1 });
+  } catch (e) {
+    return null;
+  }
+
+  // ExtrudeGeometry extrudes along +Z in shape-local coords; d1 is also +Z so no rotation needed.
+  if (pos1Id) {
+    geom.applyMatrix4(m1);
+  }
+  mergeVerticesInPlace(geom, 1e-4);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+  return geom;
+}
+
 /** Local copy of placement3DToMatrix (avoids cyclical import with placement.js). */
 function placement3DToMatrix(entityIndex, placementId) {
   const e = entityIndex.byExpressId(placementId);

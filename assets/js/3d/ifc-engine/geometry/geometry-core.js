@@ -23,6 +23,7 @@ import {
   polygonalFaceSetToGeometry,
   extrudedAreaSolidToGeometry,
   resolveMappedItem,
+  tryExtrudedDifference2D,
 } from './mesh-types.js';
 import { parseRef, parseRefList } from './step-helpers.js';
 
@@ -92,8 +93,25 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0) {
       continue;
     }
 
-    // IFCBOOLEANRESULT / IFCBOOLEANCLIPPINGRESULT → use FirstOperand only (stub)
+    // IFCBOOLEANRESULT / IFCBOOLEANCLIPPINGRESULT — try the 2D-pattern CSG path
+    // for (.DIFFERENCE., Extruded, Extruded). Covers Tekla plate-with-bolt-hole
+    // and similar coplanar subtractions. Falls back to FirstOperand-only when
+    // the operands don't fit the pattern.
     if (item.type === 'IFCBOOLEANRESULT' || item.type === 'IFCBOOLEANCLIPPINGRESULT') {
+      const parts = splitParams(item.params);
+      const operator = (parts[0] || '').trim();
+      const firstId = parseRef(parts[1]);
+      const secondId = parseRef(parts[2]);
+      if (operator === '.DIFFERENCE.' && firstId && secondId) {
+        const csgGeom = tryExtrudedDifference2D(entityIndex, firstId, secondId);
+        if (csgGeom) {
+          if (!parentMatrix.equals(_IDENTITY)) csgGeom.applyMatrix4(parentMatrix);
+          csgGeom.computeBoundingBox();
+          const color = entityIndex._styleIndex?.get(itemRef);
+          out.push({ bufferGeometry: csgGeom, bbox: csgGeom.boundingBox, color });
+          continue;
+        }
+      }
       const leafId = unwrapBooleanFirstOperand(entityIndex, itemRef);
       if (!leafId) continue;
       expandItems(entityIndex, [leafId], parentMatrix, out, depth + 1);
