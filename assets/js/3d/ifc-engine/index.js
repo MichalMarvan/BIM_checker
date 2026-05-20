@@ -1230,23 +1230,60 @@ export class IfcEngine {
       this._applyRealWorldCoords();
       return;
     }
-    // bboxCenter from getCoords is in IFC-local units (mm for D222-style files).
-    // Federation offsets feed group.position which lives in scene metres after
-    // group.scale (= lengthScale) is applied to children. To keep things
-    // consistent across mixed-unit models we scale the bboxCenter into metres
-    // here before handing it to computeOffsets.
+    // Federation offsets feed group.position which lives in scene metres
+    // (after group.scale = lengthScale is applied to children). Pick a centre
+    // for each model in scene metres:
+    //   1. First try the viewer's actual mesh world bboxes — this is robust
+    //      to Civil 3D files that bake absolute coords into geometry and
+    //      leave the IfcLocalPlacement chain at identity (extractCoords would
+    //      return (0,0,0) for those, which collapsed federation to identity).
+    //   2. Fall back to extractCoords' placement-based bboxCenter (× scale).
     const modelsCoords = new Map();
     for (const modelId of this._models.keys()) {
-      const raw = this.getCoords(modelId) || { bboxCenter: null };
       const ls = this._models.get(modelId)?.meta?.lengthScale || 1;
-      const c = raw.bboxCenter;
-      const scaled = c ? [c[0] * ls, c[1] * ls, c[2] * ls] : null;
-      modelsCoords.set(modelId, { ...raw, bboxCenter: scaled });
+      let centre = null;
+      const vm = this._viewer._models?.get(modelId);
+      if (vm && vm.meshes && vm.meshes.length > 0) {
+        // Temporarily reset group to identity so mesh.matrixWorld reflects
+        // only the geometry's intrinsic frame; restore after measuring.
+        const g = vm.group;
+        const savedPos = g.position.clone();
+        g.position.set(0, 0, 0);
+        g.updateMatrixWorld(true);
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        let any = false;
+        for (const mesh of vm.meshes) {
+          if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+          const b = mesh.geometry.boundingBox;
+          if (!b || b.isEmpty()) continue;
+          const wb = b.clone().applyMatrix4(mesh.matrixWorld);
+          if (wb.isEmpty()) continue;
+          if (wb.min.x < minX) minX = wb.min.x;
+          if (wb.min.y < minY) minY = wb.min.y;
+          if (wb.min.z < minZ) minZ = wb.min.z;
+          if (wb.max.x > maxX) maxX = wb.max.x;
+          if (wb.max.y > maxY) maxY = wb.max.y;
+          if (wb.max.z > maxZ) maxZ = wb.max.z;
+          any = true;
+        }
+        g.position.copy(savedPos);
+        g.updateMatrixWorld(true);
+        if (any) {
+          centre = [(minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2];
+        }
+      }
+      if (!centre) {
+        const raw = this.getCoords(modelId) || { bboxCenter: null };
+        if (raw.bboxCenter) {
+          centre = [raw.bboxCenter[0] * ls, raw.bboxCenter[1] * ls, raw.bboxCenter[2] * ls];
+        }
+      }
+      modelsCoords.set(modelId, { bboxCenter: centre });
     }
     const offsets = computeOffsets(modelsCoords, this._federationMode, this._manualOffsets);
     for (const [modelId, offset] of offsets) {
-      // offset is already in scene metres (bboxCenter was pre-scaled above);
-      // group.position lives in metres too, so pass through unchanged.
+      // offset is already in scene metres; group.position lives in metres too.
       this._viewer.applyFederationOffset(modelId, offset);
     }
   }
