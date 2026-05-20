@@ -313,11 +313,15 @@ export class ViewerCore {
    * Add a parsed model to the scene as 1 Mesh per IFC product entity.
    * @param {string} modelId
    * @param {EntityIndex} entityIndex
+   * @param {{ lengthScale?: number }} [opts] — lengthScale = IFC global length
+   *        unit to metres (e.g., 0.001 for MILLIMETRE). Applied via group.scale
+   *        so the entire model ends up in metres regardless of IFC declaration.
    */
-  addModel(modelId, entityIndex) {
+  addModel(modelId, entityIndex, opts = {}) {
     if (this._models.has(modelId)) {
       this.removeModel(modelId);
     }
+    const lengthScale = (opts && typeof opts.lengthScale === 'number' && opts.lengthScale > 0) ? opts.lengthScale : 1;
 
     const group = new THREE.Group();
     group.userData = { modelId };
@@ -326,16 +330,43 @@ export class ViewerCore {
     // This keeps OrbitControls + view-cube + presets working with their default
     // Y-up assumptions without per-system overrides.
     group.rotation.x = -Math.PI / 2;
-    const meshes = [];
+    if (lengthScale !== 1) group.scale.setScalar(lengthScale);
 
+    // Two-pass: first build all candidate items so we can compute the median
+    // bbox extent, then drop outliers (parser garbage that would otherwise
+    // occlude the real geometry as a giant invisible occluder).
+    const candidates = [];
     for (const ifcType of entityIndex.types()) {
       const entities = entityIndex.byType(ifcType);
       const typeColor = IFC_TYPE_COLORS[ifcType] ?? DEFAULT_COLOR;
       for (const entity of entities) {
         const result = buildEntityGeometry(entityIndex, entity.expressId);
         if (!result || result.items.length === 0) continue;
-
         for (const item of result.items) {
+          if (!item.bufferGeometry.boundingBox) item.bufferGeometry.computeBoundingBox();
+          const bb = item.bufferGeometry.boundingBox;
+          const ext = bb ? Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) : 0;
+          candidates.push({ entity, ifcType, item, result, typeColor, ext });
+        }
+      }
+    }
+    const sortedExt = candidates.map(c => c.ext).filter(Number.isFinite).sort((a, b) => a - b);
+    const medianExt = sortedExt[Math.floor(sortedExt.length / 2)] || 0;
+    // Cap is 100× median, but never below 1km / lengthScale (so mm-unit files
+    // get a cap of 1,000,000 units which is still 1km in scene-local).
+    const cap = Math.max(medianExt * 100, 1000 / Math.max(lengthScale, 1e-6));
+    const accepted = sortedExt.length > 0 ? candidates.filter(c => c.ext <= cap) : candidates;
+    const skipped = candidates.length - accepted.length;
+    if (skipped > 0) {
+      console.warn(`[viewer] addModel: skipped ${skipped} outlier mesh items (extent > ${cap.toFixed(0)}, median ${medianExt.toFixed(2)})`);
+    }
+    const meshes = [];
+
+    for (const { entity, ifcType, item, result, typeColor } of accepted) {
+      // The original two-loop entity iteration is now flattened above; render
+      // a single mesh + edges per accepted item below.
+      {
+        {
           // Clone material per mesh so highlight can mutate color without
           // affecting other meshes (Phase 2 selection prep).
           // Color priority: per-vertex `color` attribute (IfcIndexedColourMap)

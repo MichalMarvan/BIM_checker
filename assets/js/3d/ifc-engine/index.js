@@ -4,6 +4,8 @@
 
 import { EntityIndex } from './parser/entity-index.js';
 import { ViewerCore } from './viewer/viewer-core.js';
+import { splitParams } from './parser/step-parser.js';
+import { parseRef, parseRefList } from './geometry/step-helpers.js';
 import { extractPropertiesFor } from './properties/psets.js';
 import { extractSpatialHierarchy, collectAllElementIds } from './properties/spatial.js';
 import { extractIfcQuantities } from './properties/quantities.js';
@@ -29,6 +31,43 @@ import { buildStyleIndex } from './geometry/styled-items.js';
 let _modelCounter = 0;
 function generateModelId() {
   return `m_${Date.now().toString(36)}_${(++_modelCounter).toString(36)}`;
+}
+
+// IFC SI unit prefix → multiplier (per ISO 16739).
+const IFC_PREFIX_SCALE = {
+  '.EXA.': 1e18, '.PETA.': 1e15, '.TERA.': 1e12, '.GIGA.': 1e9, '.MEGA.': 1e6,
+  '.KILO.': 1e3, '.HECTO.': 1e2, '.DECA.': 1e1,
+  '': 1, '$': 1, '*': 1,
+  '.DECI.': 1e-1, '.CENTI.': 1e-2, '.MILLI.': 1e-3, '.MICRO.': 1e-6,
+  '.NANO.': 1e-9, '.PICO.': 1e-12, '.FEMTO.': 1e-15, '.ATTO.': 1e-18,
+};
+
+/**
+ * Scan IfcUnitAssignment → linked IfcSIUnit entities to find the global
+ * LENGTHUNIT and return its scale-to-metres factor. Defaults to 1 when no
+ * unit is declared (most files default to metres anyway).
+ */
+function extractLengthScale(index) {
+  const assignments = index.byType('IFCUNITASSIGNMENT');
+  if (!assignments || assignments.length === 0) return 1;
+  for (const ua of assignments) {
+    const parts = splitParams(ua.params);
+    const unitRefs = parseRefList(parts[0]);
+    for (const uref of unitRefs) {
+      const u = index.byExpressId(uref);
+      if (!u || u.type !== 'IFCSIUNIT') continue;
+      const uparts = splitParams(u.params);
+      // IfcSIUnit(Dimensions, UnitType, Prefix, Name)
+      const unitType = (uparts[1] || '').trim();
+      const prefix = (uparts[2] || '').trim();
+      const name = (uparts[3] || '').trim();
+      if (unitType === '.LENGTHUNIT.' && name === '.METRE.') {
+        const scale = IFC_PREFIX_SCALE[prefix];
+        return (typeof scale === 'number' && scale > 0) ? scale : 1;
+      }
+    }
+  }
+  return 1;
 }
 
 export class IfcEngine {
@@ -69,6 +108,12 @@ export class IfcEngine {
     // from IfcStyledItem chain. Geometry-core reads this via index._styleIndex
     // when assembling per-item results.
     index._styleIndex = buildStyleIndex(index);
+    // Extract length unit prefix factor from IfcUnitAssignment. Some Czech
+    // S-JTSK models declare MILLIMETRE as the global LENGTHUNIT; without this
+    // scale the geometry is 1000× too big and fitAll's camera ends up so far
+    // away that real elements become sub-pixel invisible.
+    const lengthScale = extractLengthScale(index);
+    index._lengthScale = lengthScale;
 
     const modelId = generateModelId();
     const stats = index.stats();
@@ -78,10 +123,11 @@ export class IfcEngine {
       schema,
       entityCount: stats.entityCount,
       typeCount: stats.typeCount,
+      lengthScale,
     };
     this._models.set(modelId, { meta, index });
     if (this._viewer) {
-      this._viewer.addModel(modelId, index);
+      this._viewer.addModel(modelId, index, { lengthScale });
       this._viewer._emit('modelLoaded', { modelId, stats: { ...meta } });
     }
     this._recomputeFederation();
