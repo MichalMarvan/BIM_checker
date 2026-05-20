@@ -222,23 +222,17 @@ async function loadIfcFromStorage(fileMeta) {
             const internal = engine._viewer && engine._viewer._models && engine._viewer._models.get(modelId);
             if (internal && internal.group) {
                 internal.group.updateMatrixWorld(true);
-                // Measure raw world bbox (with engine transforms applied)
-                let minX=Infinity, minY=Infinity, minZ=Infinity, maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
-                for (const m of internal.meshes) {
-                    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-                    const b = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
-                    if (b.min.x < minX) minX = b.min.x;
-                    if (b.min.y < minY) minY = b.min.y;
-                    if (b.min.z < minZ) minZ = b.min.z;
-                    if (b.max.x > maxX) maxX = b.max.x;
-                    if (b.max.y > maxY) maxY = b.max.y;
-                    if (b.max.z > maxZ) maxZ = b.max.z;
-                }
-                if (Number.isFinite(minX)) {
-                    const cx = (minX + maxX) / 2;
-                    const cy = (minY + maxY) / 2;
-                    const cz = (minZ + maxZ) / 2;
-                    console.log('[3d-viewer] model world bbox center:', cx, cy, cz);
+                // Compute robust bbox — filters out mesh outliers with garbage
+                // coordinates that would otherwise blow the anchor up to km / mm
+                // scale and put fitAll's camera so far away that real elements
+                // become sub-pixel invisible.
+                const robustModule = await import('./ifc-engine/viewer/viewer-core.js');
+                const box = robustModule.computeRobustBbox(internal.meshes);
+                if (box) {
+                    const cx = (box.min.x + box.max.x) / 2;
+                    const cy = (box.min.y + box.max.y) / 2;
+                    const cz = (box.min.z + box.max.z) / 2;
+                    console.log('[3d-viewer] model world bbox center (robust):', cx, cy, cz, 'extent:', box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z);
                     if (!state.federationAnchor) {
                         state.federationAnchor = [cx, cy, cz];
                         console.log('[3d-viewer] federation anchor set:', state.federationAnchor);

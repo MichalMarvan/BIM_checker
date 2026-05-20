@@ -80,6 +80,73 @@ function makeEdgeMaterial() {
   });
 }
 
+/**
+ * Compute a Box3 over the supplied meshes' WORLD bboxes, robust to a small
+ * number of mesh outliers with corrupt / garbage coordinates.
+ *
+ * Two-stage filter:
+ *   1. Drop meshes whose own bbox extent exceeds 100× the median extent
+ *      (these are typically the IFC parser's mis-decoded geometries with
+ *      random vertex coords blowing up to km / mm scale).
+ *   2. Drop centres outside the 2.5%/97.5% per-axis percentile.
+ *
+ * Returns null when no mesh survives.
+ */
+export function computeRobustBbox(meshes) {
+  const entries = [];
+  const extents = [];
+  for (const mesh of meshes) {
+    if (!mesh || !mesh.geometry) continue;
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    const local = mesh.geometry.boundingBox;
+    if (!local || local.isEmpty()) continue;
+    const wb = local.clone().applyMatrix4(mesh.matrixWorld);
+    if (wb.isEmpty()) continue;
+    const cx = (wb.min.x + wb.max.x) / 2;
+    const cy = (wb.min.y + wb.max.y) / 2;
+    const cz = (wb.min.z + wb.max.z) / 2;
+    const ex = Math.max(wb.max.x - wb.min.x, wb.max.y - wb.min.y, wb.max.z - wb.min.z);
+    entries.push({ wb, cx, cy, cz, ex });
+    extents.push(ex);
+  }
+  if (entries.length === 0) return null;
+
+  extents.sort((a, b) => a - b);
+  const medianExt = extents[Math.floor(extents.length * 0.5)] || 0;
+  const extentCap = Math.max(medianExt * 100, 1000); // never below 1 km cap
+  const sized = entries.filter(e => e.ex <= extentCap);
+  if (sized.length === 0) return null;
+
+  const filterByPercentile = (values, lo, hi) => {
+    const sorted = values.slice().sort((a, b) => a - b);
+    return [sorted[Math.floor(sorted.length * lo)], sorted[Math.floor(sorted.length * hi)]];
+  };
+  const [xLo, xHi] = filterByPercentile(sized.map(e => e.cx), 0.025, 0.975);
+  const [yLo, yHi] = filterByPercentile(sized.map(e => e.cy), 0.025, 0.975);
+  const [zLo, zHi] = filterByPercentile(sized.map(e => e.cz), 0.025, 0.975);
+  const keep = sized.filter(e =>
+    e.cx >= xLo && e.cx <= xHi &&
+    e.cy >= yLo && e.cy <= yHi &&
+    e.cz >= zLo && e.cz <= zHi
+  );
+  if (keep.length === 0) return null;
+
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (const e of keep) {
+    if (e.wb.min.x < minX) minX = e.wb.min.x;
+    if (e.wb.min.y < minY) minY = e.wb.min.y;
+    if (e.wb.min.z < minZ) minZ = e.wb.min.z;
+    if (e.wb.max.x > maxX) maxX = e.wb.max.x;
+    if (e.wb.max.y > maxY) maxY = e.wb.max.y;
+    if (e.wb.max.z > maxZ) maxZ = e.wb.max.z;
+  }
+  return new THREE.Box3(
+    new THREE.Vector3(minX, minY, minZ),
+    new THREE.Vector3(maxX, maxY, maxZ)
+  );
+}
+
 export class ViewerCore {
   /**
    * @param {HTMLCanvasElement} canvas — target canvas; renderer will write here
@@ -339,21 +406,12 @@ export class ViewerCore {
    * Computes union bbox across model meshes, positions camera at distance to see entire scene.
    */
   fitAll() {
-    const box = new THREE.Box3();
-    let hasAny = false;
+    const allMeshes = [];
     for (const { meshes } of this._models.values()) {
-      for (const mesh of meshes) {
-        const meshBox = new THREE.Box3().setFromObject(mesh);
-        if (meshBox.isEmpty()) continue;
-        if (!hasAny) {
-          box.copy(meshBox);
-          hasAny = true;
-        } else {
-          box.union(meshBox);
-        }
-      }
+      for (const mesh of meshes) allMeshes.push(mesh);
     }
-    if (!hasAny) return;
+    const box = computeRobustBbox(allMeshes);
+    if (!box) return;
 
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
