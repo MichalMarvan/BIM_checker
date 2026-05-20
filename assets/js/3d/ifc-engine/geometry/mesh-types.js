@@ -132,6 +132,73 @@ function pushTriangulatedPolygon(polygon, positions, indices) {
 }
 
 /**
+ * Triangulate a polygon with one or more holes (voids). Used by
+ * IfcIndexedPolygonalFaceWithVoids and IfcFaceBound chains where the same
+ * face contains multiple inner loops that subtract from the outer area.
+ *
+ * outer: array of [x, y, z] points (the outer contour)
+ * holes: array of arrays of [x, y, z] points (each inner loop)
+ *
+ * Projects everything onto the outer polygon's best-fit plane, then calls
+ * ShapeUtils.triangulateShape which expects CCW outer + CW holes. Reverses
+ * either when needed so the triangulation succeeds regardless of input winding.
+ */
+function pushTriangulatedPolygonWithHoles(outer, holes, positions, indices) {
+  if (outer.length < 3) return;
+  if (!holes || holes.length === 0) {
+    pushTriangulatedPolygon(outer, positions, indices);
+    return;
+  }
+
+  const normal = computePolygonNormal(outer);
+  const z = new THREE.Vector3(normal[0], normal[1], normal[2]);
+  const ref = Math.abs(z.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  const u = new THREE.Vector3().crossVectors(z, ref).normalize();
+  const v = new THREE.Vector3().crossVectors(z, u);
+
+  const project = (p) => new THREE.Vector2(
+    u.x * p[0] + u.y * p[1] + u.z * p[2],
+    v.x * p[0] + v.y * p[1] + v.z * p[2]
+  );
+
+  // Build outer in CCW order (3D order kept in sync with 2D).
+  let outer3D = outer;
+  let outer2D = outer.map(project);
+  if (THREE.ShapeUtils.isClockWise(outer2D)) {
+    outer3D = [...outer].reverse();
+    outer2D = [...outer2D].reverse();
+  }
+
+  // Build each hole in CW order (opposite to outer).
+  const holes3DFlat = [];
+  const holes2D = [];
+  for (const hole of holes) {
+    if (!hole || hole.length < 3) continue;
+    let hole3D = hole;
+    let hole2D = hole.map(project);
+    if (!THREE.ShapeUtils.isClockWise(hole2D)) {
+      hole3D = [...hole].reverse();
+      hole2D = [...hole2D].reverse();
+    }
+    holes2D.push(hole2D);
+    holes3DFlat.push(...hole3D);
+  }
+
+  const tris = THREE.ShapeUtils.triangulateShape(outer2D, holes2D);
+  if (!tris || tris.length === 0) {
+    // Triangulation failed (e.g., self-intersecting input). Fall back to outer-only.
+    pushTriangulatedPolygon(outer, positions, indices);
+    return;
+  }
+
+  // triangulateShape indices reference a flat list [outer..., hole1..., hole2...].
+  const baseIndex = positions.length / 3;
+  for (const vert of outer3D) positions.push(vert[0], vert[1], vert[2]);
+  for (const vert of holes3DFlat) positions.push(vert[0], vert[1], vert[2]);
+  for (const t of tris) indices.push(baseIndex + t[0], baseIndex + t[1], baseIndex + t[2]);
+}
+
+/**
  * Walk a IfcClosedShell → push its triangulated face polygons to position/index arrays.
  * Used by FacetedBrep and ShellBasedSurfaceModel.
  *
@@ -340,22 +407,131 @@ export function polygonalFaceSetToGeometry(entityIndex, expressId) {
   const positions = [];
   const indices = [];
 
-  for (const faceRef of faceRefs) {
-    const face = entityIndex.byExpressId(faceRef);
+  // Per-face colour from IfcIndexedColourMap — when present, build a vertex
+  // colour buffer in parallel so the viewer can render Revit/ArchiCAD's
+  // per-face palette instead of a flat material tint.
+  const colourMapEntity = findIndexedColourMapForFaceSet(entityIndex, expressId);
+  const colourMap = colourMapEntity ? resolveIndexedColourMap(entityIndex, colourMapEntity) : null;
+  const vertexColors = colourMap ? [] : null;
+
+  for (let f = 0; f < faceRefs.length; f++) {
+    const face = entityIndex.byExpressId(faceRefs[f]);
     if (!face) continue;
-    // CoordIndex at param 0; voids (sub-loops) at param 1 for IfcIndexedPolygonalFaceWithVoids — Phase 1 ignores voids.
+    // IfcIndexedPolygonalFace:           (CoordIndex)
+    // IfcIndexedPolygonalFaceWithVoids:  (CoordIndex, InnerCoordIndices)
     const faceParts = splitParams(face.params);
-    const idxRaw = faceParts[0];
-    if (!idxRaw) continue;
-    const idxList = idxRaw.replace(/^\(/, '').replace(/\)$/, '').split(',').map(s => parseInt(s.trim(), 10));
-    const polygon = [];
-    for (const i of idxList) {
+    const outerRaw = faceParts[0];
+    if (!outerRaw) continue;
+    const outerIdx = outerRaw.replace(/^\(/, '').replace(/\)$/, '').split(',').map(s => parseInt(s.trim(), 10));
+    const outerPolygon = [];
+    for (const i of outerIdx) {
       if (!Number.isFinite(i) || i < 1 || i > allPoints.length) continue;
-      polygon.push(allPoints[i - 1]);
+      outerPolygon.push(allPoints[i - 1]);
     }
-    pushTriangulatedPolygon(polygon, positions, indices);
+
+    const vertsBefore = positions.length / 3;
+    if (face.type === 'IFCINDEXEDPOLYGONALFACEWITHVOIDS' && faceParts[1]) {
+      // InnerCoordIndices is a list of index-lists: ((i1, i2, ...), (j1, j2, ...), ...)
+      const innerRaw = faceParts[1];
+      const innerLists = parseListOfNumberLists(innerRaw, parseInt);
+      const holes = [];
+      for (const innerIdx of innerLists) {
+        const holePolygon = [];
+        for (const i of innerIdx) {
+          if (!Number.isFinite(i) || i < 1 || i > allPoints.length) continue;
+          holePolygon.push(allPoints[i - 1]);
+        }
+        if (holePolygon.length >= 3) holes.push(holePolygon);
+      }
+      pushTriangulatedPolygonWithHoles(outerPolygon, holes, positions, indices);
+    } else {
+      pushTriangulatedPolygon(outerPolygon, positions, indices);
+    }
+    const vertsAfter = positions.length / 3;
+
+    // Emit one RGB triple per vertex added for this face. Falls back to mid-grey
+    // when the colour index is missing/out-of-range to keep buffer length consistent.
+    if (vertexColors) {
+      const ci = colourMap.indexPerFace[f];
+      const rgb = (Number.isFinite(ci) && ci >= 1 && ci <= colourMap.palette.length)
+        ? colourMap.palette[ci - 1]
+        : [0.5, 0.5, 0.5];
+      for (let v = vertsBefore; v < vertsAfter; v++) {
+        vertexColors.push(rgb[0] || 0, rgb[1] || 0, rgb[2] || 0);
+      }
+    }
   }
-  return geometryFromPositionsIndices(positions, indices);
+
+  const geom = geometryFromPositionsIndices(positions, indices);
+  if (geom && vertexColors && vertexColors.length === positions.length) {
+    geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(vertexColors), 3));
+  }
+  return geom;
+}
+
+/**
+ * Parse a STEP "list of number lists" like "((1,2,3),(4,5,6))" → [[1,2,3], [4,5,6]].
+ * Pass parseFloat to get [[r,g,b], ...] for IfcColourRgbList.ColourList,
+ * or parseInt for IfcIndexedPolygonalFaceWithVoids.InnerCoordIndices.
+ */
+function parseListOfNumberLists(raw, parser = parseInt) {
+  if (!raw) return [];
+  const trimmed = raw.replace(/^\(/, '').replace(/\)$/, '').trim();
+  const out = [];
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < trimmed.length; i++) {
+    const c = trimmed[i];
+    if (c === '(') {
+      if (depth === 0) start = i + 1;
+      depth++;
+    } else if (c === ')') {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        const inner = trimmed.slice(start, i);
+        out.push(inner.split(',').map(s => parser(s.trim(), 10)).filter(Number.isFinite));
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Find an IfcIndexedColourMap whose MappedTo references the given tessellated
+ * face set. Returns the colour-map entity or null.
+ *
+ * IfcIndexedColourMap(MappedTo, Opacity, Colours, ColourIndex)
+ * — used by Revit/ArchiCAD to attach per-face RGB to IfcPolygonalFaceSet.
+ */
+function findIndexedColourMapForFaceSet(entityIndex, faceSetId) {
+  const candidates = entityIndex.byType ? entityIndex.byType('IFCINDEXEDCOLOURMAP') : [];
+  if (!candidates || candidates.length === 0) return null;
+  for (const cm of candidates) {
+    const parts = splitParams(cm.params);
+    const mappedToRef = parseRef(parts[0]);
+    if (mappedToRef === faceSetId) return cm;
+  }
+  return null;
+}
+
+/**
+ * Resolve an IfcIndexedColourMap to { palette: [[r,g,b],...], indexPerFace: [1,2,1,...] }.
+ * Indices are 1-based as stored in STEP. Returns null if any required field is missing.
+ */
+function resolveIndexedColourMap(entityIndex, colourMapEntity) {
+  const parts = splitParams(colourMapEntity.params);
+  const coloursRef = parseRef(parts[2]);
+  const ciRaw = parts[3];
+  if (!coloursRef || !ciRaw) return null;
+  const coloursEntity = entityIndex.byExpressId(coloursRef);
+  if (!coloursEntity || coloursEntity.type !== 'IFCCOLOURRGBLIST') return null;
+  const palette = parseListOfNumberLists(splitParams(coloursEntity.params)[0], parseFloat);
+  if (!palette || palette.length === 0) return null;
+  const indexPerFace = ciRaw.replace(/^\(/, '').replace(/\)$/, '')
+    .split(',').map(s => parseInt(s.trim(), 10)).filter(Number.isFinite);
+  if (indexPerFace.length === 0) return null;
+  return { palette, indexPerFace };
 }
 
 // -------------------- Profile parsing (2D outline) --------------------

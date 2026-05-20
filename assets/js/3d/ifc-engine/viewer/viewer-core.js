@@ -271,10 +271,19 @@ export class ViewerCore {
         for (const item of result.items) {
           // Clone material per mesh so highlight can mutate color without
           // affecting other meshes (Phase 2 selection prep).
-          // Color priority: IfcStyledItem (item.color) → IFC_TYPE_COLORS → DEFAULT_COLOR.
+          // Color priority: per-vertex `color` attribute (IfcIndexedColourMap)
+          // → IfcStyledItem (item.color) → IFC_TYPE_COLORS → DEFAULT_COLOR.
           const material = DEFAULT_MATERIAL.clone();
-          const color = item.color ?? typeColor;
-          material.color.setHex(color);
+          const hasVertexColors = item.bufferGeometry?.getAttribute?.('color');
+          if (hasVertexColors) {
+            material.vertexColors = true;
+            // Vertex colors multiply with material.color; keep it white so the
+            // palette values pass through unchanged.
+            material.color.setHex(0xffffff);
+          } else {
+            const color = item.color ?? typeColor;
+            material.color.setHex(color);
+          }
           if (this._section.active && this._section.planes.length > 0) {
             material.clippingPlanes = this._section.planes;
             material.clipShadows = true;
