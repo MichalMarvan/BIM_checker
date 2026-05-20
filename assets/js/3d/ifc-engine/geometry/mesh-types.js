@@ -25,6 +25,89 @@ function parseIntNTupleList(raw) {
   return matches.map(m => m.slice(1, -1).split(',').map(s => parseInt(s.trim(), 10)));
 }
 
+/**
+ * Parse IfcIndexedPolyCurve.Segments list — a heterogeneous list of
+ * IfcLineIndex / IfcArcIndex select-typed entries.
+ *
+ * Input STEP format example:
+ *   "(IFCLINEINDEX((1,2,3,4)), IFCARCINDEX((4,5,6)), IFCLINEINDEX((6,7,1)))"
+ *
+ * Returns: [{ type: 'line'|'arc', indices: [..] }, ...]
+ *
+ * Falls back to treating every group as a line segment when the type tags
+ * are absent (older exporters that emit plain tuples).
+ */
+function parseSegmentList(raw) {
+  if (!raw) return [];
+  const trimmed = raw.replace(/^\(/, '').replace(/\)$/, '');
+  const out = [];
+  // Match either IFCLINEINDEX((..)) / IFCARCINDEX((..)) or bare ((..))
+  const re = /(IFCLINEINDEX|IFCARCINDEX)?\s*\(\s*\(([^()]+)\)\s*\)/gi;
+  let m;
+  while ((m = re.exec(trimmed)) !== null) {
+    const typeTag = (m[1] || 'IFCLINEINDEX').toUpperCase();
+    const type = typeTag === 'IFCARCINDEX' ? 'arc' : 'line';
+    const indices = m[2].split(',').map(s => parseInt(s.trim(), 10)).filter(Number.isFinite);
+    if (indices.length > 0) out.push({ type, indices });
+  }
+  return out;
+}
+
+/**
+ * Tessellate a 3-point arc (start, mid, end) into N sample points (inclusive
+ * of start, exclusive of end so consecutive segments don't double-up).
+ *
+ * Solves circle centre via perpendicular bisectors of chords start→mid and
+ * mid→end. Falls back to straight line when the three points are collinear.
+ */
+function tessellateArc2D(p1, p2, p3, segments = 12) {
+  const ax = (p1[0] + p2[0]) / 2, ay = (p1[1] + p2[1]) / 2;
+  const bx = (p2[0] + p3[0]) / 2, by = (p2[1] + p3[1]) / 2;
+  const d1x = p2[0] - p1[0], d1y = p2[1] - p1[1];
+  const d2x = p3[0] - p2[0], d2y = p3[1] - p2[1];
+  // Perpendicular directions of the chords
+  const det = d1x * d2y - d1y * d2x;
+  if (Math.abs(det) < 1e-9) {
+    // Collinear → straight line; emit start + mid as fallback (end appended by caller)
+    return [[p1[0], p1[1]], [p2[0], p2[1]]];
+  }
+  // Solve: A + t1 * perp1 = B + t2 * perp2  → centre
+  const px1 = -d1y, py1 = d1x; // perp of chord 1
+  const px2 = -d2y, py2 = d2x; // perp of chord 2
+  // (ax + t1*px1, ay + t1*py1) = (bx + t2*px2, by + t2*py2)
+  // → t1*px1 - t2*px2 = bx - ax
+  // → t1*py1 - t2*py2 = by - ay
+  const denom = px1 * (-py2) - py1 * (-px2);
+  if (Math.abs(denom) < 1e-12) return [[p1[0], p1[1]], [p2[0], p2[1]]];
+  const t1 = ((bx - ax) * (-py2) - (by - ay) * (-px2)) / denom;
+  const cx = ax + t1 * px1;
+  const cy = ay + t1 * py1;
+  const radius = Math.hypot(p1[0] - cx, p1[1] - cy);
+  const a1 = Math.atan2(p1[1] - cy, p1[0] - cx);
+  const a2 = Math.atan2(p2[1] - cy, p2[0] - cx);
+  const a3 = Math.atan2(p3[1] - cy, p3[0] - cx);
+  // Determine sweep direction: pick the direction that passes through p2.
+  let delta = a3 - a1;
+  // Normalise to (-π, π]
+  while (delta > Math.PI) delta -= Math.PI * 2;
+  while (delta <= -Math.PI) delta += Math.PI * 2;
+  // Check if p2 lies on the chosen short sweep; if not, take the long sweep.
+  const midCheckAngle = a1 + delta / 2;
+  let mxDiff = Math.cos(midCheckAngle) - (p2[0] - cx) / radius;
+  let myDiff = Math.sin(midCheckAngle) - (p2[1] - cy) / radius;
+  if (mxDiff * mxDiff + myDiff * myDiff > 0.01) {
+    // Take the complementary sweep
+    delta = delta > 0 ? delta - Math.PI * 2 : delta + Math.PI * 2;
+  }
+  const out = [];
+  for (let i = 0; i < segments; i++) {
+    const t = i / segments;
+    const a = a1 + delta * t;
+    out.push([cx + radius * Math.cos(a), cy + radius * Math.sin(a)]);
+  }
+  return out;
+}
+
 function parseFloatScalar(raw) {
   if (!raw || raw === '$' || raw === '*') return null;
   const n = parseFloat(raw);
@@ -824,17 +907,30 @@ function resolveCurvePoints2D(entityIndex, curveId) {
       return out;
     }
 
-    // Walk segments — handle IfcLineIndex (list of point indices). IfcArcIndex
-    // (3-point arcs) gets approximated as a straight line for Phase 1.
-    const segList = parseIntNTupleList(segRaw);
+    // Walk typed segments: IfcLineIndex (straight chain) + IfcArcIndex
+    // (3-point arc, tessellated into ~12 sub-points for smoothness).
+    const segs = parseSegmentList(segRaw);
     const out = [];
-    let lastIdx = null;
-    for (const seg of segList) {
-      for (const idx of seg) {
-        if (idx === lastIdx) continue;
-        if (idx < 1 || idx > all.length) continue;
-        out.push([all[idx - 1][0], all[idx - 1][1]]);
-        lastIdx = idx;
+    let lastEmittedIdx = null;
+    for (const seg of segs) {
+      const indices = seg.indices.filter(i => i >= 1 && i <= all.length);
+      if (indices.length === 0) continue;
+      if (seg.type === 'arc' && indices.length === 3) {
+        const p1 = all[indices[0] - 1];
+        const p2 = all[indices[1] - 1];
+        const p3 = all[indices[2] - 1];
+        const arcPts = tessellateArc2D([p1[0], p1[1]], [p2[0], p2[1]], [p3[0], p3[1]], 12);
+        for (const pt of arcPts) {
+          out.push(pt);
+        }
+        lastEmittedIdx = indices[2];
+      } else {
+        // Line segment: each point in turn, skipping duplicates of last emitted
+        for (const idx of indices) {
+          if (idx === lastEmittedIdx) continue;
+          out.push([all[idx - 1][0], all[idx - 1][1]]);
+          lastEmittedIdx = idx;
+        }
       }
     }
     if (out.length >= 2) {
