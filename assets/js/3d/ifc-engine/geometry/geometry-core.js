@@ -22,6 +22,8 @@ import {
   shellBasedSurfaceModelToGeometry,
   polygonalFaceSetToGeometry,
   extrudedAreaSolidToGeometry,
+  revolvedAreaSolidToGeometry,
+  sweptDiskSolidToGeometry,
   resolveMappedItem,
   tryExtrudedDifference2D,
 } from './mesh-types.js';
@@ -45,6 +47,10 @@ function buildLeafGeometry(entityIndex, itemExpressId) {
       return polygonalFaceSetToGeometry(entityIndex, itemExpressId);
     case 'IFCEXTRUDEDAREASOLID':
       return extrudedAreaSolidToGeometry(entityIndex, itemExpressId);
+    case 'IFCREVOLVEDAREASOLID':
+      return revolvedAreaSolidToGeometry(entityIndex, itemExpressId);
+    case 'IFCSWEPTDISKSOLID':
+      return sweptDiskSolidToGeometry(entityIndex, itemExpressId);
     default:
       return null;
   }

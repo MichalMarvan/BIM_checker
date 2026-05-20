@@ -675,6 +675,89 @@ function resolveProfilePoints(entityIndex, profileId) {
       }
       return { outer, holes };
     }
+    case 'IFCUSHAPEPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, Depth, FlangeWidth, WebThickness, FlangeThickness, FilletRadius, EdgeRadius, FlangeSlope)
+      const h = parseFloatScalar(parts[3]);
+      const b = parseFloatScalar(parts[4]);
+      const tw = parseFloatScalar(parts[5]);
+      const tf = parseFloatScalar(parts[6]);
+      if (!h || !b || !tw || !tf) return null;
+      const hx = b / 2, hy = h / 2;
+      // C/U-channel: flanges open to the right (positive X)
+      const outer = [
+        [-hx, -hy], [hx, -hy],
+        [hx, -hy + tf], [-hx + tw, -hy + tf],
+        [-hx + tw, hy - tf], [hx, hy - tf],
+        [hx, hy], [-hx, hy]
+      ];
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
+    case 'IFCZSHAPEPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, Depth, FlangeWidth, WebThickness, FlangeThickness, FilletRadius, EdgeRadius)
+      const h = parseFloatScalar(parts[3]);
+      const b = parseFloatScalar(parts[4]);
+      const tw = parseFloatScalar(parts[5]);
+      const tf = parseFloatScalar(parts[6]);
+      if (!h || !b || !tw || !tf) return null;
+      const hy = h / 2, hw = tw / 2;
+      // Z-profile: top flange to the right, bottom flange to the left
+      const outer = [
+        [-hw, -hy], [b - hw, -hy],
+        [b - hw, -hy + tf], [hw, -hy + tf],
+        [hw, hy], [-b + hw, hy],
+        [-b + hw, hy - tf], [-hw, hy - tf]
+      ];
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
+    case 'IFCASYMMETRICISHAPEPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, BottomFlangeWidth, OverallDepth, WebThickness, BottomFlangeThickness,
+      //  BottomFlangeFilletRadius, TopFlangeWidth, TopFlangeThickness, TopFlangeFilletRadius, BottomFlangeEdgeRadius,
+      //  BottomFlangeSlope, TopFlangeEdgeRadius, TopFlangeSlope, CentreOfGravityInY)
+      const bb = parseFloatScalar(parts[3]); // bottom flange width
+      const h  = parseFloatScalar(parts[4]); // depth
+      const tw = parseFloatScalar(parts[5]); // web thickness
+      const tfb = parseFloatScalar(parts[6]); // bottom flange thickness
+      const bt = parseFloatScalar(parts[8]); // top flange width
+      const tft = parseFloatScalar(parts[9]); // top flange thickness
+      if (!bb || !h || !tw || !tfb || !bt || !tft) return null;
+      const hxb = bb / 2, hxt = bt / 2, hy = h / 2, hw = tw / 2;
+      const outer = [
+        [-hxb, -hy], [hxb, -hy],
+        [hxb, -hy + tfb], [hw, -hy + tfb],
+        [hw, hy - tft], [hxt, hy - tft],
+        [hxt, hy], [-hxt, hy],
+        [-hxt, hy - tft], [-hw, hy - tft],
+        [-hw, -hy + tfb], [-hxb, -hy + tfb]
+      ];
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
+    case 'IFCELLIPSEPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, SemiAxis1, SemiAxis2)
+      const a = parseFloatScalar(parts[3]);
+      const b = parseFloatScalar(parts[4]);
+      if (!a || !b) return null;
+      const outer = [];
+      for (let i = 0; i < CIRCLE_SEGMENTS; i++) {
+        const t = (i / CIRCLE_SEGMENTS) * Math.PI * 2;
+        outer.push([Math.cos(t) * a, Math.sin(t) * b]);
+      }
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
+    case 'IFCTRAPEZIUMPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, BottomXDim, TopXDim, YDim, TopXOffset)
+      const bx = parseFloatScalar(parts[3]);
+      const tx = parseFloatScalar(parts[4]);
+      const yDim = parseFloatScalar(parts[5]);
+      const offX = parseFloatScalar(parts[6]) || 0;
+      if (!bx || !tx || !yDim) return null;
+      const hy = yDim / 2;
+      // Bottom edge centred on profile origin; top edge offset by TopXOffset.
+      const outer = [
+        [-bx / 2, -hy], [bx / 2, -hy],
+        [offX + tx / 2, hy], [offX - tx / 2, hy]
+      ];
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
     default:
       return null;
   }
@@ -830,6 +913,161 @@ export function extrudedAreaSolidToGeometry(entityIndex, expressId) {
     geom.applyMatrix4(m);
   }
 
+  mergeVerticesInPlace(geom, 1e-4);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+  return geom;
+}
+
+/**
+ * Revolve a 2D profile around an axis to produce a solid of revolution.
+ *
+ * IfcRevolvedAreaSolid attributes:
+ *   SweptArea — profile (we reuse resolveProfilePoints)
+ *   Position — IfcAxis2Placement3D (local frame)
+ *   Axis — IfcAxis1Placement (revolution axis in local frame)
+ *   Angle — IfcPlaneAngleMeasure in radians (full revolution = 2π)
+ *
+ * Implementation note: THREE.LatheGeometry revolves a 2D contour around the Y
+ * axis. We rotate the profile so the local revolution axis becomes +Y, lathe
+ * it, then rotate back and apply Position.
+ */
+export function revolvedAreaSolidToGeometry(entityIndex, expressId) {
+  const entity = entityIndex.byExpressId(expressId);
+  if (!entity || entity.type !== 'IFCREVOLVEDAREASOLID') return null;
+  const parts = splitParams(entity.params);
+  const profileId = parseRef(parts[0]);
+  const positionId = parseRef(parts[1]);
+  const axisId = parseRef(parts[2]);
+  const angle = parseFloatScalar(parts[3]) || (Math.PI * 2);
+  if (!profileId) return null;
+  const profile = resolveProfilePoints(entityIndex, profileId);
+  if (!profile || profile.outer.length < 3) return null;
+
+  // Resolve revolution axis: IfcAxis1Placement(Location, Axis)
+  let axisOrigin = [0, 0, 0];
+  let axisDir = [0, 0, 1];
+  if (axisId) {
+    const ax = entityIndex.byExpressId(axisId);
+    if (ax && ax.type === 'IFCAXIS1PLACEMENT') {
+      const axParts = splitParams(ax.params);
+      const locId = parseRef(axParts[0]);
+      const dirId = parseRef(axParts[1]);
+      if (locId) axisOrigin = resolveCoords(entityIndex, locId) || axisOrigin;
+      if (dirId) axisDir = resolveCoords(entityIndex, dirId) || axisDir;
+    }
+  }
+
+  // The profile lives in the local XY plane. The revolution axis (axisDir) is
+  // a 3D vector in the same local frame. Approximate by treating the axis as
+  // a line in the XY plane (IFC always positions the profile so the axis is
+  // in-plane — most exporters use axis = [0, 1, 0] i.e. local Y).
+  // We project each profile vertex onto a radius about the axis, then lathe.
+  const axisVec2 = new THREE.Vector2(axisDir[0] || 0, axisDir[1] || 0);
+  if (axisVec2.lengthSq() < 1e-9) axisVec2.set(0, 1);
+  axisVec2.normalize();
+  const originVec2 = new THREE.Vector2(axisOrigin[0] || 0, axisOrigin[1] || 0);
+  // Convert profile outer to (radius, height) pairs along the axis direction.
+  // radius = perpendicular distance from axis; height = projection onto axis.
+  const perp = new THREE.Vector2(-axisVec2.y, axisVec2.x);
+  const lathePoints = [];
+  for (const [x, y] of profile.outer) {
+    const p = new THREE.Vector2(x, y).sub(originVec2);
+    const r = Math.abs(p.dot(perp));
+    const h = p.dot(axisVec2);
+    lathePoints.push(new THREE.Vector2(r, h));
+  }
+  // LatheGeometry wants points sorted by Y ascending; if our points aren't,
+  // ExtrudeGeometry might still work but normals can flip. We sort to be safe.
+  lathePoints.sort((a, b) => a.y - b.y);
+
+  let geom;
+  try {
+    const segments = Math.max(8, Math.ceil((angle / (Math.PI * 2)) * 32));
+    geom = new THREE.LatheGeometry(lathePoints, segments, 0, angle);
+  } catch (e) {
+    return null;
+  }
+
+  // LatheGeometry revolves around Y axis; we need to align local Y of the
+  // lathe to the IFC axis direction. The relationship is: lathe Y matches the
+  // axisVec direction in the XY plane. Build a basis where lathe Y = (axisVec2 in XY, 0 in Z).
+  // For simple case where axisDir == [0,1,0] in local frame, no extra rotation needed.
+  // We construct the rotation that maps Y_lathe → axisVec2 in XY plane.
+  const angleZ = Math.atan2(axisVec2.x, axisVec2.y);
+  if (Math.abs(angleZ) > 1e-6) {
+    geom.applyMatrix4(new THREE.Matrix4().makeRotationZ(angleZ));
+  }
+  // Translate so the lathe origin sits at axisOrigin in local frame.
+  geom.applyMatrix4(new THREE.Matrix4().makeTranslation(axisOrigin[0] || 0, axisOrigin[1] || 0, axisOrigin[2] || 0));
+
+  if (positionId) {
+    geom.applyMatrix4(placement3DToMatrix(entityIndex, positionId));
+  }
+  mergeVerticesInPlace(geom, 1e-4);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+  return geom;
+}
+
+/**
+ * Sweep a circular cross-section along a 3D directrix curve.
+ *
+ * IfcSweptDiskSolid(Directrix, Radius, InnerRadius, StartParam, EndParam)
+ *   Directrix — IfcCurve subtype, here we support IfcPolyline (3D points)
+ *   Radius — outer disk radius
+ *   InnerRadius — optional (hollow tube)
+ *
+ * Used by Tekla / Revit for cables, conduits, handrails, pipework. We build a
+ * THREE.TubeGeometry over the directrix points.
+ */
+export function sweptDiskSolidToGeometry(entityIndex, expressId) {
+  const entity = entityIndex.byExpressId(expressId);
+  if (!entity || entity.type !== 'IFCSWEPTDISKSOLID') return null;
+  const parts = splitParams(entity.params);
+  const directrixId = parseRef(parts[0]);
+  const radius = parseFloatScalar(parts[1]);
+  if (!directrixId || !radius || radius <= 0) return null;
+
+  const directrix = entityIndex.byExpressId(directrixId);
+  if (!directrix) return null;
+  // Only IfcPolyline supported for now (most common in Tekla cable trays).
+  // IfcCompositeCurve / IfcTrimmedCurve fall through and return null.
+  const points3D = [];
+  if (directrix.type === 'IFCPOLYLINE') {
+    const pParts = splitParams(directrix.params);
+    const ptRefs = parseRefList(pParts[0]);
+    for (const r of ptRefs) {
+      const c = resolveCoords(entityIndex, r);
+      if (c && c.length >= 3) points3D.push(new THREE.Vector3(c[0], c[1], c[2]));
+      else if (c && c.length === 2) points3D.push(new THREE.Vector3(c[0], c[1], 0));
+    }
+  } else if (directrix.type === 'IFCINDEXEDPOLYCURVE') {
+    // 3D variant: IfcCartesianPointList3D referenced from IfcIndexedPolyCurve
+    const dParts = splitParams(directrix.params);
+    const ptListRef = parseRef(dParts[0]);
+    if (ptListRef) {
+      const ptList = entityIndex.byExpressId(ptListRef);
+      if (ptList && (ptList.type === 'IFCCARTESIANPOINTLIST3D' || ptList.type === 'IFCCARTESIANPOINTLIST2D')) {
+        const all = parsePointList(splitParams(ptList.params)[0]);
+        for (const p of all) {
+          points3D.push(new THREE.Vector3(p[0] || 0, p[1] || 0, p[2] || 0));
+        }
+      }
+    }
+  } else {
+    return null;
+  }
+  if (points3D.length < 2) return null;
+
+  let geom;
+  try {
+    const curve = new THREE.CatmullRomCurve3(points3D, false, 'catmullrom', 0.0);
+    const tubularSegments = Math.max(points3D.length * 4, 16);
+    geom = new THREE.TubeGeometry(curve, tubularSegments, radius, 16, false);
+  } catch (e) {
+    return null;
+  }
   mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   geom.computeBoundingBox();
