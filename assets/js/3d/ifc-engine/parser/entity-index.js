@@ -57,7 +57,7 @@ export class EntityIndex {
   /** @returns {RawEntity | null} */
   byGuid(guid) {
     const id = this._byGuid.get(guid);
-    return id != null ? this._byId.get(id) : null;
+    return id !== null && id !== undefined ? this._byId.get(id) : null;
   }
 
   /** @returns {string[]} sorted list of unique IFC types */

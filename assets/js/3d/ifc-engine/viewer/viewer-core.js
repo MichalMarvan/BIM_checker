@@ -235,7 +235,7 @@ export class ViewerCore {
         if (!mat) return;
         mat.opacity = opacity;
         // Only let fade hide edges; do not override display-mode-forced state
-        if (this._displayMode === 'solid' || this._displayMode == null) {
+        if (this._displayMode === 'solid' || this._displayMode === null || this._displayMode === undefined) {
           mat.visible = factor > 0.01;
         }
       });
@@ -700,7 +700,7 @@ export class ViewerCore {
 
         // Compose with per-entity opacity override (more transparent wins)
         const overrideAlpha = this._entityOpacity.get(mesh);
-        const finalAlpha = overrideAlpha != null
+        const finalAlpha = overrideAlpha !== null && overrideAlpha !== undefined
           ? Math.min(modeAlpha, overrideAlpha)
           : modeAlpha;
 

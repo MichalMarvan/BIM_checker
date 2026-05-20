@@ -66,7 +66,7 @@ function buildNestsIndex(entityIndex) {
     // IfcRelNests: GlobalId, OwnerHistory, Name, Description, RelatingObject, RelatedObjects
     const parent = parseRef(parts[4]);
     const children = parseRefList(parts[5]);
-    if (parent == null) continue;
+    if (parent === null || parent === undefined) continue;
     let arr = map.get(parent);
     if (!arr) { arr = []; map.set(parent, arr); }
     arr.push(...children);
@@ -90,7 +90,7 @@ function parseHorizontalSegment(entityIndex, hsId, station) {
   const length = parseNum(parts[6]);
   const predType = parseEnum(parts[8]);
 
-  if (!startPoint || startDir == null || length == null || length <= 0) return null;
+  if (!startPoint || startDir === null || startDir === undefined || length === null || length === undefined || length <= 0) return null;
 
   if (predType === 'LINE' || (r0 === 0 && r1 === 0)) {
     const end = [
@@ -147,8 +147,8 @@ function parseHorizontalSegment(entityIndex, hsId, station) {
 
   if (predType === 'CLOTHOID' || r0 !== r1) {
     // Clothoid (Euler spiral) — varying curvature linearly with arc length
-    const radiusStart = (r0 == null || r0 === 0) ? Infinity : Math.abs(r0);
-    const radiusEnd = (r1 == null || r1 === 0) ? Infinity : Math.abs(r1);
+    const radiusStart = (r0 === null || r0 === undefined || r0 === 0) ? Infinity : Math.abs(r0);
+    const radiusEnd = (r1 === null || r1 === undefined || r1 === 0) ? Infinity : Math.abs(r1);
     // Determine end point + heading by integrating (handled in discretize.js)
     // For now provide what discretize expects: start, end (approximate),
     // dirStart, radiusStart/End, length, rotation.

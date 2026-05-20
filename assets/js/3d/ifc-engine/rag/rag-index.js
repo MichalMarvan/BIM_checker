@@ -115,7 +115,7 @@ function buildEntityText(entityIndex, expressId, parentName) {
   if (props?.propertySets) {
     for (const ps of props.propertySets) {
       for (const p of ps.properties) {
-        if (p.value != null && propStrs.length < 8) {
+        if (p.value !== null && p.value !== undefined && propStrs.length < 8) {
           propStrs.push(`${p.name}=${p.value}`);
         }
       }

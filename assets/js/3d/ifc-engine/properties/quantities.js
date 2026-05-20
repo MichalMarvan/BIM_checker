@@ -35,7 +35,7 @@ function unquoteString(raw) {
 }
 
 function parseFloatStrict(raw) {
-  if (raw == null || raw === '$') return null;
+  if (raw === null || raw === undefined || raw === '$') return null;
   const n = parseFloat(raw);
   return Number.isFinite(n) ? n : null;
 }
@@ -49,7 +49,7 @@ function buildRelToQuantityIndex(entityIndex) {
     const parts = splitParams(rel.params);
     const relatedRefs = parseRefList(parts[4]);
     const targetRef = parseRef(parts[5]);
-    if (targetRef == null) continue;
+    if (targetRef === null || targetRef === undefined) continue;
     const target = entityIndex.byExpressId(targetRef);
     if (!target || target.type !== 'IFCELEMENTQUANTITY') continue;
     for (const refId of relatedRefs) {
@@ -71,7 +71,7 @@ function extractSingleQuantity(entityIndex, qtyId) {
   const name = unquoteString(parts[0]);
   if (!name) return null;
   const value = parseFloatStrict(parts[meta.valueIndex]);
-  if (value == null) return null;
+  if (value === null || value === undefined) return null;
   return { name, kind: meta.kind, value };
 }
 

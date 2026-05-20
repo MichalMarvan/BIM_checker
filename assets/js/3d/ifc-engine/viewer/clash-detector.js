@@ -84,7 +84,7 @@ function buildEntityList(viewer, predicate) {
   for (const { meshes } of viewer._models.values()) {
     for (const mesh of meshes) {
       const ud = mesh.userData;
-      if (!ud?.modelId || ud.expressId == null) continue;
+      if (!ud?.modelId || ud.expressId === null || ud.expressId === undefined) continue;
       const key = entityKey(ud.modelId, ud.expressId);
       let entry = entities.get(key);
       if (!entry) {

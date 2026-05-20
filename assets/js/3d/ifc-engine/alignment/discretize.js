@@ -122,7 +122,7 @@ function sampleSpiral(el, tol) {
   // Determine starting heading. dirStart is given as bearing in some files;
   // fallback: use start→PI direction or start→end direction.
   let theta0;
-  if (el.dirStart != null) {
+  if (el.dirStart !== null && el.dirStart !== undefined) {
     // LandXML dirStart: angle in radians from +Y (north), clockwise (per spec)
     // Convert to math convention (from +X, counter-clockwise)
     theta0 = Math.PI / 2 - el.dirStart;

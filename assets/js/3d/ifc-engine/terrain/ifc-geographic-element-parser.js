@@ -68,7 +68,7 @@ export function extractTerrainFromIfc(entityIndex, expressId) {
       v3.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).applyMatrix4(matrix);
       const key = `${v3.x.toFixed(4)},${v3.y.toFixed(4)},${v3.z.toFixed(4)}`;
       let gi = dedup.get(key);
-      if (gi == null) {
+      if (gi === null || gi === undefined) {
         gi = vertices.length;
         vertices.push({ x: v3.x, y: v3.y, z: v3.z });
         dedup.set(key, gi);

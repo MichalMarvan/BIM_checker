@@ -63,7 +63,7 @@ export function createExecutor(engine) {
       // Convert CSS color strings ('red', '#ff0000') to hex int via THREE.Color.
       // Default color (Phase 4: 0xfacc15 yellow) preserved as-is unless overridden.
       const parseColor = (c) => {
-        if (c == null) return undefined;
+        if (c === null || c === undefined) return undefined;
         if (typeof c === 'number') return c;
         try { return new THREE.Color(c).getHex(); } catch { return undefined; }
       };
@@ -136,7 +136,7 @@ export function createExecutor(engine) {
       // Diagnose LoGeoRef level
       let loGeoRef;
       if (coords.projectedCRS && coords.mapConversion) loGeoRef = '50 (full georeference)';
-      else if (coords.refLat != null && coords.refLon != null) loGeoRef = '20 (site reference point only)';
+      else if (coords.refLat !== null && coords.refLat !== undefined && coords.refLon !== null && coords.refLon !== undefined) loGeoRef = '20 (site reference point only)';
       else loGeoRef = '< 20 (local coords only)';
       return { ok: true, data: { modelId, modelName, loGeoRef, ...coords } };
     },

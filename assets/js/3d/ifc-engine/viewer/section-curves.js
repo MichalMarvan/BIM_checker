@@ -39,7 +39,7 @@ export function computeSectionCurves(viewer, planeSpec) {
       const segs = computeMeshSegments(mesh, plane);
       if (segs.length === 0) continue;
       const ud = mesh.userData;
-      if (!ud?.modelId || ud.expressId == null) continue;
+      if (!ud?.modelId || ud.expressId === null || ud.expressId === undefined) continue;
       const key = `${ud.modelId}|${ud.expressId}`;
       let entry = byEntity.get(key);
       if (!entry) {

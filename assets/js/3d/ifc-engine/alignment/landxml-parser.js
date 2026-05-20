@@ -68,7 +68,7 @@ function parseXyz(text, swapXY) {
   if (parts.length < 2 || parts.some(n => !Number.isFinite(n))) return null;
   const a = parts[0];
   const b = parts[1];
-  const c = parts[2] != null ? parts[2] : 0;
+  const c = (parts[2] !== null && parts[2] !== undefined) ? parts[2] : 0;
   // LandXML default: <Start>N E [Z]</Start>. Internally we use (x=E, y=N, z=Z)
   // so the alignment lives in the XY plane like the IFC viewer's world space
   // (after Z-up to Y-up rotation, IFC X→world X, IFC Y→world Z, IFC Z→world Y;

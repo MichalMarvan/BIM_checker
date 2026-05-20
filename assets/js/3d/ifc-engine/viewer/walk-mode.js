@@ -102,7 +102,7 @@ export class WalkMode {
   tick() {
     if (!this._active) return;
     const now = performance.now();
-    const dt = this._lastTime != null ? Math.min((now - this._lastTime) / 1000, 0.1) : 0;
+    const dt = this._lastTime !== null && this._lastTime !== undefined ? Math.min((now - this._lastTime) / 1000, 0.1) : 0;
     this._lastTime = now;
     if (dt === 0) return;
 

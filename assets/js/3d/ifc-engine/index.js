@@ -167,7 +167,7 @@ export class IfcEngine {
    * @returns {ModelMeta | null}
    */
   getStats(modelId) {
-    if (modelId == null) {
+    if (modelId === null || modelId === undefined) {
       // Federation summary — typeCount is the union of types across all models.
       let entityCount = 0;
       const allTypes = new Set();
@@ -679,7 +679,7 @@ export class IfcEngine {
       k,
     });
     return results
-      .filter(r => r.chunk.refExpressId != null)
+      .filter(r => r.chunk.refExpressId !== null && r.chunk.refExpressId !== undefined)
       .map(r => ({
         modelId: r.chunk.modelId,
         expressId: r.chunk.refExpressId,
@@ -794,7 +794,7 @@ export class IfcEngine {
         const props = this.getProperties(meta.modelId, h.expressId);
         if (!props) { unmatchedTotal++; continue; }
         const value = _findPropertyValue(props, psetFilter, propLower);
-        const key = value == null ? '' : String(value);
+        const key = value === null || value === undefined ? '' : String(value);
         let arr = itemsByValue.get(key);
         if (!arr) { arr = []; itemsByValue.set(key, arr); }
         arr.push({ modelId: meta.modelId, expressId: h.expressId });
@@ -1462,9 +1462,9 @@ function _matchPsetFilter(props, filter) {
 }
 
 function _matchOp(actual, op, expected) {
-  if (op === 'exists') return actual != null;
-  if (op === 'notExists') return actual == null;
-  if (actual == null) return false;
+  if (op === 'exists') return actual !== null && actual !== undefined;
+  if (op === 'notExists') return actual === null || actual === undefined;
+  if (actual === null || actual === undefined) return false;
   if (op === 'eq') return String(actual) === String(expected);
   if (op === 'ne') return String(actual) !== String(expected);
   if (op === 'contains') return String(actual).toLowerCase().includes(String(expected).toLowerCase());

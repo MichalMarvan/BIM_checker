@@ -30,7 +30,7 @@ export function buildStyleIndex(entityIndex) {
     const styleRefs = parseRefList(parts[1]);
     if (!itemRef || styleRefs.length === 0) continue;
     const color = resolveColorFromStyles(entityIndex, styleRefs);
-    if (color != null) map.set(itemRef, color);
+    if (color !== null && color !== undefined) map.set(itemRef, color);
   }
   return map;
 }
@@ -48,7 +48,7 @@ function resolveColorFromStyles(entityIndex, styleRefs) {
       // Wrapper — recurse into inner styles
       const innerRefs = parseRefList(splitParams(entity.params)[0]);
       const c = resolveColorFromStyles(entityIndex, innerRefs);
-      if (c != null) return c;
+      if (c !== null && c !== undefined) return c;
       continue;
     }
     if (entity.type === 'IFCSURFACESTYLE') {
@@ -61,7 +61,7 @@ function resolveColorFromStyles(entityIndex, styleRefs) {
           // First param is SurfaceColour ref (IfcColourRgb)
           const colRef = parseRef(splitParams(r.params)[0]);
           const col = readColourRgb(entityIndex, colRef);
-          if (col != null) return col;
+          if (col !== null && col !== undefined) return col;
         }
       }
       continue;
@@ -69,12 +69,12 @@ function resolveColorFromStyles(entityIndex, styleRefs) {
     if (entity.type === 'IFCSURFACESTYLERENDERING' || entity.type === 'IFCSURFACESTYLESHADING') {
       const colRef = parseRef(splitParams(entity.params)[0]);
       const col = readColourRgb(entityIndex, colRef);
-      if (col != null) return col;
+      if (col !== null && col !== undefined) return col;
       continue;
     }
     // Direct IfcColourRgb? Unlikely but handle gracefully.
     const direct = readColourRgb(entityIndex, styleRef);
-    if (direct != null) return direct;
+    if (direct !== null && direct !== undefined) return direct;
   }
   return null;
 }
