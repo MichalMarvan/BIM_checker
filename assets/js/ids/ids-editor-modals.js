@@ -1042,6 +1042,11 @@ class IDSEditorModals {
             currentCardinality = 'optional';
         }
 
+        const checkedVersions = (specData.ifcVersions && specData.ifcVersions.length)
+            ? specData.ifcVersions
+            : (specData.ifcVersion ? specData.ifcVersion.trim().split(/\s+/).filter(Boolean) : ['IFC4']);
+        const isChecked = v => checkedVersions.includes(v) ? 'checked' : '';
+
         document.getElementById('specModalBody').innerHTML = `
             <div class="form-group">
                 <label>${t('editor.specName')}</label>
@@ -1051,11 +1056,11 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>${t('editor.ifcVersion')}</label>
-                <select id="specIfcVersion">
-                    <option value="IFC2X3" ${specData.ifcVersion === 'IFC2X3' ? 'selected' : ''}>IFC2X3</option>
-                    <option value="IFC4" ${!specData.ifcVersion || specData.ifcVersion === 'IFC4' ? 'selected' : ''}>IFC4</option>
-                    <option value="IFC4X3_ADD2" ${specData.ifcVersion === 'IFC4X3_ADD2' ? 'selected' : ''}>IFC4X3_ADD2</option>
-                </select>
+                <div class="ifc-version-checkboxes" id="specIfcVersionCheckboxes">
+                    <label><input type="checkbox" name="ifcVersion" value="IFC2X3" ${isChecked('IFC2X3')}> IFC2X3</label>
+                    <label><input type="checkbox" name="ifcVersion" value="IFC4" ${isChecked('IFC4')}> IFC4</label>
+                    <label><input type="checkbox" name="ifcVersion" value="IFC4X3_ADD2" ${isChecked('IFC4X3_ADD2')}> IFC4X3_ADD2</label>
+                </div>
                 <small>${t('editor.ifcVersionDesc')}</small>
             </div>
 
@@ -1144,9 +1149,10 @@ class IDSEditorModals {
             return;
         }
 
-        const ifcVersion = document.getElementById('specIfcVersion').value;
-        if (!ifcVersion) {
-            alert(t('editor.ifcVersionRequired'));
+        const checked = [...document.querySelectorAll('#specIfcVersionCheckboxes input[name="ifcVersion"]:checked')]
+            .map(el => el.value);
+        if (checked.length === 0) {
+            alert(t('editor.ifcVersion.required'));
             return;
         }
 
@@ -1159,7 +1165,8 @@ class IDSEditorModals {
 
         const specData = {
             name: name,
-            ifcVersion: ifcVersion,
+            ifcVersion: checked.join(' '),
+            ifcVersions: checked,
             description: document.getElementById('specDescription').value.trim(),
             minOccurs: occurs.minOccurs,
             maxOccurs: occurs.maxOccurs
