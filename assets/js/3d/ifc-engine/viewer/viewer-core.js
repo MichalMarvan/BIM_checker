@@ -50,8 +50,9 @@ const DEFAULT_COLOR = 0x9ca3af;
 const DEFAULT_MATERIAL = new THREE.MeshStandardMaterial({
   color: DEFAULT_COLOR,
   side: THREE.DoubleSide,
-  metalness: 0.1,
-  roughness: 0.7,
+  metalness: 0.0,         // BIM elements aren't metallic — kill PBR specular spots
+  roughness: 0.92,        // very matte, eliminates per-mesh shiny hot-spots
+  flatShading: false,
 });
 
 // Edge outline rendering: extract sharp edges (angle > threshold) and draw as
@@ -181,12 +182,21 @@ export class ViewerCore {
     // Prevent browser touch gestures (scroll, pinch-zoom page) from interfering
     canvas.style.touchAction = 'none';
 
-    // Lights: ambient + directional (soft daylight feel)
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    this._scene.add(ambient);
-    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-    directional.position.set(50, 100, 50);
-    this._scene.add(directional);
+    // Lights: 3-point setup tuned for consistent shading across many meshes
+    // with inconsistent face winding (typical for federated IFC from multiple
+    // exporters). HemisphereLight gives a soft sky→ground gradient that
+    // doesn't fall to black on any face orientation, eliminating the
+    // "patchwork / kocourkov" look you get from a single AmbientLight.
+    // Two directional fills (key + back) add subtle shape definition without
+    // strong shadows that would highlight individual mesh orientations.
+    const hemi = new THREE.HemisphereLight(0xe6ecf3, 0x8d847b, 0.85);
+    this._scene.add(hemi);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.55);
+    keyLight.position.set(120, 200, 100);
+    this._scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.25);
+    fillLight.position.set(-100, 80, -120);
+    this._scene.add(fillLight);
 
     // Models registry (Task 7 fills these)
     this._models = new Map();  // modelId → { group, meshes }
