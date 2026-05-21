@@ -156,7 +156,7 @@ export class ViewerCore {
   constructor(canvas) {
     this._canvas = canvas;
     this._scene = new THREE.Scene();
-    this._scene.background = new THREE.Color(0x1e293b);  // dark slate
+    this._scene.background = new THREE.Color(0xf5f6f8);  // light gray — Trimble/Navisworks/Revit BIM convention
 
     const aspect = canvas.width / canvas.height || 1;
     this._camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 100000);
@@ -187,12 +187,11 @@ export class ViewerCore {
     try {
       const pmremGenerator = new THREE.PMREMGenerator(this._renderer);
       const roomEnv = new RoomEnvironment();
-      // Higher blur (0.5) softens the IBL so per-triangle normals don't
-      // get mapped to wildly different env samples → no "shaded teeth" on
-      // tessellated trims. With directionals gone, the env carries most of
-      // the lighting, so bump intensity to keep colours bright.
-      this._scene.environment = pmremGenerator.fromScene(roomEnv, 0.5).texture;
-      this._scene.environmentIntensity = 0.85;
+      // Soft IBL contribution — fills shadow side and adds subtle "skylight"
+      // ambient. With directionals carrying most of the saturation,
+      // intensity 0.35 is enough to lift the shadow areas without flattening.
+      this._scene.environment = pmremGenerator.fromScene(roomEnv, 0.15).texture;
+      this._scene.environmentIntensity = 0.35;
       roomEnv.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
         if (o.material) o.material.dispose();
@@ -219,16 +218,19 @@ export class ViewerCore {
     // Prevent browser touch gestures (scroll, pinch-zoom page) from interfering
     canvas.style.touchAction = 'none';
 
-    // BIM/CAD look: NO directional lights. They sample mesh normals per
-    // triangle, which combined with smooth shading produces visible "shaded
-    // teeth" between adjacent triangles whose face normals differ — exactly
-    // the artefact the team flagged on tightly-tessellated trims/cornices.
-    // The PMREM env above gives soft, omnidirectional ambient that hints at
-    // shape (sky-vs-ground falloff) without creating per-triangle contrast.
-    // A gentle hemisphere adds a touch more sky/ground separation; remove it
-    // if a fully flat look is preferred.
-    const hemi = new THREE.HemisphereLight(0xe6ecf3, 0xb5ada3, 0.55);
+    // Trimble-Connect / Navisworks-style strong directional shading: cylinders
+    // read as cylinders, decks have clear light/shadow sides, edges crisp.
+    // Triangle-teeth artefacts on tightly-tessellated trims are tackled in
+    // mesh-types.js via tighter vertex merging — keeping the directionals
+    // gives much more important shape definition than the loss costs us.
+    const hemi = new THREE.HemisphereLight(0xf0f3f7, 0xa89e92, 0.45);
     this._scene.add(hemi);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    keyLight.position.set(120, 220, 80);
+    this._scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
+    fillLight.position.set(-150, 80, -100);
+    this._scene.add(fillLight);
 
     // Models registry (Task 7 fills these)
     this._models = new Map();  // modelId → { group, meshes }
