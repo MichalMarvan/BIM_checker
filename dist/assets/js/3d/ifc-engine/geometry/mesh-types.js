@@ -360,7 +360,7 @@ function geometryFromPositionsIndices(positions, indices) {
   geom.userData = geom.userData || {};
   geom.userData.localOrigin = [cx, cy, cz];
   mergeVerticesInPlace(geom, 1e-4);
-  geom.computeVertexNormals();
+  computeCreasedVertexNormals(geom);
   return geom;
 }
 
@@ -422,6 +422,146 @@ export function mergeVerticesInPlace(geom, tolerance = 1e-4) {
   return geom;
 }
 
+/**
+ * Compute crease-aware vertex normals on an indexed geometry IN PLACE.
+ *
+ * Why this exists: `computeVertexNormals()` averages face normals across every
+ * face incident at a vertex. On Civil3D tessellations the road/deck profile
+ * is sampled from a parametric spline, so adjacent "flat" triangles actually
+ * have face normals that differ by 0.1°–1°. The smooth average then varies
+ * subtly across the surface and, at distance, shows up as visible shading
+ * patches ("kocourkov" on flat slabs).
+ *
+ * The CAD-standard fix: for each vertex, cluster incident faces by normal
+ * similarity. Each cluster gets ONE averaged normal. Faces in the same
+ * cluster share a vertex (smooth shading on near-coplanar surfaces); faces
+ * in different clusters get a duplicated vertex (hard edge at sharp corners).
+ *
+ * Unlike THREE.BufferGeometryUtils.toCreasedNormals, this preserves the index
+ * buffer (only duplicates vertices at actual creases) — important for the 8GB
+ * RAM ceiling on large infrastructure models.
+ *
+ * creaseAngleRad: faces within this angle of an existing cluster join it.
+ * 50° works well for civil/BIM: flat tessellated surfaces stay flat, sharp
+ * 90° corners stay sharp, tessellated cylinders/arcs stay smooth.
+ */
+export function computeCreasedVertexNormals(geom, creaseAngleRad = Math.PI * 50 / 180) {
+  const positions = geom.attributes.position?.array;
+  const idxAttr = geom.index;
+  if (!positions || !idxAttr) {
+    geom.computeVertexNormals();
+    return;
+  }
+  const idx = idxAttr.array;
+  const numFaces = idx.length / 3;
+  const numVerts = positions.length / 3;
+  const cosT = Math.cos(creaseAngleRad);
+
+  // 1. Per-face normals (normalized).
+  const fnx = new Float32Array(numFaces);
+  const fny = new Float32Array(numFaces);
+  const fnz = new Float32Array(numFaces);
+  for (let f = 0; f < numFaces; f++) {
+    const ia = idx[f * 3] * 3, ib = idx[f * 3 + 1] * 3, ic = idx[f * 3 + 2] * 3;
+    const ax = positions[ia],     ay = positions[ia + 1], az = positions[ia + 2];
+    const ex = positions[ib]     - ax, ey = positions[ib + 1] - ay, ez = positions[ib + 2] - az;
+    const gx = positions[ic]     - ax, gy = positions[ic + 1] - ay, gz = positions[ic + 2] - az;
+    let nx = ey * gz - ez * gy;
+    let ny = ez * gx - ex * gz;
+    let nz = ex * gy - ey * gx;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    fnx[f] = nx / len; fny[f] = ny / len; fnz[f] = nz / len;
+  }
+
+  // 2. Vertex → incident faces (CSR layout for cache locality + zero alloc per vertex).
+  const faceCount = new Int32Array(numVerts);
+  for (let i = 0; i < idx.length; i++) faceCount[idx[i]]++;
+  const faceOff = new Int32Array(numVerts + 1);
+  for (let v = 0; v < numVerts; v++) faceOff[v + 1] = faceOff[v] + faceCount[v];
+  const vertFaces = new Int32Array(idx.length);
+  const cursor = new Int32Array(numVerts);
+  for (let f = 0; f < numFaces; f++) {
+    for (let k = 0; k < 3; k++) {
+      const v = idx[f * 3 + k];
+      vertFaces[faceOff[v] + cursor[v]++] = f;
+    }
+  }
+
+  // 3. For each vertex, cluster incident faces by normal similarity.
+  //    Emit one new vertex per cluster. Most vertices on smooth surfaces
+  //    produce exactly one cluster (no duplication).
+  const newPos = [];
+  const newNor = [];
+  const newIdx = new Uint32Array(idx.length);
+  // We rewrite the index buffer below; for each (face, vertex-slot) we need
+  // to know which cluster's new-index to use. Track per-face slot remapping.
+
+  // Scratch for clusters of the current vertex (reused).
+  const cSumX = new Float64Array(16);
+  const cSumY = new Float64Array(16);
+  const cSumZ = new Float64Array(16);
+  const cCount = new Int32Array(16);
+  const cNewIdx = new Int32Array(16);
+
+  for (let v = 0; v < numVerts; v++) {
+    const start = faceOff[v];
+    const end = faceOff[v + 1];
+    if (start === end) continue;
+    const px = positions[v * 3], py = positions[v * 3 + 1], pz = positions[v * 3 + 2];
+
+    // Per-face cluster assignment for this vertex.
+    let numClusters = 0;
+    const faceCluster = new Int32Array(end - start);
+
+    for (let j = start; j < end; j++) {
+      const f = vertFaces[j];
+      const nx = fnx[f], ny = fny[f], nz = fnz[f];
+      let matched = -1;
+      for (let c = 0; c < numClusters; c++) {
+        // Cluster avg direction (un-normalized sum still works for dot test
+        // since members are unit and cluster size is small — we re-normalize
+        // when emitting).
+        const sx = cSumX[c], sy = cSumY[c], sz = cSumZ[c];
+        const slen = Math.hypot(sx, sy, sz) || 1;
+        const dot = (sx * nx + sy * ny + sz * nz) / slen;
+        if (dot >= cosT) { matched = c; break; }
+      }
+      if (matched < 0) {
+        if (numClusters >= cSumX.length) break; // safety cap (16 distinct face dirs at one vertex is already pathological)
+        matched = numClusters++;
+        cSumX[matched] = 0; cSumY[matched] = 0; cSumZ[matched] = 0;
+        cCount[matched] = 0;
+      }
+      cSumX[matched] += nx; cSumY[matched] += ny; cSumZ[matched] += nz;
+      cCount[matched]++;
+      faceCluster[j - start] = matched;
+    }
+
+    // Emit one new vertex per cluster.
+    for (let c = 0; c < numClusters; c++) {
+      const sx = cSumX[c], sy = cSumY[c], sz = cSumZ[c];
+      const slen = Math.hypot(sx, sy, sz) || 1;
+      cNewIdx[c] = newPos.length / 3;
+      newPos.push(px, py, pz);
+      newNor.push(sx / slen, sy / slen, sz / slen);
+    }
+
+    // Rewrite indices: each face's slot for vertex v gets its cluster's new vertex id.
+    for (let j = start; j < end; j++) {
+      const f = vertFaces[j];
+      const nv = cNewIdx[faceCluster[j - start]];
+      // Find which slot of face f references v (could be 0, 1, or 2).
+      if (idx[f * 3]     === v) newIdx[f * 3]     = nv;
+      else if (idx[f * 3 + 1] === v) newIdx[f * 3 + 1] = nv;
+      else                            newIdx[f * 3 + 2] = nv;
+    }
+  }
+
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(newPos), 3));
+  geom.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(newNor), 3));
+  geom.setIndex(new THREE.BufferAttribute(newIdx, 1));
+}
+
 // -------------------- IfcTriangulatedFaceSet --------------------
 
 export function triangulatedFaceSetToGeometry(entityIndex, expressId) {
@@ -463,7 +603,7 @@ export function triangulatedFaceSetToGeometry(entityIndex, expressId) {
   geom.userData = geom.userData || {};
   geom.userData.localOrigin = [cx, cy, cz];
   mergeVerticesInPlace(geom, 1e-4);
-  geom.computeVertexNormals();
+  computeCreasedVertexNormals(geom);
   return geom;
 }
 
@@ -1046,7 +1186,7 @@ export function extrudedAreaSolidToGeometry(entityIndex, expressId) {
   }
 
   mergeVerticesInPlace(geom, 1e-4);
-  geom.computeVertexNormals();
+  computeCreasedVertexNormals(geom);
   geom.computeBoundingBox();
   return geom;
 }
@@ -1137,7 +1277,7 @@ export function revolvedAreaSolidToGeometry(entityIndex, expressId) {
     geom.applyMatrix4(placement3DToMatrix(entityIndex, positionId));
   }
   mergeVerticesInPlace(geom, 1e-4);
-  geom.computeVertexNormals();
+  computeCreasedVertexNormals(geom);
   geom.computeBoundingBox();
   return geom;
 }
@@ -1211,7 +1351,7 @@ export function sweptDiskSolidToGeometry(entityIndex, expressId) {
     return null;
   }
   mergeVerticesInPlace(geom, 1e-4);
-  geom.computeVertexNormals();
+  computeCreasedVertexNormals(geom);
   geom.computeBoundingBox();
   geom.userData = geom.userData || {};
   geom.userData.localOrigin = [cx, cy, cz];
@@ -1316,7 +1456,7 @@ export function tryExtrudedDifference2D(entityIndex, firstId, secondId) {
     geom.applyMatrix4(m1);
   }
   mergeVerticesInPlace(geom, 1e-4);
-  geom.computeVertexNormals();
+  computeCreasedVertexNormals(geom);
   geom.computeBoundingBox();
   return geom;
 }
