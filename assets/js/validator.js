@@ -2810,7 +2810,7 @@ async function validateAll() {
                 let specificationResults;
                 if (typeof ValidationEngine !== 'undefined' && entities.length > 100) {
                     // Use ValidationEngine for better performance with large datasets
-                    specificationResults = await validateWithEngine(entities, idsData.specifications, ifcFile.name);
+                    specificationResults = await validateWithEngine(entities, idsData.specifications, ifcFile.name, ifcSchema);
                 } else {
                     // Fallback to original method
                     specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications, { ifcSchema });
@@ -2834,7 +2834,7 @@ async function validateAll() {
             }
 
             // Parallel validation using ValidationEngine
-            async function validateWithEngine(entities, specifications, fileName) {
+            async function validateWithEngine(entities, specifications, fileName, ifcSchema) {
                 const results = [];
 
                 // Validate all specs in parallel
@@ -2844,7 +2844,7 @@ async function validateAll() {
                         await new Promise(resolve => setTimeout(resolve, 0));
                     }
 
-                    const result = await ValidationEngine.validateBatch(entities, spec);
+                    const result = await ValidationEngine.validateBatch(entities, spec, { ifcSchema });
 
                     // Update progress
                     if (progressPanel) {

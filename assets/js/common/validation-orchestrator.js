@@ -222,6 +222,9 @@ class ValidationOrchestrator {
 
         // Parse IFC file
         const entities = await this._parseIFC(file);
+        const ifcSchema = (typeof IFCParserCore !== 'undefined' && file.content)
+            ? IFCParserCore.detectSchema(file.content)
+            : (file.schema || 'UNKNOWN');
 
         this._updateProgress(fileId, {
             name: file.name,
@@ -232,7 +235,7 @@ class ValidationOrchestrator {
         });
 
         // Validate against specifications
-        const specResults = await this._validateAgainstSpecs(entities, specifications, fileId);
+        const specResults = await this._validateAgainstSpecs(entities, specifications, fileId, ifcSchema);
 
         this._updateProgress(fileId, {
             name: file.name,
@@ -268,7 +271,7 @@ class ValidationOrchestrator {
      * Validate entities against specifications
      * @private
      */
-    async _validateAgainstSpecs(entities, specifications, fileId) {
+    async _validateAgainstSpecs(entities, specifications, fileId, ifcSchema) {
         const results = [];
         const totalSpecs = specifications.length;
 
@@ -277,7 +280,8 @@ class ValidationOrchestrator {
             const specPromises = specifications.map((spec, index) => {
                 return this.workerPool.submit('VALIDATE_SPEC', {
                     entities,
-                    spec
+                    spec,
+                    ifcSchema
                 }).then(result => {
                     // Update progress
                     this._updateProgress(fileId, {
@@ -297,7 +301,7 @@ class ValidationOrchestrator {
                 if (this.aborted) break;
 
                 const spec = specifications[i];
-                const result = await ValidationEngine.validateBatch(entities, spec);
+                const result = await ValidationEngine.validateBatch(entities, spec, { ifcSchema });
 
                 if (result.entityResults.length > 0) {
                     results.push(result);
