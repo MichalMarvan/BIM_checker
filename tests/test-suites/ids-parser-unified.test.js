@@ -281,3 +281,77 @@ describe('IDSParser.extractFacet other types', () => {
         expect(facet.system.value).toBe('OmniClass');
     });
 });
+
+describe('IDSParser.extractSpecifications — ifcVersion list', () => {
+    function parseSpec(ifcVersionAttr) {
+        const xml = `<?xml version="1.0"?>
+            <ids xmlns="http://standards.buildingsmart.org/IDS">
+                <specifications>
+                    <specification name="S1" ifcVersion="${ifcVersionAttr}">
+                        <applicability/>
+                        <requirements/>
+                    </specification>
+                </specifications>
+            </ids>`;
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        return IDSParser.extractSpecifications(doc)[0];
+    }
+
+    it('derives ifcVersions=["IFC4"] from single value', () => {
+        const spec = parseSpec('IFC4');
+        expect(spec.ifcVersion).toBe('IFC4');
+        expect(Array.isArray(spec.ifcVersions)).toBe(true);
+        expect(spec.ifcVersions.length).toBe(1);
+        expect(spec.ifcVersions[0]).toBe('IFC4');
+    });
+
+    it('derives ifcVersions=["IFC4","IFC4X3_ADD2"] from space-separated list', () => {
+        const spec = parseSpec('IFC4 IFC4X3_ADD2');
+        expect(spec.ifcVersion).toBe('IFC4 IFC4X3_ADD2');
+        expect(spec.ifcVersions.length).toBe(2);
+        expect(spec.ifcVersions[0]).toBe('IFC4');
+        expect(spec.ifcVersions[1]).toBe('IFC4X3_ADD2');
+    });
+
+    it('handles multiple internal spaces and tabs', () => {
+        const spec = parseSpec('IFC4  \t IFC4X3_ADD2');
+        expect(spec.ifcVersions.length).toBe(2);
+        expect(spec.ifcVersions[0]).toBe('IFC4');
+        expect(spec.ifcVersions[1]).toBe('IFC4X3_ADD2');
+    });
+
+    it('returns empty array for missing/empty attribute', () => {
+        const xml = `<?xml version="1.0"?>
+            <ids xmlns="http://standards.buildingsmart.org/IDS">
+                <specifications><specification name="S1"><applicability/><requirements/></specification></specifications>
+            </ids>`;
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        const spec = IDSParser.extractSpecifications(doc)[0];
+        expect(spec.ifcVersion).toBe('');
+        expect(Array.isArray(spec.ifcVersions)).toBe(true);
+        expect(spec.ifcVersions.length).toBe(0);
+    });
+
+    it('keeps unknown values verbatim (parser does not filter)', () => {
+        const spec = parseSpec('IFC4X3');
+        expect(spec.ifcVersions.length).toBe(1);
+        expect(spec.ifcVersions[0]).toBe('IFC4X3');
+    });
+});
+
+describe('IDSParser.parseIfcVersionList helper', () => {
+    it('is exposed on the IDSParser namespace', () => {
+        expect(typeof window.IDSParser.parseIfcVersionList).toBe('function');
+    });
+
+    it('splits on any whitespace and drops empties', () => {
+        expect(IDSParser.parseIfcVersionList('IFC4  IFC4X3_ADD2 ')).toEqual(['IFC4', 'IFC4X3_ADD2']);
+    });
+
+    it('returns [] for null/undefined/empty', () => {
+        expect(IDSParser.parseIfcVersionList(null).length).toBe(0);
+        expect(IDSParser.parseIfcVersionList(undefined).length).toBe(0);
+        expect(IDSParser.parseIfcVersionList('').length).toBe(0);
+        expect(IDSParser.parseIfcVersionList('   ').length).toBe(0);
+    });
+});
