@@ -25,6 +25,89 @@ function parseIntNTupleList(raw) {
   return matches.map(m => m.slice(1, -1).split(',').map(s => parseInt(s.trim(), 10)));
 }
 
+/**
+ * Parse IfcIndexedPolyCurve.Segments list — a heterogeneous list of
+ * IfcLineIndex / IfcArcIndex select-typed entries.
+ *
+ * Input STEP format example:
+ *   "(IFCLINEINDEX((1,2,3,4)), IFCARCINDEX((4,5,6)), IFCLINEINDEX((6,7,1)))"
+ *
+ * Returns: [{ type: 'line'|'arc', indices: [..] }, ...]
+ *
+ * Falls back to treating every group as a line segment when the type tags
+ * are absent (older exporters that emit plain tuples).
+ */
+function parseSegmentList(raw) {
+  if (!raw) return [];
+  const trimmed = raw.replace(/^\(/, '').replace(/\)$/, '');
+  const out = [];
+  // Match either IFCLINEINDEX((..)) / IFCARCINDEX((..)) or bare ((..))
+  const re = /(IFCLINEINDEX|IFCARCINDEX)?\s*\(\s*\(([^()]+)\)\s*\)/gi;
+  let m;
+  while ((m = re.exec(trimmed)) !== null) {
+    const typeTag = (m[1] || 'IFCLINEINDEX').toUpperCase();
+    const type = typeTag === 'IFCARCINDEX' ? 'arc' : 'line';
+    const indices = m[2].split(',').map(s => parseInt(s.trim(), 10)).filter(Number.isFinite);
+    if (indices.length > 0) out.push({ type, indices });
+  }
+  return out;
+}
+
+/**
+ * Tessellate a 3-point arc (start, mid, end) into N sample points (inclusive
+ * of start, exclusive of end so consecutive segments don't double-up).
+ *
+ * Solves circle centre via perpendicular bisectors of chords start→mid and
+ * mid→end. Falls back to straight line when the three points are collinear.
+ */
+function tessellateArc2D(p1, p2, p3, segments = 12) {
+  const ax = (p1[0] + p2[0]) / 2, ay = (p1[1] + p2[1]) / 2;
+  const bx = (p2[0] + p3[0]) / 2, by = (p2[1] + p3[1]) / 2;
+  const d1x = p2[0] - p1[0], d1y = p2[1] - p1[1];
+  const d2x = p3[0] - p2[0], d2y = p3[1] - p2[1];
+  // Perpendicular directions of the chords
+  const det = d1x * d2y - d1y * d2x;
+  if (Math.abs(det) < 1e-9) {
+    // Collinear → straight line; emit start + mid as fallback (end appended by caller)
+    return [[p1[0], p1[1]], [p2[0], p2[1]]];
+  }
+  // Solve: A + t1 * perp1 = B + t2 * perp2  → centre
+  const px1 = -d1y, py1 = d1x; // perp of chord 1
+  const px2 = -d2y, py2 = d2x; // perp of chord 2
+  // (ax + t1*px1, ay + t1*py1) = (bx + t2*px2, by + t2*py2)
+  // → t1*px1 - t2*px2 = bx - ax
+  // → t1*py1 - t2*py2 = by - ay
+  const denom = px1 * (-py2) - py1 * (-px2);
+  if (Math.abs(denom) < 1e-12) return [[p1[0], p1[1]], [p2[0], p2[1]]];
+  const t1 = ((bx - ax) * (-py2) - (by - ay) * (-px2)) / denom;
+  const cx = ax + t1 * px1;
+  const cy = ay + t1 * py1;
+  const radius = Math.hypot(p1[0] - cx, p1[1] - cy);
+  const a1 = Math.atan2(p1[1] - cy, p1[0] - cx);
+  const a2 = Math.atan2(p2[1] - cy, p2[0] - cx);
+  const a3 = Math.atan2(p3[1] - cy, p3[0] - cx);
+  // Determine sweep direction: pick the direction that passes through p2.
+  let delta = a3 - a1;
+  // Normalise to (-π, π]
+  while (delta > Math.PI) delta -= Math.PI * 2;
+  while (delta <= -Math.PI) delta += Math.PI * 2;
+  // Check if p2 lies on the chosen short sweep; if not, take the long sweep.
+  const midCheckAngle = a1 + delta / 2;
+  let mxDiff = Math.cos(midCheckAngle) - (p2[0] - cx) / radius;
+  let myDiff = Math.sin(midCheckAngle) - (p2[1] - cy) / radius;
+  if (mxDiff * mxDiff + myDiff * myDiff > 0.01) {
+    // Take the complementary sweep
+    delta = delta > 0 ? delta - Math.PI * 2 : delta + Math.PI * 2;
+  }
+  const out = [];
+  for (let i = 0; i < segments; i++) {
+    const t = i / segments;
+    const a = a1 + delta * t;
+    out.push([cx + radius * Math.cos(a), cy + radius * Math.sin(a)]);
+  }
+  return out;
+}
+
 function parseFloatScalar(raw) {
   if (!raw || raw === '$' || raw === '*') return null;
   const n = parseFloat(raw);
@@ -132,6 +215,73 @@ function pushTriangulatedPolygon(polygon, positions, indices) {
 }
 
 /**
+ * Triangulate a polygon with one or more holes (voids). Used by
+ * IfcIndexedPolygonalFaceWithVoids and IfcFaceBound chains where the same
+ * face contains multiple inner loops that subtract from the outer area.
+ *
+ * outer: array of [x, y, z] points (the outer contour)
+ * holes: array of arrays of [x, y, z] points (each inner loop)
+ *
+ * Projects everything onto the outer polygon's best-fit plane, then calls
+ * ShapeUtils.triangulateShape which expects CCW outer + CW holes. Reverses
+ * either when needed so the triangulation succeeds regardless of input winding.
+ */
+function pushTriangulatedPolygonWithHoles(outer, holes, positions, indices) {
+  if (outer.length < 3) return;
+  if (!holes || holes.length === 0) {
+    pushTriangulatedPolygon(outer, positions, indices);
+    return;
+  }
+
+  const normal = computePolygonNormal(outer);
+  const z = new THREE.Vector3(normal[0], normal[1], normal[2]);
+  const ref = Math.abs(z.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  const u = new THREE.Vector3().crossVectors(z, ref).normalize();
+  const v = new THREE.Vector3().crossVectors(z, u);
+
+  const project = (p) => new THREE.Vector2(
+    u.x * p[0] + u.y * p[1] + u.z * p[2],
+    v.x * p[0] + v.y * p[1] + v.z * p[2]
+  );
+
+  // Build outer in CCW order (3D order kept in sync with 2D).
+  let outer3D = outer;
+  let outer2D = outer.map(project);
+  if (THREE.ShapeUtils.isClockWise(outer2D)) {
+    outer3D = [...outer].reverse();
+    outer2D = [...outer2D].reverse();
+  }
+
+  // Build each hole in CW order (opposite to outer).
+  const holes3DFlat = [];
+  const holes2D = [];
+  for (const hole of holes) {
+    if (!hole || hole.length < 3) continue;
+    let hole3D = hole;
+    let hole2D = hole.map(project);
+    if (!THREE.ShapeUtils.isClockWise(hole2D)) {
+      hole3D = [...hole].reverse();
+      hole2D = [...hole2D].reverse();
+    }
+    holes2D.push(hole2D);
+    holes3DFlat.push(...hole3D);
+  }
+
+  const tris = THREE.ShapeUtils.triangulateShape(outer2D, holes2D);
+  if (!tris || tris.length === 0) {
+    // Triangulation failed (e.g., self-intersecting input). Fall back to outer-only.
+    pushTriangulatedPolygon(outer, positions, indices);
+    return;
+  }
+
+  // triangulateShape indices reference a flat list [outer..., hole1..., hole2...].
+  const baseIndex = positions.length / 3;
+  for (const vert of outer3D) positions.push(vert[0], vert[1], vert[2]);
+  for (const vert of holes3DFlat) positions.push(vert[0], vert[1], vert[2]);
+  for (const t of tris) indices.push(baseIndex + t[0], baseIndex + t[1], baseIndex + t[2]);
+}
+
+/**
  * Walk a IfcClosedShell → push its triangulated face polygons to position/index arrays.
  * Used by FacetedBrep and ShellBasedSurfaceModel.
  *
@@ -180,9 +330,35 @@ function appendClosedShell(entityIndex, shellId, positions, indices) {
 
 function geometryFromPositionsIndices(positions, indices) {
   if (positions.length === 0) return null;
+  // Float32 has ~7 significant decimal digits. IFC exports from Civil 3D bake
+  // absolute world coordinates (e.g., S-JTSK X≈-751620.99428...) directly into
+  // IfcCartesianPoint, so adjacent triangle vertices that should differ by a
+  // few microns collapse onto the same Float32 value when the buffer is
+  // created, producing degenerate triangles and serrated edges that cannot
+  // be recovered downstream.
+  // Subtract a per-geometry local origin (here: centroid of the input points
+  // in double precision) BEFORE the Float32 conversion. The local origin is
+  // stored on geom.userData.localOrigin so addModel can re-apply it via the
+  // mesh placement matrix and keep world-space placement unchanged.
+  const n = positions.length / 3;
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < n; i++) {
+    cx += positions[i * 3];
+    cy += positions[i * 3 + 1];
+    cz += positions[i * 3 + 2];
+  }
+  cx /= n; cy /= n; cz /= n;
+  const float32 = new Float32Array(positions.length);
+  for (let i = 0; i < n; i++) {
+    float32[i * 3]     = positions[i * 3]     - cx;
+    float32[i * 3 + 1] = positions[i * 3 + 1] - cy;
+    float32[i * 3 + 2] = positions[i * 3 + 2] - cz;
+  }
   const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geom.setAttribute('position', new THREE.BufferAttribute(float32, 3));
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  geom.userData = geom.userData || {};
+  geom.userData.localOrigin = [cx, cy, cz];
   mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   return geom;
@@ -261,11 +437,19 @@ export function triangulatedFaceSetToGeometry(entityIndex, expressId) {
   if (!parts[3] || parts[3] === '$') return null;
   const triangles = parseIntTripleList(parts[3]);
 
+  // Subtract per-mesh centroid in double precision before Float32 conversion
+  // (see geometryFromPositionsIndices for context).
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < points.length; i++) {
+    cx += points[i][0]; cy += points[i][1]; cz += points[i][2];
+  }
+  cx /= points.length; cy /= points.length; cz /= points.length;
+
   const positionArr = new Float32Array(points.length * 3);
   for (let i = 0; i < points.length; i++) {
-    positionArr[i * 3]     = points[i][0];
-    positionArr[i * 3 + 1] = points[i][1];
-    positionArr[i * 3 + 2] = points[i][2];
+    positionArr[i * 3]     = points[i][0] - cx;
+    positionArr[i * 3 + 1] = points[i][1] - cy;
+    positionArr[i * 3 + 2] = points[i][2] - cz;
   }
   const indexArr = new Uint32Array(triangles.length * 3);
   for (let i = 0; i < triangles.length; i++) {
@@ -276,6 +460,8 @@ export function triangulatedFaceSetToGeometry(entityIndex, expressId) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(positionArr, 3));
   geom.setIndex(new THREE.BufferAttribute(indexArr, 1));
+  geom.userData = geom.userData || {};
+  geom.userData.localOrigin = [cx, cy, cz];
   mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   return geom;
@@ -340,22 +526,131 @@ export function polygonalFaceSetToGeometry(entityIndex, expressId) {
   const positions = [];
   const indices = [];
 
-  for (const faceRef of faceRefs) {
-    const face = entityIndex.byExpressId(faceRef);
+  // Per-face colour from IfcIndexedColourMap — when present, build a vertex
+  // colour buffer in parallel so the viewer can render Revit/ArchiCAD's
+  // per-face palette instead of a flat material tint.
+  const colourMapEntity = findIndexedColourMapForFaceSet(entityIndex, expressId);
+  const colourMap = colourMapEntity ? resolveIndexedColourMap(entityIndex, colourMapEntity) : null;
+  const vertexColors = colourMap ? [] : null;
+
+  for (let f = 0; f < faceRefs.length; f++) {
+    const face = entityIndex.byExpressId(faceRefs[f]);
     if (!face) continue;
-    // CoordIndex at param 0; voids (sub-loops) at param 1 for IfcIndexedPolygonalFaceWithVoids — Phase 1 ignores voids.
+    // IfcIndexedPolygonalFace:           (CoordIndex)
+    // IfcIndexedPolygonalFaceWithVoids:  (CoordIndex, InnerCoordIndices)
     const faceParts = splitParams(face.params);
-    const idxRaw = faceParts[0];
-    if (!idxRaw) continue;
-    const idxList = idxRaw.replace(/^\(/, '').replace(/\)$/, '').split(',').map(s => parseInt(s.trim(), 10));
-    const polygon = [];
-    for (const i of idxList) {
+    const outerRaw = faceParts[0];
+    if (!outerRaw) continue;
+    const outerIdx = outerRaw.replace(/^\(/, '').replace(/\)$/, '').split(',').map(s => parseInt(s.trim(), 10));
+    const outerPolygon = [];
+    for (const i of outerIdx) {
       if (!Number.isFinite(i) || i < 1 || i > allPoints.length) continue;
-      polygon.push(allPoints[i - 1]);
+      outerPolygon.push(allPoints[i - 1]);
     }
-    pushTriangulatedPolygon(polygon, positions, indices);
+
+    const vertsBefore = positions.length / 3;
+    if (face.type === 'IFCINDEXEDPOLYGONALFACEWITHVOIDS' && faceParts[1]) {
+      // InnerCoordIndices is a list of index-lists: ((i1, i2, ...), (j1, j2, ...), ...)
+      const innerRaw = faceParts[1];
+      const innerLists = parseListOfNumberLists(innerRaw, parseInt);
+      const holes = [];
+      for (const innerIdx of innerLists) {
+        const holePolygon = [];
+        for (const i of innerIdx) {
+          if (!Number.isFinite(i) || i < 1 || i > allPoints.length) continue;
+          holePolygon.push(allPoints[i - 1]);
+        }
+        if (holePolygon.length >= 3) holes.push(holePolygon);
+      }
+      pushTriangulatedPolygonWithHoles(outerPolygon, holes, positions, indices);
+    } else {
+      pushTriangulatedPolygon(outerPolygon, positions, indices);
+    }
+    const vertsAfter = positions.length / 3;
+
+    // Emit one RGB triple per vertex added for this face. Falls back to mid-grey
+    // when the colour index is missing/out-of-range to keep buffer length consistent.
+    if (vertexColors) {
+      const ci = colourMap.indexPerFace[f];
+      const rgb = (Number.isFinite(ci) && ci >= 1 && ci <= colourMap.palette.length)
+        ? colourMap.palette[ci - 1]
+        : [0.5, 0.5, 0.5];
+      for (let v = vertsBefore; v < vertsAfter; v++) {
+        vertexColors.push(rgb[0] || 0, rgb[1] || 0, rgb[2] || 0);
+      }
+    }
   }
-  return geometryFromPositionsIndices(positions, indices);
+
+  const geom = geometryFromPositionsIndices(positions, indices);
+  if (geom && vertexColors && vertexColors.length === positions.length) {
+    geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(vertexColors), 3));
+  }
+  return geom;
+}
+
+/**
+ * Parse a STEP "list of number lists" like "((1,2,3),(4,5,6))" → [[1,2,3], [4,5,6]].
+ * Pass parseFloat to get [[r,g,b], ...] for IfcColourRgbList.ColourList,
+ * or parseInt for IfcIndexedPolygonalFaceWithVoids.InnerCoordIndices.
+ */
+function parseListOfNumberLists(raw, parser = parseInt) {
+  if (!raw) return [];
+  const trimmed = raw.replace(/^\(/, '').replace(/\)$/, '').trim();
+  const out = [];
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < trimmed.length; i++) {
+    const c = trimmed[i];
+    if (c === '(') {
+      if (depth === 0) start = i + 1;
+      depth++;
+    } else if (c === ')') {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        const inner = trimmed.slice(start, i);
+        out.push(inner.split(',').map(s => parser(s.trim(), 10)).filter(Number.isFinite));
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Find an IfcIndexedColourMap whose MappedTo references the given tessellated
+ * face set. Returns the colour-map entity or null.
+ *
+ * IfcIndexedColourMap(MappedTo, Opacity, Colours, ColourIndex)
+ * — used by Revit/ArchiCAD to attach per-face RGB to IfcPolygonalFaceSet.
+ */
+function findIndexedColourMapForFaceSet(entityIndex, faceSetId) {
+  const candidates = entityIndex.byType ? entityIndex.byType('IFCINDEXEDCOLOURMAP') : [];
+  if (!candidates || candidates.length === 0) return null;
+  for (const cm of candidates) {
+    const parts = splitParams(cm.params);
+    const mappedToRef = parseRef(parts[0]);
+    if (mappedToRef === faceSetId) return cm;
+  }
+  return null;
+}
+
+/**
+ * Resolve an IfcIndexedColourMap to { palette: [[r,g,b],...], indexPerFace: [1,2,1,...] }.
+ * Indices are 1-based as stored in STEP. Returns null if any required field is missing.
+ */
+function resolveIndexedColourMap(entityIndex, colourMapEntity) {
+  const parts = splitParams(colourMapEntity.params);
+  const coloursRef = parseRef(parts[2]);
+  const ciRaw = parts[3];
+  if (!coloursRef || !ciRaw) return null;
+  const coloursEntity = entityIndex.byExpressId(coloursRef);
+  if (!coloursEntity || coloursEntity.type !== 'IFCCOLOURRGBLIST') return null;
+  const palette = parseListOfNumberLists(splitParams(coloursEntity.params)[0], parseFloat);
+  if (!palette || palette.length === 0) return null;
+  const indexPerFace = ciRaw.replace(/^\(/, '').replace(/\)$/, '')
+    .split(',').map(s => parseInt(s.trim(), 10)).filter(Number.isFinite);
+  if (indexPerFace.length === 0) return null;
+  return { palette, indexPerFace };
 }
 
 // -------------------- Profile parsing (2D outline) --------------------
@@ -499,6 +794,89 @@ function resolveProfilePoints(entityIndex, profileId) {
       }
       return { outer, holes };
     }
+    case 'IFCUSHAPEPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, Depth, FlangeWidth, WebThickness, FlangeThickness, FilletRadius, EdgeRadius, FlangeSlope)
+      const h = parseFloatScalar(parts[3]);
+      const b = parseFloatScalar(parts[4]);
+      const tw = parseFloatScalar(parts[5]);
+      const tf = parseFloatScalar(parts[6]);
+      if (!h || !b || !tw || !tf) return null;
+      const hx = b / 2, hy = h / 2;
+      // C/U-channel: flanges open to the right (positive X)
+      const outer = [
+        [-hx, -hy], [hx, -hy],
+        [hx, -hy + tf], [-hx + tw, -hy + tf],
+        [-hx + tw, hy - tf], [hx, hy - tf],
+        [hx, hy], [-hx, hy]
+      ];
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
+    case 'IFCZSHAPEPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, Depth, FlangeWidth, WebThickness, FlangeThickness, FilletRadius, EdgeRadius)
+      const h = parseFloatScalar(parts[3]);
+      const b = parseFloatScalar(parts[4]);
+      const tw = parseFloatScalar(parts[5]);
+      const tf = parseFloatScalar(parts[6]);
+      if (!h || !b || !tw || !tf) return null;
+      const hy = h / 2, hw = tw / 2;
+      // Z-profile: top flange to the right, bottom flange to the left
+      const outer = [
+        [-hw, -hy], [b - hw, -hy],
+        [b - hw, -hy + tf], [hw, -hy + tf],
+        [hw, hy], [-b + hw, hy],
+        [-b + hw, hy - tf], [-hw, hy - tf]
+      ];
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
+    case 'IFCASYMMETRICISHAPEPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, BottomFlangeWidth, OverallDepth, WebThickness, BottomFlangeThickness,
+      //  BottomFlangeFilletRadius, TopFlangeWidth, TopFlangeThickness, TopFlangeFilletRadius, BottomFlangeEdgeRadius,
+      //  BottomFlangeSlope, TopFlangeEdgeRadius, TopFlangeSlope, CentreOfGravityInY)
+      const bb = parseFloatScalar(parts[3]); // bottom flange width
+      const h  = parseFloatScalar(parts[4]); // depth
+      const tw = parseFloatScalar(parts[5]); // web thickness
+      const tfb = parseFloatScalar(parts[6]); // bottom flange thickness
+      const bt = parseFloatScalar(parts[8]); // top flange width
+      const tft = parseFloatScalar(parts[9]); // top flange thickness
+      if (!bb || !h || !tw || !tfb || !bt || !tft) return null;
+      const hxb = bb / 2, hxt = bt / 2, hy = h / 2, hw = tw / 2;
+      const outer = [
+        [-hxb, -hy], [hxb, -hy],
+        [hxb, -hy + tfb], [hw, -hy + tfb],
+        [hw, hy - tft], [hxt, hy - tft],
+        [hxt, hy], [-hxt, hy],
+        [-hxt, hy - tft], [-hw, hy - tft],
+        [-hw, -hy + tfb], [-hxb, -hy + tfb]
+      ];
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
+    case 'IFCELLIPSEPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, SemiAxis1, SemiAxis2)
+      const a = parseFloatScalar(parts[3]);
+      const b = parseFloatScalar(parts[4]);
+      if (!a || !b) return null;
+      const outer = [];
+      for (let i = 0; i < CIRCLE_SEGMENTS; i++) {
+        const t = (i / CIRCLE_SEGMENTS) * Math.PI * 2;
+        outer.push([Math.cos(t) * a, Math.sin(t) * b]);
+      }
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
+    case 'IFCTRAPEZIUMPROFILEDEF': {
+      // (ProfileType, ProfileName, Position, BottomXDim, TopXDim, YDim, TopXOffset)
+      const bx = parseFloatScalar(parts[3]);
+      const tx = parseFloatScalar(parts[4]);
+      const yDim = parseFloatScalar(parts[5]);
+      const offX = parseFloatScalar(parts[6]) || 0;
+      if (!bx || !tx || !yDim) return null;
+      const hy = yDim / 2;
+      // Bottom edge centred on profile origin; top edge offset by TopXOffset.
+      const outer = [
+        [-bx / 2, -hy], [bx / 2, -hy],
+        [offX + tx / 2, hy], [offX - tx / 2, hy]
+      ];
+      return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
+    }
     default:
       return null;
   }
@@ -565,17 +943,30 @@ function resolveCurvePoints2D(entityIndex, curveId) {
       return out;
     }
 
-    // Walk segments — handle IfcLineIndex (list of point indices). IfcArcIndex
-    // (3-point arcs) gets approximated as a straight line for Phase 1.
-    const segList = parseIntNTupleList(segRaw);
+    // Walk typed segments: IfcLineIndex (straight chain) + IfcArcIndex
+    // (3-point arc, tessellated into ~12 sub-points for smoothness).
+    const segs = parseSegmentList(segRaw);
     const out = [];
-    let lastIdx = null;
-    for (const seg of segList) {
-      for (const idx of seg) {
-        if (idx === lastIdx) continue;
-        if (idx < 1 || idx > all.length) continue;
-        out.push([all[idx - 1][0], all[idx - 1][1]]);
-        lastIdx = idx;
+    let lastEmittedIdx = null;
+    for (const seg of segs) {
+      const indices = seg.indices.filter(i => i >= 1 && i <= all.length);
+      if (indices.length === 0) continue;
+      if (seg.type === 'arc' && indices.length === 3) {
+        const p1 = all[indices[0] - 1];
+        const p2 = all[indices[1] - 1];
+        const p3 = all[indices[2] - 1];
+        const arcPts = tessellateArc2D([p1[0], p1[1]], [p2[0], p2[1]], [p3[0], p3[1]], 12);
+        for (const pt of arcPts) {
+          out.push(pt);
+        }
+        lastEmittedIdx = indices[2];
+      } else {
+        // Line segment: each point in turn, skipping duplicates of last emitted
+        for (const idx of indices) {
+          if (idx === lastEmittedIdx) continue;
+          out.push([all[idx - 1][0], all[idx - 1][1]]);
+          lastEmittedIdx = idx;
+        }
       }
     }
     if (out.length >= 2) {
@@ -654,6 +1045,264 @@ export function extrudedAreaSolidToGeometry(entityIndex, expressId) {
     geom.applyMatrix4(m);
   }
 
+  mergeVerticesInPlace(geom, 1e-4);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+  return geom;
+}
+
+/**
+ * Revolve a 2D profile around an axis to produce a solid of revolution.
+ *
+ * IfcRevolvedAreaSolid attributes:
+ *   SweptArea — profile (we reuse resolveProfilePoints)
+ *   Position — IfcAxis2Placement3D (local frame)
+ *   Axis — IfcAxis1Placement (revolution axis in local frame)
+ *   Angle — IfcPlaneAngleMeasure in radians (full revolution = 2π)
+ *
+ * Implementation note: THREE.LatheGeometry revolves a 2D contour around the Y
+ * axis. We rotate the profile so the local revolution axis becomes +Y, lathe
+ * it, then rotate back and apply Position.
+ */
+export function revolvedAreaSolidToGeometry(entityIndex, expressId) {
+  const entity = entityIndex.byExpressId(expressId);
+  if (!entity || entity.type !== 'IFCREVOLVEDAREASOLID') return null;
+  const parts = splitParams(entity.params);
+  const profileId = parseRef(parts[0]);
+  const positionId = parseRef(parts[1]);
+  const axisId = parseRef(parts[2]);
+  const angle = parseFloatScalar(parts[3]) || (Math.PI * 2);
+  if (!profileId) return null;
+  const profile = resolveProfilePoints(entityIndex, profileId);
+  if (!profile || profile.outer.length < 3) return null;
+
+  // Resolve revolution axis: IfcAxis1Placement(Location, Axis)
+  let axisOrigin = [0, 0, 0];
+  let axisDir = [0, 0, 1];
+  if (axisId) {
+    const ax = entityIndex.byExpressId(axisId);
+    if (ax && ax.type === 'IFCAXIS1PLACEMENT') {
+      const axParts = splitParams(ax.params);
+      const locId = parseRef(axParts[0]);
+      const dirId = parseRef(axParts[1]);
+      if (locId) axisOrigin = resolveCoords(entityIndex, locId) || axisOrigin;
+      if (dirId) axisDir = resolveCoords(entityIndex, dirId) || axisDir;
+    }
+  }
+
+  // The profile lives in the local XY plane. The revolution axis (axisDir) is
+  // a 3D vector in the same local frame. Approximate by treating the axis as
+  // a line in the XY plane (IFC always positions the profile so the axis is
+  // in-plane — most exporters use axis = [0, 1, 0] i.e. local Y).
+  // We project each profile vertex onto a radius about the axis, then lathe.
+  const axisVec2 = new THREE.Vector2(axisDir[0] || 0, axisDir[1] || 0);
+  if (axisVec2.lengthSq() < 1e-9) axisVec2.set(0, 1);
+  axisVec2.normalize();
+  const originVec2 = new THREE.Vector2(axisOrigin[0] || 0, axisOrigin[1] || 0);
+  // Convert profile outer to (radius, height) pairs along the axis direction.
+  // radius = perpendicular distance from axis; height = projection onto axis.
+  const perp = new THREE.Vector2(-axisVec2.y, axisVec2.x);
+  const lathePoints = [];
+  for (const [x, y] of profile.outer) {
+    const p = new THREE.Vector2(x, y).sub(originVec2);
+    const r = Math.abs(p.dot(perp));
+    const h = p.dot(axisVec2);
+    lathePoints.push(new THREE.Vector2(r, h));
+  }
+  // LatheGeometry wants points sorted by Y ascending; if our points aren't,
+  // ExtrudeGeometry might still work but normals can flip. We sort to be safe.
+  lathePoints.sort((a, b) => a.y - b.y);
+
+  let geom;
+  try {
+    const segments = Math.max(8, Math.ceil((angle / (Math.PI * 2)) * 32));
+    geom = new THREE.LatheGeometry(lathePoints, segments, 0, angle);
+  } catch (e) {
+    return null;
+  }
+
+  // LatheGeometry revolves around Y axis; we need to align local Y of the
+  // lathe to the IFC axis direction. The relationship is: lathe Y matches the
+  // axisVec direction in the XY plane. Build a basis where lathe Y = (axisVec2 in XY, 0 in Z).
+  // For simple case where axisDir == [0,1,0] in local frame, no extra rotation needed.
+  // We construct the rotation that maps Y_lathe → axisVec2 in XY plane.
+  const angleZ = Math.atan2(axisVec2.x, axisVec2.y);
+  if (Math.abs(angleZ) > 1e-6) {
+    geom.applyMatrix4(new THREE.Matrix4().makeRotationZ(angleZ));
+  }
+  // Translate so the lathe origin sits at axisOrigin in local frame.
+  geom.applyMatrix4(new THREE.Matrix4().makeTranslation(axisOrigin[0] || 0, axisOrigin[1] || 0, axisOrigin[2] || 0));
+
+  if (positionId) {
+    geom.applyMatrix4(placement3DToMatrix(entityIndex, positionId));
+  }
+  mergeVerticesInPlace(geom, 1e-4);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+  return geom;
+}
+
+/**
+ * Sweep a circular cross-section along a 3D directrix curve.
+ *
+ * IfcSweptDiskSolid(Directrix, Radius, InnerRadius, StartParam, EndParam)
+ *   Directrix — IfcCurve subtype, here we support IfcPolyline (3D points)
+ *   Radius — outer disk radius
+ *   InnerRadius — optional (hollow tube)
+ *
+ * Used by Tekla / Revit for cables, conduits, handrails, pipework. We build a
+ * THREE.TubeGeometry over the directrix points.
+ */
+export function sweptDiskSolidToGeometry(entityIndex, expressId) {
+  const entity = entityIndex.byExpressId(expressId);
+  if (!entity || entity.type !== 'IFCSWEPTDISKSOLID') return null;
+  const parts = splitParams(entity.params);
+  const directrixId = parseRef(parts[0]);
+  const radius = parseFloatScalar(parts[1]);
+  if (!directrixId || !radius || radius <= 0) return null;
+
+  const directrix = entityIndex.byExpressId(directrixId);
+  if (!directrix) return null;
+  // Only IfcPolyline supported for now (most common in Tekla cable trays).
+  // IfcCompositeCurve / IfcTrimmedCurve fall through and return null.
+  const points3D = [];
+  if (directrix.type === 'IFCPOLYLINE') {
+    const pParts = splitParams(directrix.params);
+    const ptRefs = parseRefList(pParts[0]);
+    for (const r of ptRefs) {
+      const c = resolveCoords(entityIndex, r);
+      if (c && c.length >= 3) points3D.push(new THREE.Vector3(c[0], c[1], c[2]));
+      else if (c && c.length === 2) points3D.push(new THREE.Vector3(c[0], c[1], 0));
+    }
+  } else if (directrix.type === 'IFCINDEXEDPOLYCURVE') {
+    // 3D variant: IfcCartesianPointList3D referenced from IfcIndexedPolyCurve
+    const dParts = splitParams(directrix.params);
+    const ptListRef = parseRef(dParts[0]);
+    if (ptListRef) {
+      const ptList = entityIndex.byExpressId(ptListRef);
+      if (ptList && (ptList.type === 'IFCCARTESIANPOINTLIST3D' || ptList.type === 'IFCCARTESIANPOINTLIST2D')) {
+        const all = parsePointList(splitParams(ptList.params)[0]);
+        for (const p of all) {
+          points3D.push(new THREE.Vector3(p[0] || 0, p[1] || 0, p[2] || 0));
+        }
+      }
+    }
+  } else {
+    return null;
+  }
+  if (points3D.length < 2) return null;
+
+  let geom;
+  try {
+    const curve = new THREE.CatmullRomCurve3(points3D, false, 'catmullrom', 0.0);
+    const tubularSegments = Math.max(points3D.length * 4, 16);
+    geom = new THREE.TubeGeometry(curve, tubularSegments, radius, 16, false);
+  } catch (e) {
+    return null;
+  }
+  mergeVerticesInPlace(geom, 1e-4);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+  return geom;
+}
+
+/**
+ * 2D-pattern CSG for IfcBooleanResult(.DIFFERENCE., Extruded, Extruded).
+ *
+ * Covers the dominant Tekla pattern: a plate (rectangle extrusion) minus a
+ * bolt-hole (circle extrusion) along the same axis. When both operands extrude
+ * along their local Z and second's local Z maps to first's local Z in world
+ * space, we can transform second's profile into first's profile coordinate
+ * frame, add it as a hole, and re-extrude. The result is a single ExtrudeGeometry
+ * with a real opening — no shader-level discard, no external CSG library.
+ *
+ * Returns BufferGeometry (in the parent product's local frame, like
+ * extrudedAreaSolidToGeometry) or null when the pattern doesn't fit.
+ */
+export function tryExtrudedDifference2D(entityIndex, firstId, secondId) {
+  const e1 = entityIndex.byExpressId(firstId);
+  const e2 = entityIndex.byExpressId(secondId);
+  if (!e1 || !e2) return null;
+  if (e1.type !== 'IFCEXTRUDEDAREASOLID' || e2.type !== 'IFCEXTRUDEDAREASOLID') return null;
+
+  const p1 = splitParams(e1.params);
+  const p2 = splitParams(e2.params);
+  const profile1Id = parseRef(p1[0]);
+  const profile2Id = parseRef(p2[0]);
+  const pos1Id = parseRef(p1[1]);
+  const pos2Id = parseRef(p2[1]);
+  const dir1Id = parseRef(p1[2]);
+  const dir2Id = parseRef(p2[2]);
+  const depth1 = parseFloatScalar(p1[3]);
+  if (!profile1Id || !profile2Id || !depth1) return null;
+
+  const profile1 = resolveProfilePoints(entityIndex, profile1Id);
+  const profile2 = resolveProfilePoints(entityIndex, profile2Id);
+  if (!profile1 || !profile2 || profile1.outer.length < 3 || profile2.outer.length < 3) return null;
+
+  // Direction vectors are in each solid's LOCAL frame; default = +Z.
+  const dir1 = dir1Id ? resolveCoords(entityIndex, dir1Id) : [0, 0, 1];
+  const dir2 = dir2Id ? resolveCoords(entityIndex, dir2Id) : [0, 0, 1];
+  const d1 = new THREE.Vector3(dir1[0] || 0, dir1[1] || 0, dir1[2] || 0);
+  const d2 = new THREE.Vector3(dir2[0] || 0, dir2[1] || 0, dir2[2] || 0);
+  if (d1.lengthSq() < 1e-12) d1.set(0, 0, 1); else d1.normalize();
+  if (d2.lengthSq() < 1e-12) d2.set(0, 0, 1); else d2.normalize();
+
+  // Compute relative matrix: takes points from second's local frame into first's local frame.
+  // Identity if either has no position attribute.
+  const m1 = pos1Id ? placement3DToMatrix(entityIndex, pos1Id) : new THREE.Matrix4();
+  const m2 = pos2Id ? placement3DToMatrix(entityIndex, pos2Id) : new THREE.Matrix4();
+  const m1inv = new THREE.Matrix4().copy(m1).invert();
+  const rel = new THREE.Matrix4().multiplyMatrices(m1inv, m2);
+
+  // The 2D-Boolean shortcut only works if second's extrusion axis (in first's
+  // local frame, after applying `rel`) is the same as first's extrusion axis.
+  const d2InFirstFrame = d2.clone().transformDirection(rel);
+  if (d2InFirstFrame.dot(d1) < 0.9999) return null;
+
+  // Translation + rotation in the plane perpendicular to d1. For d1 = +Z this
+  // reduces to (tx, ty) translation and a rotation by (cosA, sinA) around Z.
+  // We only support that common case; non-Z extrusion axes fall back.
+  if (Math.abs(d1.z - 1) > 1e-3) return null;
+
+  const tx = rel.elements[12];
+  const ty = rel.elements[13];
+  const cosA = rel.elements[0];
+  const sinA = rel.elements[1];
+
+  // Transform second.outer into first's profile frame, then REVERSE the
+  // winding so it acts as a hole inside the THREE.Shape.
+  const holePoints = profile2.outer.map(([x, y]) => [
+    cosA * x - sinA * y + tx,
+    sinA * x + cosA * y + ty
+  ]).reverse();
+
+  // Build the augmented THREE.Shape: outer from first, holes = first's existing + new.
+  const shape = new THREE.Shape();
+  shape.moveTo(profile1.outer[0][0], profile1.outer[0][1]);
+  for (let i = 1; i < profile1.outer.length; i++) shape.lineTo(profile1.outer[i][0], profile1.outer[i][1]);
+  shape.closePath();
+  const allHoles = [...profile1.holes, holePoints];
+  for (const hole of allHoles) {
+    if (hole.length < 3) continue;
+    const path = new THREE.Path();
+    path.moveTo(hole[0][0], hole[0][1]);
+    for (let i = 1; i < hole.length; i++) path.lineTo(hole[i][0], hole[i][1]);
+    path.closePath();
+    shape.holes.push(path);
+  }
+
+  let geom;
+  try {
+    geom = new THREE.ExtrudeGeometry(shape, { depth: depth1, bevelEnabled: false, curveSegments: 12, steps: 1 });
+  } catch (e) {
+    return null;
+  }
+
+  // ExtrudeGeometry extrudes along +Z in shape-local coords; d1 is also +Z so no rotation needed.
+  if (pos1Id) {
+    geom.applyMatrix4(m1);
+  }
   mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   geom.computeBoundingBox();

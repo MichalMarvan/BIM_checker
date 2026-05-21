@@ -330,9 +330,35 @@ function appendClosedShell(entityIndex, shellId, positions, indices) {
 
 function geometryFromPositionsIndices(positions, indices) {
   if (positions.length === 0) return null;
+  // Float32 has ~7 significant decimal digits. IFC exports from Civil 3D bake
+  // absolute world coordinates (e.g., S-JTSK X≈-751620.99428...) directly into
+  // IfcCartesianPoint, so adjacent triangle vertices that should differ by a
+  // few microns collapse onto the same Float32 value when the buffer is
+  // created, producing degenerate triangles and serrated edges that cannot
+  // be recovered downstream.
+  // Subtract a per-geometry local origin (here: centroid of the input points
+  // in double precision) BEFORE the Float32 conversion. The local origin is
+  // stored on geom.userData.localOrigin so addModel can re-apply it via the
+  // mesh placement matrix and keep world-space placement unchanged.
+  const n = positions.length / 3;
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < n; i++) {
+    cx += positions[i * 3];
+    cy += positions[i * 3 + 1];
+    cz += positions[i * 3 + 2];
+  }
+  cx /= n; cy /= n; cz /= n;
+  const float32 = new Float32Array(positions.length);
+  for (let i = 0; i < n; i++) {
+    float32[i * 3]     = positions[i * 3]     - cx;
+    float32[i * 3 + 1] = positions[i * 3 + 1] - cy;
+    float32[i * 3 + 2] = positions[i * 3 + 2] - cz;
+  }
   const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geom.setAttribute('position', new THREE.BufferAttribute(float32, 3));
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  geom.userData = geom.userData || {};
+  geom.userData.localOrigin = [cx, cy, cz];
   mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   return geom;
@@ -411,11 +437,19 @@ export function triangulatedFaceSetToGeometry(entityIndex, expressId) {
   if (!parts[3] || parts[3] === '$') return null;
   const triangles = parseIntTripleList(parts[3]);
 
+  // Subtract per-mesh centroid in double precision before Float32 conversion
+  // (see geometryFromPositionsIndices for context).
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < points.length; i++) {
+    cx += points[i][0]; cy += points[i][1]; cz += points[i][2];
+  }
+  cx /= points.length; cy /= points.length; cz /= points.length;
+
   const positionArr = new Float32Array(points.length * 3);
   for (let i = 0; i < points.length; i++) {
-    positionArr[i * 3]     = points[i][0];
-    positionArr[i * 3 + 1] = points[i][1];
-    positionArr[i * 3 + 2] = points[i][2];
+    positionArr[i * 3]     = points[i][0] - cx;
+    positionArr[i * 3 + 1] = points[i][1] - cy;
+    positionArr[i * 3 + 2] = points[i][2] - cz;
   }
   const indexArr = new Uint32Array(triangles.length * 3);
   for (let i = 0; i < triangles.length; i++) {
@@ -426,6 +460,8 @@ export function triangulatedFaceSetToGeometry(entityIndex, expressId) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(positionArr, 3));
   geom.setIndex(new THREE.BufferAttribute(indexArr, 1));
+  geom.userData = geom.userData || {};
+  geom.userData.localOrigin = [cx, cy, cz];
   mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   return geom;

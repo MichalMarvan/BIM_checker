@@ -393,8 +393,21 @@ export class ViewerCore {
             material.clippingPlanes = this._section.planes;
             material.clipShadows = true;
           }
+          // mesh-types.js geometry builders subtract a per-mesh centroid in
+          // double precision before Float32 conversion (see
+          // geometryFromPositionsIndices) to keep vertex values small even
+          // when the IFC has absolute world coords baked into IfcCartesianPoint.
+          // The centroid is stored on geometry.userData.localOrigin; we fold
+          // it into the placement matrix so world-space placement stays the
+          // same: combined = result.matrix * translate(localOrigin).
+          const lo = item.bufferGeometry?.userData?.localOrigin;
+          const combinedMatrix = result.matrix;
+          if (lo && (lo[0] || lo[1] || lo[2])) {
+            const offsetMat = new THREE.Matrix4().makeTranslation(lo[0], lo[1], lo[2]);
+            combinedMatrix.multiply(offsetMat);
+          }
           const mesh = new THREE.Mesh(item.bufferGeometry, material);
-          mesh.applyMatrix4(result.matrix);
+          mesh.applyMatrix4(combinedMatrix);
           mesh.userData = { modelId, ifcType, expressId: entity.expressId };
           innerGroup.add(mesh);
           meshes.push(mesh);
@@ -402,7 +415,7 @@ export class ViewerCore {
           // Edge outlines: extract sharp edges only (>30° face angle)
           const edgeGeom = new THREE.EdgesGeometry(item.bufferGeometry, EDGE_THRESHOLD_DEG);
           const edges = new THREE.LineSegments(edgeGeom, makeEdgeMaterial());
-          edges.applyMatrix4(result.matrix);
+          edges.applyMatrix4(combinedMatrix);
           edges.userData = { isEdgeOutline: true, parentExpressId: entity.expressId };
           innerGroup.add(edges);
           // Phase 6.6.1: store ref so snap can read edge segments without a re-extract
@@ -411,44 +424,15 @@ export class ViewerCore {
       }
     }
 
-    // Float32 precision rescue: when meshes have absolute coords baked in
-    // (Civil3D exports IfcCartesianPoints at S-JTSK ~750000), the GPU loses
-    // ~0.1 m precision per vertex (mantissa = 23 bits → 7 decimal digits) and
-    // adjacent vertices snap together → jagged / serrated rendering.
-    // Subtract the union bbox center from every vertex buffer and store the
-    // compensating offset on innerGroup.position; world-space placement is
-    // unchanged but vertices live in the float32-safe range.
-    if (meshes.length > 0) {
-      const unionBox = new THREE.Box3();
-      let initialized = false;
-      const tmpBox = new THREE.Box3();
-      for (const mesh of meshes) {
-        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-        tmpBox.copy(mesh.geometry.boundingBox);
-        // Account for mesh.matrix (placement) so the bbox is in group-local
-        // coords (= innerGroup local, since innerGroup is identity right now).
-        tmpBox.applyMatrix4(mesh.matrix);
-        if (!initialized) { unionBox.copy(tmpBox); initialized = true; }
-        else unionBox.union(tmpBox);
-      }
-      const center = unionBox.getCenter(new THREE.Vector3());
-      const magnitude = Math.max(Math.abs(center.x), Math.abs(center.y), Math.abs(center.z));
-      // Threshold: 10,000 in scene-local units. mm-unit Revit files have
-      // bake-in geometry at small values (×lengthScale scales them to <100 m
-      // anyway), so they fall well under this. Only Civil3D-style absolute
-      // coords trip this branch.
-      if (magnitude > 10000) {
-        for (const mesh of meshes) {
-          mesh.geometry.translate(-center.x, -center.y, -center.z);
-          const edges = mesh.userData?.edges;
-          if (edges && edges.geometry) edges.geometry.translate(-center.x, -center.y, -center.z);
-        }
-        innerGroup.position.copy(center);
-        innerGroup.updateMatrix();
-        innerGroup.updateMatrixWorld(true);
-        console.log(`[viewer] addModel: recentered ${modelId} by [${center.x.toFixed(0)}, ${center.y.toFixed(0)}, ${center.z.toFixed(0)}] (magnitude ${magnitude.toFixed(0)})`);
-      }
-    }
+    // Float32 precision is handled at the parser level: every geometry
+    // builder in mesh-types.js subtracts a per-mesh centroid in double
+    // precision before Float32Array conversion, and viewer-core folds that
+    // centroid into mesh.matrix above. Vertex buffers stay small (extent of
+    // a single mesh), so triangles with vertices differing by a few microns
+    // survive intact even when the original IFC coords are at S-JTSK
+    // magnitude ~750000.
+    // We keep innerGroup as a structural layer; federation writes to
+    // m.group.position freely without touching meshes.
 
     this._scene.add(group);
     this._models.set(modelId, { group, innerGroup, meshes });
