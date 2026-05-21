@@ -1290,6 +1290,10 @@ function _exportToXLSX() {
                 { wch: 50 }  // Details
             ];
 
+            const lastCol = String.fromCharCode(64 + 8); // 8 columns → 'H'
+            ws['!autofilter'] = { ref: `A1:${lastCol}${sheetData.length}` };
+            ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
+
             // Create sheet name: ifcname_idsname
             // Remove file extensions
             let ifcName = ifcResult.ifcFileName.replace(/\.ifc$/i, '');
@@ -1349,6 +1353,10 @@ function _exportToXLSX() {
         { wch: 12 }, // Failed
         { wch: 12 }  // Pass Rate
     ];
+
+    const summaryLastCol = String.fromCharCode(64 + 6); // 6 columns → 'F'
+    summaryWs['!autofilter'] = { ref: `A3:${summaryLastCol}${summaryData.length}` };
+    summaryWs['!views'] = [{ state: 'frozen', ySplit: 3 }];
 
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary', true);
 
