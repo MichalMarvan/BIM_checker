@@ -2952,9 +2952,13 @@ async function validateAll() {
 
                 const specResults = await Promise.all(specPromises);
 
-                // Filter out empty results
+                // Keep results with entities, warnings, or skipped/error status
                 for (const result of specResults) {
-                    if (result && result.entityResults && result.entityResults.length > 0) {
+                    if (!result) continue;
+                    if ((result.entityResults && result.entityResults.length > 0)
+                        || (result.warnings && result.warnings.length > 0)
+                        || result.status === 'skipped'
+                        || result.status === 'error') {
                         results.push(result);
                     }
                 }
