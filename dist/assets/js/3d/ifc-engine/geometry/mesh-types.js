@@ -1192,6 +1192,16 @@ export function sweptDiskSolidToGeometry(entityIndex, expressId) {
   }
   if (points3D.length < 2) return null;
 
+  // Subtract directrix centroid in double precision before TubeGeometry
+  // converts to Float32 internally. Civil 3D alignments / Tekla long cable
+  // trays often have IfcPolyline points at absolute world coords; without
+  // this step TubeGeometry would snap each tube cross-section onto a coarse
+  // Float32 grid and the pipe surface would look faceted / jagged.
+  let cx = 0, cy = 0, cz = 0;
+  for (const p of points3D) { cx += p.x; cy += p.y; cz += p.z; }
+  cx /= points3D.length; cy /= points3D.length; cz /= points3D.length;
+  for (const p of points3D) { p.x -= cx; p.y -= cy; p.z -= cz; }
+
   let geom;
   try {
     const curve = new THREE.CatmullRomCurve3(points3D, false, 'catmullrom', 0.0);
@@ -1203,6 +1213,8 @@ export function sweptDiskSolidToGeometry(entityIndex, expressId) {
   mergeVerticesInPlace(geom, 1e-4);
   geom.computeVertexNormals();
   geom.computeBoundingBox();
+  geom.userData = geom.userData || {};
+  geom.userData.localOrigin = [cx, cy, cz];
   return geom;
 }
 

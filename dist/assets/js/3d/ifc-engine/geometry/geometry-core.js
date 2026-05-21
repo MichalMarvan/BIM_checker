@@ -22,7 +22,10 @@ import {
   shellBasedSurfaceModelToGeometry,
   polygonalFaceSetToGeometry,
   extrudedAreaSolidToGeometry,
+  revolvedAreaSolidToGeometry,
+  sweptDiskSolidToGeometry,
   resolveMappedItem,
+  tryExtrudedDifference2D,
 } from './mesh-types.js';
 import { parseRef, parseRefList } from './step-helpers.js';
 
@@ -44,6 +47,10 @@ function buildLeafGeometry(entityIndex, itemExpressId) {
       return polygonalFaceSetToGeometry(entityIndex, itemExpressId);
     case 'IFCEXTRUDEDAREASOLID':
       return extrudedAreaSolidToGeometry(entityIndex, itemExpressId);
+    case 'IFCREVOLVEDAREASOLID':
+      return revolvedAreaSolidToGeometry(entityIndex, itemExpressId);
+    case 'IFCSWEPTDISKSOLID':
+      return sweptDiskSolidToGeometry(entityIndex, itemExpressId);
     default:
       return null;
   }
@@ -92,8 +99,34 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0) {
       continue;
     }
 
-    // IFCBOOLEANRESULT / IFCBOOLEANCLIPPINGRESULT → use FirstOperand only (stub)
+    // IFCBOOLEANRESULT / IFCBOOLEANCLIPPINGRESULT — try the 2D-pattern CSG path
+    // for (.DIFFERENCE., Extruded, Extruded). Covers Tekla plate-with-bolt-hole
+    // and similar coplanar subtractions. Falls back to FirstOperand-only when
+    // the operands don't fit the pattern.
     if (item.type === 'IFCBOOLEANRESULT' || item.type === 'IFCBOOLEANCLIPPINGRESULT') {
+      const parts = splitParams(item.params);
+      const operator = (parts[0] || '').trim();
+      const firstId = parseRef(parts[1]);
+      const secondId = parseRef(parts[2]);
+      if (operator === '.DIFFERENCE.' && firstId && secondId) {
+        const csgGeom = tryExtrudedDifference2D(entityIndex, firstId, secondId);
+        if (csgGeom) {
+          csgGeom.computeBoundingBox();
+          const color = entityIndex._styleIndex?.get(itemRef);
+          // Carry parentMatrix on the item so viewer-core composes it with
+          // mesh.matrix instead of baking into the vertex buffer; this keeps
+          // the float32 buffer small even when parentMatrix has huge
+          // translation (e.g. IfcMappedItem placing a profile at absolute
+          // world coords).
+          out.push({
+            bufferGeometry: csgGeom,
+            bbox: csgGeom.boundingBox,
+            color,
+            parentMatrix: parentMatrix.equals(_IDENTITY) ? null : parentMatrix.clone(),
+          });
+          continue;
+        }
+      }
       const leafId = unwrapBooleanFirstOperand(entityIndex, itemRef);
       if (!leafId) continue;
       expandItems(entityIndex, [leafId], parentMatrix, out, depth + 1);
@@ -103,12 +136,14 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0) {
     // Leaf geometry
     const geom = buildLeafGeometry(entityIndex, itemRef);
     if (!geom) continue;
-    if (!parentMatrix.equals(_IDENTITY)) {
-      geom.applyMatrix4(parentMatrix);
-    }
     geom.computeBoundingBox();
     const color = entityIndex._styleIndex?.get(itemRef);
-    out.push({ bufferGeometry: geom, bbox: geom.boundingBox, color });
+    out.push({
+      bufferGeometry: geom,
+      bbox: geom.boundingBox,
+      color,
+      parentMatrix: parentMatrix.equals(_IDENTITY) ? null : parentMatrix.clone(),
+    });
   }
 }
 

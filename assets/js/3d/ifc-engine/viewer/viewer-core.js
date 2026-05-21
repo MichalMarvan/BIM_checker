@@ -393,18 +393,18 @@ export class ViewerCore {
             material.clippingPlanes = this._section.planes;
             material.clipShadows = true;
           }
-          // mesh-types.js geometry builders subtract a per-mesh centroid in
-          // double precision before Float32 conversion (see
-          // geometryFromPositionsIndices) to keep vertex values small even
-          // when the IFC has absolute world coords baked into IfcCartesianPoint.
-          // The centroid is stored on geometry.userData.localOrigin; we fold
-          // it into the placement matrix so world-space placement stays the
-          // same: combined = result.matrix * translate(localOrigin).
+          // Compose the full per-mesh transform without baking anything into
+          // the vertex buffer. Three pieces in order: entity placement
+          // (result.matrix) × IfcMappedItem chain (item.parentMatrix from
+          // expandItems) × per-mesh centroid translation (localOrigin from
+          // the parser). Keeping all three out of the float32 buffer is what
+          // preserves precision for Civil 3D / Tekla files with absolute
+          // S-JTSK coords or huge mapped-item offsets.
+          const combinedMatrix = result.matrix.clone();
+          if (item.parentMatrix) combinedMatrix.multiply(item.parentMatrix);
           const lo = item.bufferGeometry?.userData?.localOrigin;
-          const combinedMatrix = result.matrix;
           if (lo && (lo[0] || lo[1] || lo[2])) {
-            const offsetMat = new THREE.Matrix4().makeTranslation(lo[0], lo[1], lo[2]);
-            combinedMatrix.multiply(offsetMat);
+            combinedMatrix.multiply(new THREE.Matrix4().makeTranslation(lo[0], lo[1], lo[2]));
           }
           const mesh = new THREE.Mesh(item.bufferGeometry, material);
           mesh.applyMatrix4(combinedMatrix);

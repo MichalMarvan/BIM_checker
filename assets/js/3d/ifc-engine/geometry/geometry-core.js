@@ -111,10 +111,19 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0) {
       if (operator === '.DIFFERENCE.' && firstId && secondId) {
         const csgGeom = tryExtrudedDifference2D(entityIndex, firstId, secondId);
         if (csgGeom) {
-          if (!parentMatrix.equals(_IDENTITY)) csgGeom.applyMatrix4(parentMatrix);
           csgGeom.computeBoundingBox();
           const color = entityIndex._styleIndex?.get(itemRef);
-          out.push({ bufferGeometry: csgGeom, bbox: csgGeom.boundingBox, color });
+          // Carry parentMatrix on the item so viewer-core composes it with
+          // mesh.matrix instead of baking into the vertex buffer; this keeps
+          // the float32 buffer small even when parentMatrix has huge
+          // translation (e.g. IfcMappedItem placing a profile at absolute
+          // world coords).
+          out.push({
+            bufferGeometry: csgGeom,
+            bbox: csgGeom.boundingBox,
+            color,
+            parentMatrix: parentMatrix.equals(_IDENTITY) ? null : parentMatrix.clone(),
+          });
           continue;
         }
       }
@@ -127,12 +136,14 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0) {
     // Leaf geometry
     const geom = buildLeafGeometry(entityIndex, itemRef);
     if (!geom) continue;
-    if (!parentMatrix.equals(_IDENTITY)) {
-      geom.applyMatrix4(parentMatrix);
-    }
     geom.computeBoundingBox();
     const color = entityIndex._styleIndex?.get(itemRef);
-    out.push({ bufferGeometry: geom, bbox: geom.boundingBox, color });
+    out.push({
+      bufferGeometry: geom,
+      bbox: geom.boundingBox,
+      color,
+      parentMatrix: parentMatrix.equals(_IDENTITY) ? null : parentMatrix.clone(),
+    });
   }
 }
 
