@@ -30,9 +30,14 @@ window.IFCHierarchy = (function() {
         if (loadPromises.has(version)) return loadPromises.get(version);
 
         const promise = fetch(dataUrl(version))
-            .then(r => {
+            .then(async r => {
                 if (!r.ok) throw new Error(`Failed to load hierarchy for ${version}: HTTP ${r.status}`);
-                return r.json();
+                const text = await r.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    throw new Error(`Hierarchy fetch returned non-JSON for ${version} (${dataUrl(version)})`);
+                }
             })
             .then(data => {
                 cache.set(version, {
