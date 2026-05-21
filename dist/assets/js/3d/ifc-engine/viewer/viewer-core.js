@@ -64,8 +64,8 @@ const DEFAULT_MATERIAL = new THREE.MeshStandardMaterial({
 // geometry (where every triangle would otherwise spawn an edge line),
 // keeping only real corner edges visible.
 const EDGE_THRESHOLD_DEG = 45;
-const EDGE_COLOR = 0x000000;
-const EDGE_MAX_OPACITY = 0.85;
+const EDGE_COLOR = 0x111111;
+const EDGE_MAX_OPACITY = 0.95;
 // Fade thresholds — distances are in scene units. Updated per fitAll based on
 // scene bbox so behaviour scales with model size.
 let _edgeFadeNear = 5;
@@ -187,10 +187,12 @@ export class ViewerCore {
     try {
       const pmremGenerator = new THREE.PMREMGenerator(this._renderer);
       const roomEnv = new RoomEnvironment();
-      this._scene.environment = pmremGenerator.fromScene(roomEnv, 0.04).texture;
-      // Low intensity: IBL just removes "kocourkov" patches; directional
-      // lights still carry the bulk of shape definition + colour saturation.
-      this._scene.environmentIntensity = 0.3;
+      // Higher blur (0.5) softens the IBL so per-triangle normals don't
+      // get mapped to wildly different env samples → no "shaded teeth" on
+      // tessellated trims. With directionals gone, the env carries most of
+      // the lighting, so bump intensity to keep colours bright.
+      this._scene.environment = pmremGenerator.fromScene(roomEnv, 0.5).texture;
+      this._scene.environmentIntensity = 0.85;
       roomEnv.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
         if (o.material) o.material.dispose();
@@ -217,17 +219,16 @@ export class ViewerCore {
     // Prevent browser touch gestures (scroll, pinch-zoom page) from interfering
     canvas.style.touchAction = 'none';
 
-    // Direct lights carry most of the colour saturation; PMREM env (above)
-    // just fills in the "between" angles so small normals don't produce
-    // patches. Intensities tuned so authored IFC colours read crisp.
-    const hemi = new THREE.HemisphereLight(0xe6ecf3, 0x8d847b, 0.4);
+    // BIM/CAD look: NO directional lights. They sample mesh normals per
+    // triangle, which combined with smooth shading produces visible "shaded
+    // teeth" between adjacent triangles whose face normals differ — exactly
+    // the artefact the team flagged on tightly-tessellated trims/cornices.
+    // The PMREM env above gives soft, omnidirectional ambient that hints at
+    // shape (sky-vs-ground falloff) without creating per-triangle contrast.
+    // A gentle hemisphere adds a touch more sky/ground separation; remove it
+    // if a fully flat look is preferred.
+    const hemi = new THREE.HemisphereLight(0xe6ecf3, 0xb5ada3, 0.55);
     this._scene.add(hemi);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 0.7);
-    keyLight.position.set(120, 200, 100);
-    this._scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    fillLight.position.set(-100, 80, -120);
-    this._scene.add(fillLight);
 
     // Models registry (Task 7 fills these)
     this._models = new Map();  // modelId → { group, meshes }
