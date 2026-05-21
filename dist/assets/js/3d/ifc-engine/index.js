@@ -4,6 +4,8 @@
 
 import { EntityIndex } from './parser/entity-index.js';
 import { ViewerCore } from './viewer/viewer-core.js';
+import { splitParams } from './parser/step-parser.js';
+import { parseRef, parseRefList } from './geometry/step-helpers.js';
 import { extractPropertiesFor } from './properties/psets.js';
 import { extractSpatialHierarchy, collectAllElementIds } from './properties/spatial.js';
 import { extractIfcQuantities } from './properties/quantities.js';
@@ -29,6 +31,43 @@ import { buildStyleIndex } from './geometry/styled-items.js';
 let _modelCounter = 0;
 function generateModelId() {
   return `m_${Date.now().toString(36)}_${(++_modelCounter).toString(36)}`;
+}
+
+// IFC SI unit prefix → multiplier (per ISO 16739).
+const IFC_PREFIX_SCALE = {
+  '.EXA.': 1e18, '.PETA.': 1e15, '.TERA.': 1e12, '.GIGA.': 1e9, '.MEGA.': 1e6,
+  '.KILO.': 1e3, '.HECTO.': 1e2, '.DECA.': 1e1,
+  '': 1, '$': 1, '*': 1,
+  '.DECI.': 1e-1, '.CENTI.': 1e-2, '.MILLI.': 1e-3, '.MICRO.': 1e-6,
+  '.NANO.': 1e-9, '.PICO.': 1e-12, '.FEMTO.': 1e-15, '.ATTO.': 1e-18,
+};
+
+/**
+ * Scan IfcUnitAssignment → linked IfcSIUnit entities to find the global
+ * LENGTHUNIT and return its scale-to-metres factor. Defaults to 1 when no
+ * unit is declared (most files default to metres anyway).
+ */
+function extractLengthScale(index) {
+  const assignments = index.byType('IFCUNITASSIGNMENT');
+  if (!assignments || assignments.length === 0) return 1;
+  for (const ua of assignments) {
+    const parts = splitParams(ua.params);
+    const unitRefs = parseRefList(parts[0]);
+    for (const uref of unitRefs) {
+      const u = index.byExpressId(uref);
+      if (!u || u.type !== 'IFCSIUNIT') continue;
+      const uparts = splitParams(u.params);
+      // IfcSIUnit(Dimensions, UnitType, Prefix, Name)
+      const unitType = (uparts[1] || '').trim();
+      const prefix = (uparts[2] || '').trim();
+      const name = (uparts[3] || '').trim();
+      if (unitType === '.LENGTHUNIT.' && name === '.METRE.') {
+        const scale = IFC_PREFIX_SCALE[prefix];
+        return (typeof scale === 'number' && scale > 0) ? scale : 1;
+      }
+    }
+  }
+  return 1;
 }
 
 export class IfcEngine {
@@ -69,6 +108,12 @@ export class IfcEngine {
     // from IfcStyledItem chain. Geometry-core reads this via index._styleIndex
     // when assembling per-item results.
     index._styleIndex = buildStyleIndex(index);
+    // Extract length unit prefix factor from IfcUnitAssignment. Some Czech
+    // S-JTSK models declare MILLIMETRE as the global LENGTHUNIT; without this
+    // scale the geometry is 1000× too big and fitAll's camera ends up so far
+    // away that real elements become sub-pixel invisible.
+    const lengthScale = extractLengthScale(index);
+    index._lengthScale = lengthScale;
 
     const modelId = generateModelId();
     const stats = index.stats();
@@ -78,10 +123,11 @@ export class IfcEngine {
       schema,
       entityCount: stats.entityCount,
       typeCount: stats.typeCount,
+      lengthScale,
     };
     this._models.set(modelId, { meta, index });
     if (this._viewer) {
-      this._viewer.addModel(modelId, index);
+      this._viewer.addModel(modelId, index, { lengthScale });
       this._viewer._emit('modelLoaded', { modelId, stats: { ...meta } });
     }
     this._recomputeFederation();
@@ -167,7 +213,7 @@ export class IfcEngine {
    * @returns {ModelMeta | null}
    */
   getStats(modelId) {
-    if (modelId == null) {
+    if (modelId === null || modelId === undefined) {
       // Federation summary — typeCount is the union of types across all models.
       let entityCount = 0;
       const allTypes = new Set();
@@ -679,7 +725,7 @@ export class IfcEngine {
       k,
     });
     return results
-      .filter(r => r.chunk.refExpressId != null)
+      .filter(r => r.chunk.refExpressId !== null && r.chunk.refExpressId !== undefined)
       .map(r => ({
         modelId: r.chunk.modelId,
         expressId: r.chunk.refExpressId,
@@ -763,6 +809,16 @@ export class IfcEngine {
   resize(w, h) { if (this._viewer) this._viewer.resize(w, h); }
   getProjection() { return this._viewer ? this._viewer.getProjection() : 'perspective'; }
 
+  // Persistent UI selection (click / Ctrl+click / Shift+drag) — distinct
+  // from AI-tool highlight. Selected entities render with an orange overlay
+  // + outline; the bottom entity bar reflects getSelectedEntities().
+  selectEntities(items, mode) { if (this._viewer) this._viewer.selectEntities(items, mode); }
+  clearSelection() { if (this._viewer) this._viewer.clearSelection(); }
+  getSelectedEntities() { return this._viewer ? this._viewer.getSelectedEntities() : []; }
+  isSelected(mid, eid) { return this._viewer ? this._viewer.isSelected(mid, eid) : false; }
+  setHoverEntity(item) { if (this._viewer) this._viewer.setHoverEntity(item); }
+  pickInBox(x1, y1, x2, y2) { return this._viewer ? this._viewer.pickInBox(x1, y1, x2, y2) : []; }
+
   /**
    * Phase 6.2.2 — Color all entities by a property value. Colors come from
    * a fixed categorical palette. Empty/missing values get gray.
@@ -794,7 +850,7 @@ export class IfcEngine {
         const props = this.getProperties(meta.modelId, h.expressId);
         if (!props) { unmatchedTotal++; continue; }
         const value = _findPropertyValue(props, psetFilter, propLower);
-        const key = value == null ? '' : String(value);
+        const key = value === null || value === undefined ? '' : String(value);
         let arr = itemsByValue.get(key);
         if (!arr) { arr = []; itemsByValue.set(key, arr); }
         arr.push({ modelId: meta.modelId, expressId: h.expressId });
@@ -1184,12 +1240,60 @@ export class IfcEngine {
       this._applyRealWorldCoords();
       return;
     }
+    // Federation offsets feed group.position which lives in scene metres
+    // (after group.scale = lengthScale is applied to children). Pick a centre
+    // for each model in scene metres:
+    //   1. First try the viewer's actual mesh world bboxes — this is robust
+    //      to Civil 3D files that bake absolute coords into geometry and
+    //      leave the IfcLocalPlacement chain at identity (extractCoords would
+    //      return (0,0,0) for those, which collapsed federation to identity).
+    //   2. Fall back to extractCoords' placement-based bboxCenter (× scale).
     const modelsCoords = new Map();
     for (const modelId of this._models.keys()) {
-      modelsCoords.set(modelId, this.getCoords(modelId) || { bboxCenter: null });
+      const ls = this._models.get(modelId)?.meta?.lengthScale || 1;
+      let centre = null;
+      const vm = this._viewer._models?.get(modelId);
+      if (vm && vm.meshes && vm.meshes.length > 0) {
+        // Temporarily reset group to identity so mesh.matrixWorld reflects
+        // only the geometry's intrinsic frame; restore after measuring.
+        const g = vm.group;
+        const savedPos = g.position.clone();
+        g.position.set(0, 0, 0);
+        g.updateMatrixWorld(true);
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        let any = false;
+        for (const mesh of vm.meshes) {
+          if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+          const b = mesh.geometry.boundingBox;
+          if (!b || b.isEmpty()) continue;
+          const wb = b.clone().applyMatrix4(mesh.matrixWorld);
+          if (wb.isEmpty()) continue;
+          if (wb.min.x < minX) minX = wb.min.x;
+          if (wb.min.y < minY) minY = wb.min.y;
+          if (wb.min.z < minZ) minZ = wb.min.z;
+          if (wb.max.x > maxX) maxX = wb.max.x;
+          if (wb.max.y > maxY) maxY = wb.max.y;
+          if (wb.max.z > maxZ) maxZ = wb.max.z;
+          any = true;
+        }
+        g.position.copy(savedPos);
+        g.updateMatrixWorld(true);
+        if (any) {
+          centre = [(minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2];
+        }
+      }
+      if (!centre) {
+        const raw = this.getCoords(modelId) || { bboxCenter: null };
+        if (raw.bboxCenter) {
+          centre = [raw.bboxCenter[0] * ls, raw.bboxCenter[1] * ls, raw.bboxCenter[2] * ls];
+        }
+      }
+      modelsCoords.set(modelId, { bboxCenter: centre });
     }
     const offsets = computeOffsets(modelsCoords, this._federationMode, this._manualOffsets);
     for (const [modelId, offset] of offsets) {
+      // offset is already in scene metres; group.position lives in metres too.
       this._viewer.applyFederationOffset(modelId, offset);
     }
   }
@@ -1462,9 +1566,9 @@ function _matchPsetFilter(props, filter) {
 }
 
 function _matchOp(actual, op, expected) {
-  if (op === 'exists') return actual != null;
-  if (op === 'notExists') return actual == null;
-  if (actual == null) return false;
+  if (op === 'exists') return actual !== null && actual !== undefined;
+  if (op === 'notExists') return actual === null || actual === undefined;
+  if (actual === null || actual === undefined) return false;
   if (op === 'eq') return String(actual) === String(expected);
   if (op === 'ne') return String(actual) !== String(expected);
   if (op === 'contains') return String(actual).toLowerCase().includes(String(expected).toLowerCase());

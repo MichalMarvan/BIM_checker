@@ -101,6 +101,8 @@ function getEngine() {
 
         state.engine = engine;
         window.__engine = engine;
+        wireSelectionInteractions(engine, canvas);
+        engine.on?.('selectionChanged', renderEntityBar);
         return engine;
     })().catch(err => {
         state.enginePromise = null;
@@ -626,8 +628,119 @@ function wireUI() {
     });
 }
 
+function renderEntityBar(selected) {
+    const bar = document.getElementById('v3dEntityBar');
+    if (!bar) return;
+    const arr = selected || [];
+    if (arr.length === 0) { bar.hidden = true; return; }
+    bar.hidden = false;
+
+    const eng = state.engine;
+    const first = arr[0];
+    const meta = eng?.getEntityMeta?.(first.modelId, first.expressId) || first;
+    document.getElementById('v3dEntityName').textContent = meta.name || `#${first.expressId}`;
+    document.getElementById('v3dEntityType').textContent = meta.ifcType || '';
+    document.getElementById('v3dEntityGuid').textContent = meta.guid || '';
+
+    const countEl = document.getElementById('v3dEntityCount');
+    if (arr.length > 1) {
+        countEl.textContent = `+${arr.length - 1}`;
+        countEl.hidden = false;
+    } else {
+        countEl.hidden = true;
+    }
+}
+
+function wireEntityBarButtons() {
+    document.getElementById('v3dEntityCloseBtn')?.addEventListener('click', () => state.engine?.clearSelection());
+    document.getElementById('v3dEntityFocusBtn')?.addEventListener('click', () => {
+        const sel = state.engine?.getSelectedEntities() || [];
+        if (sel.length === 0) return;
+        // For now: focus on the first selected. Could compute union bbox for multi-select.
+        state.engine.focusEntity(sel[0].modelId, sel[0].expressId);
+    });
+    document.getElementById('v3dEntityDetailBtn')?.addEventListener('click', async () => {
+        const sel = state.engine?.getSelectedEntities() || [];
+        if (sel.length === 0) return;
+        const [{ togglePanel }, panels] = await Promise.all([
+            import('./ui/panel-manager.js'),
+            import('./panels/index.js'),
+        ]);
+        panels.ensureRegistered();
+        await togglePanel('entity-detail', state.engine, { selection: sel });
+    });
+}
+
+function wireSelectionInteractions(engine, canvas) {
+    let hoverRaf = 0;
+    let dragStart = null;     // { x, y, isShift }
+    let dragRect = null;      // div element while dragging
+    const BOX = document.getElementById('v3dBoxSelect');
+
+    canvas.addEventListener('mousemove', (e) => {
+        // Hover preview (throttled to rAF)
+        if (hoverRaf) return;
+        hoverRaf = requestAnimationFrame(() => {
+            hoverRaf = 0;
+            // Suspend hover during drag-select to avoid flicker
+            if (dragStart && (Math.abs(e.clientX - dragStart.x) > 3 || Math.abs(e.clientY - dragStart.y) > 3)) return;
+            const hit = engine.pickEntity(e.clientX, e.clientY);
+            engine.setHoverEntity(hit ? { modelId: hit.modelId, expressId: hit.expressId } : null);
+        });
+        // Update drag rectangle if dragging
+        if (dragStart && dragStart.isShift) {
+            const x = Math.min(dragStart.x, e.clientX);
+            const y = Math.min(dragStart.y, e.clientY);
+            const w = Math.abs(e.clientX - dragStart.x);
+            const h = Math.abs(e.clientY - dragStart.y);
+            if (w > 3 || h > 3) {
+                BOX.hidden = false;
+                BOX.style.left = `${x}px`;
+                BOX.style.top = `${y}px`;
+                BOX.style.width = `${w}px`;
+                BOX.style.height = `${h}px`;
+            }
+        }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        engine.setHoverEntity(null);
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;  // left button only
+        dragStart = { x: e.clientX, y: e.clientY, isShift: e.shiftKey };
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+        if (!dragStart) return;
+        const dx = Math.abs(e.clientX - dragStart.x);
+        const dy = Math.abs(e.clientY - dragStart.y);
+        const wasDrag = (dx > 3 || dy > 3);
+
+        if (wasDrag && dragStart.isShift) {
+            // Box select
+            const items = engine.pickInBox(dragStart.x, dragStart.y, e.clientX, e.clientY);
+            const mode = e.ctrlKey || e.metaKey ? 'add' : 'replace';
+            engine.selectEntities(items, mode);
+        } else if (!wasDrag) {
+            // Click: single pick
+            const hit = engine.pickEntity(e.clientX, e.clientY);
+            if (!hit) {
+                if (!(e.ctrlKey || e.metaKey)) engine.clearSelection();
+            } else {
+                const mode = (e.ctrlKey || e.metaKey) ? 'toggle' : 'replace';
+                engine.selectEntities([{ modelId: hit.modelId, expressId: hit.expressId }], mode);
+            }
+        }
+        BOX.hidden = true;
+        dragStart = null;
+    });
+}
+
 function boot() {
     wireUI();
+    wireEntityBarButtons();
     setStatus(t('viewer3d.empty') || 'Žádný model — klikni na „Načíst IFC".');
 }
 

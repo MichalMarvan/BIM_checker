@@ -182,6 +182,26 @@
 
         <!-- Loaded-models chip stack -->
         <div class="v3d-loaded-list" id="viewer3dLoadedList" hidden></div>
+
+        <!-- Bottom entity bar (shows selected element name / type / GUID) -->
+        <div class="v3d-entity-bar" id="v3dEntityBar" hidden>
+            <div class="v3d-entity-bar__icon">⌖</div>
+            <div class="v3d-entity-bar__main">
+                <div class="v3d-entity-bar__name" id="v3dEntityName">—</div>
+                <div class="v3d-entity-bar__meta">
+                    <span class="v3d-entity-bar__type" id="v3dEntityType">—</span>
+                    <span class="v3d-entity-bar__sep">·</span>
+                    <span class="v3d-entity-bar__guid" id="v3dEntityGuid">—</span>
+                </div>
+            </div>
+            <div class="v3d-entity-bar__count" id="v3dEntityCount" hidden></div>
+            <button class="v3d-entity-bar__btn" id="v3dEntityFocusBtn" title="Zoom na výběr">📷</button>
+            <button class="v3d-entity-bar__btn" id="v3dEntityDetailBtn" title="Detail vlastností">⊞ Detail</button>
+            <button class="v3d-entity-bar__btn v3d-entity-bar__btn--close" id="v3dEntityCloseBtn" title="Zrušit výběr">×</button>
+        </div>
+
+        <!-- Box-select drag rectangle overlay -->
+        <div class="v3d-box-select" id="v3dBoxSelect" hidden></div>
     </main>
 
     <!-- ===== STORAGE PICKER MODAL ===== -->

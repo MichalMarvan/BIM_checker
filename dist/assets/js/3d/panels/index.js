@@ -36,6 +36,7 @@ const PANELS = {
   display:       { loader: () => import('./display-panel.js') },
   georef:        { loader: () => import('./georef-panel.js') },
   spatial:       { loader: () => import('./spatial-panel.js') },
+  'entity-detail': { loader: () => import('./entity-detail-panel.js') },
 };
 
 let registered = false;

@@ -333,6 +333,97 @@ body[data-page="viewer3d"] {
     pointer-events: none;
 }
 
+/* ===== Bottom entity bar (selection summary) ===== */
+.v3d-entity-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px 6px 12px;
+    background: var(--bg-secondary, #ffffff);
+    border: 1px solid var(--border-primary);
+    border-radius: 999px;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.18);
+    min-width: 320px;
+    max-width: min(720px, calc(100vw - 24px));
+    font-size: 12px;
+}
+[data-theme="dark"] .v3d-entity-bar {
+    background: #1f2230;
+    border-color: rgba(255,255,255,0.08);
+}
+.v3d-entity-bar__icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ff8c00, #ff4500);
+    color: white;
+    border-radius: 50%;
+    font-size: 14px;
+    font-weight: 700;
+}
+.v3d-entity-bar__main {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.2;
+}
+.v3d-entity-bar__name {
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.v3d-entity-bar__meta {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.v3d-entity-bar__sep { margin: 0 4px; }
+.v3d-entity-bar__type { font-weight: 500; }
+.v3d-entity-bar__guid { font-family: ui-monospace, monospace; opacity: 0.85; }
+.v3d-entity-bar__count {
+    padding: 2px 8px;
+    background: rgba(255, 140, 0, 0.18);
+    color: #c2410c;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+[data-theme="dark"] .v3d-entity-bar__count { color: #ffa760; }
+.v3d-entity-bar__btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.v3d-entity-bar__btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+.v3d-entity-bar__btn--close { padding: 2px 8px; font-size: 14px; line-height: 1; }
+
+/* ===== Box-select drag rectangle ===== */
+.v3d-box-select {
+    position: fixed;
+    pointer-events: none;
+    border: 1.5px dashed #ff8c00;
+    background: rgba(255, 140, 0, 0.08);
+    z-index: 22;
+}
+
 /* ===== Floating right-side panel system ===== */
 .v3d-panel-host {
     position: fixed;

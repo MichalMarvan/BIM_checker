@@ -809,6 +809,16 @@ export class IfcEngine {
   resize(w, h) { if (this._viewer) this._viewer.resize(w, h); }
   getProjection() { return this._viewer ? this._viewer.getProjection() : 'perspective'; }
 
+  // Persistent UI selection (click / Ctrl+click / Shift+drag) — distinct
+  // from AI-tool highlight. Selected entities render with an orange overlay
+  // + outline; the bottom entity bar reflects getSelectedEntities().
+  selectEntities(items, mode) { if (this._viewer) this._viewer.selectEntities(items, mode); }
+  clearSelection() { if (this._viewer) this._viewer.clearSelection(); }
+  getSelectedEntities() { return this._viewer ? this._viewer.getSelectedEntities() : []; }
+  isSelected(mid, eid) { return this._viewer ? this._viewer.isSelected(mid, eid) : false; }
+  setHoverEntity(item) { if (this._viewer) this._viewer.setHoverEntity(item); }
+  pickInBox(x1, y1, x2, y2) { return this._viewer ? this._viewer.pickInBox(x1, y1, x2, y2) : []; }
+
   /**
    * Phase 6.2.2 — Color all entities by a property value. Colors come from
    * a fixed categorical palette. Empty/missing values get gray.

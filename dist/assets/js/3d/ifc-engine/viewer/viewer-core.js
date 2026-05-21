@@ -191,8 +191,16 @@ export class ViewerCore {
     // Models registry (Task 7 fills these)
     this._models = new Map();  // modelId → { group, meshes }
 
-    this._highlights = new Map();   // mesh → original color hex
+    this._highlights = new Map();   // mesh → original color hex (AI-tool highlight)
     this._listeners = new Map();    // eventName → Set<callback>
+
+    // Persistent UI selection (separate from AI-tool highlight). Click-to-select,
+    // multi-select with Ctrl, box-select with Shift+drag. Hover is a transient
+    // single-mesh marker shown while the cursor is over an element.
+    this._selected = new Map();     // 'modelId:expressId' → { mesh, origColor }
+    this._hoveredKey = null;        // 'modelId:expressId' | null
+    this._hoverOrigColor = null;    // mesh.material.color hex before hover
+    this._hoveredMesh = null;
 
     this._section = {
       active: false, type: null, planes: [],
@@ -719,6 +727,147 @@ export class ViewerCore {
     }
     this._highlights.clear();
     if (this._displayMode !== 'solid') this._applyDisplayMode();
+  }
+
+  // -------------------- Persistent UI selection + hover --------------------
+
+  /**
+   * @param {Array<{modelId, expressId}>} items
+   * @param {'replace'|'add'|'remove'|'toggle'} [mode='replace']
+   */
+  selectEntities(items, mode = 'replace') {
+    const SELECT_COLOR = 0xff8c00;       // orange overlay
+    const SELECT_EDGE_COLOR = 0xff4500;  // brighter outline
+    const arr = Array.isArray(items) ? items : [];
+
+    if (mode === 'replace') {
+      // Restore everything currently selected, then add new
+      for (const { mesh, origColor, origEdgeColor } of this._selected.values()) {
+        mesh.material.color.setHex(origColor);
+        const edges = mesh.userData?.edges;
+        if (edges && origEdgeColor !== undefined) edges.material.color.setHex(origEdgeColor);
+      }
+      this._selected.clear();
+    }
+
+    for (const it of arr) {
+      const key = it.modelId + ':' + it.expressId;
+      if (mode === 'remove') {
+        const rec = this._selected.get(key);
+        if (rec) {
+          rec.mesh.material.color.setHex(rec.origColor);
+          const edges = rec.mesh.userData?.edges;
+          if (edges && rec.origEdgeColor !== undefined) edges.material.color.setHex(rec.origEdgeColor);
+          this._selected.delete(key);
+        }
+        continue;
+      }
+      if (mode === 'toggle' && this._selected.has(key)) {
+        const rec = this._selected.get(key);
+        rec.mesh.material.color.setHex(rec.origColor);
+        const edges = rec.mesh.userData?.edges;
+        if (edges && rec.origEdgeColor !== undefined) edges.material.color.setHex(rec.origEdgeColor);
+        this._selected.delete(key);
+        continue;
+      }
+      if (this._selected.has(key)) continue;  // already selected, skip add
+      const mesh = this._findMesh(it.modelId, it.expressId);
+      if (!mesh) continue;
+      const rec = {
+        mesh,
+        origColor: mesh.material.color.getHex(),
+        origEdgeColor: mesh.userData?.edges?.material?.color?.getHex(),
+      };
+      this._selected.set(key, rec);
+      mesh.material.color.setHex(SELECT_COLOR);
+      const edges = mesh.userData?.edges;
+      if (edges) edges.material.color.setHex(SELECT_EDGE_COLOR);
+    }
+    this._emit('selectionChanged', this.getSelectedEntities());
+  }
+
+  clearSelection() {
+    this.selectEntities([], 'replace');
+  }
+
+  getSelectedEntities() {
+    const out = [];
+    for (const [key, rec] of this._selected) {
+      const [modelId, expressId] = key.split(':');
+      out.push({
+        modelId,
+        expressId: parseInt(expressId, 10),
+        ifcType: rec.mesh.userData?.ifcType || null,
+      });
+    }
+    return out;
+  }
+
+  isSelected(modelId, expressId) {
+    return this._selected.has(modelId + ':' + expressId);
+  }
+
+  /**
+   * Set / clear the hover marker. Pass null to clear. One mesh at a time.
+   */
+  setHoverEntity(item) {
+    const HOVER_COLOR = 0x60a5fa;  // light blue overlay
+    const newKey = item ? item.modelId + ':' + item.expressId : null;
+    if (newKey === this._hoveredKey) return;
+    // Restore previously hovered mesh, unless it's selected (selection wins)
+    if (this._hoveredMesh && this._hoverOrigColor !== null && !this._selected.has(this._hoveredKey)) {
+      this._hoveredMesh.material.color.setHex(this._hoverOrigColor);
+    }
+    this._hoveredKey = null;
+    this._hoveredMesh = null;
+    this._hoverOrigColor = null;
+    if (!newKey) return;
+    // Don't override selection visuals
+    if (this._selected.has(newKey)) {
+      this._hoveredKey = newKey;
+      return;
+    }
+    const mesh = this._findMesh(item.modelId, item.expressId);
+    if (!mesh) return;
+    this._hoveredKey = newKey;
+    this._hoveredMesh = mesh;
+    this._hoverOrigColor = mesh.material.color.getHex();
+    mesh.material.color.setHex(HOVER_COLOR);
+  }
+
+  /**
+   * Frustum/box pick: returns entities whose bounding-box center projects
+   * inside the screen-space rectangle defined by two client points.
+   * Center-only test (no extent crossing) — fast and good enough for
+   * typical BIM building elements.
+   */
+  pickInBox(clientX1, clientY1, clientX2, clientY2) {
+    const rect = this._canvas.getBoundingClientRect();
+    const xMin = Math.min(clientX1, clientX2);
+    const xMax = Math.max(clientX1, clientX2);
+    const yMin = Math.min(clientY1, clientY2);
+    const yMax = Math.max(clientY1, clientY2);
+    const ndcMinX = (xMin - rect.left) / rect.width * 2 - 1;
+    const ndcMaxX = (xMax - rect.left) / rect.width * 2 - 1;
+    const ndcMinY = -((yMax - rect.top) / rect.height * 2 - 1);
+    const ndcMaxY = -((yMin - rect.top) / rect.height * 2 - 1);
+
+    const tmp = new THREE.Vector3();
+    const out = [];
+    for (const { meshes } of this._models.values()) {
+      for (const mesh of meshes) {
+        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+        mesh.updateMatrixWorld();
+        mesh.geometry.boundingBox.getCenter(tmp);
+        tmp.applyMatrix4(mesh.matrixWorld);
+        tmp.project(this._camera);
+        if (tmp.z < -1 || tmp.z > 1) continue;
+        if (tmp.x < ndcMinX || tmp.x > ndcMaxX) continue;
+        if (tmp.y < ndcMinY || tmp.y > ndcMaxY) continue;
+        out.push({ modelId: mesh.userData.modelId, expressId: mesh.userData.expressId });
+      }
+    }
+    return out;
   }
 
   // -------------------- Visibility / opacity --------------------
