@@ -631,16 +631,23 @@ function wireUI() {
 function renderEntityBar(selected) {
     const bar = document.getElementById('v3dEntityBar');
     if (!bar) return;
-    const arr = selected || [];
-    if (arr.length === 0) { bar.hidden = true; return; }
+    const arr = Array.isArray(selected) ? selected : [];
+    if (arr.length === 0) {
+        bar.hidden = true;
+        return;
+    }
     bar.hidden = false;
 
     const eng = state.engine;
     const first = arr[0];
     const meta = eng?.getEntityMeta?.(first.modelId, first.expressId) || first;
-    document.getElementById('v3dEntityName').textContent = meta.name || `#${first.expressId}`;
-    document.getElementById('v3dEntityType').textContent = meta.ifcType || '';
-    document.getElementById('v3dEntityGuid').textContent = meta.guid || '';
+    document.getElementById('v3dEntityName').textContent = meta.name || '—';
+    document.getElementById('v3dEntityType').textContent = meta.ifcType || first.ifcType || '';
+    document.getElementById('v3dEntityId').textContent = `#${first.expressId}`;
+    const guidEl = document.getElementById('v3dEntityGuid');
+    const fullGuid = meta.guid || '';
+    guidEl.textContent = fullGuid ? (fullGuid.length > 12 ? fullGuid.slice(0, 10) + '…' : fullGuid) : '—';
+    guidEl.title = fullGuid;
 
     const countEl = document.getElementById('v3dEntityCount');
     if (arr.length > 1) {
@@ -649,26 +656,85 @@ function renderEntityBar(selected) {
     } else {
         countEl.hidden = true;
     }
+
+    // Sync opacity slider with current first-selected opacity (so reselecting
+    // a faded entity doesn't snap to 0 on first slider interaction).
+    const slider = document.getElementById('v3dEntityOpacity');
+    const valEl = document.getElementById('v3dEntityOpacityVal');
+    if (slider && valEl && eng?.getEntityOpacity) {
+        const alpha = eng.getEntityOpacity(first.modelId, first.expressId) ?? 1;
+        const pct = Math.round((1 - alpha) * 100);
+        slider.value = String(pct);
+        valEl.textContent = `${pct} %`;
+    }
 }
 
 function wireEntityBarButtons() {
-    document.getElementById('v3dEntityCloseBtn')?.addEventListener('click', () => state.engine?.clearSelection());
-    document.getElementById('v3dEntityFocusBtn')?.addEventListener('click', () => {
-        const sel = state.engine?.getSelectedEntities() || [];
-        if (sel.length === 0) return;
-        // For now: focus on the first selected. Could compute union bbox for multi-select.
-        state.engine.focusEntity(sel[0].modelId, sel[0].expressId);
+    const ebHandlers = {
+        focus: () => {
+            const sel = state.engine?.getSelectedEntities() || [];
+            if (sel.length === 0) return;
+            state.engine.focusEntity(sel[0].modelId, sel[0].expressId);
+        },
+        hide: () => {
+            const sel = state.engine?.getSelectedEntities() || [];
+            if (sel.length === 0) return;
+            state.engine.hideEntities(sel.map(s => ({ modelId: s.modelId, expressId: s.expressId })));
+            state.engine.clearSelection();
+        },
+        isolate: () => {
+            const sel = state.engine?.getSelectedEntities() || [];
+            if (sel.length === 0) return;
+            state.engine.isolateEntities(sel.map(s => ({ modelId: s.modelId, expressId: s.expressId })));
+        },
+        'show-all': () => state.engine?.showAll(),
+        'same-type': () => {
+            const sel = state.engine?.getSelectedEntities() || [];
+            if (sel.length === 0) return;
+            const first = sel[0];
+            const ids = state.engine.findSameTypeIds?.(first.modelId, first.expressId) || [];
+            if (ids.length === 0) return;
+            state.engine.selectEntities(
+                ids.map(expressId => ({ modelId: first.modelId, expressId })),
+                'replace',
+            );
+        },
+        detail: async () => {
+            const sel = state.engine?.getSelectedEntities() || [];
+            if (sel.length === 0) return;
+            const [{ togglePanel }, panels] = await Promise.all([
+                import('./ui/panel-manager.js'),
+                import('./panels/index.js'),
+            ]);
+            panels.ensureRegistered();
+            await togglePanel('entity-detail', state.engine, { selection: sel });
+        },
+        close: () => state.engine?.clearSelection(),
+    };
+
+    document.querySelectorAll('[data-eb-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const fn = ebHandlers[btn.dataset.ebAction];
+            if (fn) fn();
+        });
     });
-    document.getElementById('v3dEntityDetailBtn')?.addEventListener('click', async () => {
-        const sel = state.engine?.getSelectedEntities() || [];
-        if (sel.length === 0) return;
-        const [{ togglePanel }, panels] = await Promise.all([
-            import('./ui/panel-manager.js'),
-            import('./panels/index.js'),
-        ]);
-        panels.ensureRegistered();
-        await togglePanel('entity-detail', state.engine, { selection: sel });
-    });
+
+    const slider = document.getElementById('v3dEntityOpacity');
+    const valEl = document.getElementById('v3dEntityOpacityVal');
+    if (slider) {
+        slider.addEventListener('input', () => {
+            const pct = parseInt(slider.value, 10);
+            if (valEl) valEl.textContent = `${pct} %`;
+            const sel = state.engine?.getSelectedEntities() || [];
+            if (sel.length === 0) return;
+            const alpha = 1 - pct / 100;
+            state.engine.setEntityOpacity(
+                sel.map(s => ({ modelId: s.modelId, expressId: s.expressId })),
+                alpha,
+            );
+        });
+    }
 }
 
 function wireSelectionInteractions(engine, canvas) {

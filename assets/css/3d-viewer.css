@@ -333,7 +333,7 @@ body[data-page="viewer3d"] {
     pointer-events: none;
 }
 
-/* ===== Bottom entity bar (selection summary) ===== */
+/* ===== Bottom entity bar (selection summary + tools) ===== */
 .v3d-entity-bar {
     position: fixed;
     left: 50%;
@@ -342,23 +342,28 @@ body[data-page="viewer3d"] {
     z-index: 25;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 8px 6px 12px;
+    gap: 8px;
+    padding: 6px 6px 6px 12px;
     background: var(--bg-secondary, #ffffff);
     border: 1px solid var(--border-primary);
-    border-radius: 999px;
-    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.18);
-    min-width: 320px;
-    max-width: min(720px, calc(100vw - 24px));
-    font-size: 12px;
+    border-radius: 16px;
+    box-shadow: 0 6px 22px rgba(15, 23, 42, 0.2);
+    max-width: calc(100vw - 24px);
+    font-size: 11px;
+    animation: v3dBarIn 0.18s ease;
+}
+.v3d-entity-bar[hidden] { display: none; }
+@keyframes v3dBarIn {
+    from { transform: translate(-50%, 8px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
 }
 [data-theme="dark"] .v3d-entity-bar {
     background: #1f2230;
     border-color: rgba(255,255,255,0.08);
 }
 .v3d-entity-bar__icon {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -366,13 +371,17 @@ body[data-page="viewer3d"] {
     background: linear-gradient(135deg, #ff8c00, #ff4500);
     color: white;
     border-radius: 50%;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
 }
 .v3d-entity-bar__main {
-    flex: 1;
+    flex-shrink: 0;
     min-width: 0;
+    max-width: 280px;
     line-height: 1.2;
+    padding-right: 6px;
+    border-right: 1px solid var(--border-primary);
+    margin-right: 4px;
 }
 .v3d-entity-bar__name {
     font-weight: 600;
@@ -380,6 +389,7 @@ body[data-page="viewer3d"] {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 12px;
 }
 .v3d-entity-bar__meta {
     font-size: 10px;
@@ -388,32 +398,215 @@ body[data-page="viewer3d"] {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.v3d-entity-bar__sep { margin: 0 4px; }
-.v3d-entity-bar__type { font-weight: 500; }
-.v3d-entity-bar__guid { font-family: ui-monospace, monospace; opacity: 0.85; }
+.v3d-entity-bar__sep { margin: 0 3px; opacity: 0.5; }
+.v3d-entity-bar__type { color: var(--primary-color); font-weight: 600; font-family: ui-monospace, monospace; }
+.v3d-entity-bar__id { font-family: ui-monospace, monospace; }
+.v3d-entity-bar__guid { font-family: ui-monospace, monospace; opacity: 0.7; }
 .v3d-entity-bar__count {
-    padding: 2px 8px;
+    padding: 3px 9px;
     background: rgba(255, 140, 0, 0.18);
     color: #c2410c;
     border-radius: 999px;
     font-weight: 700;
     font-size: 11px;
     flex-shrink: 0;
+    margin-right: 4px;
 }
 [data-theme="dark"] .v3d-entity-bar__count { color: #ffa760; }
-.v3d-entity-bar__btn {
-    padding: 4px 10px;
-    border: 1px solid var(--border-primary);
-    background: var(--bg-primary);
+.v3d-entity-bar__tools {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: nowrap;
+}
+.v3d-eb-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 9px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
     color: var(--text-secondary);
-    border-radius: 999px;
     cursor: pointer;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 500;
+    line-height: 1;
     flex-shrink: 0;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.v3d-entity-bar__btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
-.v3d-entity-bar__btn--close { padding: 2px 8px; font-size: 14px; line-height: 1; }
+.v3d-eb-btn:hover {
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--primary-color);
+}
+.v3d-eb-btn:active { transform: scale(0.96); }
+.v3d-eb-btn svg { width: 13px; height: 13px; }
+.v3d-eb-btn--close {
+    padding: 5px 6px;
+    color: var(--text-tertiary);
+}
+.v3d-eb-btn--close:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+.v3d-eb-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border-primary);
+    margin: 0 2px;
+}
+.v3d-eb-opacity {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    background: var(--bg-tertiary, #f3f4f6);
+    border-radius: 8px;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+[data-theme="dark"] .v3d-eb-opacity { background: rgba(255,255,255,0.05); }
+.v3d-eb-opacity input[type="range"] {
+    width: 70px;
+    accent-color: var(--primary-color);
+}
+.v3d-eb-opacity__val { font-family: ui-monospace, monospace; min-width: 32px; text-align: right; font-weight: 500; color: var(--text-primary); }
+
+/* ===== Entity-detail panel cards (Identity / Atributy / PSets) ===== */
+.v3d-ent-card {
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+[data-theme="dark"] .v3d-ent-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+.v3d-ent-card__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    background: var(--bg-tertiary, #f3f4f6);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border-primary);
+}
+[data-theme="dark"] .v3d-ent-card__head { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.06); }
+.v3d-ent-card__head--clickable {
+    cursor: pointer;
+    user-select: none;
+}
+.v3d-ent-card__head--clickable:hover {
+    background: rgba(102, 126, 234, 0.08);
+    color: var(--primary-color);
+}
+.v3d-ent-card__icon {
+    color: var(--primary-color);
+    font-size: 14px;
+    line-height: 1;
+    width: 16px;
+    text-align: center;
+}
+.v3d-ent-card__chevron {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+    color: var(--text-tertiary);
+}
+.v3d-ent-card.is-collapsed .v3d-ent-card__chevron { transform: rotate(-90deg); }
+.v3d-ent-card.is-collapsed .v3d-ent-card__body { display: none; }
+.v3d-ent-card.is-collapsed .v3d-ent-card__head { border-bottom: 0; }
+.v3d-ent-card__title {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.v3d-ent-card__count {
+    background: var(--primary-color);
+    color: white;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.4;
+}
+.v3d-ent-card__body {
+    padding: 4px 0;
+}
+.v3d-ent-card__body--tight { padding: 0; }
+.v3d-ent-card__empty {
+    margin: 0;
+    padding: 8px 10px;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-style: italic;
+}
+.v3d-ent-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 10px;
+    font-size: 11px;
+    line-height: 1.4;
+    transition: background 0.1s;
+}
+.v3d-ent-row:hover { background: rgba(102, 126, 234, 0.06); }
+.v3d-ent-row--clickable { cursor: pointer; }
+.v3d-ent-row__key {
+    color: var(--text-tertiary);
+    font-weight: 500;
+    flex-shrink: 0;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.v3d-ent-row__val {
+    color: var(--text-primary);
+    font-weight: 500;
+    text-align: right;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.v3d-ent-row__val--code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    color: var(--text-secondary);
+}
+.v3d-ent-row__val--mute {
+    color: var(--text-tertiary);
+    font-weight: 400;
+}
+.v3d-ent-row--full {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+.v3d-ent-row--full .v3d-ent-row__val {
+    text-align: left;
+    width: 100%;
+    word-break: break-all;
+    white-space: normal;
+}
 
 /* ===== Box-select drag rectangle ===== */
 .v3d-box-select {
