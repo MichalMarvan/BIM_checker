@@ -171,7 +171,11 @@ export class ViewerCore {
     this._renderer.localClippingEnabled = true;
     this._renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this._renderer.setSize(canvas.width, canvas.height, false);
-    this._renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // Keep tone mapping linear so per-IFC-type and IfcStyledItem colors
+    // render at their authored saturation. ACES Filmic compresses highlights
+    // and desaturates — looks great for cinematic content but turns BIM
+    // category colors pastel, which the team uses as visual identifiers.
+    this._renderer.toneMapping = THREE.NoToneMapping;
     this._renderer.toneMappingExposure = 1.0;
 
     // Image-based lighting: a procedural RoomEnvironment baked into a PMREM
@@ -184,7 +188,9 @@ export class ViewerCore {
       const pmremGenerator = new THREE.PMREMGenerator(this._renderer);
       const roomEnv = new RoomEnvironment();
       this._scene.environment = pmremGenerator.fromScene(roomEnv, 0.04).texture;
-      this._scene.environmentIntensity = 0.55;
+      // Low intensity: IBL just removes "kocourkov" patches; directional
+      // lights still carry the bulk of shape definition + colour saturation.
+      this._scene.environmentIntensity = 0.3;
       roomEnv.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
         if (o.material) o.material.dispose();
@@ -211,16 +217,15 @@ export class ViewerCore {
     // Prevent browser touch gestures (scroll, pinch-zoom page) from interfering
     canvas.style.touchAction = 'none';
 
-    // Lights complement the IBL env above — env handles ambient + reflections
-    // (consistent across all face orientations); directionals just add gentle
-    // shape definition. Low intensities to keep the overall look matte + flat
-    // (BIM/CAD aesthetic) instead of dramatic.
-    const hemi = new THREE.HemisphereLight(0xe6ecf3, 0x8d847b, 0.25);
+    // Direct lights carry most of the colour saturation; PMREM env (above)
+    // just fills in the "between" angles so small normals don't produce
+    // patches. Intensities tuned so authored IFC colours read crisp.
+    const hemi = new THREE.HemisphereLight(0xe6ecf3, 0x8d847b, 0.4);
     this._scene.add(hemi);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 0.35);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.7);
     keyLight.position.set(120, 200, 100);
     this._scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.15);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
     fillLight.position.set(-100, 80, -120);
     this._scene.add(fillLight);
 
