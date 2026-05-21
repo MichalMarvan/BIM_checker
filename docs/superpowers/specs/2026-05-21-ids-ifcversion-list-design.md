@@ -66,12 +66,12 @@ This matches the buildingSMART implementer guide and the user-confirmed "hybrid"
 
 ### IFC schema detection
 
-`IFCParserCore.parseIFCContent(content, fileName)` currently returns an entity array with no schema metadata. Extend it to also detect `FILE_SCHEMA` from the IFC header.
+`IFCParserCore.parseIFCContent(content, fileName)` returns an entity array; the IFC header's `FILE_SCHEMA` is not surfaced. Add a separate small helper instead of changing the existing return shape (which has ~6 callers and 3 test suites — a return-shape change would create unnecessary blast radius).
 
+- New function `IFCParserCore.detectSchema(content)` returns the schema string from `FILE_SCHEMA(('...'))` in the IFC header, or `'UNKNOWN'` if not found.
 - Reuse the regex from `assets/js/3d/ifc-engine/parser/step-parser.js:57`: `/FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'\s*\)\s*\)/`.
-- Attach detected schema to the returned shape. Since the existing return is `Array<entity>`, attach as a non-enumerable side property or change the return to `{ entities, schema }`. **Decision: change return to `{ entities, schema }`** — explicit, type-safe, and we control all callers (3 known: `validator.js:385, 390, 2720`).
-- All callers updated to destructure.
-- The worker pool path (`ifc-parser.worker.js`) returns the same shape.
+- Validator's IFC ingestion stores `ifcFile.schema = IFCParserCore.detectSchema(content)` alongside `ifcFile.entities` at parse time.
+- Existing `parseIFCContent` signature, worker contract, and tests are untouched.
 
 ### Spec applicability
 
