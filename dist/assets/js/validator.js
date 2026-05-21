@@ -20,6 +20,14 @@ function escapeAttr(text) {
     }[c]));
 }
 
+const TITLE_PLACEHOLDERS = new Set(['Untitled', 'Untitled IDS', 'IDS Specification']);
+
+function resolveIdsTitle(info, fileName) {
+    const t = (info && info.title) ? String(info.title).trim() : '';
+    if (!t || TITLE_PLACEHOLDERS.has(t)) return fileName;
+    return t;
+}
+
 let ifcFiles = [];
 let idsFiles = [];
 let validationResults = null;
@@ -328,7 +336,7 @@ async function performValidation() {
             idsCount++;
             const idsResult = {
                 idsFileName: idsFile.fileName,
-                idsTitle: idsFile.data.info.title || idsFile.fileName,
+                idsTitle: resolveIdsTitle(idsFile.data.info, idsFile.fileName),
                 ifcResults: []
             };
 
@@ -2841,7 +2849,7 @@ async function validateAll() {
 
             const idsResult = {
                 idsFileName: group.idsFile.name,
-                idsTitle: idsData.info.title || group.idsFile.name,
+                idsTitle: resolveIdsTitle(idsData.info, group.idsFile.name),
                 ifcResults: []
             };
 
@@ -3131,6 +3139,7 @@ function _onDeletePresetClick() {
 // Expose validation core functions for testing and external use
 window.validateEntitiesAgainstIDS = validateEntitiesAgainstIDS;
 window.validateEntitiesAgainstIDSAsync = validateEntitiesAgainstIDSAsync;
+window.resolveIdsTitle = resolveIdsTitle;
 
 // Make functions globally accessible for onclick handlers
 window.addValidationGroup = addValidationGroup;

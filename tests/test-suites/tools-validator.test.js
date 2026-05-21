@@ -360,3 +360,30 @@ describe('validateEntitiesAgainstIDS — schema-aware applicability', () => {
         expect(String(s1.warnings[0] || '').includes('IFC4X3')).toBe(true);
     });
 });
+
+describe('validator — IDS title placeholder handling', () => {
+    function resolved(infoTitle, fileName) {
+        const info = { title: infoTitle };
+        return window.resolveIdsTitle(info, fileName);
+    }
+
+    it('uses fileName when title is empty', () => {
+        expect(resolved('', 'foo.ids')).toBe('foo.ids');
+    });
+
+    it('uses fileName when title is the "Untitled" placeholder', () => {
+        expect(resolved('Untitled', 'foo.ids')).toBe('foo.ids');
+    });
+
+    it('uses fileName when title is "IDS Specification" generator default', () => {
+        expect(resolved('IDS Specification', 'foo.ids')).toBe('foo.ids');
+    });
+
+    it('preserves a real title', () => {
+        expect(resolved('My Real Spec', 'foo.ids')).toBe('My Real Spec');
+    });
+
+    it('trims whitespace-only titles to fileName', () => {
+        expect(resolved('   ', 'foo.ids')).toBe('foo.ids');
+    });
+});

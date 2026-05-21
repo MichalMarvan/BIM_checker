@@ -128,7 +128,7 @@ class IDSEditorCore {
      */
     convertParsedDataToIDSData(parsed) {
         const idsData = {
-            title: parsed.title || 'Untitled',
+            title: parsed.title || '',
             copyright: parsed.copyright || '',
             version: parsed.version || '',
             description: parsed.description || '',
