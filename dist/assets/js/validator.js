@@ -1510,14 +1510,14 @@ if (newValidationBtn) {
 const validationGroups = [];
 let currentGroupIndex = null;
 
-// Storage variables (var to avoid redeclaration conflicts in test runner where other pages share globals)
-var storageDB = null;
+// Validator-internal storage state (renamed to avoid global-scope collisions with parser.js / viewer-init.js when all scripts load in the test runner)
+let validatorStorageDB = null;
 let ifcStorageData = null;
-var idsStorageData = null;
+let validatorIdsStorageData = null;
 let ifcMetadata = null; // Lightweight cache without file contents
 let idsMetadata = null; // Lightweight cache without file contents
 const selectedIfcFiles = new Set();
-var selectedIdsFile = null;
+let validatorSelectedIdsFile = null;
 const expandedIfcFolders = new Set(['root']);
 const expandedIdsFolders = new Set(['root']);
 
@@ -1991,8 +1991,8 @@ async function openIfcStoragePicker(groupIndex) {
     }
 
     const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
-    if (!isFolderMode && !storageDB) {
-        storageDB = await initStorageDB();
+    if (!isFolderMode && !validatorStorageDB) {
+        validatorStorageDB = await initStorageDB();
     }
 
     await renderIfcStorageTree();
@@ -2107,7 +2107,7 @@ async function renderIfcStorageTree() {
 
     // Fallback: load from IndexedDB if metadata not pre-loaded
     return new Promise((resolve, reject) => {
-        const transaction = storageDB.transaction(['storage'], 'readonly');
+        const transaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
         const request = store.get('ifc_files');
 
@@ -2338,7 +2338,7 @@ async function confirmIfcSelection() {
 
     try {
         // Load metadata structure
-        const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
+        const metadataTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const metadataStore = metadataTransaction.objectStore('storage');
         const metadataRequest = metadataStore.get('ifc_files');
 
@@ -2355,7 +2355,7 @@ async function confirmIfcSelection() {
                 const fileMetadata = storageData.files[fileId];
                 if (fileMetadata) {
                     // Load file content separately
-                    const contentTransaction = storageDB.transaction(['storage'], 'readonly');
+                    const contentTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
                     const contentStore = contentTransaction.objectStore('storage');
                     const contentRequest = contentStore.get(`ifc_files_file_${fileId}`);
 
@@ -2402,11 +2402,11 @@ async function confirmIfcSelection() {
 // Open IDS storage picker
 async function openIdsStoragePicker(groupIndex) {
     currentGroupIndex = groupIndex;
-    selectedIdsFile = null;
+    validatorSelectedIdsFile = null;
 
     const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
-    if (!isFolderMode && !storageDB) {
-        storageDB = await initStorageDB();
+    if (!isFolderMode && !validatorStorageDB) {
+        validatorStorageDB = await initStorageDB();
     }
 
     await renderIdsStorageTree();
@@ -2486,7 +2486,7 @@ async function renderIdsStorageTree() {
         }
         if (tree) walk(tree, null, 'root');
         idsMetadata = { folders, files };
-        idsStorageData = idsMetadata;
+        validatorIdsStorageData = idsMetadata;
         if (!tree || Object.keys(files).length === 0) {
             document.getElementById('idsStorageTree').innerHTML = '<p class="storage-empty-message">' + t('validator.storage.noIdsFiles') + '</p>';
         } else {
@@ -2499,7 +2499,7 @@ async function renderIdsStorageTree() {
 
     // Use pre-loaded metadata if available (instant!)
     if (idsMetadata) {
-        idsStorageData = idsMetadata;
+        validatorIdsStorageData = idsMetadata;
         const html = renderIdsFolderRecursive('root', 0);
         document.getElementById('idsStorageTree').innerHTML = html;
         updateIdsSelectedName();
@@ -2509,7 +2509,7 @@ async function renderIdsStorageTree() {
 
     // Fallback: load from IndexedDB if metadata not pre-loaded
     return new Promise((resolve, reject) => {
-        const transaction = storageDB.transaction(['storage'], 'readonly');
+        const transaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
         const request = store.get('ids_files');
 
@@ -2527,7 +2527,7 @@ async function renderIdsStorageTree() {
             }
 
             // OPTIMIZATION: Remove file contents to prevent UI lag
-            idsStorageData = {
+            validatorIdsStorageData = {
                 folders: fullData.folders,
                 files: {}
             };
@@ -2535,7 +2535,7 @@ async function renderIdsStorageTree() {
             // Copy only metadata (no content!)
             for (const fileId in fullData.files) {
                 const file = fullData.files[fileId];
-                idsStorageData.files[fileId] = {
+                validatorIdsStorageData.files[fileId] = {
                     id: file.id,
                     name: file.name,
                     size: file.size,
@@ -2561,7 +2561,7 @@ async function renderIdsStorageTree() {
 
 // Render IDS folder recursively
 function renderIdsFolderRecursive(folderId, level) {
-    const folder = idsStorageData.folders[folderId];
+    const folder = validatorIdsStorageData.folders[folderId];
     if (!folder) {
         return '';
     }
@@ -2596,13 +2596,13 @@ function renderIdsFolderRecursive(folderId, level) {
 
         if (folder.files && folder.files.length > 0) {
             folder.files.forEach(fileId => {
-                const file = idsStorageData.files[fileId];
+                const file = validatorIdsStorageData.files[fileId];
                 if (!file) {
                     return;
                 }
 
                 const safeFileId = escapeAttr(fileId);
-                const isSelected = selectedIdsFile === fileId;
+                const isSelected = validatorSelectedIdsFile === fileId;
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
                     <div data-file-id="${safeFileId}"
@@ -2635,15 +2635,15 @@ function toggleIdsFolder(folderId) {
 
 // Select IDS file
 function selectIdsFile(fileId) {
-    selectedIdsFile = fileId;
+    validatorSelectedIdsFile = fileId;
     renderIdsStorageTree();
 }
 
 // Update IDS selected name
 function updateIdsSelectedName() {
     const display = document.getElementById('idsSelectedName');
-    if (selectedIdsFile && idsStorageData.files[selectedIdsFile]) {
-        display.textContent = idsStorageData.files[selectedIdsFile].name;
+    if (validatorSelectedIdsFile && validatorIdsStorageData.files[validatorSelectedIdsFile]) {
+        display.textContent = validatorIdsStorageData.files[validatorSelectedIdsFile].name;
         display.classList.add('file-selected');
     } else {
         display.textContent = t('validator.storage.none');
@@ -2653,7 +2653,7 @@ function updateIdsSelectedName() {
 
 // Confirm IDS selection
 async function confirmIdsSelection() {
-    if (!selectedIdsFile) {
+    if (!validatorSelectedIdsFile) {
         ErrorHandler.error(t('validator.error.selectIds'));
         return;
     }
@@ -2661,13 +2661,13 @@ async function confirmIdsSelection() {
     // Folder backend mode: load content via BIMStorage
     if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
         try {
-            const meta = idsStorageData || idsMetadata;
-            const fileMetadata = meta && meta.files && meta.files[selectedIdsFile];
+            const meta = validatorIdsStorageData || idsMetadata;
+            const fileMetadata = meta && meta.files && meta.files[validatorSelectedIdsFile];
             if (!fileMetadata) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
                 return;
             }
-            const idsBuf = await window.BIMStorage.backend.getFileContent('ids', selectedIdsFile);
+            const idsBuf = await window.BIMStorage.backend.getFileContent('ids', validatorSelectedIdsFile);
             if (!idsBuf) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
                 return;
@@ -2675,9 +2675,9 @@ async function confirmIdsSelection() {
             // IDS content is XML text; folder backend returns ArrayBuffer — decode.
             const decoder = new TextDecoder('utf-8');
             const fileContent = (idsBuf instanceof ArrayBuffer) ? decoder.decode(idsBuf) : idsBuf;
-            window._currentIDSPath = selectedIdsFile;
+            window._currentIDSPath = validatorSelectedIdsFile;
             window._currentIDSName = fileMetadata.name;
-            window._currentIDSFolder = selectedIdsFile.includes('/') ? selectedIdsFile.slice(0, selectedIdsFile.lastIndexOf('/')) : '';
+            window._currentIDSFolder = validatorSelectedIdsFile.includes('/') ? validatorSelectedIdsFile.slice(0, validatorSelectedIdsFile.lastIndexOf('/')) : '';
             const group = validationGroups[currentGroupIndex];
             group.idsFile = {
                 ...fileMetadata,
@@ -2700,7 +2700,7 @@ async function confirmIdsSelection() {
 
     try {
         // Load metadata structure
-        const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
+        const metadataTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const metadataStore = metadataTransaction.objectStore('storage');
         const metadataRequest = metadataStore.get('ids_files');
 
@@ -2712,16 +2712,16 @@ async function confirmIdsSelection() {
             }
 
             // Get file metadata
-            const fileMetadata = storageData.files[selectedIdsFile];
+            const fileMetadata = storageData.files[validatorSelectedIdsFile];
             if (!fileMetadata) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
                 return;
             }
 
             // Load file content separately
-            const contentTransaction = storageDB.transaction(['storage'], 'readonly');
+            const contentTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
             const contentStore = contentTransaction.objectStore('storage');
-            const contentRequest = contentStore.get(`ids_files_file_${selectedIdsFile}`);
+            const contentRequest = contentStore.get(`ids_files_file_${validatorSelectedIdsFile}`);
 
             const rawContent = await new Promise((resolve, reject) => {
                 contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
@@ -3192,12 +3192,12 @@ window.selectIdsFile = selectIdsFile;
     }
 
     try {
-        if (!storageDB) {
-            storageDB = await initStorageDB();
+        if (!validatorStorageDB) {
+            validatorStorageDB = await initStorageDB();
         }
 
         // Pre-load IFC metadata (without file contents)
-        const ifcTransaction = storageDB.transaction(['storage'], 'readonly');
+        const ifcTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const ifcStore = ifcTransaction.objectStore('storage');
         const ifcRequest = ifcStore.get('ifc_files');
 
@@ -3223,7 +3223,7 @@ window.selectIdsFile = selectIdsFile;
         };
 
         // Pre-load IDS metadata (without file contents)
-        const idsTransaction = storageDB.transaction(['storage'], 'readonly');
+        const idsTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const idsStore = idsTransaction.objectStore('storage');
         const idsRequest = idsStore.get('ids_files');
 
