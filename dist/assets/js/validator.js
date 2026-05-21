@@ -395,7 +395,7 @@ function parseIFCFile(content, fileName) {
 // Validation Logic
 function validateEntitiesAgainstIDS(entities, specifications, options) {
     options = options || {};
-    const ifcSchema = options.ifcSchema || null;
+    const ifcSchema = options.ifcSchema || 'UNKNOWN';
     const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
     const results = [];
 
@@ -420,7 +420,7 @@ function validateEntitiesAgainstIDS(entities, specifications, options) {
         }
 
         // Spec doesn't apply to this IFC file
-        if (ifcSchema && declared.length > 0 && !declared.includes(ifcSchema)) {
+        if (declared.length > 0 && !declared.includes(ifcSchema)) {
             results.push({
                 specification: spec.name,
                 status: 'skipped',
@@ -435,7 +435,7 @@ function validateEntitiesAgainstIDS(entities, specifications, options) {
         }
 
         // Pick the version to drive hierarchy load
-        const ifcVersion = (ifcSchema && supported.includes(ifcSchema))
+        const ifcVersion = (supported.includes(ifcSchema))
             ? ifcSchema
             : (supported[0] || 'IFC4');
 
@@ -478,8 +478,8 @@ function validateEntitiesAgainstIDS(entities, specifications, options) {
             ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
             : [];
 
-        // Only add specification if it has entities
-        if (specResult.entityResults.length > 0) {
+        // Add specification if it has entities or warnings (warnings must not be silently dropped)
+        if (specResult.entityResults.length > 0 || (specResult.warnings && specResult.warnings.length > 0)) {
             results.push(specResult);
         }
     }
@@ -490,7 +490,7 @@ function validateEntitiesAgainstIDS(entities, specifications, options) {
 // Async version with chunking to prevent browser freezing
 async function validateEntitiesAgainstIDSAsync(entities, specifications, options) {
     options = options || {};
-    const ifcSchema = options.ifcSchema || null;
+    const ifcSchema = options.ifcSchema || 'UNKNOWN';
     const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
     const results = [];
     const CHUNK_SIZE = 50; // Process 50 entities at a time
@@ -516,7 +516,7 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications, options
         }
 
         // Spec doesn't apply to this IFC file
-        if (ifcSchema && declared.length > 0 && !declared.includes(ifcSchema)) {
+        if (declared.length > 0 && !declared.includes(ifcSchema)) {
             results.push({
                 specification: spec.name,
                 status: 'skipped',
@@ -531,7 +531,7 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications, options
         }
 
         // Pick the version to drive hierarchy load
-        const ifcVersion = (ifcSchema && supported.includes(ifcSchema))
+        const ifcVersion = (supported.includes(ifcSchema))
             ? ifcSchema
             : (supported[0] || 'IFC4');
 
@@ -586,8 +586,8 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications, options
             ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
             : [];
 
-        // Only add specification if it has entities
-        if (specResult.entityResults.length > 0) {
+        // Add specification if it has entities or warnings (warnings must not be silently dropped)
+        if (specResult.entityResults.length > 0 || (specResult.warnings && specResult.warnings.length > 0)) {
             results.push(specResult);
         }
     }

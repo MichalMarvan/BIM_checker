@@ -324,9 +324,39 @@ describe('validateEntitiesAgainstIDS — schema-aware applicability', () => {
     it('warns about unsupported entries when at least one supported (hybrid)', async () => {
         const spec = specWithVersions(['IFC4', 'IFC4X3']);
         const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        const s1 = results.find(r => r.specification === 'S1');
+        expect(s1 !== undefined).toBe(true);
+        expect(Array.isArray(s1.warnings)).toBe(true);
+        expect(s1.warnings.length > 0).toBe(true);
+        expect(String(s1.warnings[0] || '').includes('IFC4X3')).toBe(true);
+    });
+
+    it('skips spec when ifcSchema option is absent (treated as UNKNOWN)', async () => {
+        const spec = specWithVersions(['IFC4']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec]); // no options
         expect(results.length).toBe(1);
-        expect(Array.isArray(results[0].warnings)).toBe(true);
-        expect(results[0].warnings.length > 0).toBe(true);
-        expect(String(results[0].warnings[0] || '').includes('IFC4X3')).toBe(true);
+        expect(results[0].status).toBe('skipped');
+        expect(results[0].skipReason).toBe('ifc-version-mismatch');
+        expect(results[0].ifcSchema).toBe('UNKNOWN');
+    });
+
+    it('surfaces warnings even when no entities match the spec applicability', async () => {
+        const noMatchEntities = [
+            { id: '1', guid: 'g1', entity: 'IFCDOOR', name: 'D1', propertySets: {}, fileName: 'a.ifc', attributes: {} }
+        ];
+        const spec = {
+            name: 'S1',
+            ifcVersion: 'IFC4 IFC4X3',
+            ifcVersions: ['IFC4', 'IFC4X3'],
+            applicability: [{ type: 'entity', name: { type: 'simple', value: 'IFCWALL' } }],
+            requirements: []
+        };
+        const results = await window.validateEntitiesAgainstIDSAsync(noMatchEntities, [spec], { ifcSchema: 'IFC4' });
+        // Spec must still appear in results so the warning is visible
+        const s1 = results.find(r => r.specification === 'S1');
+        expect(s1 !== undefined).toBe(true);
+        expect(Array.isArray(s1.warnings)).toBe(true);
+        expect(s1.warnings.length > 0).toBe(true);
+        expect(String(s1.warnings[0] || '').includes('IFC4X3')).toBe(true);
     });
 });
