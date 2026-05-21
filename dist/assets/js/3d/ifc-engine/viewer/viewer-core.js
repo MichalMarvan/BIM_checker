@@ -80,6 +80,73 @@ function makeEdgeMaterial() {
   });
 }
 
+/**
+ * Compute a Box3 over the supplied meshes' WORLD bboxes, robust to a small
+ * number of mesh outliers with corrupt / garbage coordinates.
+ *
+ * Two-stage filter:
+ *   1. Drop meshes whose own bbox extent exceeds 100× the median extent
+ *      (these are typically the IFC parser's mis-decoded geometries with
+ *      random vertex coords blowing up to km / mm scale).
+ *   2. Drop centres outside the 2.5%/97.5% per-axis percentile.
+ *
+ * Returns null when no mesh survives.
+ */
+export function computeRobustBbox(meshes) {
+  const entries = [];
+  const extents = [];
+  for (const mesh of meshes) {
+    if (!mesh || !mesh.geometry) continue;
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    const local = mesh.geometry.boundingBox;
+    if (!local || local.isEmpty()) continue;
+    const wb = local.clone().applyMatrix4(mesh.matrixWorld);
+    if (wb.isEmpty()) continue;
+    const cx = (wb.min.x + wb.max.x) / 2;
+    const cy = (wb.min.y + wb.max.y) / 2;
+    const cz = (wb.min.z + wb.max.z) / 2;
+    const ex = Math.max(wb.max.x - wb.min.x, wb.max.y - wb.min.y, wb.max.z - wb.min.z);
+    entries.push({ wb, cx, cy, cz, ex });
+    extents.push(ex);
+  }
+  if (entries.length === 0) return null;
+
+  extents.sort((a, b) => a - b);
+  const medianExt = extents[Math.floor(extents.length * 0.5)] || 0;
+  const extentCap = Math.max(medianExt * 100, 1000); // never below 1 km cap
+  const sized = entries.filter(e => e.ex <= extentCap);
+  if (sized.length === 0) return null;
+
+  const filterByPercentile = (values, lo, hi) => {
+    const sorted = values.slice().sort((a, b) => a - b);
+    return [sorted[Math.floor(sorted.length * lo)], sorted[Math.floor(sorted.length * hi)]];
+  };
+  const [xLo, xHi] = filterByPercentile(sized.map(e => e.cx), 0.025, 0.975);
+  const [yLo, yHi] = filterByPercentile(sized.map(e => e.cy), 0.025, 0.975);
+  const [zLo, zHi] = filterByPercentile(sized.map(e => e.cz), 0.025, 0.975);
+  const keep = sized.filter(e =>
+    e.cx >= xLo && e.cx <= xHi &&
+    e.cy >= yLo && e.cy <= yHi &&
+    e.cz >= zLo && e.cz <= zHi
+  );
+  if (keep.length === 0) return null;
+
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (const e of keep) {
+    if (e.wb.min.x < minX) minX = e.wb.min.x;
+    if (e.wb.min.y < minY) minY = e.wb.min.y;
+    if (e.wb.min.z < minZ) minZ = e.wb.min.z;
+    if (e.wb.max.x > maxX) maxX = e.wb.max.x;
+    if (e.wb.max.y > maxY) maxY = e.wb.max.y;
+    if (e.wb.max.z > maxZ) maxZ = e.wb.max.z;
+  }
+  return new THREE.Box3(
+    new THREE.Vector3(minX, minY, minZ),
+    new THREE.Vector3(maxX, maxY, maxZ)
+  );
+}
+
 export class ViewerCore {
   /**
    * @param {HTMLCanvasElement} canvas — target canvas; renderer will write here
@@ -235,7 +302,7 @@ export class ViewerCore {
         if (!mat) return;
         mat.opacity = opacity;
         // Only let fade hide edges; do not override display-mode-forced state
-        if (this._displayMode === 'solid' || this._displayMode == null) {
+        if (this._displayMode === 'solid' || this._displayMode === null || this._displayMode === undefined) {
           mat.visible = factor > 0.01;
         }
       });
@@ -246,11 +313,15 @@ export class ViewerCore {
    * Add a parsed model to the scene as 1 Mesh per IFC product entity.
    * @param {string} modelId
    * @param {EntityIndex} entityIndex
+   * @param {{ lengthScale?: number }} [opts] — lengthScale = IFC global length
+   *        unit to metres (e.g., 0.001 for MILLIMETRE). Applied via group.scale
+   *        so the entire model ends up in metres regardless of IFC declaration.
    */
-  addModel(modelId, entityIndex) {
+  addModel(modelId, entityIndex, opts = {}) {
     if (this._models.has(modelId)) {
       this.removeModel(modelId);
     }
+    const lengthScale = (opts && typeof opts.lengthScale === 'number' && opts.lengthScale > 0) ? opts.lengthScale : 1;
 
     const group = new THREE.Group();
     group.userData = { modelId };
@@ -259,22 +330,65 @@ export class ViewerCore {
     // This keeps OrbitControls + view-cube + presets working with their default
     // Y-up assumptions without per-system overrides.
     group.rotation.x = -Math.PI / 2;
-    const meshes = [];
+    if (lengthScale !== 1) group.scale.setScalar(lengthScale);
 
+    // Inner group sits inside the rotation/scale group. We use it to host a
+    // baseline-centering offset (see end of addModel) so the public `group`
+    // remains free for federation to overwrite m.group.position without
+    // wiping the centering.
+    const innerGroup = new THREE.Group();
+    group.add(innerGroup);
+
+    // Two-pass: first build all candidate items so we can compute the median
+    // bbox extent, then drop outliers (parser garbage that would otherwise
+    // occlude the real geometry as a giant invisible occluder).
+    const candidates = [];
     for (const ifcType of entityIndex.types()) {
       const entities = entityIndex.byType(ifcType);
       const typeColor = IFC_TYPE_COLORS[ifcType] ?? DEFAULT_COLOR;
       for (const entity of entities) {
         const result = buildEntityGeometry(entityIndex, entity.expressId);
         if (!result || result.items.length === 0) continue;
-
         for (const item of result.items) {
+          if (!item.bufferGeometry.boundingBox) item.bufferGeometry.computeBoundingBox();
+          const bb = item.bufferGeometry.boundingBox;
+          const ext = bb ? Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) : 0;
+          candidates.push({ entity, ifcType, item, result, typeColor, ext });
+        }
+      }
+    }
+    const sortedExt = candidates.map(c => c.ext).filter(Number.isFinite).sort((a, b) => a - b);
+    const medianExt = sortedExt[Math.floor(sortedExt.length / 2)] || 0;
+    // Cap is 100× median, but never below 1km / lengthScale (so mm-unit files
+    // get a cap of 1,000,000 units which is still 1km in scene-local).
+    const cap = Math.max(medianExt * 100, 1000 / Math.max(lengthScale, 1e-6));
+    const accepted = sortedExt.length > 0 ? candidates.filter(c => c.ext <= cap) : candidates;
+    const skipped = candidates.length - accepted.length;
+    if (skipped > 0) {
+      console.warn(`[viewer] addModel: skipped ${skipped} outlier mesh items (extent > ${cap.toFixed(0)}, median ${medianExt.toFixed(2)})`);
+    }
+    const meshes = [];
+
+    for (const { entity, ifcType, item, result, typeColor } of accepted) {
+      // The original two-loop entity iteration is now flattened above; render
+      // a single mesh + edges per accepted item below.
+      {
+        {
           // Clone material per mesh so highlight can mutate color without
           // affecting other meshes (Phase 2 selection prep).
-          // Color priority: IfcStyledItem (item.color) → IFC_TYPE_COLORS → DEFAULT_COLOR.
+          // Color priority: per-vertex `color` attribute (IfcIndexedColourMap)
+          // → IfcStyledItem (item.color) → IFC_TYPE_COLORS → DEFAULT_COLOR.
           const material = DEFAULT_MATERIAL.clone();
-          const color = item.color ?? typeColor;
-          material.color.setHex(color);
+          const hasVertexColors = item.bufferGeometry?.getAttribute?.('color');
+          if (hasVertexColors) {
+            material.vertexColors = true;
+            // Vertex colors multiply with material.color; keep it white so the
+            // palette values pass through unchanged.
+            material.color.setHex(0xffffff);
+          } else {
+            const color = item.color ?? typeColor;
+            material.color.setHex(color);
+          }
           if (this._section.active && this._section.planes.length > 0) {
             material.clippingPlanes = this._section.planes;
             material.clipShadows = true;
@@ -282,7 +396,7 @@ export class ViewerCore {
           const mesh = new THREE.Mesh(item.bufferGeometry, material);
           mesh.applyMatrix4(result.matrix);
           mesh.userData = { modelId, ifcType, expressId: entity.expressId };
-          group.add(mesh);
+          innerGroup.add(mesh);
           meshes.push(mesh);
 
           // Edge outlines: extract sharp edges only (>30° face angle)
@@ -290,15 +404,54 @@ export class ViewerCore {
           const edges = new THREE.LineSegments(edgeGeom, makeEdgeMaterial());
           edges.applyMatrix4(result.matrix);
           edges.userData = { isEdgeOutline: true, parentExpressId: entity.expressId };
-          group.add(edges);
+          innerGroup.add(edges);
           // Phase 6.6.1: store ref so snap can read edge segments without a re-extract
           mesh.userData.edges = edges;
         }
       }
     }
 
+    // Float32 precision rescue: when meshes have absolute coords baked in
+    // (Civil3D exports IfcCartesianPoints at S-JTSK ~750000), the GPU loses
+    // ~0.1 m precision per vertex (mantissa = 23 bits → 7 decimal digits) and
+    // adjacent vertices snap together → jagged / serrated rendering.
+    // Subtract the union bbox center from every vertex buffer and store the
+    // compensating offset on innerGroup.position; world-space placement is
+    // unchanged but vertices live in the float32-safe range.
+    if (meshes.length > 0) {
+      const unionBox = new THREE.Box3();
+      let initialized = false;
+      const tmpBox = new THREE.Box3();
+      for (const mesh of meshes) {
+        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+        tmpBox.copy(mesh.geometry.boundingBox);
+        // Account for mesh.matrix (placement) so the bbox is in group-local
+        // coords (= innerGroup local, since innerGroup is identity right now).
+        tmpBox.applyMatrix4(mesh.matrix);
+        if (!initialized) { unionBox.copy(tmpBox); initialized = true; }
+        else unionBox.union(tmpBox);
+      }
+      const center = unionBox.getCenter(new THREE.Vector3());
+      const magnitude = Math.max(Math.abs(center.x), Math.abs(center.y), Math.abs(center.z));
+      // Threshold: 10,000 in scene-local units. mm-unit Revit files have
+      // bake-in geometry at small values (×lengthScale scales them to <100 m
+      // anyway), so they fall well under this. Only Civil3D-style absolute
+      // coords trip this branch.
+      if (magnitude > 10000) {
+        for (const mesh of meshes) {
+          mesh.geometry.translate(-center.x, -center.y, -center.z);
+          const edges = mesh.userData?.edges;
+          if (edges && edges.geometry) edges.geometry.translate(-center.x, -center.y, -center.z);
+        }
+        innerGroup.position.copy(center);
+        innerGroup.updateMatrix();
+        innerGroup.updateMatrixWorld(true);
+        console.log(`[viewer] addModel: recentered ${modelId} by [${center.x.toFixed(0)}, ${center.y.toFixed(0)}, ${center.z.toFixed(0)}] (magnitude ${magnitude.toFixed(0)})`);
+      }
+    }
+
     this._scene.add(group);
-    this._models.set(modelId, { group, meshes });
+    this._models.set(modelId, { group, innerGroup, meshes });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
   }
 
@@ -330,21 +483,12 @@ export class ViewerCore {
    * Computes union bbox across model meshes, positions camera at distance to see entire scene.
    */
   fitAll() {
-    const box = new THREE.Box3();
-    let hasAny = false;
+    const allMeshes = [];
     for (const { meshes } of this._models.values()) {
-      for (const mesh of meshes) {
-        const meshBox = new THREE.Box3().setFromObject(mesh);
-        if (meshBox.isEmpty()) continue;
-        if (!hasAny) {
-          box.copy(meshBox);
-          hasAny = true;
-        } else {
-          box.union(meshBox);
-        }
-      }
+      for (const mesh of meshes) allMeshes.push(mesh);
     }
-    if (!hasAny) return;
+    const box = computeRobustBbox(allMeshes);
+    if (!box) return;
 
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
@@ -700,7 +844,7 @@ export class ViewerCore {
 
         // Compose with per-entity opacity override (more transparent wins)
         const overrideAlpha = this._entityOpacity.get(mesh);
-        const finalAlpha = overrideAlpha != null
+        const finalAlpha = overrideAlpha !== null && overrideAlpha !== undefined
           ? Math.min(modeAlpha, overrideAlpha)
           : modeAlpha;
 
