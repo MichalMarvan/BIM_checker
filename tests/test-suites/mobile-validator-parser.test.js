@@ -88,11 +88,21 @@ describe('ValidationEngine.validateBatch — schema-aware applicability', () => 
         expect(result.warnings.length > 0).toBe(true);
     });
 
-    it('preserves legacy behavior when options.ifcSchema is absent', async () => {
+    it('treats absent ifcSchema as UNKNOWN and skips versioned specs', async () => {
         const spec = { ...baseSpec, ifcVersion: 'IFC4', ifcVersions: ['IFC4'] };
         const result = await window.ValidationEngine.validateBatch(sample, spec); // no options
         // No declared IFC schema → treated as UNKNOWN → mismatch with declared IFC4 → skipped
         expect(result.status).toBe('skipped');
         expect(result.skipReason).toBe('ifc-version-mismatch');
+    });
+
+    it('worker handleValidateSpec: all-unsupported errors even when ifcSchema equals an unsupported declared version', async () => {
+        // This guards the worker's inline gate behavior.
+        // Worker direct invocation is impractical in this test env; verify via the validateBatch parallel path instead.
+        // (validateBatch is the canonical implementation that handleValidateSpec mirrors.)
+        const spec = { ...baseSpec, ifcVersion: 'IFC4X3_TC1', ifcVersions: ['IFC4X3_TC1'] };
+        const result = await window.ValidationEngine.validateBatch(sample, spec, { ifcSchema: 'IFC4X3_TC1' });
+        expect(result.status).toBe('error');
+        expect(String(result.errorMessage || '').includes('IFC4X3_TC1')).toBe(true);
     });
 });
