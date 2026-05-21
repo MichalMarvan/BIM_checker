@@ -156,7 +156,7 @@ function handleIDSFiles(files) {
     idsFiles_filtered.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const idsData = parseIDS(e.target.result, file.name);
+            const idsData = _parseIDSValidator(e.target.result, file.name);
             if (idsData) {
                 newIdsFiles.push({
                     fileName: file.name,
@@ -273,7 +273,7 @@ function showError(message) {
 }
 
 // IDS Parsing
-function parseIDS(xmlString, fileName) {
+function _parseIDSValidator(xmlString, fileName) {
     const result = IDSParser.parse(xmlString);
     if (result.error) {
         showError(t('validator.error.idsLoadError') + ' ' + fileName + ': ' + result.error.message);
@@ -311,9 +311,11 @@ async function performValidation() {
 
             const content = await readFileAsText(file);
             const entities = parseIFCFile(content, file.name);
+            const schema = IFCParserCore.detectSchema(content);
             parsedIfcFiles.push({
                 fileName: file.name,
-                entities: entities
+                entities: entities,
+                schema: schema
             });
         }
 
@@ -339,7 +341,7 @@ async function performValidation() {
 
                 const ifcResult = {
                     ifcFileName: ifcFile.fileName,
-                    specificationResults: validateEntitiesAgainstIDS(ifcFile.entities, idsFile.data.specifications)
+                    specificationResults: validateEntitiesAgainstIDS(ifcFile.entities, idsFile.data.specifications, { ifcSchema: ifcFile.schema })
                 };
                 idsResult.ifcResults.push(ifcResult);
             }
@@ -391,11 +393,52 @@ function parseIFCFile(content, fileName) {
 }
 
 // Validation Logic
-function validateEntitiesAgainstIDS(entities, specifications) {
+function validateEntitiesAgainstIDS(entities, specifications, options) {
+    options = options || {};
+    const ifcSchema = options.ifcSchema || null;
+    const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
     const results = [];
 
     for (const spec of specifications) {
-        const ifcVersion = spec.ifcVersion || 'IFC4';
+        const declared = Array.isArray(spec.ifcVersions)
+            ? spec.ifcVersions
+            : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : []);
+        const supported = declared.filter(v => SUPPORTED.includes(v));
+        const unsupported = declared.filter(v => !SUPPORTED.includes(v));
+
+        // All-unsupported → spec error
+        if (declared.length > 0 && supported.length === 0) {
+            results.push({
+                specification: spec.name,
+                status: 'error',
+                errorMessage: `No supported IFC version in spec.ifcVersions (declared: ${declared.join(', ')}). Allowed: ${SUPPORTED.join(', ')}.`,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            });
+            continue;
+        }
+
+        // Spec doesn't apply to this IFC file
+        if (ifcSchema && declared.length > 0 && !declared.includes(ifcSchema)) {
+            results.push({
+                specification: spec.name,
+                status: 'skipped',
+                skipReason: 'ifc-version-mismatch',
+                ifcSchema,
+                declaredVersions: declared,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            });
+            continue;
+        }
+
+        // Pick the version to drive hierarchy load
+        const ifcVersion = (ifcSchema && supported.includes(ifcSchema))
+            ? ifcSchema
+            : (supported[0] || 'IFC4');
+
         const ctx = (typeof IFCHierarchy !== 'undefined' && typeof IfcParams !== 'undefined') ? {
             ifcVersion,
             isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
@@ -430,6 +473,11 @@ function validateEntitiesAgainstIDS(entities, specifications) {
             }
         }
 
+        // Attach warnings for partially unsupported version lists
+        specResult.warnings = unsupported.length > 0
+            ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
+            : [];
+
         // Only add specification if it has entities
         if (specResult.entityResults.length > 0) {
             results.push(specResult);
@@ -440,12 +488,53 @@ function validateEntitiesAgainstIDS(entities, specifications) {
 }
 
 // Async version with chunking to prevent browser freezing
-async function validateEntitiesAgainstIDSAsync(entities, specifications) {
+async function validateEntitiesAgainstIDSAsync(entities, specifications, options) {
+    options = options || {};
+    const ifcSchema = options.ifcSchema || null;
+    const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
     const results = [];
     const CHUNK_SIZE = 50; // Process 50 entities at a time
 
     for (const spec of specifications) {
-        const ifcVersion = spec.ifcVersion || 'IFC4';
+        const declared = Array.isArray(spec.ifcVersions)
+            ? spec.ifcVersions
+            : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : []);
+        const supported = declared.filter(v => SUPPORTED.includes(v));
+        const unsupported = declared.filter(v => !SUPPORTED.includes(v));
+
+        // All-unsupported → spec error
+        if (declared.length > 0 && supported.length === 0) {
+            results.push({
+                specification: spec.name,
+                status: 'error',
+                errorMessage: `No supported IFC version in spec.ifcVersions (declared: ${declared.join(', ')}). Allowed: ${SUPPORTED.join(', ')}.`,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            });
+            continue;
+        }
+
+        // Spec doesn't apply to this IFC file
+        if (ifcSchema && declared.length > 0 && !declared.includes(ifcSchema)) {
+            results.push({
+                specification: spec.name,
+                status: 'skipped',
+                skipReason: 'ifc-version-mismatch',
+                ifcSchema,
+                declaredVersions: declared,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            });
+            continue;
+        }
+
+        // Pick the version to drive hierarchy load
+        const ifcVersion = (ifcSchema && supported.includes(ifcSchema))
+            ? ifcSchema
+            : (supported[0] || 'IFC4');
+
         if (typeof IFCHierarchy !== 'undefined') {
             await IFCHierarchy.load(ifcVersion);
         }
@@ -491,6 +580,11 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
                 await new Promise(resolve => setTimeout(resolve, 0));
             }
         }
+
+        // Attach warnings for partially unsupported version lists
+        specResult.warnings = unsupported.length > 0
+            ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
+            : [];
 
         // Only add specification if it has entities
         if (specResult.entityResults.length > 0) {
@@ -1338,14 +1432,14 @@ if (newValidationBtn) {
 const validationGroups = [];
 let currentGroupIndex = null;
 
-// Storage variables
-let storageDB = null;
+// Storage variables (var to avoid redeclaration conflicts in test runner where other pages share globals)
+var storageDB = null;
 let ifcStorageData = null;
-let idsStorageData = null;
+var idsStorageData = null;
 let ifcMetadata = null; // Lightweight cache without file contents
 let idsMetadata = null; // Lightweight cache without file contents
 const selectedIfcFiles = new Set();
-let selectedIdsFile = null;
+var selectedIdsFile = null;
 const expandedIfcFolders = new Set(['root']);
 const expandedIdsFolders = new Set(['root']);
 
@@ -2661,7 +2755,7 @@ async function validateAll() {
             document.getElementById('currentFile').textContent = `${t('validator.loading.parsing')} ${group.idsFile.name}`;
             await new Promise(resolve => setTimeout(resolve, 100)); // Yield
 
-            const idsData = parseIDS(group.idsFile.content, group.idsFile.name);
+            const idsData = _parseIDSValidator(group.idsFile.content, group.idsFile.name);
             if (!idsData) {
                 console.error('Error parsing IDS:', group.idsFile.name);
                 continue;
@@ -2693,6 +2787,8 @@ async function validateAll() {
 
                 // Parse IFC file
                 const entities = await parseIFCFileAsync(ifcFile.content, ifcFile.name);
+                const ifcSchema = IFCParserCore.detectSchema(ifcFile.content);
+                ifcFile.schema = ifcSchema;
                 if (!entities || entities.length === 0) {
                     console.warn('No entities in IFC file:', ifcFile.name);
                     completedFiles++;
@@ -2717,7 +2813,7 @@ async function validateAll() {
                     specificationResults = await validateWithEngine(entities, idsData.specifications, ifcFile.name);
                 } else {
                     // Fallback to original method
-                    specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
+                    specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications, { ifcSchema });
                 }
 
                 // Update UI - complete
@@ -2953,6 +3049,10 @@ function _onDeletePresetClick() {
     _updatePresetButtonState();
     ErrorHandler.success(t('presets.deleted').replace('{name}', name));
 }
+
+// Expose validation core functions for testing and external use
+window.validateEntitiesAgainstIDS = validateEntitiesAgainstIDS;
+window.validateEntitiesAgainstIDSAsync = validateEntitiesAgainstIDSAsync;
 
 // Make functions globally accessible for onclick handlers
 window.addValidationGroup = addValidationGroup;

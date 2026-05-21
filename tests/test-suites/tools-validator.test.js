@@ -275,3 +275,58 @@ describe('tools/tool-validator (failures)', () => {
         }
     });
 });
+
+describe('validateEntitiesAgainstIDS — schema-aware applicability', () => {
+    const sampleEntities = [
+        { id: '1', guid: 'guid-1', entity: 'IFCWALL', name: 'W1', propertySets: {}, fileName: 'a.ifc', attributes: {} }
+    ];
+
+    function specWithVersions(versions) {
+        return {
+            name: 'S1',
+            ifcVersion: versions.join(' '),
+            ifcVersions: versions,
+            applicability: [{ type: 'entity', name: { type: 'simple', value: 'IFCWALL' } }],
+            requirements: []
+        };
+    }
+
+    it('runs validation when IFC schema is in spec.ifcVersions', async () => {
+        const spec = specWithVersions(['IFC4']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        expect(results.length).toBe(1);
+        expect(results[0].status === 'pass' || results[0].status === 'fail').toBe(true);
+    });
+
+    it('skips spec when IFC schema is NOT in spec.ifcVersions', async () => {
+        const spec = specWithVersions(['IFC2X3']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        expect(results.length).toBe(1);
+        expect(results[0].status).toBe('skipped');
+        expect(results[0].skipReason).toBe('ifc-version-mismatch');
+    });
+
+    it('uses the IFC file schema (not first list item) for hierarchy load', async () => {
+        const spec = specWithVersions(['IFC4', 'IFC4X3_ADD2']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4X3_ADD2' });
+        expect(results.length).toBe(1);
+        expect(results[0].status === 'pass' || results[0].status === 'fail').toBe(true);
+    });
+
+    it('marks spec as error when no declared version is supported (all unknown)', async () => {
+        const spec = specWithVersions(['IFC4X3', 'IFC4X3_TC1']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        expect(results.length).toBe(1);
+        expect(results[0].status).toBe('error');
+        expect(String(results[0].errorMessage || '').includes('IFC4X3')).toBe(true);
+    });
+
+    it('warns about unsupported entries when at least one supported (hybrid)', async () => {
+        const spec = specWithVersions(['IFC4', 'IFC4X3']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        expect(results.length).toBe(1);
+        expect(Array.isArray(results[0].warnings)).toBe(true);
+        expect(results[0].warnings.length > 0).toBe(true);
+        expect(String(results[0].warnings[0] || '').includes('IFC4X3')).toBe(true);
+    });
+});
