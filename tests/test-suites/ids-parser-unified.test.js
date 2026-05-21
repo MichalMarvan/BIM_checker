@@ -337,6 +337,14 @@ describe('IDSParser.extractSpecifications — ifcVersion list', () => {
         expect(spec.ifcVersions.length).toBe(1);
         expect(spec.ifcVersions[0]).toBe('IFC4X3');
     });
+
+    it('round-trip: parseIfcVersionList(spec.ifcVersion) equals spec.ifcVersions', () => {
+        const spec = parseSpec('IFC4 IFC4X3_ADD2');
+        const reparsed = IDSParser.parseIfcVersionList(spec.ifcVersion);
+        expect(reparsed.length).toBe(spec.ifcVersions.length);
+        expect(reparsed[0]).toBe(spec.ifcVersions[0]);
+        expect(reparsed[1]).toBe(spec.ifcVersions[1]);
+    });
 });
 
 describe('IDSParser.parseIfcVersionList helper', () => {

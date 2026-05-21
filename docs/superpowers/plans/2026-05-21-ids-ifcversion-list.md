@@ -166,7 +166,7 @@ Expose the helper in the module's return statement (bottom of IIFE). Find the ex
 node tests/run-tests.js 2>&1 | grep -E "ifcVersion|parseIfcVersionList|✓|✗|FAIL|pass|fail" | tail -30
 ```
 
-Expected: all 7 new tests pass; existing tests still pass.
+Expected: all 9 new tests pass; existing tests still pass.
 
 - [ ] **Step 5: Mirror to dist/**
 

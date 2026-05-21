@@ -9,6 +9,7 @@ window.IDSParser = (function() {
 
     function parseIfcVersionList(str) {
         if (!str || typeof str !== 'string') return [];
+        // .filter(Boolean) drops empty tokens from leading/trailing/multiple whitespace
         return str.trim().split(/\s+/).filter(Boolean);
     }
 
