@@ -993,18 +993,45 @@ function createSpecificationResultElement(specResult) {
     headerDiv.className = 'spec-header';
     headerDiv.addEventListener('click', () => toggleSpecification(div));
 
+    let statusBadgeClass, statusLabel, detailHtml = '';
+    if (specResult.status === 'skipped') {
+        statusBadgeClass = 'status-skipped';
+        statusLabel = '⏭ ' + escapeHtml(t('validator.spec.skipped'));
+        detailHtml = `<div class="spec-skip-reason">${escapeHtml(
+            t('validator.spec.skippedReason')
+                .replace('{declared}', (specResult.declaredVersions || []).join(', '))
+                .replace('{actual}', specResult.ifcSchema || '?')
+        )}</div>`;
+    } else if (specResult.status === 'error') {
+        statusBadgeClass = 'status-error';
+        statusLabel = '⚠ ' + escapeHtml(t('validator.spec.errored'));
+        detailHtml = `<div class="spec-skip-reason">${escapeHtml(specResult.errorMessage || '')}</div>`;
+    } else if (specResult.status === 'pass') {
+        statusBadgeClass = 'pass';
+        statusLabel = '✅ ' + escapeHtml(t('validator.status.ok'));
+    } else {
+        statusBadgeClass = 'fail';
+        statusLabel = '❌ ' + escapeHtml(t('validator.status.fail'));
+    }
+
+    const warningsHtml = (Array.isArray(specResult.warnings) && specResult.warnings.length > 0)
+        ? `<div class="spec-warnings">${specResult.warnings.map(w => escapeHtml(w)).join('<br>')}</div>`
+        : '';
+
     headerDiv.innerHTML = `
         <div class="spec-title">
             <span class="expand-icon">▼</span>
             <span class="spec-name">${escapeHtml(specResult.specification)}</span>
+            ${detailHtml}
+            ${warningsHtml}
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
             <div class="spec-stats">
                 <span>✅ ${escapeHtml(specResult.passCount)}</span>
                 <span>❌ ${escapeHtml(specResult.failCount)}</span>
             </div>
-            <span class="spec-status-badge ${escapeHtml(specResult.status)}">
-                ${specResult.status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.ok')) : '❌ ' + escapeHtml(t('validator.status.fail'))}
+            <span class="spec-status-badge ${escapeHtml(statusBadgeClass)}">
+                ${statusLabel}
             </span>
         </div>
     `;
