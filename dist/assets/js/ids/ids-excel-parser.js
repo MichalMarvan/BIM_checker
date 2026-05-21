@@ -65,6 +65,7 @@ const IDSExcelParser = (function() {
             specifications: specifications.map(spec => ({
                 name: spec.name,
                 ifcVersion: spec.ifcVersion || 'IFC4',
+                ifcVersions: (spec.ifcVersion || 'IFC4').trim().split(/\s+/).filter(Boolean),
                 identifier: spec.spec_id || '',
                 description: spec.description || '',
                 instructions: spec.instructions || '',
@@ -131,6 +132,7 @@ const IDSExcelParser = (function() {
                 name: row.name || '',
                 description: row.description || '',
                 ifcVersion: row.ifcVersion || row.ifc_version || 'IFC4',
+                ifcVersions: (row.ifcVersion || row.ifc_version || 'IFC4').trim().split(/\s+/).filter(Boolean),
                 instructions: row.instructions || '',
                 applicability: [],
                 requirements: []

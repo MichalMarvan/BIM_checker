@@ -294,7 +294,12 @@ class ValidationOrchestrator {
             });
 
             const specResults = await Promise.all(specPromises);
-            results.push(...specResults.filter(r => r.entityResults.length > 0));
+            results.push(...specResults.filter(r =>
+                r.entityResults.length > 0
+                || (r.warnings && r.warnings.length > 0)
+                || r.status === 'skipped'
+                || r.status === 'error'
+            ));
         } else {
             // Use main thread with ValidationEngine
             for (let i = 0; i < specifications.length; i++) {
@@ -303,7 +308,10 @@ class ValidationOrchestrator {
                 const spec = specifications[i];
                 const result = await ValidationEngine.validateBatch(entities, spec, { ifcSchema });
 
-                if (result.entityResults.length > 0) {
+                if (result.entityResults.length > 0
+                    || (result.warnings && result.warnings.length > 0)
+                    || result.status === 'skipped'
+                    || result.status === 'error') {
                     results.push(result);
                 }
 

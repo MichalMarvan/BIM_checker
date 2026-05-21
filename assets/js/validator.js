@@ -884,7 +884,23 @@ function createIDSResultElement(idsResult) {
         return null;
     }
 
-    const status = totalFail === 0 ? 'pass' : 'fail';
+    // Derive IDS-level status from spec mix so skip-only/error-only IDS don't show green
+    let idsSpecPass = 0, idsSpecFail = 0, idsSpecSkip = 0, idsSpecErr = 0;
+    for (const ifcResult of nonEmptyIfcResults) {
+        for (const sr of ifcResult.specificationResults) {
+            if (sr.status === 'skipped') idsSpecSkip++;
+            else if (sr.status === 'error') idsSpecErr++;
+            else if (sr.failCount > 0) idsSpecFail++;
+            else idsSpecPass++;
+        }
+    }
+    let status;
+    const totalSpecsInNonEmpty = idsSpecPass + idsSpecFail + idsSpecSkip + idsSpecErr;
+    if (idsSpecErr > 0 && idsSpecErr === totalSpecsInNonEmpty) status = 'error';
+    else if (idsSpecFail > 0) status = 'fail';
+    else if (idsSpecPass > 0) status = 'pass';
+    else if (idsSpecSkip > 0) status = 'skipped';
+    else status = 'pass';
 
     const div = document.createElement('div');
     div.className = `specification-result ${status} collapsed`;
@@ -906,7 +922,10 @@ function createIDSResultElement(idsResult) {
                 <span>❌ ${escapeHtml(totalFail)}</span>
             </div>
             <span class="spec-status-badge ${escapeHtml(status)}">
-                ${status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.passed')) : '❌ ' + escapeHtml(t('validator.status.failed'))}
+                ${status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.passed'))
+                : status === 'skipped' ? '⏭️ ' + escapeHtml(t('validator.status.skipped') || 'Skipped')
+                : status === 'error' ? '⚠️ ' + escapeHtml(t('validator.status.error') || 'Error')
+                : '❌ ' + escapeHtml(t('validator.status.failed'))}
             </span>
         </div>
     `;
@@ -1281,19 +1300,43 @@ function _exportToXLSX() {
 
             // Data rows
             for (const specResult of ifcResult.specificationResults) {
-                for (const entityResult of specResult.entityResults) {
-                    for (const validation of entityResult.validations) {
-                        sheetData.push([
-                            specResult.specification,
-                            entityResult.entity,
-                            entityResult.name,
-                            entityResult.guid,
-                            entityResult.status,
-                            validation.type,
-                            validation.message,
-                            validation.details
-                        ]);
+                if (specResult.entityResults && specResult.entityResults.length > 0) {
+                    for (const entityResult of specResult.entityResults) {
+                        for (const validation of entityResult.validations) {
+                            sheetData.push([
+                                specResult.specification,
+                                entityResult.entity,
+                                entityResult.name,
+                                entityResult.guid,
+                                entityResult.status,
+                                validation.type,
+                                validation.message,
+                                validation.details
+                            ]);
+                        }
                     }
+                } else if (specResult.status === 'skipped') {
+                    sheetData.push([
+                        specResult.specification,
+                        '',
+                        '',
+                        '',
+                        'SKIPPED',
+                        'ifc-version-mismatch',
+                        '',
+                        `Declared: ${(specResult.declaredVersions || []).join(', ')}; file schema: ${specResult.ifcSchema || '?'}`
+                    ]);
+                } else if (specResult.status === 'error') {
+                    sheetData.push([
+                        specResult.specification,
+                        '',
+                        '',
+                        '',
+                        'ERROR',
+                        'spec-configuration',
+                        '',
+                        specResult.errorMessage || ''
+                    ]);
                 }
             }
 

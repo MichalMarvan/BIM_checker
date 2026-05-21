@@ -5,6 +5,20 @@
  * Handles modal windows for adding/editing facets
  */
 
+/**
+ * Pick a single representative IFC version for property-set lookups.
+ * When a spec declares multiple versions (e.g. "IFC4 IFC4X3_ADD2"),
+ * we prefer the most feature-rich supported version.
+ */
+function pickPsetLookupVersion(ifcVersionStr) {
+    const tokens = (ifcVersionStr || '').trim().split(/\s+/).filter(Boolean);
+    const PRIORITY = ['IFC4X3_ADD2', 'IFC4', 'IFC2X3'];
+    for (const v of PRIORITY) {
+        if (tokens.includes(v)) return v;
+    }
+    return tokens[0] || 'IFC4';
+}
+
 class IDSEditorModals {
     constructor() {
         this.currentCallback = null;
@@ -226,9 +240,10 @@ class IDSEditorModals {
         this._currentBsddPropertyUri = data.uri || null;
         this._bsddPropertyResults = [];
 
-        // Get PropertySets for current IFC version (used as fallback)
+        // Get PropertySets for current IFC version (used as fallback).
+        // Use pickPsetLookupVersion so multi-value strings like "IFC4 IFC4X3_ADD2" resolve correctly.
         const propertySets = window.getPropertySetsForVersion
-            ? window.getPropertySetsForVersion(this.currentIfcVersion)
+            ? window.getPropertySetsForVersion(pickPsetLookupVersion(this.currentIfcVersion))
             : (window.IFC_PROPERTY_SETS || []);
 
         // Generate datalist options from IFC_PROPERTY_SETS

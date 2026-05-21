@@ -423,7 +423,9 @@ class IDSEditorCore {
      */
     renderSpecification(spec, index) {
         const totalFacets = (spec.applicability ? spec.applicability.length : 0) + (spec.requirements ? spec.requirements.length : 0);
-        const ifcVersion = spec.ifcVersion || 'IFC4';
+        const ifcVersions = spec.ifcVersions && spec.ifcVersions.length
+            ? spec.ifcVersions
+            : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : ['IFC4']);
         const cardinality = (spec.minOccurs === '0' && spec.maxOccurs === '0') ? 'prohibited'
                           : (spec.minOccurs === '0') ? 'optional'
                           : 'required';
@@ -434,7 +436,7 @@ class IDSEditorCore {
                     <span class="collapse-icon">▼</span>
                     <h4 style="margin: 0; flex: 1;">${this.escapeHtml(spec.name)}</h4>
                     ${this.getCardinalityBadge(cardinality)}
-                    <span class="ifc-version-badge" style="background: #667eea; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; margin-right: 10px;">${ifcVersion}</span>
+                    ${ifcVersions.map(v => `<span class="ifc-version-badge" style="background: #667eea; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; margin-right: 4px;">${this.escapeHtml(v)}</span>`).join('')}
                     <span class="facet-count">${totalFacets} ${t('editor.facets')}</span>
                     ${this.editMode ? `
                         <button class="edit-btn" onclick="event.stopPropagation(); idsEditorCore.editSpecification(${index})">✏️</button>
