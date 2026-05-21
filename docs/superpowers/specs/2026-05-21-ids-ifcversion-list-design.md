@@ -30,7 +30,7 @@ Current behavior:
 
 - Adding support for IFC versions outside the IDS 1.0 enum (no `IFC4X3_TC1`, no `IFC4_ADD1`, etc.).
 - Changing the IDS XML serialization format (still produces a space-separated string; only the array-coercion guard is added).
-- Restructuring the 3D viewer pipeline; its `step-parser.js` schema detection is independent.
+- Restructuring the 3D viewer pipeline; the 3D engine has its own independent schema-detection path on the `3d-viewer-integration` branch.
 - New UI for cross-spec bulk editing of versions (single-spec editor only — see follow-ups).
 
 ## Data model — additive
@@ -69,7 +69,7 @@ This matches the buildingSMART implementer guide and the user-confirmed "hybrid"
 `IFCParserCore.parseIFCContent(content, fileName)` returns an entity array; the IFC header's `FILE_SCHEMA` is not surfaced. Add a separate small helper instead of changing the existing return shape (which has ~6 callers and 3 test suites — a return-shape change would create unnecessary blast radius).
 
 - New function `IFCParserCore.detectSchema(content)` returns the schema string from `FILE_SCHEMA(('...'))` in the IFC header, or `'UNKNOWN'` if not found.
-- Reuse the regex from `assets/js/3d/ifc-engine/parser/step-parser.js:57`: `/FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'\s*\)\s*\)/`.
+- Regex pattern (matches what the 3D engine uses on the parallel `3d-viewer-integration` branch): `/FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'\s*\)\s*\)/`.
 - Validator's IFC ingestion stores `ifcFile.schema = IFCParserCore.detectSchema(content)` alongside `ifcFile.entities` at parse time.
 - Existing `parseIFCContent` signature, worker contract, and tests are untouched.
 
