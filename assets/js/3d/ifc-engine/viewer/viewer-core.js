@@ -172,9 +172,15 @@ export class ViewerCore {
     this._renderer.setSize(canvas.width, canvas.height, false);
 
     this._controls = new OrbitControls(this._camera, canvas);
-    this._controls.enableDamping = true;
-    this._controls.dampingFactor = 0.1;
-    // Phase 6.17: explicit touch config — 1-finger rotate, 2-finger pinch-zoom + pan
+    // CAD/Revit-style precise navigation: no inertia, 1:1 pointer→camera
+    // mapping. Damping made the view drift after releasing the mouse,
+    // which felt like lag during quick check-and-move workflows.
+    this._controls.enableDamping = false;
+    this._controls.rotateSpeed = 0.85;
+    this._controls.zoomSpeed = 1.15;
+    this._controls.panSpeed = 0.9;
+    this._controls.zoomToCursor = true;
+    // Touch: 1-finger rotate, 2-finger pinch-zoom + pan
     this._controls.touches = {
       ONE: THREE.TOUCH.ROTATE,
       TWO: THREE.TOUCH.DOLLY_PAN,
@@ -605,8 +611,12 @@ export class ViewerCore {
     this._controls.dispose();
     this._controls = new OrbitControls(this._camera, this._canvas);
     this._controls.target.copy(target);
-    this._controls.enableDamping = true;
-    this._controls.dampingFactor = 0.1;
+    this._controls.enableDamping = false;
+    this._controls.rotateSpeed = 0.85;
+    this._controls.zoomSpeed = 1.15;
+    this._controls.panSpeed = 0.9;
+    this._controls.zoomToCursor = true;
+    this._controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     this._controls.update();
 
     // MeasureVisuals stores a camera reference at construction; update it so
