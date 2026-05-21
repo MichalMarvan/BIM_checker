@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { selectAt } from './selection.js';
 import { getViewSpec } from './camera-presets.js';
@@ -170,6 +171,28 @@ export class ViewerCore {
     this._renderer.localClippingEnabled = true;
     this._renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this._renderer.setSize(canvas.width, canvas.height, false);
+    this._renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this._renderer.toneMappingExposure = 1.0;
+
+    // Image-based lighting: a procedural RoomEnvironment baked into a PMREM
+    // texture. Assigning to scene.environment gives every MeshStandardMaterial
+    // soft IBL reflections, so small TIN surface bumps and inconsistent face
+    // normals no longer cause stark "kocourkov" patches — the surface samples
+    // light from all directions instead of one harsh sun. Generated once;
+    // disposed in dispose().
+    try {
+      const pmremGenerator = new THREE.PMREMGenerator(this._renderer);
+      const roomEnv = new RoomEnvironment();
+      this._scene.environment = pmremGenerator.fromScene(roomEnv, 0.04).texture;
+      this._scene.environmentIntensity = 0.55;
+      roomEnv.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) o.material.dispose();
+      });
+      pmremGenerator.dispose();
+    } catch (e) {
+      console.warn('[viewer-core] PMREM env init failed (falling back to lights only):', e);
+    }
 
     this._controls = new OrbitControls(this._camera, canvas);
     // CAD/Revit-style precise navigation: no inertia, 1:1 pointer→camera
@@ -188,19 +211,16 @@ export class ViewerCore {
     // Prevent browser touch gestures (scroll, pinch-zoom page) from interfering
     canvas.style.touchAction = 'none';
 
-    // Lights: 3-point setup tuned for consistent shading across many meshes
-    // with inconsistent face winding (typical for federated IFC from multiple
-    // exporters). HemisphereLight gives a soft sky→ground gradient that
-    // doesn't fall to black on any face orientation, eliminating the
-    // "patchwork / kocourkov" look you get from a single AmbientLight.
-    // Two directional fills (key + back) add subtle shape definition without
-    // strong shadows that would highlight individual mesh orientations.
-    const hemi = new THREE.HemisphereLight(0xe6ecf3, 0x8d847b, 0.85);
+    // Lights complement the IBL env above — env handles ambient + reflections
+    // (consistent across all face orientations); directionals just add gentle
+    // shape definition. Low intensities to keep the overall look matte + flat
+    // (BIM/CAD aesthetic) instead of dramatic.
+    const hemi = new THREE.HemisphereLight(0xe6ecf3, 0x8d847b, 0.25);
     this._scene.add(hemi);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 0.55);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.35);
     keyLight.position.set(120, 200, 100);
     this._scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.25);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.15);
     fillLight.position.set(-100, 80, -120);
     this._scene.add(fillLight);
 
