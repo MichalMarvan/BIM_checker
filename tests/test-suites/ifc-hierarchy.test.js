@@ -82,4 +82,34 @@ describe('IFCHierarchy — defensive non-JSON response', () => {
             window.fetch = origFetch;
         }
     });
+
+    it('clears loadPromises on rejection so a retry can succeed', async () => {
+        const origFetch = window.fetch;
+        let firstCall = true;
+        window.fetch = (url) => {
+            if (firstCall) {
+                firstCall = false;
+                return Promise.resolve({
+                    ok: true,
+                    status: 200,
+                    text: () => Promise.resolve('<!DOCTYPE html>')
+                });
+            }
+            // Retry: defer to real fetch (the test environment serves real JSON files)
+            return origFetch(url);
+        };
+        try {
+            // First call should throw — poisoned cache must not persist
+            let firstErr = null;
+            try { await IFCHierarchy.load('IFC2X3'); }
+            catch (e) { firstErr = e; }
+            expect(firstErr !== null).toBe(true);
+
+            // Second call must NOT return cached rejection — must retry
+            await IFCHierarchy.load('IFC2X3');
+            expect(IFCHierarchy.isSubtypeOf('IFC2X3', 'IFCWALL', 'IFCWALL')).toBe(true);
+        } finally {
+            window.fetch = origFetch;
+        }
+    });
 });

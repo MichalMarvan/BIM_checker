@@ -45,6 +45,10 @@ window.IFCHierarchy = (function() {
                     childrenIndex: buildChildrenIndex(data.classes),
                     subtypeCache: new Map()
                 });
+            })
+            .catch(err => {
+                loadPromises.delete(version);
+                throw err;
             });
         loadPromises.set(version, promise);
         return promise;
