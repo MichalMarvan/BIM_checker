@@ -277,7 +277,10 @@ function displaySpecifications() {
                             </h4>
                             <div class="spec-badges" style="display: flex; align-items: center; gap: 8px;">
                                 ${cardinalityBadge}
-                                <span class="spec-badge">IFC ${escapeHtml(spec.ifcVersion)}</span>
+                                ${(spec.ifcVersions && spec.ifcVersions.length
+                                    ? spec.ifcVersions
+                                    : (spec.ifcVersion ? [spec.ifcVersion] : [])
+                                ).map(v => `<span class="spec-badge">${escapeHtml(v)}</span>`).join('')}
                             </div>
                         </div>
                         <div class="spec-content">

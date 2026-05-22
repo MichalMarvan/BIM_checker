@@ -71,7 +71,10 @@ class IDSXMLGenerator {
     generateSpecificationString(specData, indent = '') {
         let xml = `${indent}<specification`;
         xml += ` name="${this.escapeXml(specData.name || 'Unnamed Specification')}"`;
-        xml += ` ifcVersion="${this.escapeXml(specData.ifcVersion || 'IFC4')}"`;
+        const versionStr = Array.isArray(specData.ifcVersion)
+            ? specData.ifcVersion.join(' ')
+            : (specData.ifcVersion || 'IFC4');
+        xml += ` ifcVersion="${this.escapeXml(versionStr)}"`;
 
         if (specData.identifier) {
             xml += ` identifier="${this.escapeXml(specData.identifier)}"`;

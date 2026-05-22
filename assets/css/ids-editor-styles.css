@@ -892,3 +892,18 @@
     background: var(--bg-secondary);
     border-radius: var(--radius-sm);
 }
+
+.ifc-version-checkboxes {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.ifc-version-checkboxes label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+}

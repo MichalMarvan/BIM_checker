@@ -7,6 +7,12 @@
 window.IDSParser = (function() {
     'use strict';
 
+    function parseIfcVersionList(str) {
+        if (!str || typeof str !== 'string') return [];
+        // .filter(Boolean) drops empty tokens from leading/trailing/multiple whitespace
+        return str.trim().split(/\s+/).filter(Boolean);
+    }
+
     function parse(xmlString) {
         const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
         const errEl = doc.querySelector('parsererror');
@@ -41,9 +47,11 @@ window.IDSParser = (function() {
         specEls.forEach((spec, index) => {
             const applicabilityEl = spec.querySelector(':scope > applicability');
             const requirementsEl = spec.querySelector(':scope > requirements');
+            const ifcVersion = spec.getAttribute('ifcVersion') || '';
             result.push({
                 name: spec.getAttribute('name') || `Specification ${index + 1}`,
-                ifcVersion: spec.getAttribute('ifcVersion') || '',
+                ifcVersion,
+                ifcVersions: parseIfcVersionList(ifcVersion),
                 identifier: spec.getAttribute('identifier') || '',
                 description: spec.getAttribute('description') || '',
                 instructions: spec.getAttribute('instructions') || '',
@@ -160,6 +168,7 @@ window.IDSParser = (function() {
         parse, parseDocument,
         extractInfo, extractSpecifications,
         extractFacets, extractFacet,
-        extractValue, extractRestriction
+        extractValue, extractRestriction,
+        parseIfcVersionList
     };
 })();

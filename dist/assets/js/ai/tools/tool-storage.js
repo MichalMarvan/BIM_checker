@@ -10,6 +10,19 @@ function _readOnlyGuard() {
     return null;
 }
 
+export function summarizeIDS(ids) {
+    const out = {};
+    out.specCount = ids?.specifications?.length || 0;
+    out.title = ids?.info?.title || null;
+    const set = new Set();
+    for (const spec of ids?.specifications || []) {
+        for (const v of (spec.ifcVersions || [])) set.add(v);
+    }
+    out.ifcVersions = [...set];
+    out.ifcVersion  = out.ifcVersions.length ? out.ifcVersions.join(' ') : null;
+    return out;
+}
+
 function _buildFolderPath(foldersMap, folderId) {
     const names = [];
     let cur = foldersMap[folderId];
@@ -320,9 +333,7 @@ export async function get_file_summary(args) {
             return out;
         }
         const ids = window.parseIDS(content, args.name);
-        out.specCount = ids?.specifications?.length || 0;
-        out.title = ids?.info?.title || null;
-        out.ifcVersion = ids?.info?.ifcVersion || null;
+        Object.assign(out, summarizeIDS(ids));
     }
     return out;
 }
@@ -501,4 +512,9 @@ export function register(registerFn) {
     registerFn('save_file_to_folder', tool_save_file_to_folder);
     registerFn('check_folder_writable', tool_check_folder_writable);
     registerFn('get_file_mtime', tool_get_file_mtime);
+}
+
+if (typeof window !== 'undefined') {
+    window.ToolStorage = window.ToolStorage || {};
+    window.ToolStorage.summarizeIDS = summarizeIDS;
 }

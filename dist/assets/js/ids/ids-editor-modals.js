@@ -5,6 +5,20 @@
  * Handles modal windows for adding/editing facets
  */
 
+/**
+ * Pick a single representative IFC version for property-set lookups.
+ * When a spec declares multiple versions (e.g. "IFC4 IFC4X3_ADD2"),
+ * we prefer the most feature-rich supported version.
+ */
+function pickPsetLookupVersion(ifcVersionStr) {
+    const tokens = (ifcVersionStr || '').trim().split(/\s+/).filter(Boolean);
+    const PRIORITY = ['IFC4X3_ADD2', 'IFC4', 'IFC2X3'];
+    for (const v of PRIORITY) {
+        if (tokens.includes(v)) return v;
+    }
+    return tokens[0] || 'IFC4';
+}
+
 class IDSEditorModals {
     constructor() {
         this.currentCallback = null;
@@ -226,9 +240,10 @@ class IDSEditorModals {
         this._currentBsddPropertyUri = data.uri || null;
         this._bsddPropertyResults = [];
 
-        // Get PropertySets for current IFC version (used as fallback)
+        // Get PropertySets for current IFC version (used as fallback).
+        // Use pickPsetLookupVersion so multi-value strings like "IFC4 IFC4X3_ADD2" resolve correctly.
         const propertySets = window.getPropertySetsForVersion
-            ? window.getPropertySetsForVersion(this.currentIfcVersion)
+            ? window.getPropertySetsForVersion(pickPsetLookupVersion(this.currentIfcVersion))
             : (window.IFC_PROPERTY_SETS || []);
 
         // Generate datalist options from IFC_PROPERTY_SETS
@@ -1042,6 +1057,11 @@ class IDSEditorModals {
             currentCardinality = 'optional';
         }
 
+        const checkedVersions = (specData.ifcVersions && specData.ifcVersions.length)
+            ? specData.ifcVersions
+            : (specData.ifcVersion ? specData.ifcVersion.trim().split(/\s+/).filter(Boolean) : ['IFC4']);
+        const isChecked = v => checkedVersions.includes(v) ? 'checked' : '';
+
         document.getElementById('specModalBody').innerHTML = `
             <div class="form-group">
                 <label>${t('editor.specName')}</label>
@@ -1051,11 +1071,11 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>${t('editor.ifcVersion')}</label>
-                <select id="specIfcVersion">
-                    <option value="IFC2X3" ${specData.ifcVersion === 'IFC2X3' ? 'selected' : ''}>IFC2X3</option>
-                    <option value="IFC4" ${!specData.ifcVersion || specData.ifcVersion === 'IFC4' ? 'selected' : ''}>IFC4</option>
-                    <option value="IFC4X3_ADD2" ${specData.ifcVersion === 'IFC4X3_ADD2' ? 'selected' : ''}>IFC4X3_ADD2</option>
-                </select>
+                <div class="ifc-version-checkboxes" id="specIfcVersionCheckboxes">
+                    <label><input type="checkbox" name="ifcVersion" value="IFC2X3" ${isChecked('IFC2X3')}> IFC2X3</label>
+                    <label><input type="checkbox" name="ifcVersion" value="IFC4" ${isChecked('IFC4')}> IFC4</label>
+                    <label><input type="checkbox" name="ifcVersion" value="IFC4X3_ADD2" ${isChecked('IFC4X3_ADD2')}> IFC4X3_ADD2</label>
+                </div>
                 <small>${t('editor.ifcVersionDesc')}</small>
             </div>
 
@@ -1144,9 +1164,10 @@ class IDSEditorModals {
             return;
         }
 
-        const ifcVersion = document.getElementById('specIfcVersion').value;
-        if (!ifcVersion) {
-            alert(t('editor.ifcVersionRequired'));
+        const checked = [...document.querySelectorAll('#specIfcVersionCheckboxes input[name="ifcVersion"]:checked')]
+            .map(el => el.value);
+        if (checked.length === 0) {
+            alert(t('editor.ifcVersion.required'));
             return;
         }
 
@@ -1159,7 +1180,8 @@ class IDSEditorModals {
 
         const specData = {
             name: name,
-            ifcVersion: ifcVersion,
+            ifcVersion: checked.join(' '),
+            ifcVersions: checked,
             description: document.getElementById('specDescription').value.trim(),
             minOccurs: occurs.minOccurs,
             maxOccurs: occurs.maxOccurs

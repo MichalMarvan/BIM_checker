@@ -178,6 +178,14 @@
         };
     }
 
+    const SCHEMA_RE = /FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'\s*\)\s*\)/;
+
+    function detectSchema(content) {
+        if (!content || typeof content !== 'string') return 'UNKNOWN';
+        const m = content.match(SCHEMA_RE);
+        return m ? m[1] : 'UNKNOWN';
+    }
+
     function parseIFCContent(content, fileName) {
         const lines = content.split('\n');
         const entityMap = new Map();
@@ -244,6 +252,7 @@
 
     global.IFCParserCore = {
         parseIFCContent,
+        detectSchema,
         // Test-only exports (prefixed with _ to mark internal)
         _extractGUID: extractGUID,
         _extractName: extractName,

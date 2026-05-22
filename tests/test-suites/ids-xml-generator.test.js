@@ -249,3 +249,35 @@ describe('IDS XML Generator', () => {
         expect(xml).toContain('uri="https://identifier.buildingsmart.org/uri/example/mat/1"');
     });
 });
+
+describe('IDSXMLGenerator — ifcVersion serialization', () => {
+    function generate(specData) {
+        const gen = new IDSXMLGenerator();
+        return gen.generateIDS({
+            title: 't',
+            author: 'a@b.cd',
+            specifications: [{
+                name: 'S1',
+                applicability: [],
+                requirements: [],
+                ...specData
+            }]
+        });
+    }
+
+    it('preserves a space-separated string verbatim', () => {
+        const xml = generate({ ifcVersion: 'IFC4 IFC4X3_ADD2' });
+        expect(xml.includes('ifcVersion="IFC4 IFC4X3_ADD2"')).toBe(true);
+    });
+
+    it('serializes an array as space-separated, not comma-separated', () => {
+        const xml = generate({ ifcVersion: ['IFC4', 'IFC4X3_ADD2'] });
+        expect(xml.includes('ifcVersion="IFC4 IFC4X3_ADD2"')).toBe(true);
+        expect(xml.includes('ifcVersion="IFC4,IFC4X3_ADD2"')).toBe(false);
+    });
+
+    it('falls back to IFC4 when value is missing', () => {
+        const xml = generate({});
+        expect(xml.includes('ifcVersion="IFC4"')).toBe(true);
+    });
+});

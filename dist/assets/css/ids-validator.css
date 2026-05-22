@@ -406,6 +406,11 @@
     color: #721c24;
 }
 
+.status-skipped { background: #888; color: white; }
+.status-error   { background: #c33; color: white; }
+.spec-warnings  { color: #b87; font-size: 12px; margin-top: 4px; }
+.spec-skip-reason { color: #888; font-size: 12px; margin-top: 4px; }
+
 .spec-stats {
     display: flex;
     gap: 20px;

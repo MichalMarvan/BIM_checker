@@ -102,7 +102,7 @@ export async function generate_ids_skeleton(args) {
         milestone: args.milestone || '',
         specifications: [{
             name: 'Empty Specification',
-            ifcVersion: args.ifcVersion || 'IFC4X3_ADD2',
+            ifcVersion: (Array.isArray(args.ifcVersion) ? args.ifcVersion.join(' ') : args.ifcVersion) || 'IFC4 IFC4X3_ADD2',
             identifier: '',
             description: '',
             instructions: '',
@@ -148,7 +148,9 @@ export async function add_specification_to_ids(args) {
     };
     idsData.specifications.push({
         name: args.name,
-        ifcVersion: args.ifcVersion || idsData.specifications[0]?.ifcVersion || 'IFC4X3_ADD2',
+        ifcVersion: (Array.isArray(args.ifcVersion) ? args.ifcVersion.join(' ') : args.ifcVersion)
+            || idsData.specifications[0]?.ifcVersion
+            || 'IFC4 IFC4X3_ADD2',
         identifier: '',
         description: args.description || '',
         instructions: '',

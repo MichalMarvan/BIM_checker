@@ -275,3 +275,115 @@ describe('tools/tool-validator (failures)', () => {
         }
     });
 });
+
+describe('validateEntitiesAgainstIDS — schema-aware applicability', () => {
+    const sampleEntities = [
+        { id: '1', guid: 'guid-1', entity: 'IFCWALL', name: 'W1', propertySets: {}, fileName: 'a.ifc', attributes: {} }
+    ];
+
+    function specWithVersions(versions) {
+        return {
+            name: 'S1',
+            ifcVersion: versions.join(' '),
+            ifcVersions: versions,
+            applicability: [{ type: 'entity', name: { type: 'simple', value: 'IFCWALL' } }],
+            requirements: []
+        };
+    }
+
+    it('runs validation when IFC schema is in spec.ifcVersions', async () => {
+        const spec = specWithVersions(['IFC4']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        expect(results.length).toBe(1);
+        expect(results[0].status === 'pass' || results[0].status === 'fail').toBe(true);
+    });
+
+    it('skips spec when IFC schema is NOT in spec.ifcVersions', async () => {
+        const spec = specWithVersions(['IFC2X3']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        expect(results.length).toBe(1);
+        expect(results[0].status).toBe('skipped');
+        expect(results[0].skipReason).toBe('ifc-version-mismatch');
+    });
+
+    it('uses the IFC file schema (not first list item) for hierarchy load', async () => {
+        const spec = specWithVersions(['IFC4', 'IFC4X3_ADD2']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4X3_ADD2' });
+        expect(results.length).toBe(1);
+        expect(results[0].status === 'pass' || results[0].status === 'fail').toBe(true);
+    });
+
+    it('marks spec as error when no declared version is supported (all unknown)', async () => {
+        const spec = specWithVersions(['IFC4X3', 'IFC4X3_TC1']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        expect(results.length).toBe(1);
+        expect(results[0].status).toBe('error');
+        expect(String(results[0].errorMessage || '').includes('IFC4X3')).toBe(true);
+    });
+
+    it('warns about unsupported entries when at least one supported (hybrid)', async () => {
+        const spec = specWithVersions(['IFC4', 'IFC4X3']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
+        const s1 = results.find(r => r.specification === 'S1');
+        expect(s1 !== undefined).toBe(true);
+        expect(Array.isArray(s1.warnings)).toBe(true);
+        expect(s1.warnings.length > 0).toBe(true);
+        expect(String(s1.warnings[0] || '').includes('IFC4X3')).toBe(true);
+    });
+
+    it('skips spec when ifcSchema option is absent (treated as UNKNOWN)', async () => {
+        const spec = specWithVersions(['IFC4']);
+        const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec]); // no options
+        expect(results.length).toBe(1);
+        expect(results[0].status).toBe('skipped');
+        expect(results[0].skipReason).toBe('ifc-version-mismatch');
+        expect(results[0].ifcSchema).toBe('UNKNOWN');
+    });
+
+    it('surfaces warnings even when no entities match the spec applicability', async () => {
+        const noMatchEntities = [
+            { id: '1', guid: 'g1', entity: 'IFCDOOR', name: 'D1', propertySets: {}, fileName: 'a.ifc', attributes: {} }
+        ];
+        const spec = {
+            name: 'S1',
+            ifcVersion: 'IFC4 IFC4X3',
+            ifcVersions: ['IFC4', 'IFC4X3'],
+            applicability: [{ type: 'entity', name: { type: 'simple', value: 'IFCWALL' } }],
+            requirements: []
+        };
+        const results = await window.validateEntitiesAgainstIDSAsync(noMatchEntities, [spec], { ifcSchema: 'IFC4' });
+        // Spec must still appear in results so the warning is visible
+        const s1 = results.find(r => r.specification === 'S1');
+        expect(s1 !== undefined).toBe(true);
+        expect(Array.isArray(s1.warnings)).toBe(true);
+        expect(s1.warnings.length > 0).toBe(true);
+        expect(String(s1.warnings[0] || '').includes('IFC4X3')).toBe(true);
+    });
+});
+
+describe('validator — IDS title placeholder handling', () => {
+    function resolved(infoTitle, fileName) {
+        const info = { title: infoTitle };
+        return window.resolveIdsTitle(info, fileName);
+    }
+
+    it('uses fileName when title is empty', () => {
+        expect(resolved('', 'foo.ids')).toBe('foo.ids');
+    });
+
+    it('uses fileName when title is the "Untitled" placeholder', () => {
+        expect(resolved('Untitled', 'foo.ids')).toBe('foo.ids');
+    });
+
+    it('uses fileName when title is "IDS Specification" generator default', () => {
+        expect(resolved('IDS Specification', 'foo.ids')).toBe('foo.ids');
+    });
+
+    it('preserves a real title', () => {
+        expect(resolved('My Real Spec', 'foo.ids')).toBe('My Real Spec');
+    });
+
+    it('trims whitespace-only titles to fileName', () => {
+        expect(resolved('   ', 'foo.ids')).toBe('foo.ids');
+    });
+});

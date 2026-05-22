@@ -20,6 +20,14 @@ function escapeAttr(text) {
     }[c]));
 }
 
+const TITLE_PLACEHOLDERS = new Set(['Untitled', 'Untitled IDS', 'IDS Specification']);
+
+function resolveIdsTitle(info, fileName) {
+    const t = (info && info.title) ? String(info.title).trim() : '';
+    if (!t || TITLE_PLACEHOLDERS.has(t)) return fileName;
+    return t;
+}
+
 let ifcFiles = [];
 let idsFiles = [];
 let validationResults = null;
@@ -156,7 +164,7 @@ function handleIDSFiles(files) {
     idsFiles_filtered.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const idsData = parseIDS(e.target.result, file.name);
+            const idsData = _parseIDSValidator(e.target.result, file.name);
             if (idsData) {
                 newIdsFiles.push({
                     fileName: file.name,
@@ -273,7 +281,7 @@ function showError(message) {
 }
 
 // IDS Parsing
-function parseIDS(xmlString, fileName) {
+function _parseIDSValidator(xmlString, fileName) {
     const result = IDSParser.parse(xmlString);
     if (result.error) {
         showError(t('validator.error.idsLoadError') + ' ' + fileName + ': ' + result.error.message);
@@ -311,9 +319,11 @@ async function performValidation() {
 
             const content = await readFileAsText(file);
             const entities = parseIFCFile(content, file.name);
+            const schema = IFCParserCore.detectSchema(content);
             parsedIfcFiles.push({
                 fileName: file.name,
-                entities: entities
+                entities: entities,
+                schema: schema
             });
         }
 
@@ -326,7 +336,7 @@ async function performValidation() {
             idsCount++;
             const idsResult = {
                 idsFileName: idsFile.fileName,
-                idsTitle: idsFile.data.info.title || idsFile.fileName,
+                idsTitle: resolveIdsTitle(idsFile.data.info, idsFile.fileName),
                 ifcResults: []
             };
 
@@ -339,7 +349,7 @@ async function performValidation() {
 
                 const ifcResult = {
                     ifcFileName: ifcFile.fileName,
-                    specificationResults: validateEntitiesAgainstIDS(ifcFile.entities, idsFile.data.specifications)
+                    specificationResults: validateEntitiesAgainstIDS(ifcFile.entities, idsFile.data.specifications, { ifcSchema: ifcFile.schema })
                 };
                 idsResult.ifcResults.push(ifcResult);
             }
@@ -391,11 +401,52 @@ function parseIFCFile(content, fileName) {
 }
 
 // Validation Logic
-function validateEntitiesAgainstIDS(entities, specifications) {
+function validateEntitiesAgainstIDS(entities, specifications, options) {
+    options = options || {};
+    const ifcSchema = options.ifcSchema || 'UNKNOWN';
+    const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
     const results = [];
 
     for (const spec of specifications) {
-        const ifcVersion = spec.ifcVersion || 'IFC4';
+        const declared = Array.isArray(spec.ifcVersions)
+            ? spec.ifcVersions
+            : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : []);
+        const supported = declared.filter(v => SUPPORTED.includes(v));
+        const unsupported = declared.filter(v => !SUPPORTED.includes(v));
+
+        // All-unsupported → spec error
+        if (declared.length > 0 && supported.length === 0) {
+            results.push({
+                specification: spec.name,
+                status: 'error',
+                errorMessage: `No supported IFC version in spec.ifcVersions (declared: ${declared.join(', ')}). Allowed: ${SUPPORTED.join(', ')}.`,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            });
+            continue;
+        }
+
+        // Spec doesn't apply to this IFC file
+        if (declared.length > 0 && !declared.includes(ifcSchema)) {
+            results.push({
+                specification: spec.name,
+                status: 'skipped',
+                skipReason: 'ifc-version-mismatch',
+                ifcSchema,
+                declaredVersions: declared,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            });
+            continue;
+        }
+
+        // Pick the version to drive hierarchy load
+        const ifcVersion = (supported.includes(ifcSchema))
+            ? ifcSchema
+            : (supported[0] || 'IFC4');
+
         const ctx = (typeof IFCHierarchy !== 'undefined' && typeof IfcParams !== 'undefined') ? {
             ifcVersion,
             isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
@@ -430,8 +481,13 @@ function validateEntitiesAgainstIDS(entities, specifications) {
             }
         }
 
-        // Only add specification if it has entities
-        if (specResult.entityResults.length > 0) {
+        // Attach warnings for partially unsupported version lists
+        specResult.warnings = unsupported.length > 0
+            ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
+            : [];
+
+        // Add specification if it has entities or warnings (warnings must not be silently dropped)
+        if (specResult.entityResults.length > 0 || (specResult.warnings && specResult.warnings.length > 0)) {
             results.push(specResult);
         }
     }
@@ -440,12 +496,53 @@ function validateEntitiesAgainstIDS(entities, specifications) {
 }
 
 // Async version with chunking to prevent browser freezing
-async function validateEntitiesAgainstIDSAsync(entities, specifications) {
+async function validateEntitiesAgainstIDSAsync(entities, specifications, options) {
+    options = options || {};
+    const ifcSchema = options.ifcSchema || 'UNKNOWN';
+    const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
     const results = [];
     const CHUNK_SIZE = 50; // Process 50 entities at a time
 
     for (const spec of specifications) {
-        const ifcVersion = spec.ifcVersion || 'IFC4';
+        const declared = Array.isArray(spec.ifcVersions)
+            ? spec.ifcVersions
+            : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : []);
+        const supported = declared.filter(v => SUPPORTED.includes(v));
+        const unsupported = declared.filter(v => !SUPPORTED.includes(v));
+
+        // All-unsupported → spec error
+        if (declared.length > 0 && supported.length === 0) {
+            results.push({
+                specification: spec.name,
+                status: 'error',
+                errorMessage: `No supported IFC version in spec.ifcVersions (declared: ${declared.join(', ')}). Allowed: ${SUPPORTED.join(', ')}.`,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            });
+            continue;
+        }
+
+        // Spec doesn't apply to this IFC file
+        if (declared.length > 0 && !declared.includes(ifcSchema)) {
+            results.push({
+                specification: spec.name,
+                status: 'skipped',
+                skipReason: 'ifc-version-mismatch',
+                ifcSchema,
+                declaredVersions: declared,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            });
+            continue;
+        }
+
+        // Pick the version to drive hierarchy load
+        const ifcVersion = (supported.includes(ifcSchema))
+            ? ifcSchema
+            : (supported[0] || 'IFC4');
+
         if (typeof IFCHierarchy !== 'undefined') {
             await IFCHierarchy.load(ifcVersion);
         }
@@ -492,8 +589,13 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications) {
             }
         }
 
-        // Only add specification if it has entities
-        if (specResult.entityResults.length > 0) {
+        // Attach warnings for partially unsupported version lists
+        specResult.warnings = unsupported.length > 0
+            ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
+            : [];
+
+        // Add specification if it has entities or warnings (warnings must not be silently dropped)
+        if (specResult.entityResults.length > 0 || (specResult.warnings && specResult.warnings.length > 0)) {
             results.push(specResult);
         }
     }
@@ -790,7 +892,23 @@ function createIDSResultElement(idsResult) {
         return null;
     }
 
-    const status = totalFail === 0 ? 'pass' : 'fail';
+    // Derive IDS-level status from spec mix so skip-only/error-only IDS don't show green
+    let idsSpecPass = 0, idsSpecFail = 0, idsSpecSkip = 0, idsSpecErr = 0;
+    for (const ifcResult of nonEmptyIfcResults) {
+        for (const sr of ifcResult.specificationResults) {
+            if (sr.status === 'skipped') idsSpecSkip++;
+            else if (sr.status === 'error') idsSpecErr++;
+            else if (sr.failCount > 0) idsSpecFail++;
+            else idsSpecPass++;
+        }
+    }
+    let status;
+    const totalSpecsInNonEmpty = idsSpecPass + idsSpecFail + idsSpecSkip + idsSpecErr;
+    if (idsSpecErr > 0 && idsSpecErr === totalSpecsInNonEmpty) status = 'error';
+    else if (idsSpecFail > 0) status = 'fail';
+    else if (idsSpecPass > 0) status = 'pass';
+    else if (idsSpecSkip > 0) status = 'skipped';
+    else status = 'pass';
 
     const div = document.createElement('div');
     div.className = `specification-result ${status} collapsed`;
@@ -812,7 +930,10 @@ function createIDSResultElement(idsResult) {
                 <span>❌ ${escapeHtml(totalFail)}</span>
             </div>
             <span class="spec-status-badge ${escapeHtml(status)}">
-                ${status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.passed')) : '❌ ' + escapeHtml(t('validator.status.failed'))}
+                ${status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.passed'))
+                : status === 'skipped' ? '⏭️ ' + escapeHtml(t('validator.status.skipped') || 'Skipped')
+                : status === 'error' ? '⚠️ ' + escapeHtml(t('validator.status.error') || 'Error')
+                : '❌ ' + escapeHtml(t('validator.status.failed'))}
             </span>
         </div>
     `;
@@ -899,18 +1020,45 @@ function createSpecificationResultElement(specResult) {
     headerDiv.className = 'spec-header';
     headerDiv.addEventListener('click', () => toggleSpecification(div));
 
+    let statusBadgeClass, statusLabel, detailHtml = '';
+    if (specResult.status === 'skipped') {
+        statusBadgeClass = 'status-skipped';
+        statusLabel = '⏭ ' + escapeHtml(t('validator.spec.skipped'));
+        detailHtml = `<div class="spec-skip-reason">${escapeHtml(
+            t('validator.spec.skippedReason')
+                .replace('{declared}', (specResult.declaredVersions || []).join(', '))
+                .replace('{actual}', specResult.ifcSchema || '?')
+        )}</div>`;
+    } else if (specResult.status === 'error') {
+        statusBadgeClass = 'status-error';
+        statusLabel = '⚠ ' + escapeHtml(t('validator.spec.errored'));
+        detailHtml = `<div class="spec-skip-reason">${escapeHtml(specResult.errorMessage || '')}</div>`;
+    } else if (specResult.status === 'pass') {
+        statusBadgeClass = 'pass';
+        statusLabel = '✅ ' + escapeHtml(t('validator.status.ok'));
+    } else {
+        statusBadgeClass = 'fail';
+        statusLabel = '❌ ' + escapeHtml(t('validator.status.fail'));
+    }
+
+    const warningsHtml = (Array.isArray(specResult.warnings) && specResult.warnings.length > 0)
+        ? `<div class="spec-warnings">${specResult.warnings.map(w => escapeHtml(w)).join('<br>')}</div>`
+        : '';
+
     headerDiv.innerHTML = `
         <div class="spec-title">
             <span class="expand-icon">▼</span>
             <span class="spec-name">${escapeHtml(specResult.specification)}</span>
+            ${detailHtml}
+            ${warningsHtml}
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
             <div class="spec-stats">
                 <span>✅ ${escapeHtml(specResult.passCount)}</span>
                 <span>❌ ${escapeHtml(specResult.failCount)}</span>
             </div>
-            <span class="spec-status-badge ${escapeHtml(specResult.status)}">
-                ${specResult.status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.ok')) : '❌ ' + escapeHtml(t('validator.status.fail'))}
+            <span class="spec-status-badge ${escapeHtml(statusBadgeClass)}">
+                ${statusLabel}
             </span>
         </div>
     `;
@@ -1160,19 +1308,43 @@ function _exportToXLSX() {
 
             // Data rows
             for (const specResult of ifcResult.specificationResults) {
-                for (const entityResult of specResult.entityResults) {
-                    for (const validation of entityResult.validations) {
-                        sheetData.push([
-                            specResult.specification,
-                            entityResult.entity,
-                            entityResult.name,
-                            entityResult.guid,
-                            entityResult.status,
-                            validation.type,
-                            validation.message,
-                            validation.details
-                        ]);
+                if (specResult.entityResults && specResult.entityResults.length > 0) {
+                    for (const entityResult of specResult.entityResults) {
+                        for (const validation of entityResult.validations) {
+                            sheetData.push([
+                                specResult.specification,
+                                entityResult.entity,
+                                entityResult.name,
+                                entityResult.guid,
+                                entityResult.status,
+                                validation.type,
+                                validation.message,
+                                validation.details
+                            ]);
+                        }
                     }
+                } else if (specResult.status === 'skipped') {
+                    sheetData.push([
+                        specResult.specification,
+                        '',
+                        '',
+                        '',
+                        'SKIPPED',
+                        'ifc-version-mismatch',
+                        '',
+                        `Declared: ${(specResult.declaredVersions || []).join(', ')}; file schema: ${specResult.ifcSchema || '?'}`
+                    ]);
+                } else if (specResult.status === 'error') {
+                    sheetData.push([
+                        specResult.specification,
+                        '',
+                        '',
+                        '',
+                        'ERROR',
+                        'spec-configuration',
+                        '',
+                        specResult.errorMessage || ''
+                    ]);
                 }
             }
 
@@ -1195,6 +1367,10 @@ function _exportToXLSX() {
                 { wch: 35 }, // Validation Message
                 { wch: 50 }  // Details
             ];
+
+            const lastCol = String.fromCharCode(64 + 8); // 8 columns → 'H'
+            ws['!autofilter'] = { ref: `A1:${lastCol}${sheetData.length}` };
+            ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
 
             // Create sheet name: ifcname_idsname
             // Remove file extensions
@@ -1255,6 +1431,10 @@ function _exportToXLSX() {
         { wch: 12 }, // Failed
         { wch: 12 }  // Pass Rate
     ];
+
+    const summaryLastCol = String.fromCharCode(64 + 6); // 6 columns → 'F'
+    summaryWs['!autofilter'] = { ref: `A3:${summaryLastCol}${summaryData.length}` };
+    summaryWs['!views'] = [{ state: 'frozen', ySplit: 3 }];
 
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary', true);
 
@@ -1338,14 +1518,14 @@ if (newValidationBtn) {
 const validationGroups = [];
 let currentGroupIndex = null;
 
-// Storage variables
-let storageDB = null;
+// Validator-internal storage state (renamed to avoid global-scope collisions with parser.js / viewer-init.js when all scripts load in the test runner)
+let validatorStorageDB = null;
 let ifcStorageData = null;
-let idsStorageData = null;
+let validatorIdsStorageData = null;
 let ifcMetadata = null; // Lightweight cache without file contents
 let idsMetadata = null; // Lightweight cache without file contents
 const selectedIfcFiles = new Set();
-let selectedIdsFile = null;
+let validatorSelectedIdsFile = null;
 const expandedIfcFolders = new Set(['root']);
 const expandedIdsFolders = new Set(['root']);
 
@@ -1819,8 +1999,8 @@ async function openIfcStoragePicker(groupIndex) {
     }
 
     const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
-    if (!isFolderMode && !storageDB) {
-        storageDB = await initStorageDB();
+    if (!isFolderMode && !validatorStorageDB) {
+        validatorStorageDB = await initStorageDB();
     }
 
     await renderIfcStorageTree();
@@ -1935,7 +2115,7 @@ async function renderIfcStorageTree() {
 
     // Fallback: load from IndexedDB if metadata not pre-loaded
     return new Promise((resolve, reject) => {
-        const transaction = storageDB.transaction(['storage'], 'readonly');
+        const transaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
         const request = store.get('ifc_files');
 
@@ -2166,7 +2346,7 @@ async function confirmIfcSelection() {
 
     try {
         // Load metadata structure
-        const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
+        const metadataTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const metadataStore = metadataTransaction.objectStore('storage');
         const metadataRequest = metadataStore.get('ifc_files');
 
@@ -2183,7 +2363,7 @@ async function confirmIfcSelection() {
                 const fileMetadata = storageData.files[fileId];
                 if (fileMetadata) {
                     // Load file content separately
-                    const contentTransaction = storageDB.transaction(['storage'], 'readonly');
+                    const contentTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
                     const contentStore = contentTransaction.objectStore('storage');
                     const contentRequest = contentStore.get(`ifc_files_file_${fileId}`);
 
@@ -2230,11 +2410,11 @@ async function confirmIfcSelection() {
 // Open IDS storage picker
 async function openIdsStoragePicker(groupIndex) {
     currentGroupIndex = groupIndex;
-    selectedIdsFile = null;
+    validatorSelectedIdsFile = null;
 
     const isFolderMode = window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder';
-    if (!isFolderMode && !storageDB) {
-        storageDB = await initStorageDB();
+    if (!isFolderMode && !validatorStorageDB) {
+        validatorStorageDB = await initStorageDB();
     }
 
     await renderIdsStorageTree();
@@ -2314,7 +2494,7 @@ async function renderIdsStorageTree() {
         }
         if (tree) walk(tree, null, 'root');
         idsMetadata = { folders, files };
-        idsStorageData = idsMetadata;
+        validatorIdsStorageData = idsMetadata;
         if (!tree || Object.keys(files).length === 0) {
             document.getElementById('idsStorageTree').innerHTML = '<p class="storage-empty-message">' + t('validator.storage.noIdsFiles') + '</p>';
         } else {
@@ -2327,7 +2507,7 @@ async function renderIdsStorageTree() {
 
     // Use pre-loaded metadata if available (instant!)
     if (idsMetadata) {
-        idsStorageData = idsMetadata;
+        validatorIdsStorageData = idsMetadata;
         const html = renderIdsFolderRecursive('root', 0);
         document.getElementById('idsStorageTree').innerHTML = html;
         updateIdsSelectedName();
@@ -2337,7 +2517,7 @@ async function renderIdsStorageTree() {
 
     // Fallback: load from IndexedDB if metadata not pre-loaded
     return new Promise((resolve, reject) => {
-        const transaction = storageDB.transaction(['storage'], 'readonly');
+        const transaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const store = transaction.objectStore('storage');
         const request = store.get('ids_files');
 
@@ -2355,7 +2535,7 @@ async function renderIdsStorageTree() {
             }
 
             // OPTIMIZATION: Remove file contents to prevent UI lag
-            idsStorageData = {
+            validatorIdsStorageData = {
                 folders: fullData.folders,
                 files: {}
             };
@@ -2363,7 +2543,7 @@ async function renderIdsStorageTree() {
             // Copy only metadata (no content!)
             for (const fileId in fullData.files) {
                 const file = fullData.files[fileId];
-                idsStorageData.files[fileId] = {
+                validatorIdsStorageData.files[fileId] = {
                     id: file.id,
                     name: file.name,
                     size: file.size,
@@ -2389,7 +2569,7 @@ async function renderIdsStorageTree() {
 
 // Render IDS folder recursively
 function renderIdsFolderRecursive(folderId, level) {
-    const folder = idsStorageData.folders[folderId];
+    const folder = validatorIdsStorageData.folders[folderId];
     if (!folder) {
         return '';
     }
@@ -2424,13 +2604,13 @@ function renderIdsFolderRecursive(folderId, level) {
 
         if (folder.files && folder.files.length > 0) {
             folder.files.forEach(fileId => {
-                const file = idsStorageData.files[fileId];
+                const file = validatorIdsStorageData.files[fileId];
                 if (!file) {
                     return;
                 }
 
                 const safeFileId = escapeAttr(fileId);
-                const isSelected = selectedIdsFile === fileId;
+                const isSelected = validatorSelectedIdsFile === fileId;
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
                     <div data-file-id="${safeFileId}"
@@ -2463,15 +2643,15 @@ function toggleIdsFolder(folderId) {
 
 // Select IDS file
 function selectIdsFile(fileId) {
-    selectedIdsFile = fileId;
+    validatorSelectedIdsFile = fileId;
     renderIdsStorageTree();
 }
 
 // Update IDS selected name
 function updateIdsSelectedName() {
     const display = document.getElementById('idsSelectedName');
-    if (selectedIdsFile && idsStorageData.files[selectedIdsFile]) {
-        display.textContent = idsStorageData.files[selectedIdsFile].name;
+    if (validatorSelectedIdsFile && validatorIdsStorageData.files[validatorSelectedIdsFile]) {
+        display.textContent = validatorIdsStorageData.files[validatorSelectedIdsFile].name;
         display.classList.add('file-selected');
     } else {
         display.textContent = t('validator.storage.none');
@@ -2481,7 +2661,7 @@ function updateIdsSelectedName() {
 
 // Confirm IDS selection
 async function confirmIdsSelection() {
-    if (!selectedIdsFile) {
+    if (!validatorSelectedIdsFile) {
         ErrorHandler.error(t('validator.error.selectIds'));
         return;
     }
@@ -2489,13 +2669,13 @@ async function confirmIdsSelection() {
     // Folder backend mode: load content via BIMStorage
     if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.kind === 'localFolder') {
         try {
-            const meta = idsStorageData || idsMetadata;
-            const fileMetadata = meta && meta.files && meta.files[selectedIdsFile];
+            const meta = validatorIdsStorageData || idsMetadata;
+            const fileMetadata = meta && meta.files && meta.files[validatorSelectedIdsFile];
             if (!fileMetadata) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
                 return;
             }
-            const idsBuf = await window.BIMStorage.backend.getFileContent('ids', selectedIdsFile);
+            const idsBuf = await window.BIMStorage.backend.getFileContent('ids', validatorSelectedIdsFile);
             if (!idsBuf) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
                 return;
@@ -2503,9 +2683,9 @@ async function confirmIdsSelection() {
             // IDS content is XML text; folder backend returns ArrayBuffer — decode.
             const decoder = new TextDecoder('utf-8');
             const fileContent = (idsBuf instanceof ArrayBuffer) ? decoder.decode(idsBuf) : idsBuf;
-            window._currentIDSPath = selectedIdsFile;
+            window._currentIDSPath = validatorSelectedIdsFile;
             window._currentIDSName = fileMetadata.name;
-            window._currentIDSFolder = selectedIdsFile.includes('/') ? selectedIdsFile.slice(0, selectedIdsFile.lastIndexOf('/')) : '';
+            window._currentIDSFolder = validatorSelectedIdsFile.includes('/') ? validatorSelectedIdsFile.slice(0, validatorSelectedIdsFile.lastIndexOf('/')) : '';
             const group = validationGroups[currentGroupIndex];
             group.idsFile = {
                 ...fileMetadata,
@@ -2528,7 +2708,7 @@ async function confirmIdsSelection() {
 
     try {
         // Load metadata structure
-        const metadataTransaction = storageDB.transaction(['storage'], 'readonly');
+        const metadataTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const metadataStore = metadataTransaction.objectStore('storage');
         const metadataRequest = metadataStore.get('ids_files');
 
@@ -2540,16 +2720,16 @@ async function confirmIdsSelection() {
             }
 
             // Get file metadata
-            const fileMetadata = storageData.files[selectedIdsFile];
+            const fileMetadata = storageData.files[validatorSelectedIdsFile];
             if (!fileMetadata) {
                 ErrorHandler.error(t('validator.error.fileNotFound'));
                 return;
             }
 
             // Load file content separately
-            const contentTransaction = storageDB.transaction(['storage'], 'readonly');
+            const contentTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
             const contentStore = contentTransaction.objectStore('storage');
-            const contentRequest = contentStore.get(`ids_files_file_${selectedIdsFile}`);
+            const contentRequest = contentStore.get(`ids_files_file_${validatorSelectedIdsFile}`);
 
             const rawContent = await new Promise((resolve, reject) => {
                 contentRequest.onsuccess = () => resolve(contentRequest.result?.value);
@@ -2661,7 +2841,7 @@ async function validateAll() {
             document.getElementById('currentFile').textContent = `${t('validator.loading.parsing')} ${group.idsFile.name}`;
             await new Promise(resolve => setTimeout(resolve, 100)); // Yield
 
-            const idsData = parseIDS(group.idsFile.content, group.idsFile.name);
+            const idsData = _parseIDSValidator(group.idsFile.content, group.idsFile.name);
             if (!idsData) {
                 console.error('Error parsing IDS:', group.idsFile.name);
                 continue;
@@ -2669,7 +2849,7 @@ async function validateAll() {
 
             const idsResult = {
                 idsFileName: group.idsFile.name,
-                idsTitle: idsData.info.title || group.idsFile.name,
+                idsTitle: resolveIdsTitle(idsData.info, group.idsFile.name),
                 ifcResults: []
             };
 
@@ -2693,6 +2873,8 @@ async function validateAll() {
 
                 // Parse IFC file
                 const entities = await parseIFCFileAsync(ifcFile.content, ifcFile.name);
+                const ifcSchema = IFCParserCore.detectSchema(ifcFile.content);
+                ifcFile.schema = ifcSchema;
                 if (!entities || entities.length === 0) {
                     console.warn('No entities in IFC file:', ifcFile.name);
                     completedFiles++;
@@ -2714,10 +2896,10 @@ async function validateAll() {
                 let specificationResults;
                 if (typeof ValidationEngine !== 'undefined' && entities.length > 100) {
                     // Use ValidationEngine for better performance with large datasets
-                    specificationResults = await validateWithEngine(entities, idsData.specifications, ifcFile.name);
+                    specificationResults = await validateWithEngine(entities, idsData.specifications, ifcFile.name, ifcSchema);
                 } else {
                     // Fallback to original method
-                    specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications);
+                    specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications, { ifcSchema });
                 }
 
                 // Update UI - complete
@@ -2738,7 +2920,7 @@ async function validateAll() {
             }
 
             // Parallel validation using ValidationEngine
-            async function validateWithEngine(entities, specifications, fileName) {
+            async function validateWithEngine(entities, specifications, fileName, ifcSchema) {
                 const results = [];
 
                 // Validate all specs in parallel
@@ -2748,7 +2930,7 @@ async function validateAll() {
                         await new Promise(resolve => setTimeout(resolve, 0));
                     }
 
-                    const result = await ValidationEngine.validateBatch(entities, spec);
+                    const result = await ValidationEngine.validateBatch(entities, spec, { ifcSchema });
 
                     // Update progress
                     if (progressPanel) {
@@ -2770,9 +2952,13 @@ async function validateAll() {
 
                 const specResults = await Promise.all(specPromises);
 
-                // Filter out empty results
+                // Keep results with entities, warnings, or skipped/error status
                 for (const result of specResults) {
-                    if (result && result.entityResults && result.entityResults.length > 0) {
+                    if (!result) continue;
+                    if ((result.entityResults && result.entityResults.length > 0)
+                        || (result.warnings && result.warnings.length > 0)
+                        || result.status === 'skipped'
+                        || result.status === 'error') {
                         results.push(result);
                     }
                 }
@@ -2954,6 +3140,11 @@ function _onDeletePresetClick() {
     ErrorHandler.success(t('presets.deleted').replace('{name}', name));
 }
 
+// Expose validation core functions for testing and external use
+window.validateEntitiesAgainstIDS = validateEntitiesAgainstIDS;
+window.validateEntitiesAgainstIDSAsync = validateEntitiesAgainstIDSAsync;
+window.resolveIdsTitle = resolveIdsTitle;
+
 // Make functions globally accessible for onclick handlers
 window.addValidationGroup = addValidationGroup;
 window.deleteValidationGroup = deleteValidationGroup;
@@ -3014,12 +3205,12 @@ window.selectIdsFile = selectIdsFile;
     }
 
     try {
-        if (!storageDB) {
-            storageDB = await initStorageDB();
+        if (!validatorStorageDB) {
+            validatorStorageDB = await initStorageDB();
         }
 
         // Pre-load IFC metadata (without file contents)
-        const ifcTransaction = storageDB.transaction(['storage'], 'readonly');
+        const ifcTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const ifcStore = ifcTransaction.objectStore('storage');
         const ifcRequest = ifcStore.get('ifc_files');
 
@@ -3045,7 +3236,7 @@ window.selectIdsFile = selectIdsFile;
         };
 
         // Pre-load IDS metadata (without file contents)
-        const idsTransaction = storageDB.transaction(['storage'], 'readonly');
+        const idsTransaction = validatorStorageDB.transaction(['storage'], 'readonly');
         const idsStore = idsTransaction.objectStore('storage');
         const idsRequest = idsStore.get('ids_files');
 
