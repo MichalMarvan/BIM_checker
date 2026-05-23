@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { PostPipeline } from './post/pipeline.js';
 import { EdgesPass } from './post/edges-pass.js';
+import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { selectAt } from './selection.js';
 import { getViewSpec } from './camera-presets.js';
@@ -168,10 +169,11 @@ export class ViewerCore {
     // curves, and cost double geometry memory per mesh).
     const _pipelineSize = this._renderer.getDrawingBufferSize(new THREE.Vector2());
     this._pipeline = new PostPipeline(this._renderer, _pipelineSize.x, _pipelineSize.y);
-    // EdgesPass: screen-space Sobel on depth+normal buffers. Catches all
-    // three edge classes (silhouette / crease / intersection) regardless of
-    // tessellation, and the line thickness is in screen pixels — no more
-    // distance-fade gymnastics.
+    // Pass order matters: SSAO darkens scene first, edges draw over the
+    // already-AO-modulated colour. The other way round would draw edges
+    // and then multiply them down with AO, washing them out.
+    this._ssaoPass = new SSAOPass(this._pipeline, this._camera);
+    this._pipeline.addPass(this._ssaoPass);
     this._edgesPass = new EdgesPass(this._pipeline, this._camera);
     this._pipeline.addPass(this._edgesPass);
     // Keep tone mapping linear so per-IFC-type and IfcStyledItem colors
@@ -557,6 +559,15 @@ export class ViewerCore {
     this._camera.lookAt(center);
     this._controls.target.copy(center);
     this._controls.update();
+
+    // Scale SSAO radius to scene size — 1.5% of the bounding-sphere radius
+    // is the sweet spot for BIM/civil models: small enough to stay inside
+    // surface details (cavities, contact zones) but large enough to be
+    // visible at sensible zoom levels.
+    if (this._ssaoPass) {
+      const sphere = box.getBoundingSphere(new THREE.Sphere());
+      this._ssaoPass.setRadius(Math.max(0.05, sphere.radius * 0.015));
+    }
   }
 
   /**
