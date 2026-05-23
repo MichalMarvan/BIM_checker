@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { PostPipeline } from './post/pipeline.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { selectAt } from './selection.js';
 import { getViewSpec } from './camera-presets.js';
@@ -163,14 +164,26 @@ export class ViewerCore {
     this._camera.position.set(10, 10, 10);
     this._camera.lookAt(0, 0, 0);
 
+    // Note: `antialias: false` on the canvas because the canvas-bound default
+    // framebuffer is only used for the final blit pass (a fullscreen triangle
+    // covering every pixel — no MSAA-needing edges). Scene-geometry MSAA
+    // happens inside PostPipeline's sceneRT via `samples: 4` (WebGL2
+    // multisample renderbuffer + implicit resolve). This way the same MSAA
+    // budget applies whether we render direct or through post passes.
     this._renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: true,
+      antialias: false,
       preserveDrawingBuffer: false,
     });
     this._renderer.localClippingEnabled = true;
     this._renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this._renderer.setSize(canvas.width, canvas.height, false);
+
+    // Post-processing pipeline (Fáze B scaffold). For now it's a transparent
+    // wrapper: scene → sceneRT → blit-to-canvas. Subsequent fáze register
+    // SSAO/edges passes via _pipeline.addPass().
+    const _pipelineSize = this._renderer.getDrawingBufferSize(new THREE.Vector2());
+    this._pipeline = new PostPipeline(this._renderer, _pipelineSize.x, _pipelineSize.y);
     // Keep tone mapping linear so per-IFC-type and IfcStyledItem colors
     // render at their authored saturation. ACES Filmic compresses highlights
     // and desaturates — looks great for cinematic content but turns BIM
@@ -321,7 +334,7 @@ export class ViewerCore {
       if (this._measureVisuals) this._measureVisuals.updateLabels();
       if (this._pinVisuals) this._pinVisuals.updateScale(this._camera, this._canvas);
       this._updateEdgeOpacity();
-      this._renderer.render(this._scene, this._camera);
+      this._pipeline.render(this._scene, this._camera);
       this._raf = requestAnimationFrame(render);
     };
     render();
@@ -703,6 +716,10 @@ export class ViewerCore {
   resize(w, h) {
     if (!w || !h) return;
     this._renderer.setSize(w, h, false);
+    // Pipeline RTs are sized in drawing-buffer pixels (pixelRatio applied),
+    // not CSS pixels — fetch the post-setSize buffer size from the renderer.
+    const buf = this._renderer.getDrawingBufferSize(new THREE.Vector2());
+    if (this._pipeline) this._pipeline.resize(buf.x, buf.y);
     if (this._camera.isPerspectiveCamera) {
       this._camera.aspect = w / h;
       this._camera.updateProjectionMatrix();
@@ -2303,6 +2320,7 @@ export class ViewerCore {
       this.removeModel(modelId);
     }
     this._controls.dispose();
+    if (this._pipeline) this._pipeline.dispose();
     this._renderer.dispose();
   }
 }

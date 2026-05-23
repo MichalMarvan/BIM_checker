@@ -19,6 +19,7 @@ export async function captureCanvas(viewer, opts = {}) {
   const renderer = viewer._renderer;
   const camera = viewer._camera;
   const scene = viewer._scene;
+  const pipeline = viewer._pipeline;  // may be null for legacy callers — fallback below
 
   const origSize = new THREE.Vector2();
   renderer.getSize(origSize);
@@ -27,6 +28,10 @@ export async function captureCanvas(viewer, opts = {}) {
   if (scale !== 1) {
     renderer.setPixelRatio(1);
     renderer.setSize(origSize.x * scale, origSize.y * scale, false);
+    if (pipeline) {
+      const buf = renderer.getDrawingBufferSize(new THREE.Vector2());
+      pipeline.resize(buf.x, buf.y);
+    }
     if (camera.isPerspectiveCamera) {
       camera.aspect = (origSize.x * scale) / (origSize.y * scale);
       camera.updateProjectionMatrix();
@@ -35,8 +40,10 @@ export async function captureCanvas(viewer, opts = {}) {
 
   // Force one render — copy pixels into an offscreen canvas IMMEDIATELY so
   // the next animation-frame render-loop clear (preserveDrawingBuffer:false)
-  // doesn't wipe the buffer before async toBlob completes.
-  renderer.render(scene, camera);
+  // doesn't wipe the buffer before async toBlob completes. Routing through
+  // the pipeline so screenshots include any post-processing (SSAO, edges).
+  if (pipeline) pipeline.render(scene, camera);
+  else renderer.render(scene, camera);
   const offscreen = document.createElement('canvas');
   offscreen.width = renderer.domElement.width;
   offscreen.height = renderer.domElement.height;
@@ -55,6 +62,10 @@ export async function captureCanvas(viewer, opts = {}) {
   if (scale !== 1) {
     renderer.setPixelRatio(origPixelRatio);
     renderer.setSize(origSize.x, origSize.y, false);
+    if (pipeline) {
+      const buf = renderer.getDrawingBufferSize(new THREE.Vector2());
+      pipeline.resize(buf.x, buf.y);
+    }
     if (camera.isPerspectiveCamera) {
       camera.aspect = origSize.x / origSize.y;
       camera.updateProjectionMatrix();
