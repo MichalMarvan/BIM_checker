@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { PostPipeline } from './post/pipeline.js';
+import { EdgesPass } from './post/edges-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { selectAt } from './selection.js';
 import { getViewSpec } from './camera-presets.js';
@@ -57,31 +58,13 @@ const DEFAULT_MATERIAL = new THREE.MeshStandardMaterial({
   flatShading: false,
 });
 
-// Edge outline rendering: extract sharp edges (angle > threshold) and draw as
-// thin black LineSegments overlay per mesh. Makes geometry stand out without
-// noisy wireframe. Edges fade out when camera is far from target so distant
-// views aren't visually crowded.
-// 45° instead of 30° hides tessellation seams from triangulated civil/IFC
-// geometry (where every triangle would otherwise spawn an edge line),
-// keeping only real corner edges visible.
+// EdgesGeometry threshold for the lazy snap-edge data + selection overlays.
+// 45° hides tessellation seams from triangulated civil/IFC geometry while
+// keeping real corner edges. Bulk-of-scene edges come from screen-space
+// EdgesPass which works in pixels regardless of triangulation.
 const EDGE_THRESHOLD_DEG = 45;
 const EDGE_COLOR = 0x111111;
 const EDGE_MAX_OPACITY = 0.95;
-// Fade thresholds — distances are in scene units. Updated per fitAll based on
-// scene bbox so behaviour scales with model size.
-let _edgeFadeNear = 5;
-let _edgeFadeFar = 50;
-
-// Per-LineSegments material — was a singleton, but mutating shared opacity/
-// visible from edge-fade tick collided with display-mode hidden-line/wireframe
-// toggles and PDF-screenshot timing. Each edge mesh now owns its material.
-function makeEdgeMaterial() {
-  return new THREE.LineBasicMaterial({
-    color: EDGE_COLOR,
-    transparent: true,
-    opacity: EDGE_MAX_OPACITY,
-  });
-}
 
 /**
  * Compute a Box3 over the supplied meshes' WORLD bboxes, robust to a small
@@ -179,11 +162,18 @@ export class ViewerCore {
     this._renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this._renderer.setSize(canvas.width, canvas.height, false);
 
-    // Post-processing pipeline (Fáze B scaffold). For now it's a transparent
-    // wrapper: scene → sceneRT → blit-to-canvas. Subsequent fáze register
-    // SSAO/edges passes via _pipeline.addPass().
+    // Post-processing pipeline. Fáze B: transparent wrapper. Fáze D: edges
+    // pass registered below — replaces the per-mesh EdgesGeometry overlay
+    // (which only caught >45° creases, missed silhouettes on tessellated
+    // curves, and cost double geometry memory per mesh).
     const _pipelineSize = this._renderer.getDrawingBufferSize(new THREE.Vector2());
     this._pipeline = new PostPipeline(this._renderer, _pipelineSize.x, _pipelineSize.y);
+    // EdgesPass: screen-space Sobel on depth+normal buffers. Catches all
+    // three edge classes (silhouette / crease / intersection) regardless of
+    // tessellation, and the line thickness is in screen pixels — no more
+    // distance-fade gymnastics.
+    this._edgesPass = new EdgesPass(this._pipeline, this._camera);
+    this._pipeline.addPass(this._edgesPass);
     // Keep tone mapping linear so per-IFC-type and IfcStyledItem colors
     // render at their authored saturation. ACES Filmic compresses highlights
     // and desaturates — looks great for cinematic content but turns BIM
@@ -333,7 +323,6 @@ export class ViewerCore {
       else this._controls.update();
       if (this._measureVisuals) this._measureVisuals.updateLabels();
       if (this._pinVisuals) this._pinVisuals.updateScale(this._camera, this._canvas);
-      this._updateEdgeOpacity();
       this._pipeline.render(this._scene, this._camera);
       this._raf = requestAnimationFrame(render);
     };
@@ -341,37 +330,54 @@ export class ViewerCore {
   }
 
   /**
-   * Per-frame: fade edge outlines based on camera-to-target distance so
-   * distant views aren't visually crowded with edges.
-   * Linear fade between _edgeFadeNear (full opacity) and _edgeFadeFar (zero).
+   * Lazy-build the per-mesh EdgesGeometry (BufferGeometry of line segments)
+   * used by snap modes and by selection-highlight overlays. Cached on
+   * `mesh.userData.edgeGeom`; created with a 45° threshold to skip
+   * tessellation noise while keeping real corner edges.
    */
-  _updateEdgeOpacity() {
-    // Compute fade factor once per frame
-    let factor;
-    if (!this._edgesVisible) {
-      factor = 0;
-    } else {
-      const dist = this._camera.position.distanceTo(this._controls.target);
-      if (dist <= _edgeFadeNear) factor = 1;
-      else if (dist >= _edgeFadeFar) factor = 0;
-      else factor = 1 - (dist - _edgeFadeNear) / (_edgeFadeFar - _edgeFadeNear);
-    }
-    const opacity = EDGE_MAX_OPACITY * factor;
-    // Display modes that override edge visibility (hidden-line forces on,
-    // wireframe forces off) take precedence — they set obj.visible directly
-    // in _applyDisplayMode and we honor that here by reading current .visible.
-    for (const { group } of this._models.values()) {
-      group.traverse(obj => {
-        if (!obj.userData?.isEdgeOutline) return;
-        const mat = obj.material;
-        if (!mat) return;
-        mat.opacity = opacity;
-        // Only let fade hide edges; do not override display-mode-forced state
-        if (this._displayMode === 'solid' || this._displayMode === null || this._displayMode === undefined) {
-          mat.visible = factor > 0.01;
-        }
-      });
-    }
+  _lazyEdgeGeometry(mesh) {
+    if (mesh.userData?.edgeGeom) return mesh.userData.edgeGeom;
+    if (!mesh.geometry) return null;
+    const eg = new THREE.EdgesGeometry(mesh.geometry, EDGE_THRESHOLD_DEG);
+    mesh.userData = mesh.userData || {};
+    mesh.userData.edgeGeom = eg;
+    return eg;
+  }
+
+  /**
+   * Create a LineSegments overlay for the supplied mesh (lazy — only built
+   * when something visible needs it, e.g. selection highlight). Adds it as
+   * a sibling of the mesh inside the same innerGroup so it inherits the
+   * model's rotation/scale automatically. Returns the LineSegments.
+   */
+  _ensureSelectionEdgesFor(mesh) {
+    if (mesh.userData?.edges) return mesh.userData.edges;
+    const eg = this._lazyEdgeGeometry(mesh);
+    if (!eg) return null;
+    const edges = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
+      color: EDGE_COLOR,
+      transparent: true,
+      opacity: EDGE_MAX_OPACITY,
+      depthTest: true,
+    }));
+    // Mesh has already been applyMatrix4'd in addModel; copy that transform
+    // so the overlay sits on the same world placement.
+    edges.applyMatrix4(mesh.matrix);
+    edges.userData = { isEdgeOutline: true, parentExpressId: mesh.userData?.expressId };
+    mesh.userData.edges = edges;
+    mesh.parent?.add(edges);
+    return edges;
+  }
+
+  _disposeSelectionEdgesFor(mesh) {
+    const edges = mesh.userData?.edges;
+    if (!edges) return;
+    edges.parent?.remove(edges);
+    if (edges.material) edges.material.dispose();
+    // Note: edges.geometry === mesh.userData.edgeGeom is shared with the
+    // lazy snap cache — only dispose the LineSegments wrapper's references,
+    // not the underlying BufferGeometry (snap may still need it).
+    mesh.userData.edges = null;
   }
 
   /**
@@ -477,14 +483,11 @@ export class ViewerCore {
           innerGroup.add(mesh);
           meshes.push(mesh);
 
-          // Edge outlines: extract sharp edges only (>30° face angle)
-          const edgeGeom = new THREE.EdgesGeometry(item.bufferGeometry, EDGE_THRESHOLD_DEG);
-          const edges = new THREE.LineSegments(edgeGeom, makeEdgeMaterial());
-          edges.applyMatrix4(combinedMatrix);
-          edges.userData = { isEdgeOutline: true, parentExpressId: entity.expressId };
-          innerGroup.add(edges);
-          // Phase 6.6.1: store ref so snap can read edge segments without a re-extract
-          mesh.userData.edges = edges;
+          // Edge outlines now live in the screen-space EdgesPass — no per-mesh
+          // LineSegments overlay. Selection highlight + snap helpers lazily
+          // build per-mesh EdgesGeometry on first use (see
+          // _ensureSelectionEdgesFor / _lazyEdgeGeometry below) so we don't
+          // pay the memory cost up front for elements the user never touches.
         }
       }
     }
@@ -516,12 +519,17 @@ export class ViewerCore {
       if (this._entityOpacity) this._entityOpacity.delete(mesh);
       mesh.geometry.dispose();
       mesh.material.dispose();
+      // Lazy snap-edge BufferGeometry — may have been built on first snap
+      // query or selection. Selection LineSegments (if still attached) get
+      // disposed by the group.traverse() below.
+      if (mesh.userData?.edgeGeom) mesh.userData.edgeGeom.dispose();
     }
-    // Dispose edge outline geometries + per-instance materials (added in
-    // addModel; each LineSegments owns its own material since fix 5).
+    // Dispose any lingering selection-edge LineSegments (a selected mesh
+    // gets one attached; on removeModel we may bypass the deselect path).
     m.group.traverse(obj => {
       if (!obj.userData?.isEdgeOutline) return;
-      if (obj.geometry) obj.geometry.dispose();
+      // edges.geometry is shared with mesh.userData.edgeGeom (already
+      // disposed above); only drop the material here.
       if (obj.material) obj.material.dispose();
     });
     this._models.delete(modelId);
@@ -805,13 +813,16 @@ export class ViewerCore {
     const SELECT_EDGE_COLOR = 0xff4500;  // brighter outline
     const arr = Array.isArray(items) ? items : [];
 
+    const _deselect = (rec) => {
+      rec.mesh.material.color.setHex(rec.origColor);
+      // Dispose the lazy selection-edge overlay. Edge highlight on selected
+      // items is per-mesh LineSegments (so we get a sharp coloured outline);
+      // everything else relies on screen-space EdgesPass.
+      this._disposeSelectionEdgesFor(rec.mesh);
+    };
+
     if (mode === 'replace') {
-      // Restore everything currently selected, then add new
-      for (const { mesh, origColor, origEdgeColor } of this._selected.values()) {
-        mesh.material.color.setHex(origColor);
-        const edges = mesh.userData?.edges;
-        if (edges && origEdgeColor !== undefined) edges.material.color.setHex(origEdgeColor);
-      }
+      for (const rec of this._selected.values()) _deselect(rec);
       this._selected.clear();
     }
 
@@ -820,18 +831,13 @@ export class ViewerCore {
       if (mode === 'remove') {
         const rec = this._selected.get(key);
         if (rec) {
-          rec.mesh.material.color.setHex(rec.origColor);
-          const edges = rec.mesh.userData?.edges;
-          if (edges && rec.origEdgeColor !== undefined) edges.material.color.setHex(rec.origEdgeColor);
+          _deselect(rec);
           this._selected.delete(key);
         }
         continue;
       }
       if (mode === 'toggle' && this._selected.has(key)) {
-        const rec = this._selected.get(key);
-        rec.mesh.material.color.setHex(rec.origColor);
-        const edges = rec.mesh.userData?.edges;
-        if (edges && rec.origEdgeColor !== undefined) edges.material.color.setHex(rec.origEdgeColor);
+        _deselect(this._selected.get(key));
         this._selected.delete(key);
         continue;
       }
@@ -841,11 +847,10 @@ export class ViewerCore {
       const rec = {
         mesh,
         origColor: mesh.material.color.getHex(),
-        origEdgeColor: mesh.userData?.edges?.material?.color?.getHex(),
       };
       this._selected.set(key, rec);
       mesh.material.color.setHex(SELECT_COLOR);
-      const edges = mesh.userData?.edges;
+      const edges = this._ensureSelectionEdgesFor(mesh);
       if (edges) edges.material.color.setHex(SELECT_EDGE_COLOR);
     }
     this._emit('selectionChanged', this.getSelectedEntities());
@@ -1053,15 +1058,17 @@ export class ViewerCore {
         mat.depthWrite = finalAlpha >= 1;
         mat.needsUpdate = true;
       }
-      // Edges: hide for wireframe (redundant); force-show for hidden-line.
-      // Otherwise respect _edgesVisible toggle.
+      // Screen-space EdgesPass: force on for hidden-line (it's the only thing
+      // visible in that mode), off for wireframe (mesh wireframe already
+      // shows every edge), else honour the user toggle.
       const edgesShouldShow =
         mode === 'hidden-line' ? true :
         mode === 'wireframe' ? false :
         this._edgesVisible;
-      group.traverse(obj => {
-        if (obj.userData?.isEdgeOutline) obj.visible = edgesShouldShow;
-      });
+      if (this._edgesPass) this._edgesPass.enabled = edgesShouldShow;
+      // Selection-overlay LineSegments stay visible in all modes — they mark
+      // explicit user picks. No need to traverse + toggle; the lazy ones
+      // already default to visible when created.
     }
   }
 
@@ -1340,18 +1347,13 @@ export class ViewerCore {
 
   // -------------------- Edge outlines --------------------
 
-  /** Toggle visibility of black edge outlines on all model meshes. */
+  /** Toggle the screen-space edges pass on/off. */
   setEdgesVisible(visible) {
     this._edgesVisible = !!visible;
-    // Per-instance materials: walk all edge LineSegments and set .visible.
-    // _updateEdgeOpacity (per-frame tick) will reconcile with display mode.
-    for (const { group } of this._models.values()) {
-      group.traverse(obj => {
-        if (obj.userData?.isEdgeOutline && obj.material) {
-          obj.material.visible = this._edgesVisible;
-        }
-      });
-    }
+    if (this._edgesPass) this._edgesPass.enabled = this._edgesVisible;
+    // Selection-overlay LineSegments (the orange highlight on selected items)
+    // stay visible regardless — they're per-mesh and the user explicitly
+    // selected them.
   }
 
   /** Returns current edge visibility. */
@@ -1504,12 +1506,14 @@ export class ViewerCore {
     }
 
     // Edge / midpoint / perpendicular / nearest-on-edge candidates
-    // Iterate the edge LineSegments (paired vertices)
-    const edges = mesh.userData?.edges;
-    if (edges && edges.geometry?.attributes?.position) {
-      const ePos = edges.geometry.attributes.position;
-      edges.updateMatrixWorld();
-      const eMatrix = edges.matrixWorld;
+    // Lazy-build EdgesGeometry on demand (snap may be the first consumer
+    // for a given mesh). Apply the mesh's worldMatrix to the edge buffer
+    // because the underlying BufferGeometry is in mesh-local space.
+    const edgeGeom = this._lazyEdgeGeometry(mesh);
+    if (edgeGeom && edgeGeom.attributes?.position) {
+      const ePos = edgeGeom.attributes.position;
+      mesh.updateMatrixWorld();
+      const eMatrix = mesh.matrixWorld;
       const a = new THREE.Vector3();
       const b = new THREE.Vector3();
 
@@ -2320,6 +2324,7 @@ export class ViewerCore {
       this.removeModel(modelId);
     }
     this._controls.dispose();
+    // PostPipeline.dispose() disposes registered passes too (including EdgesPass).
     if (this._pipeline) this._pipeline.dispose();
     this._renderer.dispose();
   }

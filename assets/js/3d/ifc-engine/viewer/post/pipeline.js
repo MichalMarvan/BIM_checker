@@ -19,6 +19,7 @@
 
 import * as THREE from 'three';
 import { getFullscreenTriangleGeometry } from './fullscreen-triangle.js';
+import { createNormalMaterial } from './normal-material.js';
 
 export class PostPipeline {
   constructor(renderer, width, height) {
@@ -53,6 +54,15 @@ export class PostPipeline {
     });
     this._sceneRT.texture.name = 'PostPipeline.scene.color';
     this._sceneRT.depthTexture.name = 'PostPipeline.scene.depth';
+
+    // Auxiliary normal RT — populated only when at least one registered pass
+    // declares `pass.needsNormals = true`. Non-multisampled (no MSAA needed —
+    // a 1-pixel-wide blended normal at silhouettes actually hurts edge
+    // detection sharpness). Shares the same w×h as sceneRT.
+    this._normalRT = null;            // lazy-allocated on first need
+    this._normalMaterial = null;      // lazy-allocated; depends on clipping planes
+    this._normalClippingPlanes = null;
+    this._normalsClearColor = new THREE.Color(0x808080);  // 0.5 = "no normal"
 
     // Output pass: blits the (possibly post-processed) color RT to the
     // canvas via a fullscreen triangle. ShaderMaterial because we want
@@ -117,21 +127,74 @@ export class PostPipeline {
     renderer.setRenderTarget(this._sceneRT);
     renderer.render(scene, camera);
 
-    // 2. Run registered passes in order. Each pass returns the texture that
+    // 2. (Conditional) Normal pass — second scene render with override
+    //    material into normalRT. Only runs if a pass needs it. Re-uses the
+    //    main scene's clipping planes so section views Just Work.
+    const needsNormals = this._passes.some(p => p && p.needsNormals);
+    if (needsNormals) {
+      this._ensureNormalRT();
+      this._ensureNormalMaterial(this._renderer.clippingPlanes || []);
+      const prevOverride = scene.overrideMaterial;
+      const prevBg = scene.background;
+      scene.overrideMaterial = this._normalMaterial;
+      scene.background = null;  // background object overrides clearColor
+      const prevClear = new THREE.Color();
+      renderer.getClearColor(prevClear);
+      const prevAlpha = renderer.getClearAlpha();
+      renderer.setClearColor(this._normalsClearColor, 1.0);
+      renderer.setRenderTarget(this._normalRT);
+      renderer.clear(true, true, false);  // color + depth clear
+      renderer.render(scene, camera);
+      scene.overrideMaterial = prevOverride;
+      scene.background = prevBg;
+      renderer.setClearColor(prevClear, prevAlpha);
+    }
+
+    // 3. Run registered passes in order. Each pass returns the texture that
     //    should be sampled by the next stage (typically its own output RT).
     let inputTex = this._sceneRT.texture;
     const depthTex = this._sceneRT.depthTexture;
     const size = { width: this._width, height: this._height };
     for (const pass of this._passes) {
+      if (pass.enabled === false) continue;
       const out = pass.render(renderer, inputTex, depthTex, size, this);
       if (out) inputTex = out;
     }
 
-    // 3. Blit final to canvas.
+    // 4. Blit final to canvas.
     renderer.setRenderTarget(null);
     this._outputMaterial.uniforms.tDiffuse.value = inputTex;
     renderer.render(this._outputScene, this._outputCamera);
   }
+
+  _ensureNormalRT() {
+    if (this._normalRT) return;
+    this._normalRT = new THREE.WebGLRenderTarget(this._width, this._height, {
+      colorSpace: THREE.NoColorSpace,  // raw normal data, not perceptual
+      type: THREE.UnsignedByteType,
+      depthBuffer: true,                // need depth-test to hide back faces
+      generateMipmaps: false,
+      minFilter: THREE.NearestFilter,   // edges pass samples at integer pixels
+      magFilter: THREE.NearestFilter,
+    });
+    this._normalRT.texture.name = 'PostPipeline.normal';
+  }
+
+  _ensureNormalMaterial(clippingPlanes) {
+    // Recompile material when the clipping plane array reference changes
+    // (e.g. section toggled on/off). three.js needs a fresh material for
+    // a different number of clipping uniforms.
+    if (this._normalMaterial && this._normalClippingPlanes === clippingPlanes &&
+        this._normalMaterial.clippingPlanes?.length === clippingPlanes.length) {
+      return;
+    }
+    if (this._normalMaterial) this._normalMaterial.dispose();
+    this._normalMaterial = createNormalMaterial(clippingPlanes);
+    this._normalClippingPlanes = clippingPlanes;
+  }
+
+  /** Used by edges/SSAO passes to declare their dependency on the normal buffer. */
+  getNormalTexture() { return this._normalRT ? this._normalRT.texture : null; }
 
   resize(width, height) {
     const w = Math.max(1, width | 0);
@@ -142,6 +205,7 @@ export class PostPipeline {
     this._sceneRT.setSize(w, h);
     // DepthTexture must be resized via the renderTarget — Three.js's
     // WebGLRenderTarget.setSize handles depth attachments tied to it.
+    if (this._normalRT) this._normalRT.setSize(w, h);
     for (const pass of this._passes) {
       if (typeof pass.resize === 'function') pass.resize(w, h);
     }
@@ -155,6 +219,8 @@ export class PostPipeline {
   dispose() {
     this._sceneRT.dispose();
     this._sceneRT.depthTexture.dispose();
+    if (this._normalRT) this._normalRT.dispose();
+    if (this._normalMaterial) this._normalMaterial.dispose();
     this._outputMaterial.dispose();
     for (const pass of this._passes) {
       if (typeof pass.dispose === 'function') pass.dispose();
