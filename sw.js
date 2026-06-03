@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-const CACHE_VERSION = 'bim-checker-v95';
+const CACHE_VERSION = 'bim-checker-v96';
 const ASSETS_TO_CACHE = [
     './index.html',
     './assets/og-image-v2.png',

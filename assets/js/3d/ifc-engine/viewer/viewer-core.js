@@ -429,12 +429,26 @@ export class ViewerCore {
     // Two-pass: first build all candidate items so we can compute the median
     // bbox extent, then drop outliers (parser garbage that would otherwise
     // occlude the real geometry as a giant invisible occluder).
-    // Phase 4b — Trimble-style topology feature edges. We accumulate per-mesh
-    // edge positions (in innerGroup frame) here and emit a single merged
-    // THREE.LineSegments per model after the build loop. Single draw call for
-    // the whole model instead of per-mesh LineSegments (which was previously
-    // removed for performance — see comment around line 505).
-    const featureEdgePositions = [];
+    // Phase 4b — Trimble-style topology feature edges. We attach a per-mesh
+    // LineSegments child to each mesh. Why per-mesh (not one merged per
+    // model): merging requires pre-baking world coords into the LineSegments
+    // vertex buffer. At Civil 3D / S-JTSK magnitudes (~10^6 m) that overflows
+    // f32 precision (the buffer is Float32Array). Per-mesh attached children
+    // inherit mesh.matrix automatically, so the f32 buffer stays in mesh-local
+    // (small) and the huge translation lives in the JS-side f64 matrix — same
+    // precision story as the meshes themselves. Trade-off is +1 draw call per
+    // mesh; one shared LineBasicMaterial keeps the per-element memory tiny.
+    const featureEdgesList = [];
+    const featureEdgesMaterial = new THREE.LineBasicMaterial({
+      color: 0x222222,
+      transparent: true,
+      // 0.5 (down from the previous 0.9 merged-overlay default) — at 16k+
+      // segments the model otherwise looked tinted dark across every face,
+      // even where the edge density was genuinely high.
+      opacity: 0.5,
+      depthTest: true,
+      depthWrite: false,
+    });
 
     const candidates = [];
     for (const ifcType of entityIndex.types()) {
@@ -506,18 +520,20 @@ export class ViewerCore {
           innerGroup.add(mesh);
           meshes.push(mesh);
 
-          // Topology-based feature edges (Phase 4b). Extracted in mesh-local
-          // frame, then each endpoint transformed by combinedMatrix so the
-          // accumulated buffer is in innerGroup-frame and the final merged
-          // LineSegments lives at identity.
+          // Topology-based feature edges (Phase 4b). Buffer stays in mesh-
+          // local frame; the LineSegments is parented to `mesh` so it picks
+          // up mesh.matrix automatically without re-baking huge translations
+          // into a Float32Array (which would lose ~10 cm of accuracy at
+          // S-JTSK magnitudes and visibly drift off the mesh surface).
           const localEdges = extractFeatureEdges(item.bufferGeometry);
           if (localEdges.length > 0) {
-            const _tmpV = new THREE.Vector3();
-            for (let i = 0; i < localEdges.length; i += 3) {
-              _tmpV.set(localEdges[i], localEdges[i + 1], localEdges[i + 2]);
-              _tmpV.applyMatrix4(combinedMatrix);
-              featureEdgePositions.push(_tmpV.x, _tmpV.y, _tmpV.z);
-            }
+            const edgeGeom = new THREE.BufferGeometry();
+            edgeGeom.setAttribute('position', new THREE.BufferAttribute(localEdges, 3));
+            const edgeLines = new THREE.LineSegments(edgeGeom, featureEdgesMaterial);
+            edgeLines.userData = { isFeatureEdges: true, expressId: entity.expressId };
+            edgeLines.visible = this._featureEdgesVisible !== false;
+            mesh.add(edgeLines);
+            featureEdgesList.push(edgeLines);
           }
 
           // Edge outlines now live in the screen-space EdgesPass — no per-mesh
@@ -539,42 +555,28 @@ export class ViewerCore {
     // We keep innerGroup as a structural layer; federation writes to
     // m.group.position freely without touching meshes.
 
-    // Build the merged feature-edge LineSegments for this model. One geometry,
-    // one material, one draw call. Visible by default; engine exposes a
-    // setFeatureEdgesVisible toggle for the UI display-mode dropdown.
-    let featureEdges = null;
-    if (featureEdgePositions.length > 0) {
-      const fgeom = new THREE.BufferGeometry();
-      fgeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(featureEdgePositions), 3));
-      const fmat = new THREE.LineBasicMaterial({
-        color: 0x222222,
-        transparent: true,
-        opacity: 0.9,
-        depthTest: true,
-        depthWrite: false,
-      });
-      featureEdges = new THREE.LineSegments(fgeom, fmat);
-      featureEdges.userData = { isFeatureEdges: true, modelId };
-      featureEdges.visible = this._featureEdgesVisible !== false;
-      innerGroup.add(featureEdges);
-    }
-
     this._scene.add(group);
-    this._models.set(modelId, { group, innerGroup, meshes, featureEdges });
+    this._models.set(modelId, {
+      group, innerGroup, meshes,
+      featureEdges: featureEdgesList,
+      featureEdgesMaterial,
+    });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
     this._recomputeSceneBbox();
   }
 
   /**
-   * Toggle the per-model topology feature-edge layer. Each loaded model has
-   * one merged LineSegments object built during addModel; this just flips its
-   * .visible flag. Hidden = silhouette/depth pass only (cleaner sketch look);
+   * Toggle the per-mesh topology feature-edge LineSegments. Each leaf mesh
+   * gets one attached child during addModel; this flips visibility on all
+   * of them. Hidden = silhouette/depth pass only (cleaner sketch look);
    * visible = silhouette + structural drawing lines (Trimble-style).
    */
   setFeatureEdgesVisible(visible) {
     this._featureEdgesVisible = !!visible;
     for (const m of this._models.values()) {
-      if (m.featureEdges) m.featureEdges.visible = this._featureEdgesVisible;
+      if (m.featureEdges) {
+        for (const lines of m.featureEdges) lines.visible = this._featureEdgesVisible;
+      }
     }
   }
 
@@ -603,12 +605,15 @@ export class ViewerCore {
       // disposed above); only drop the material here.
       if (obj.material) obj.material.dispose();
     });
-    // Phase 4b — feature-edge LineSegments (one per model). Dedicated buffer
-    // geometry + material, both safe to dispose unconditionally.
+    // Phase 4b — feature-edge LineSegments (per-mesh children). The shared
+    // material is disposed once at the model level; per-line geometries each
+    // own their position buffer and must be disposed individually.
     if (m.featureEdges) {
-      if (m.featureEdges.geometry) m.featureEdges.geometry.dispose();
-      if (m.featureEdges.material) m.featureEdges.material.dispose();
+      for (const lines of m.featureEdges) {
+        if (lines.geometry) lines.geometry.dispose();
+      }
     }
+    if (m.featureEdgesMaterial) m.featureEdgesMaterial.dispose();
     this._models.delete(modelId);
     this._recomputeSceneBbox();
   }
