@@ -562,6 +562,11 @@ export class ViewerCore {
     for (const { meshes } of this._models.values()) {
       for (const mesh of meshes) allMeshes.push(mesh);
     }
+    // computeRobustBbox reads mesh.matrixWorld; addModel only sets mesh.matrix
+    // (via applyMatrix4) — matrixWorld stays stale until the next render. Force
+    // a fresh traversal so a bbox recompute right after addModel sees current
+    // transforms instead of identity-matrix garbage for the just-added meshes.
+    this._scene.updateMatrixWorld(true);
     this._sceneBbox = allMeshes.length > 0 ? computeRobustBbox(allMeshes) : null;
   }
 
