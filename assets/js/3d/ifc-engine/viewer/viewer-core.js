@@ -25,6 +25,9 @@ import { parseLandXmlAlignments } from '../alignment/landxml-parser.js';
 import { sampleAlignment, pointAtStation } from '../alignment/discretize.js';
 import { distance, angle, polygonArea } from './measure-math.js';
 
+// Per-frame scratch (no allocations in render loop).
+const _clipSize = new THREE.Vector3();
+
 // Per-IFC-type material colors. Common BIM convention: walls light gray,
 // columns dark blue, beams brown, doors amber, windows light blue, roof red, etc.
 // Unknown types fall back to neutral gray.
@@ -240,6 +243,12 @@ export class ViewerCore {
     // Models registry (Task 7 fills these)
     this._models = new Map();  // modelId → { group, meshes }
 
+    // Cached union bbox of all loaded models — used by _updateCameraClipPlanes
+    // to compute scene-diagonal-relative near/far each frame. Recomputed on
+    // add/remove model (mesh count rarely changes, so the per-frame cost is
+    // just bbox.getSize + a few comparisons). null = no models loaded.
+    this._sceneBbox = null;
+
     this._highlights = new Map();   // mesh → original color hex (AI-tool highlight)
     this._listeners = new Map();    // eventName → Set<callback>
 
@@ -323,6 +332,10 @@ export class ViewerCore {
     const render = () => {
       if (this._walkMode && this._walkMode.isActive()) this._walkMode.tick();
       else this._controls.update();
+      // Adapt camera near/far to scene size + current zoom. Cheap (one bbox
+      // read + distanceTo); only re-uploads the projection matrix on drift
+      // >5%. Keeps far/near ratio low enough for stable SSAO + edge depth.
+      this._updateCameraClipPlanes();
       if (this._measureVisuals) this._measureVisuals.updateLabels();
       if (this._pinVisuals) this._pinVisuals.updateScale(this._camera, this._canvas);
       this._pipeline.render(this._scene, this._camera);
@@ -507,6 +520,7 @@ export class ViewerCore {
     this._scene.add(group);
     this._models.set(modelId, { group, innerGroup, meshes });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
+    this._recomputeSceneBbox();
   }
 
   /**
@@ -535,6 +549,72 @@ export class ViewerCore {
       if (obj.material) obj.material.dispose();
     });
     this._models.delete(modelId);
+    this._recomputeSceneBbox();
+  }
+
+  /**
+   * Recompute the union bbox cache of all loaded models. Cheap (one pass over
+   * meshes), but only worth running when the model set changes — addModel /
+   * removeModel call this; the render loop just reads the cached bbox.
+   */
+  _recomputeSceneBbox() {
+    const allMeshes = [];
+    for (const { meshes } of this._models.values()) {
+      for (const mesh of meshes) allMeshes.push(mesh);
+    }
+    this._sceneBbox = allMeshes.length > 0 ? computeRobustBbox(allMeshes) : null;
+  }
+
+  /**
+   * Set camera near/far based on scene size + current camera-to-target distance.
+   *
+   * Why: the constructor defaults (0.1, 100000) give a far/near ratio of 1e6.
+   * Perspective z-buffer is nonlinear → at that ratio, depth precision in the
+   * far half of the frustum drops to a couple of bits, causing:
+   *   - SSAO acne (depth-compare can't resolve adjacent samples reliably)
+   *   - Inconsistent screen-space edge thresholds (depth-Laplacian fires
+   *     differently at different camera distances)
+   *
+   * After centering / federation, model coords are scene-local (small), so we
+   * can derive a tight frustum from scene.diag and camDist. Target ratio ~1e4.
+   *
+   * Called every frame after controls.update() — cost is bbox.getSize +
+   * distanceTo + 2 comparisons; updateProjectionMatrix only fires when the
+   * values drifted by >5%, so we don't thrash MVP recomputes.
+   */
+  _updateCameraClipPlanes() {
+    if (!this._sceneBbox || this._sceneBbox.isEmpty()) return;
+    const size = this._sceneBbox.getSize(_clipSize);
+    const diag = size.length();
+    if (!Number.isFinite(diag) || diag <= 0) return;
+
+    const camDist = this._camera.position.distanceTo(this._controls.target);
+
+    let near, far;
+    if (this._camera.isPerspectiveCamera) {
+      // diag/5000 keeps near ~0.05–0.5 for typical infra/building scenes;
+      // 0.01 floor handles tiny models without producing degenerate near.
+      near = Math.max(diag / 5000, 0.01);
+      // far = camDist + 2× diag gives margin even when zoomed inside the model.
+      far = camDist + diag * 2.0;
+    } else if (this._camera.isOrthographicCamera) {
+      // Ortho z is linear → big range is fine for precision, just pick a
+      // window centered around the target that covers the scene from any angle.
+      near = -diag * 5;
+      far = camDist + diag * 5;
+    } else {
+      return;
+    }
+
+    // Only update when drift >5% on either bound — avoids re-uploading the
+    // projection matrix every frame for camera moves that don't change framing.
+    const nearChanged = Math.abs(this._camera.near - near) / Math.max(Math.abs(near), 1e-3) > 0.05;
+    const farChanged = Math.abs(this._camera.far - far) / Math.max(Math.abs(far), 1) > 0.05;
+    if (nearChanged || farChanged) {
+      this._camera.near = near;
+      this._camera.far = far;
+      this._camera.updateProjectionMatrix();
+    }
   }
 
   /**
@@ -682,6 +762,10 @@ export class ViewerCore {
     // MeasureVisuals stores a camera reference at construction; update it so
     // HTML overlay labels project through the new (active) camera.
     if (this._measureVisuals) this._measureVisuals._camera = this._camera;
+    // The new camera was constructed with the legacy hard-coded (0.1, 100000)
+    // bounds. Pull them in immediately so the first post-switch frame already
+    // has the dynamic near/far instead of waiting one render-loop tick.
+    this._updateCameraClipPlanes();
   }
 
   /**
