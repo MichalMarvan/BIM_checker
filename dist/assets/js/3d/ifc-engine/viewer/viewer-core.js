@@ -440,12 +440,13 @@ export class ViewerCore {
     // mesh; one shared LineBasicMaterial keeps the per-element memory tiny.
     const featureEdgesList = [];
     const featureEdgesMaterial = new THREE.LineBasicMaterial({
-      color: 0x222222,
+      // 0x333333 + 0.35 keeps the topology layer visible as a sketch
+      // overlay when explicitly toggled on, without dimming the surface
+      // colours of the solid view (which is the default and what users
+      // see most of the time).
+      color: 0x333333,
       transparent: true,
-      // 0.5 (down from the previous 0.9 merged-overlay default) — at 16k+
-      // segments the model otherwise looked tinted dark across every face,
-      // even where the edge density was genuinely high.
-      opacity: 0.5,
+      opacity: 0.35,
       depthTest: true,
       depthWrite: false,
     });
@@ -531,7 +532,14 @@ export class ViewerCore {
             edgeGeom.setAttribute('position', new THREE.BufferAttribute(localEdges, 3));
             const edgeLines = new THREE.LineSegments(edgeGeom, featureEdgesMaterial);
             edgeLines.userData = { isFeatureEdges: true, expressId: entity.expressId };
-            edgeLines.visible = this._featureEdgesVisible !== false;
+            // Default OFF: in solid (the default) mode the topology layer
+            // would darken the surface colours of every flat panel since
+            // adjacent IfcBuildingElementProxies share boundary edges that
+            // each emit independently. Users toggle the layer on through
+            // engine.setFeatureEdgesVisible(true) when they want a Trimble-
+            // style drawing overlay; the toggled state survives subsequent
+            // loads (see setFeatureEdgesVisible).
+            edgeLines.visible = this._featureEdgesVisible === true;
             mesh.add(edgeLines);
             featureEdgesList.push(edgeLines);
           }
