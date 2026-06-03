@@ -8,6 +8,7 @@ import { PostPipeline } from './post/pipeline.js';
 import { EdgesPass } from './post/edges-pass.js';
 import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
+import { extractFeatureEdges } from '../geometry/mesh-types.js';
 import { selectAt } from './selection.js';
 import { getViewSpec } from './camera-presets.js';
 import { animateCameraTo } from './camera-animation.js';
@@ -428,6 +429,13 @@ export class ViewerCore {
     // Two-pass: first build all candidate items so we can compute the median
     // bbox extent, then drop outliers (parser garbage that would otherwise
     // occlude the real geometry as a giant invisible occluder).
+    // Phase 4b — Trimble-style topology feature edges. We accumulate per-mesh
+    // edge positions (in innerGroup frame) here and emit a single merged
+    // THREE.LineSegments per model after the build loop. Single draw call for
+    // the whole model instead of per-mesh LineSegments (which was previously
+    // removed for performance — see comment around line 505).
+    const featureEdgePositions = [];
+
     const candidates = [];
     for (const ifcType of entityIndex.types()) {
       const entities = entityIndex.byType(ifcType);
@@ -498,6 +506,20 @@ export class ViewerCore {
           innerGroup.add(mesh);
           meshes.push(mesh);
 
+          // Topology-based feature edges (Phase 4b). Extracted in mesh-local
+          // frame, then each endpoint transformed by combinedMatrix so the
+          // accumulated buffer is in innerGroup-frame and the final merged
+          // LineSegments lives at identity.
+          const localEdges = extractFeatureEdges(item.bufferGeometry);
+          if (localEdges.length > 0) {
+            const _tmpV = new THREE.Vector3();
+            for (let i = 0; i < localEdges.length; i += 3) {
+              _tmpV.set(localEdges[i], localEdges[i + 1], localEdges[i + 2]);
+              _tmpV.applyMatrix4(combinedMatrix);
+              featureEdgePositions.push(_tmpV.x, _tmpV.y, _tmpV.z);
+            }
+          }
+
           // Edge outlines now live in the screen-space EdgesPass — no per-mesh
           // LineSegments overlay. Selection highlight + snap helpers lazily
           // build per-mesh EdgesGeometry on first use (see
@@ -517,10 +539,43 @@ export class ViewerCore {
     // We keep innerGroup as a structural layer; federation writes to
     // m.group.position freely without touching meshes.
 
+    // Build the merged feature-edge LineSegments for this model. One geometry,
+    // one material, one draw call. Visible by default; engine exposes a
+    // setFeatureEdgesVisible toggle for the UI display-mode dropdown.
+    let featureEdges = null;
+    if (featureEdgePositions.length > 0) {
+      const fgeom = new THREE.BufferGeometry();
+      fgeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(featureEdgePositions), 3));
+      const fmat = new THREE.LineBasicMaterial({
+        color: 0x222222,
+        transparent: true,
+        opacity: 0.9,
+        depthTest: true,
+        depthWrite: false,
+      });
+      featureEdges = new THREE.LineSegments(fgeom, fmat);
+      featureEdges.userData = { isFeatureEdges: true, modelId };
+      featureEdges.visible = this._featureEdgesVisible !== false;
+      innerGroup.add(featureEdges);
+    }
+
     this._scene.add(group);
-    this._models.set(modelId, { group, innerGroup, meshes });
+    this._models.set(modelId, { group, innerGroup, meshes, featureEdges });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
     this._recomputeSceneBbox();
+  }
+
+  /**
+   * Toggle the per-model topology feature-edge layer. Each loaded model has
+   * one merged LineSegments object built during addModel; this just flips its
+   * .visible flag. Hidden = silhouette/depth pass only (cleaner sketch look);
+   * visible = silhouette + structural drawing lines (Trimble-style).
+   */
+  setFeatureEdgesVisible(visible) {
+    this._featureEdgesVisible = !!visible;
+    for (const m of this._models.values()) {
+      if (m.featureEdges) m.featureEdges.visible = this._featureEdgesVisible;
+    }
   }
 
   /**
@@ -548,6 +603,12 @@ export class ViewerCore {
       // disposed above); only drop the material here.
       if (obj.material) obj.material.dispose();
     });
+    // Phase 4b — feature-edge LineSegments (one per model). Dedicated buffer
+    // geometry + material, both safe to dispose unconditionally.
+    if (m.featureEdges) {
+      if (m.featureEdges.geometry) m.featureEdges.geometry.dispose();
+      if (m.featureEdges.material) m.featureEdges.material.dispose();
+    }
     this._models.delete(modelId);
     this._recomputeSceneBbox();
   }

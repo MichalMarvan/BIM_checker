@@ -562,6 +562,115 @@ export function computeCreasedVertexNormals(geom, creaseAngleRad = Math.PI * 50 
   geom.setIndex(new THREE.BufferAttribute(newIdx, 1));
 }
 
+/**
+ * Extract topology-based feature edges from an indexed BufferGeometry.
+ *
+ * A feature edge is any triangle-mesh edge where:
+ *   - it's a boundary edge (used by exactly one face) — outlines the open
+ *     border of a surface model (e.g. road TIN edge, terrain cut), or
+ *   - two adjacent face normals differ by more than `creaseAngleRad`.
+ *
+ * Coplanar tessellation seams (a curved road profile sampled into many
+ * triangles) sit below the angle threshold and DO NOT produce edges, so the
+ * resulting line layer reads as the structural "drawing" of the model —
+ * silhouettes, sharp corners, holes — instead of every triangulation seam.
+ *
+ * Output: Float32Array [x0,y0,z0, x1,y1,z1, ...] where every consecutive
+ * pair forms one line segment — directly feeds THREE.BufferGeometry for
+ * THREE.LineSegments rendering.
+ *
+ * Phase 4b. Default angle 50° matches computeCreasedVertexNormals so the
+ * two passes share their notion of "sharp": vertices the crease pass
+ * duplicated (different normal clusters) align with edges this pass emits.
+ */
+export function extractFeatureEdges(geom, creaseAngleRad = Math.PI * 50 / 180, minLength = 1e-3) {
+  const positions = geom.attributes.position?.array;
+  const idxAttr = geom.index;
+  if (!positions || !idxAttr) return new Float32Array(0);
+  const idx = idxAttr.array;
+  const numFaces = idx.length / 3;
+  const cosT = Math.cos(creaseAngleRad);
+  const minLenSq = minLength * minLength;
+
+  // Per-face normals. Degenerate triangles (cross length 0 — repeated indices
+  // or collinear vertices after vertex merging) get a sentinel zero normal
+  // and are skipped in the edge sweep so they don't emit length-zero segments.
+  const fnx = new Float32Array(numFaces);
+  const fny = new Float32Array(numFaces);
+  const fnz = new Float32Array(numFaces);
+  const faceDegenerate = new Uint8Array(numFaces);
+  for (let f = 0; f < numFaces; f++) {
+    const i0 = idx[f * 3], i1 = idx[f * 3 + 1], i2 = idx[f * 3 + 2];
+    if (i0 === i1 || i1 === i2 || i0 === i2) { faceDegenerate[f] = 1; continue; }
+    const ia = i0 * 3, ib = i1 * 3, ic = i2 * 3;
+    const ax = positions[ia], ay = positions[ia + 1], az = positions[ia + 2];
+    const ex = positions[ib] - ax, ey = positions[ib + 1] - ay, ez = positions[ib + 2] - az;
+    const gx = positions[ic] - ax, gy = positions[ic + 1] - ay, gz = positions[ic + 2] - az;
+    let nx = ey * gz - ez * gy;
+    let ny = ez * gx - ex * gz;
+    let nz = ex * gy - ey * gx;
+    const len = Math.hypot(nx, ny, nz);
+    if (len < 1e-12) { faceDegenerate[f] = 1; continue; }
+    fnx[f] = nx / len; fny[f] = ny / len; fnz[f] = nz / len;
+  }
+
+  // Edge map keyed by sorted vertex pair "a|b" (a<b). Value = first face id;
+  // when a second face encounters the same edge, we test the dot of normals
+  // and emit if it's below threshold. Boundary edges (only one face) are
+  // emitted at the end.
+  // Using a regular Map keyed by a packed-pair number for speed: with up to
+  // ~2^21 vertices per mesh we can fit two indices in one 53-bit JS number.
+  const edgeMap = new Map();   // packedKey → firstFaceId
+  const out = [];
+
+  function tryEmit(a, b) {
+    const aIdx = a * 3, bIdx = b * 3;
+    const dx = positions[aIdx] - positions[bIdx];
+    const dy = positions[aIdx + 1] - positions[bIdx + 1];
+    const dz = positions[aIdx + 2] - positions[bIdx + 2];
+    if (dx * dx + dy * dy + dz * dz < minLenSq) return;  // skip degenerate / tessellation noise
+    out.push(
+      positions[aIdx], positions[aIdx + 1], positions[aIdx + 2],
+      positions[bIdx], positions[bIdx + 1], positions[bIdx + 2]
+    );
+  }
+
+  function processEdge(va, vb, faceId) {
+    const a = va < vb ? va : vb;
+    const b = va < vb ? vb : va;
+    const key = a * 4194304 + b; // 22-bit shift; fits in safe integer
+    const other = edgeMap.get(key);
+    if (other === undefined) {
+      edgeMap.set(key, faceId);
+      return;
+    }
+    const dot = fnx[other] * fnx[faceId] + fny[other] * fny[faceId] + fnz[other] * fnz[faceId];
+    if (dot < cosT) tryEmit(a, b);
+    // Mark as "shared with a second face" so the boundary sweep ignores it.
+    edgeMap.set(key, -1);
+  }
+
+  for (let f = 0; f < numFaces; f++) {
+    if (faceDegenerate[f]) continue;
+    const i0 = idx[f * 3], i1 = idx[f * 3 + 1], i2 = idx[f * 3 + 2];
+    processEdge(i0, i1, f);
+    processEdge(i1, i2, f);
+    processEdge(i2, i0, f);
+  }
+
+  // Boundary edges — open-shell outlines (Civil 3D ShellBasedSurfaceModel
+  // road profiles, terrain cuts). Any edge still holding a face id (not -1)
+  // was seen by exactly one face.
+  for (const [key, firstFace] of edgeMap) {
+    if (firstFace === -1) continue;
+    const a = Math.floor(key / 4194304);
+    const b = key % 4194304;
+    tryEmit(a, b);
+  }
+
+  return new Float32Array(out);
+}
+
 // -------------------- IfcTriangulatedFaceSet --------------------
 
 export function triangulatedFaceSetToGeometry(entityIndex, expressId) {

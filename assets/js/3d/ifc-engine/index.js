@@ -1015,6 +1015,10 @@ export class IfcEngine {
   getEdgesVisible() {
     return this._viewer ? this._viewer.getEdgesVisible() : false;
   }
+  /** Phase 4b — toggle per-model topology feature-edge LineSegments overlay. */
+  setFeatureEdgesVisible(visible) {
+    if (this._viewer) this._viewer.setFeatureEdgesVisible(visible);
+  }
   /** Highlight actual hovered face during pick mode (find coplanar triangles). */
   showSectionGhostFromClient(clientX, clientY) {
     if (!this._viewer) return false;
