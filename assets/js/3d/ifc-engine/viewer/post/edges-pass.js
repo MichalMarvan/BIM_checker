@@ -133,7 +133,15 @@ export class EdgesPass {
         // smoothly curving surfaces; 0.6 picks up real creases without
         // catching tessellated cylinder noise.
         uDepthThreshold: { value: opts.depthThreshold ?? 0.05 },
-        uNormalThreshold: { value: opts.normalThreshold ?? 0.6 },
+        // 0.9 (raised from 0.6) keeps tessellation seams quiet on Civil 3D /
+        // Tekla road and shell-surface meshes — those carry many adjacent
+        // facets at ~10–30° from each other, and a 0.6 normal threshold
+        // would draw an edge line at every triangulation seam. 0.9 means
+        // only ~25°+ creases trigger the normal-Laplacian branch, while the
+        // depth-Laplacian (silhouette) branch still fires at every visible
+        // outline. Topology-based feature edges (4b) will provide the
+        // structural "drawing" line layer on top of this clean depth pass.
+        uNormalThreshold: { value: opts.normalThreshold ?? 0.9 },
         uEdgeWidth: { value: opts.edgeWidth ?? 1.0 },
         uCameraNear: { value: camera.near ?? 0.1 },
         uCameraFar: { value: camera.far ?? 1000 },
