@@ -65,9 +65,13 @@ const DEFAULT_MATERIAL = new THREE.MeshStandardMaterial({
   // feature-edge LineSegments win the depth test. Without this, edge lines
   // sit at exactly the surface depth and ~half their fragments z-fail,
   // leaving broken/dotted outlines (Trimble-style edges need solid lines).
+  // (2,4) instead of the minimal (1,1): line rasterization interpolates
+  // depth differently than fill rasterization, so on large scenes (channel
+  // beds ~100 m across) a 1-quantum offset still loses ~half the line
+  // fragments at distance. Verified on D214_SO132001.
   polygonOffset: true,
-  polygonOffsetFactor: 1,
-  polygonOffsetUnits: 1,
+  polygonOffsetFactor: 2,
+  polygonOffsetUnits: 4,
 });
 
 // EdgesGeometry threshold for the lazy snap-edge data + selection overlays.

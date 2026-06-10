@@ -449,10 +449,12 @@ export function mergeVerticesInPlace(geom, tolerance = 1e-4) {
  * RAM ceiling on large infrastructure models.
  *
  * creaseAngleRad: faces within this angle of an existing cluster join it.
- * 50° works well for civil/BIM: flat tessellated surfaces stay flat, sharp
- * 90° corners stay sharp, tessellated cylinders/arcs stay smooth.
+ * 30° (the CAD-standard crease default) keeps flat tessellated surfaces
+ * smooth and dense cylinders/arcs (<30° per segment) smooth, while hard-
+ * edging real corners INCLUDING 45° chamfers — bridge pillars and channel
+ * break lines commonly use 30–50° bevels that a 50° threshold misses.
  */
-export function computeCreasedVertexNormals(geom, creaseAngleRad = Math.PI * 50 / 180) {
+export function computeCreasedVertexNormals(geom, creaseAngleRad = Math.PI * 30 / 180) {
   const positions = geom.attributes.position?.array;
   const idxAttr = geom.index;
   if (!positions || !idxAttr) {
@@ -589,11 +591,13 @@ export function computeCreasedVertexNormals(geom, creaseAngleRad = Math.PI * 50 
  * pair forms one line segment — directly feeds THREE.BufferGeometry for
  * THREE.LineSegments rendering.
  *
- * Phase 4b. Default angle 50° matches computeCreasedVertexNormals so the
+ * Phase 4b. Default angle 30° matches computeCreasedVertexNormals so the
  * two passes share their notion of "sharp": vertices the crease pass
  * duplicated (different normal clusters) align with edges this pass emits.
+ * (Was 50°, which silently dropped 45° chamfer corners on pillars and
+ * 30–45° break lines in channel beds — verified on D214_SO132001.)
  */
-export function extractFeatureEdges(geom, creaseAngleRad = Math.PI * 50 / 180, minLength = 1e-3) {
+export function extractFeatureEdges(geom, creaseAngleRad = Math.PI * 30 / 180, minLength = 1e-3) {
   const positions = geom.attributes.position?.array;
   const idxAttr = geom.index;
   if (!positions || !idxAttr) return new Float32Array(0);
