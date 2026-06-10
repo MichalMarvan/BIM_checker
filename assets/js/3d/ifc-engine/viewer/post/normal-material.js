@@ -45,10 +45,17 @@ export function createNormalMaterial(clippingPlanes = []) {
       #include <clipping_planes_pars_fragment>
       void main() {
         #include <clipping_planes_fragment>
+        // DoubleSide rendering: IFC tessellation often has flipped winding,
+        // so the rasterised face may be the geometric back face. Mirror the
+        // normal exactly like MeshStandardMaterial does for double-sided
+        // lighting — otherwise SSAO gets an inward-pointing normal and
+        // falsely occludes the entire surface (uniformly darkened meshes).
+        vec3 n = normalize(vViewNormal);
+        if (!gl_FrontFacing) n = -n;
         // Encode normal [-1, 1] → [0, 1] for UnsignedByteType RT.
         // 8-bit precision is fine for edge-detection thresholds: a 1°
         // angular change maps to a ~2/255 colour delta, well above noise.
-        vec3 enc = normalize(vViewNormal) * 0.5 + 0.5;
+        vec3 enc = n * 0.5 + 0.5;
         gl_FragColor = vec4(enc, 1.0);
       }
     `,

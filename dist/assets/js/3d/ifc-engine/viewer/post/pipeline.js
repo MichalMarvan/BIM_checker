@@ -86,6 +86,12 @@ export class PostPipeline {
         uniform sampler2D tDiffuse;
         void main() {
           gl_FragColor = texture2D(tDiffuse, vUv);
+          // Rendering into a WebGLRenderTarget happens in the working
+          // (linear) color space — three.js applies the output OETF only
+          // when drawing built-in materials to the canvas. This blit is the
+          // last write to the canvas, so it must encode linear → sRGB here,
+          // otherwise the whole viewer renders visibly darker.
+          #include <colorspace_fragment>
         }
       `,
       depthTest: false,
