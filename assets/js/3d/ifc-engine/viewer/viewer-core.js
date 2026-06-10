@@ -82,6 +82,15 @@ const EDGE_THRESHOLD_DEG = 45;
 const EDGE_COLOR = 0x111111;
 const EDGE_MAX_OPACITY = 0.95;
 
+// Feature-edge overlay (Trimble-style element outlines) — distance fade.
+// 1px lines accumulate when the whole model fits the viewport: at fitAll
+// distance the render reads "more black than colour". Fade the overlay by
+// the camDist / scene-diagonal ratio: full strength below FADE_START,
+// gone above FADE_END (fitAll ratio is typically ~1.3).
+const FEATURE_EDGE_OPACITY = 0.85;
+const FEATURE_EDGE_FADE_START = 0.35;
+const FEATURE_EDGE_FADE_END = 0.9;
+
 /**
  * Compute a Box3 over the supplied meshes' WORLD bboxes, robust to a small
  * number of mesh outliers with corrupt / garbage coordinates.
@@ -354,6 +363,7 @@ export class ViewerCore {
       // read + distanceTo); only re-uploads the projection matrix on drift
       // >5%. Keeps far/near ratio low enough for stable SSAO + edge depth.
       this._updateCameraClipPlanes();
+      this._updateFeatureEdgesFade();
       if (this._measureVisuals) this._measureVisuals.updateLabels();
       if (this._pinVisuals) this._pinVisuals.updateScale(this._camera, this._canvas);
       this._pipeline.render(this._scene, this._camera);
@@ -463,9 +473,10 @@ export class ViewerCore {
       // mergeVerticesInPlace) — with topology clean, full-strength lines
       // read as crisp element borders without tinting the fill colours
       // (fills are pushed back via polygonOffset on DEFAULT_MATERIAL).
+      // Opacity is driven per-frame by _updateFeatureEdgesFade (zoom fade).
       color: 0x2a2a2e,
       transparent: true,
-      opacity: 0.85,
+      opacity: FEATURE_EDGE_OPACITY,
       depthTest: true,
       depthWrite: false,
     });
@@ -713,6 +724,33 @@ export class ViewerCore {
       this._camera.near = near;
       this._camera.far = far;
       this._camera.updateProjectionMatrix();
+    }
+  }
+
+  /**
+   * Zoom-dependent fade of the feature-edge overlay. Called every frame from
+   * the render loop (cost: one getSize + distanceTo + a few material writes).
+   *
+   * Close up (camDist < FADE_START × diag) the outlines render at full
+   * strength; once the camera backs out far enough that the whole model
+   * fills the view (ratio ≥ FADE_END) they disappear entirely — at that
+   * range the 1px lines would otherwise merge into a black silhouette and
+   * drown the element colours. material.visible doubles as a draw-call
+   * skip so a fully faded overlay costs nothing.
+   */
+  _updateFeatureEdgesFade() {
+    if (this._featureEdgesVisible !== true) return;
+    if (!this._sceneBbox || this._sceneBbox.isEmpty()) return;
+    const diag = this._sceneBbox.getSize(_clipSize).length();
+    if (!Number.isFinite(diag) || diag <= 0) return;
+    const ratio = this._camera.position.distanceTo(this._controls.target) / diag;
+    const t = Math.min(1, Math.max(0,
+      (ratio - FEATURE_EDGE_FADE_START) / (FEATURE_EDGE_FADE_END - FEATURE_EDGE_FADE_START)));
+    const opacity = FEATURE_EDGE_OPACITY * (1 - t);
+    for (const m of this._models.values()) {
+      if (!m.featureEdgesMaterial) continue;
+      m.featureEdgesMaterial.opacity = opacity;
+      m.featureEdgesMaterial.visible = opacity > 0.02;
     }
   }
 
