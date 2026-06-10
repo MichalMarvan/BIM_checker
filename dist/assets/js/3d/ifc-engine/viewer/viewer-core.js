@@ -61,6 +61,13 @@ const DEFAULT_MATERIAL = new THREE.MeshStandardMaterial({
   metalness: 0.0,         // BIM elements aren't metallic — kill PBR specular spots
   roughness: 0.92,        // very matte, eliminates per-mesh shiny hot-spots
   flatShading: false,
+  // Push fill polygons back a hair in the depth buffer so the coplanar
+  // feature-edge LineSegments win the depth test. Without this, edge lines
+  // sit at exactly the surface depth and ~half their fragments z-fail,
+  // leaving broken/dotted outlines (Trimble-style edges need solid lines).
+  polygonOffset: true,
+  polygonOffsetFactor: 1,
+  polygonOffsetUnits: 1,
 });
 
 // EdgesGeometry threshold for the lazy snap-edge data + selection overlays.
@@ -287,6 +294,12 @@ export class ViewerCore {
     // Edge outlines visibility toggle (true by default).
     this._edgesVisible = true;
 
+    // Topology feature edges (Trimble-style element outlines) — ON by
+    // default: boundary + sharp-crease line layer drawn over the solid
+    // fill. Was OFF while weld-degenerated triangles spammed false edges;
+    // that root cause is fixed in mergeVerticesInPlace.
+    this._featureEdgesVisible = true;
+
     // Display mode: 'solid' (default) | 'xray' | 'hidden-line' | 'wireframe' | 'transparent'.
     // Phase 6 audit fix: per-entity opacity is now tracked separately from
     // mode opacity, so setDisplayMode no longer wipes user overrides.
@@ -440,13 +453,15 @@ export class ViewerCore {
     // mesh; one shared LineBasicMaterial keeps the per-element memory tiny.
     const featureEdgesList = [];
     const featureEdgesMaterial = new THREE.LineBasicMaterial({
-      // 0x333333 + 0.35 keeps the topology layer visible as a sketch
-      // overlay when explicitly toggled on, without dimming the surface
-      // colours of the solid view (which is the default and what users
-      // see most of the time).
-      color: 0x333333,
+      // Trimble-Connect-style element outlines: thin, dark, near-opaque.
+      // The earlier 0x333333/0.35 "sketch" tuning compensated for false
+      // edges emitted by weld-degenerated triangles (since fixed in
+      // mergeVerticesInPlace) — with topology clean, full-strength lines
+      // read as crisp element borders without tinting the fill colours
+      // (fills are pushed back via polygonOffset on DEFAULT_MATERIAL).
+      color: 0x2a2a2e,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.85,
       depthTest: true,
       depthWrite: false,
     });
@@ -532,13 +547,9 @@ export class ViewerCore {
             edgeGeom.setAttribute('position', new THREE.BufferAttribute(localEdges, 3));
             const edgeLines = new THREE.LineSegments(edgeGeom, featureEdgesMaterial);
             edgeLines.userData = { isFeatureEdges: true, expressId: entity.expressId };
-            // Default OFF: in solid (the default) mode the topology layer
-            // would darken the surface colours of every flat panel since
-            // adjacent IfcBuildingElementProxies share boundary edges that
-            // each emit independently. Users toggle the layer on through
-            // engine.setFeatureEdgesVisible(true) when they want a Trimble-
-            // style drawing overlay; the toggled state survives subsequent
-            // loads (see setFeatureEdgesVisible).
+            // Follows the engine-wide toggle (default ON — Trimble-style
+            // element outlines); setFeatureEdgesVisible flips the whole
+            // layer and the state survives subsequent loads.
             edgeLines.visible = this._featureEdgesVisible === true;
             mesh.add(edgeLines);
             featureEdgesList.push(edgeLines);
