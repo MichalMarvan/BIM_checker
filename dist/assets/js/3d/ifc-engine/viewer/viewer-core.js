@@ -671,9 +671,14 @@ export class ViewerCore {
 
     let near, far;
     if (this._camera.isPerspectiveCamera) {
-      // diag/5000 keeps near ~0.05–0.5 for typical infra/building scenes;
-      // 0.01 floor handles tiny models without producing degenerate near.
-      near = Math.max(diag / 5000, 0.01);
+      // Perspective depth precision is proportional to `near` and falls off
+      // with distance² — a fixed small near (0.01) gives ~4 mm resolvable
+      // depth at 25 m, which makes mm-thick coplanar IFC layers (waterproofing
+      // on deck slabs, pavement courses) z-fight into stripe moiré. Scale
+      // near with camera distance: camDist/100 resolves ~0.2 mm at any zoom
+      // while never clipping closer than 1% of the orbit distance. diag/5000
+      // and the 0.01 floor keep tiny models and extreme close-ups sane.
+      near = Math.max(diag / 5000, camDist / 100, 0.01);
       // far = camDist + 2× diag gives margin even when zoomed inside the model.
       far = camDist + diag * 2.0;
     } else if (this._camera.isOrthographicCamera) {

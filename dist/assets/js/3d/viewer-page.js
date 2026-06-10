@@ -278,6 +278,13 @@ async function loadIfcFromStorage(fileMeta) {
                     internal.group.matrixAutoUpdate = true;
                     internal.group.updateMatrix();
                     internal.group.updateMatrixWorld(true);
+                    // The bake moved every vertex to scene-local coords, but the
+                    // viewer cached _sceneBbox at addModel time (pre-bake, georef
+                    // coords ~10^6 m). Anything reading bbox position (not just
+                    // size) would act on a phantom location — recompute now.
+                    if (typeof engine._viewer._recomputeSceneBbox === 'function') {
+                        engine._viewer._recomputeSceneBbox();
+                    }
                     console.log('[3d-viewer] baked', visited.size, 'geometries to scene-local frame');
                 }
             }
