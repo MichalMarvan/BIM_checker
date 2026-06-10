@@ -405,15 +405,22 @@ export function mergeVerticesInPlace(geom, tolerance = 1e-4) {
   }
   if (newPositions.length === positions.length) return geom; // nothing merged
 
-  let newIndexArray;
+  // Rebuild the index buffer, dropping triangles the weld degenerated.
+  // Micro-edges in CAD tessellations (sub-tolerance slivers) collapse two
+  // corners onto one index ([v,v,w]); keeping those zero-area faces feeds
+  // garbage normals into the crease pass and broke its index rewrite
+  // (spike triangles all converging on vertex 0).
   const oldIndex = geom.index ? geom.index.array : null;
-  if (oldIndex) {
-    newIndexArray = new Uint32Array(oldIndex.length);
-    for (let i = 0; i < oldIndex.length; i++) newIndexArray[i] = oldToNew[oldIndex[i]];
-  } else {
-    newIndexArray = new Uint32Array(vertexCount);
-    for (let i = 0; i < vertexCount; i++) newIndexArray[i] = oldToNew[i];
+  const triCount = (oldIndex ? oldIndex.length : vertexCount) / 3;
+  const kept = [];
+  for (let t = 0; t < triCount; t++) {
+    const a = oldToNew[oldIndex ? oldIndex[t * 3]     : t * 3];
+    const b = oldToNew[oldIndex ? oldIndex[t * 3 + 1] : t * 3 + 1];
+    const c = oldToNew[oldIndex ? oldIndex[t * 3 + 2] : t * 3 + 2];
+    if (a === b || b === c || a === c) continue;
+    kept.push(a, b, c);
   }
+  const newIndexArray = new Uint32Array(kept);
 
   geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(newPositions), 3));
   geom.setIndex(new THREE.BufferAttribute(newIndexArray, 1));
@@ -550,10 +557,13 @@ export function computeCreasedVertexNormals(geom, creaseAngleRad = Math.PI * 50 
     for (let j = start; j < end; j++) {
       const f = vertFaces[j];
       const nv = cNewIdx[faceCluster[j - start]];
-      // Find which slot of face f references v (could be 0, 1, or 2).
-      if (idx[f * 3]     === v) newIdx[f * 3]     = nv;
-      else if (idx[f * 3 + 1] === v) newIdx[f * 3 + 1] = nv;
-      else                            newIdx[f * 3 + 2] = nv;
+      // Rewrite EVERY slot of face f that references v — a degenerate face
+      // ([v,v,w]) hits v in two slots; a first-match-only chain would leave
+      // the second slot at its Uint32Array default (0), silently wiring the
+      // triangle to vertex 0 and producing metre-long spike artifacts.
+      for (let k = 0; k < 3; k++) {
+        if (idx[f * 3 + k] === v) newIdx[f * 3 + k] = nv;
+      }
     }
   }
 
