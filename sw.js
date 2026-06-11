@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-const CACHE_VERSION = 'bim-checker-v110';
+const CACHE_VERSION = 'bim-checker-v111';
 const ASSETS_TO_CACHE = [
     './index.html',
     './assets/og-image-v2.png',
@@ -49,6 +49,7 @@ const ASSETS_TO_CACHE = [
     './assets/js/common/update-checker.js',
     './assets/js/common/bug-report.js',
     './assets/js/common/compression.js',
+    './assets/js/common/compression-worker.js',
     './assets/js/common/ifc-parser-core.js',
     './assets/js/common/validation-presets.js',
     './assets/js/common/pwa.js',

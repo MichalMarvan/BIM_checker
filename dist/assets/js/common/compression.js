@@ -8,6 +8,54 @@
 window.Compression = (function() {
     'use strict';
 
+    // Gzip payloads above this go to the decompression worker — for small
+    // files the postMessage round-trip costs more than it saves.
+    const WORKER_THRESHOLD = 256 * 1024;
+    const _scriptSrc = document.currentScript ? document.currentScript.src : null;
+    let _worker = null;
+    let _workerBroken = false;
+    let _nextId = 1;
+    const _pending = new Map();
+
+    function _getWorker() {
+        if (_workerBroken || !_scriptSrc) return null;
+        if (_worker) return _worker;
+        try {
+            _worker = new Worker(new URL('compression-worker.js', _scriptSrc));
+            _worker.onmessage = (e) => {
+                const { id, text, error } = e.data || {};
+                const p = _pending.get(id);
+                if (!p) return;
+                _pending.delete(id);
+                if (error) p.reject(new Error(error));
+                else p.resolve(text);
+            };
+            _worker.onerror = () => {
+                _workerBroken = true;
+                for (const p of _pending.values()) p.reject(new Error('compression worker failed'));
+                _pending.clear();
+                try { _worker.terminate(); } catch (e) { /* already dead */ }
+                _worker = null;
+            };
+        } catch (e) {
+            _workerBroken = true;
+            _worker = null;
+        }
+        return _worker;
+    }
+
+    function _decompressInWorker(view) {
+        const w = _getWorker();
+        if (!w) return null;
+        // Copy before transfer — the caller's buffer must stay intact so the
+        // inline path can still run if the worker dies mid-job.
+        const buf = view.slice().buffer;
+        const id = _nextId++;
+        const promise = new Promise((resolve, reject) => _pending.set(id, { resolve, reject }));
+        w.postMessage({ id, buf }, [buf]);
+        return promise;
+    }
+
     function isSupported() {
         return typeof CompressionStream !== 'undefined'
             && typeof DecompressionStream !== 'undefined';
@@ -46,11 +94,30 @@ window.Compression = (function() {
         if (!isSupported()) {
             throw new Error('Cannot decompress: CompressionStream not supported');
         }
+
+        if (view.byteLength >= WORKER_THRESHOLD) {
+            const viaWorker = _decompressInWorker(view);
+            if (viaWorker) {
+                try {
+                    return await viaWorker;
+                } catch (e) {
+                    console.warn('[Compression] worker decompress failed, falling back inline:', e.message);
+                }
+            }
+        }
+
         const stream = new Blob([view]).stream()
             .pipeThrough(new DecompressionStream('gzip'));
         const blob = await new Response(stream).blob();
         return await blob.text();
     }
 
-    return { compress, decompress, isGzipped, isSupported };
+    function _decompressViaWorkerForTest(bytes) {
+        const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
+        const p = _decompressInWorker(view);
+        if (!p) return Promise.reject(new Error('worker unavailable'));
+        return p;
+    }
+
+    return { compress, decompress, isGzipped, isSupported, _decompressViaWorkerForTest };
 })();

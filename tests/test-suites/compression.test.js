@@ -124,3 +124,27 @@ describe('Compression.decompress backward compatibility', () => {
         expect(threw).toBe(true);
     });
 });
+
+describe('Compression — worker decompress', () => {
+    function randomText(chars) {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#=();,\n';
+        const arr = new Array(chars);
+        for (let i = 0; i < chars; i++) arr[i] = alphabet[(Math.random() * alphabet.length) | 0];
+        return arr.join('');
+    }
+
+    it('forced worker path round-trips a large payload', async () => {
+        const original = randomText(1500000);
+        const compressed = await Compression.compress(original);
+        const out = await Compression._decompressViaWorkerForTest(compressed);
+        expect(out === original).toBe(true);
+    });
+
+    it('decompress() of an over-threshold payload round-trips (worker or fallback)', async () => {
+        const original = randomText(1500000);
+        const compressed = await Compression.compress(original);
+        expect(compressed.byteLength > 256 * 1024).toBe(true);
+        const out = await Compression.decompress(compressed);
+        expect(out === original).toBe(true);
+    });
+});
