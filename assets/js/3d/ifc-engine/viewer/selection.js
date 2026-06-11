@@ -5,6 +5,7 @@
 // Other scene contents (lights, helper objects) are filtered out.
 
 import * as THREE from 'three';
+import { resolveMergedFace } from './merged-model.js';
 
 const _raycaster = new THREE.Raycaster();
 const _ndc = new THREE.Vector2();
@@ -50,6 +51,18 @@ export function selectAt(scene, camera, canvas, clientX, clientY) {
     if (!isPickable(mesh)) continue;
     const ud = mesh.userData;
     if (!ud || !ud.modelId) continue;
+
+    // Merged-geometry models carry one mesh for all elements — resolve the
+    // element from the triangle-range table by raycast faceIndex.
+    let expressId = ud.expressId;
+    let ifcType = ud.ifcType;
+    if (ud.merged && ud.mergedTable) {
+      const row = resolveMergedFace(ud.mergedTable, hit.faceIndex);
+      if (!row) continue;
+      expressId = row.expressId;
+      ifcType = row.ifcType;
+    }
+
     // Compute world-space face normal: transform local face.normal by mesh's
     // inverse-transpose world matrix. For uniform scale + rotation (our case),
     // the world matrix can be applied directly to the normal then re-normalized.
@@ -61,8 +74,8 @@ export function selectAt(scene, camera, canvas, clientX, clientY) {
     }
     return {
       modelId: ud.modelId,
-      expressId: ud.expressId,
-      ifcType: ud.ifcType,
+      expressId,
+      ifcType,
       point: hit.point.clone(),
       normal: worldNormal,
       distance: hit.distance,

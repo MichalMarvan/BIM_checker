@@ -78,7 +78,9 @@ export class IfcEngine {
   constructor(options = {}) {
     this._workerUrl = options.workerUrl || new URL('./workers/parser.worker.js', import.meta.url).href;
     this._models = new Map();   // Map<modelId, { meta, index }>
-    this._viewer = options.canvas ? new ViewerCore(options.canvas) : null;
+    this._viewer = options.canvas
+      ? new ViewerCore(options.canvas, { mergedGeometry: !!options.mergedGeometry })
+      : null;
     this._coordsCache = new Map();        // modelId → CoordsData
     this._federationMode = 'auto';
     this._manualOffsets = new Map();      // modelId → [x,y,z]

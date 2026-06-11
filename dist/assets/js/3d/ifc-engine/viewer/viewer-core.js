@@ -10,6 +10,7 @@ import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
 import { selectAt, isPickable } from './selection.js';
+import { buildMergedModel, mergedElementBox } from './merged-model.js';
 import { getViewSpec } from './camera-presets.js';
 import { animateCameraTo } from './camera-animation.js';
 import { SectionVisuals } from './section-visuals.js';
@@ -162,8 +163,11 @@ export class ViewerCore {
   /**
    * @param {HTMLCanvasElement} canvas — target canvas; renderer will write here
    */
-  constructor(canvas) {
+  constructor(canvas, opts = {}) {
     this._canvas = canvas;
+    // Mesh-merging etapa 1 (docs/superpowers/specs/2026-06-11-3d-mesh-merging-plan.md):
+    // one vertex-colored mesh per model + faceIndex→element table.
+    this._mergedGeometry = !!opts.mergedGeometry;
     this._scene = new THREE.Scene();
     this._scene.background = new THREE.Color(0xf5f6f8);  // light gray — Trimble/Navisworks/Revit BIM convention
 
@@ -401,6 +405,10 @@ export class ViewerCore {
   _lazyEdgeGeometry(mesh) {
     if (mesh.userData?.edgeGeom) return mesh.userData.edgeGeom;
     if (!mesh.geometry) return null;
+    // Merged model = one geometry for ALL elements — EdgesGeometry over it
+    // would take seconds and megabytes. Edge snapping there comes with the
+    // merged-edges etapa; until then snap falls back to vertices/faces.
+    if (mesh.userData?.merged) return null;
     const eg = new THREE.EdgesGeometry(mesh.geometry, EDGE_THRESHOLD_DEG);
     mesh.userData = mesh.userData || {};
     mesh.userData.edgeGeom = eg;
@@ -526,6 +534,38 @@ export class ViewerCore {
     if (skipped > 0) {
       console.warn(`[viewer] addModel: skipped ${skipped} outlier mesh items (extent > ${cap.toFixed(0)}, median ${medianExt.toFixed(2)})`);
     }
+    // Merged path (etapa 1): single vertex-colored mesh + faceIndex→element
+    // table. No per-element feature edges yet (merged edges = etapa 4).
+    if (this._mergedGeometry) {
+      const material = DEFAULT_MATERIAL.clone();
+      material.vertexColors = true;
+      material.color.setHex(0xffffff);
+      if (this._section.active && this._section.planes.length > 0) {
+        material.clippingPlanes = this._section.planes;
+        material.clipShadows = true;
+      }
+      const built = buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material);
+      if (built) {
+        built.mesh.userData = { modelId, merged: true, mergedTable: built.table };
+        innerGroup.add(built.mesh);
+        this._scene.add(group);
+        this._models.set(modelId, {
+          group, innerGroup,
+          meshes: [built.mesh],
+          merged: true,
+          mergedTable: built.table,
+          elementInfo: built.elementInfo,
+          elementsByType: built.elementsByType,
+          featureEdges: [],
+          featureEdgesMaterial: null,
+        });
+        if (this._displayMode !== 'solid') this._applyDisplayMode();
+        this._recomputeSceneBbox();
+        console.log(`[viewer] merged model ${modelId}: ${accepted.length} items → 1 mesh (${built.table.length} ranges, ${built.elementInfo.size} elements)`);
+      }
+      return;
+    }
+
     const meshes = [];
 
     for (const { entity, ifcType, item, result, typeColor } of accepted) {
@@ -552,19 +592,7 @@ export class ViewerCore {
             material.clippingPlanes = this._section.planes;
             material.clipShadows = true;
           }
-          // Compose the full per-mesh transform without baking anything into
-          // the vertex buffer. Three pieces in order: entity placement
-          // (result.matrix) × IfcMappedItem chain (item.parentMatrix from
-          // expandItems) × per-mesh centroid translation (localOrigin from
-          // the parser). Keeping all three out of the float32 buffer is what
-          // preserves precision for Civil 3D / Tekla files with absolute
-          // S-JTSK coords or huge mapped-item offsets.
-          const combinedMatrix = result.matrix.clone();
-          if (item.parentMatrix) combinedMatrix.multiply(item.parentMatrix);
-          const lo = item.bufferGeometry?.userData?.localOrigin;
-          if (lo && (lo[0] || lo[1] || lo[2])) {
-            combinedMatrix.multiply(new THREE.Matrix4().makeTranslation(lo[0], lo[1], lo[2]));
-          }
+          const combinedMatrix = this._itemMatrix(item, result);
           const mesh = new THREE.Mesh(item.bufferGeometry, material);
           mesh.applyMatrix4(combinedMatrix);
           mesh.userData = { modelId, ifcType, expressId: entity.expressId };
@@ -617,6 +645,24 @@ export class ViewerCore {
     });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
     this._recomputeSceneBbox();
+  }
+
+  /**
+   * Compose the full per-item transform without baking anything into the
+   * vertex buffer. Three pieces in order: entity placement (result.matrix)
+   * × IfcMappedItem chain (item.parentMatrix from expandItems) × per-mesh
+   * centroid translation (localOrigin from the parser). Keeping all three
+   * out of the float32 buffer preserves precision for Civil 3D / Tekla
+   * files with absolute S-JTSK coords or huge mapped-item offsets.
+   */
+  _itemMatrix(item, result) {
+    const combinedMatrix = result.matrix.clone();
+    if (item.parentMatrix) combinedMatrix.multiply(item.parentMatrix);
+    const lo = item.bufferGeometry?.userData?.localOrigin;
+    if (lo && (lo[0] || lo[1] || lo[2])) {
+      combinedMatrix.multiply(new THREE.Matrix4().makeTranslation(lo[0], lo[1], lo[2]));
+    }
+    return combinedMatrix;
   }
 
   /**
@@ -1143,6 +1189,7 @@ export class ViewerCore {
     const arr = Array.isArray(items) ? items : [];
 
     const _deselect = (rec) => {
+      if (!rec.mesh) return;  // merged-model selection has no per-mesh visuals yet
       rec.mesh.material.color.setHex(rec.origColor);
       // Dispose the lazy selection-edge overlay. Edge highlight on selected
       // items is per-mesh LineSegments (so we get a sharp coloured outline);
@@ -1172,7 +1219,14 @@ export class ViewerCore {
       }
       if (this._selected.has(key)) continue;  // already selected, skip add
       const mesh = this._findMesh(it.modelId, it.expressId);
-      if (!mesh) continue;
+      if (!mesh) {
+        // Merged model: track selection state without visuals (highlight
+        // overlay extract = etapa 2) so the entity bar / API stay correct.
+        const m = this._models.get(it.modelId);
+        const info = m && m.merged && m.elementInfo ? m.elementInfo.get(Number(it.expressId)) : null;
+        if (info) this._selected.set(key, { mesh: null, ifcType: info.ifcType });
+        continue;
+      }
       // The clicked mesh is usually hover-tinted at click time — its material
       // shows the hover blue, not the real colour. Capture the original stored
       // by setHoverEntity, otherwise deselect would restore the hover tint.
@@ -1205,7 +1259,7 @@ export class ViewerCore {
       out.push({
         modelId,
         expressId: parseInt(expressId, 10),
-        ifcType: rec.mesh.userData?.ifcType || null,
+        ifcType: (rec.mesh ? rec.mesh.userData?.ifcType : rec.ifcType) || null,
       });
     }
     return out;
@@ -1262,7 +1316,9 @@ export class ViewerCore {
 
     const tmp = new THREE.Vector3();
     const out = [];
-    for (const { meshes } of this._models.values()) {
+    for (const m of this._models.values()) {
+      if (m.merged) continue;  // box-select over the element table = etapa 5
+      const meshes = m.meshes;
       for (const mesh of meshes) {
         if (!isPickable(mesh)) continue;  // hidden/faded-out elements are not box-selectable
         if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
@@ -1294,8 +1350,9 @@ export class ViewerCore {
   isolateEntities(items) {
     if (!Array.isArray(items)) return;
     const keep = new Set(items.map(it => `${it.modelId}|${it.expressId}`));
-    for (const { meshes } of this._models.values()) {
-      for (const mesh of meshes) {
+    for (const m of this._models.values()) {
+      if (m.merged) continue;  // per-element visibility in merged mode = etapa 3
+      for (const mesh of m.meshes) {
         const key = `${mesh.userData.modelId}|${mesh.userData.expressId}`;
         mesh.visible = keep.has(key);
       }
@@ -1354,6 +1411,11 @@ export class ViewerCore {
   findSameTypeIds(modelId, expressId) {
     const m = this._models.get(modelId);
     if (!m) return [];
+    if (m.merged) {
+      const info = m.elementInfo ? m.elementInfo.get(Number(expressId)) : null;
+      if (!info) return [];
+      return [...(m.elementsByType.get(info.ifcType) || [])];
+    }
     const mesh = this._findMesh(modelId, expressId);
     const type = mesh && mesh.userData ? mesh.userData.ifcType : null;
     if (!type) return [];
@@ -2054,9 +2116,16 @@ export class ViewerCore {
    */
   focusEntity(modelId, expressId) {
     const mesh = this._findMesh(modelId, expressId);
-    if (!mesh) return;
-    const box = new THREE.Box3().setFromObject(mesh);
-    if (box.isEmpty()) return;
+    let box = null;
+    if (mesh) {
+      box = new THREE.Box3().setFromObject(mesh);
+    } else {
+      const m = this._models.get(modelId);
+      if (m && m.merged && m.meshes[0]) {
+        box = mergedElementBox(m.meshes[0], m.mergedTable, Number(expressId));
+      }
+    }
+    if (!box || box.isEmpty()) return;
 
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());

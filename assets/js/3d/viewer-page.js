@@ -90,7 +90,11 @@ function getEngine() {
         setStatus(t('viewer3d.initEngine') || 'Inicializuji 3D engine…');
         const mod = await import('./ifc-engine/index.js');
         const canvas = setupCanvas();
-        const engine = new mod.IfcEngine({ canvas });
+        // Etapa 1 mesh-merging feature flag — opt-in via ?merged=1 while the
+        // merged pipeline matures (plan: docs/superpowers/specs/).
+        const mergedGeometry = new URLSearchParams(location.search).get('merged') === '1';
+        if (mergedGeometry) console.log('[3d-viewer] merged-geometry mode ON');
+        const engine = new mod.IfcEngine({ canvas, mergedGeometry });
         // Switch federation to 'manual' so engine's auto-recompute on every
         // addModel doesn't reset previously-positioned models back to their
         // (huge) S-JTSK world coords. We feed our own offsets via setModelOffset.
@@ -244,6 +248,11 @@ async function loadIfcFromStorage(fileMeta) {
                         const total = shift.clone().multiply(obj.matrixWorld);
                         obj.geometry.applyMatrix4(total);
                         obj.geometry.computeBoundingBox();
+                        // Raycasting pre-tests against boundingSphere — a sphere
+                        // computed before this bake (e.g. at merged-geometry build,
+                        // or lazily by the first rendered frame) points at the old
+                        // vertex positions and silently swallows all picks.
+                        obj.geometry.computeBoundingSphere();
                         // Some materials rely on vertex normals — recompute after a
                         // potentially rotation-bearing transform was baked in.
                         if (obj.geometry.attributes && obj.geometry.attributes.position && obj.geometry.attributes.normal) {
