@@ -99,39 +99,56 @@ export class IfcEngine {
     if (!options || !options.name) {
       throw new Error('loadIfc: options.name is required');
     }
-    const text = typeof input === 'string' ? input : new TextDecoder('utf-8').decode(input);
-
-    const { entities, schema } = await this._parseInWorker(text);
-    const entityMap = new Map(entities.map(e => [e.expressId, e]));
-    const index = new EntityIndex(entityMap);
-    // Build style index once per model: maps geometry item expressId → hex color
-    // from IfcStyledItem chain. Geometry-core reads this via index._styleIndex
-    // when assembling per-item results.
-    index._styleIndex = buildStyleIndex(index);
-    // Extract length unit prefix factor from IfcUnitAssignment. Some Czech
-    // S-JTSK models declare MILLIMETRE as the global LENGTHUNIT; without this
-    // scale the geometry is 1000× too big and fitAll's camera ends up so far
-    // away that real elements become sub-pixel invisible.
-    const lengthScale = extractLengthScale(index);
-    index._lengthScale = lengthScale;
-
-    const modelId = generateModelId();
-    const stats = index.stats();
-    const meta = {
-      modelId,
-      name: options.name,
-      schema,
-      entityCount: stats.entityCount,
-      typeCount: stats.typeCount,
-      lengthScale,
-    };
-    this._models.set(modelId, { meta, index });
-    if (this._viewer) {
-      this._viewer.addModel(modelId, index, { lengthScale });
-      this._viewer._emit('modelLoaded', { modelId, stats: { ...meta } });
+    // Rendering the existing scene competes with the parse worker for CPU
+    // cores (brutal on software-GL) — freeze frames for the duration.
+    if (this._viewer && typeof this._viewer.pauseRendering === 'function') {
+      this._viewer.pauseRendering();
     }
-    this._recomputeFederation();
-    return modelId;
+    try {
+      const t0 = performance.now();
+      const text = typeof input === 'string' ? input : new TextDecoder('utf-8').decode(input);
+      const t1 = performance.now();
+
+      const { entities, schema } = await this._parseInWorker(text);
+      const t2 = performance.now();
+      const entityMap = new Map(entities.map(e => [e.expressId, e]));
+      const index = new EntityIndex(entityMap);
+      // Build style index once per model: maps geometry item expressId → hex color
+      // from IfcStyledItem chain. Geometry-core reads this via index._styleIndex
+      // when assembling per-item results.
+      index._styleIndex = buildStyleIndex(index);
+      // Extract length unit prefix factor from IfcUnitAssignment. Some Czech
+      // S-JTSK models declare MILLIMETRE as the global LENGTHUNIT; without this
+      // scale the geometry is 1000× too big and fitAll's camera ends up so far
+      // away that real elements become sub-pixel invisible.
+      const lengthScale = extractLengthScale(index);
+      index._lengthScale = lengthScale;
+      const t3 = performance.now();
+
+      const modelId = generateModelId();
+      const stats = index.stats();
+      const meta = {
+        modelId,
+        name: options.name,
+        schema,
+        entityCount: stats.entityCount,
+        typeCount: stats.typeCount,
+        lengthScale,
+      };
+      this._models.set(modelId, { meta, index });
+      if (this._viewer) {
+        this._viewer.addModel(modelId, index, { lengthScale });
+        this._viewer._emit('modelLoaded', { modelId, stats: { ...meta } });
+      }
+      const t4 = performance.now();
+      this._recomputeFederation();
+      console.log(`[ifc-engine] loadIfc timings (ms): decode=${(t1 - t0).toFixed(0)} parse=${(t2 - t1).toFixed(0)} index=${(t3 - t2).toFixed(0)} geometry=${(t4 - t3).toFixed(0)} total=${(performance.now() - t0).toFixed(0)}`);
+      return modelId;
+    } finally {
+      if (this._viewer && typeof this._viewer.resumeRendering === 'function') {
+        this._viewer.resumeRendering();
+      }
+    }
   }
 
   /**
@@ -1119,6 +1136,8 @@ export class IfcEngine {
   setModelVisible(modelId, visible) { if (this._viewer) this._viewer.setModelVisible(modelId, visible); }
   isModelVisible(modelId) { return this._viewer ? this._viewer.isModelVisible(modelId) : true; }
   fitModel(modelId) { if (this._viewer) this._viewer.fitModel(modelId); }
+  pauseRendering() { if (this._viewer && typeof this._viewer.pauseRendering === 'function') this._viewer.pauseRendering(); }
+  resumeRendering() { if (this._viewer && typeof this._viewer.resumeRendering === 'function') this._viewer.resumeRendering(); }
   setEntityOpacity(items, alpha) { if (this._viewer) this._viewer.setEntityOpacity(items, alpha); }
   getEntityOpacity(modelId, expressId) {
     return this._viewer ? this._viewer.getEntityOpacity(modelId, expressId) : 1;

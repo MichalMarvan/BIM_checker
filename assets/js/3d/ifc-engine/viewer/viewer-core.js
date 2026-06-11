@@ -355,7 +355,27 @@ export class ViewerCore {
     this._startRenderLoop();
   }
 
+  /**
+   * Suspend the RAF render loop (ref-counted). While an IFC parses in the
+   * worker, rendering the already-loaded scene competes for the same CPU
+   * cores — on software-GL (SwiftShader) this starves the parser to a
+   * crawl (measured 15 s → 220 s+ for a second model on a Pi).
+   */
+  pauseRendering() {
+    this._renderPauseDepth = (this._renderPauseDepth || 0) + 1;
+    if (this._raf) {
+      cancelAnimationFrame(this._raf);
+      this._raf = null;
+    }
+  }
+
+  resumeRendering() {
+    this._renderPauseDepth = Math.max(0, (this._renderPauseDepth || 0) - 1);
+    if (this._renderPauseDepth === 0 && !this._raf) this._startRenderLoop();
+  }
+
   _startRenderLoop() {
+    if ((this._renderPauseDepth || 0) > 0) return;
     const render = () => {
       if (this._walkMode && this._walkMode.isActive()) this._walkMode.tick();
       else this._controls.update();

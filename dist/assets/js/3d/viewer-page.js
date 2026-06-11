@@ -28,12 +28,22 @@ function t(key) {
     return (window.i18n && window.i18n.t) ? window.i18n.t(key) : key;
 }
 
+let _statusHideTimer = null;
 function setStatus(msg, kind = 'info') {
     const el = document.getElementById('viewer3dStatus');
     if (!el) return;
     el.textContent = msg;
     el.dataset.kind = kind;
     el.hidden = !msg;
+    // Success confirmations are transient — they used to stick around forever
+    // (e.g. the green "model loaded" pill). Auto-hide after a moment.
+    if (_statusHideTimer) { clearTimeout(_statusHideTimer); _statusHideTimer = null; }
+    if (kind === 'success') {
+        _statusHideTimer = setTimeout(() => {
+            _statusHideTimer = null;
+            if (el.dataset.kind === 'success') el.hidden = true;
+        }, 4000);
+    }
 }
 
 function escapeHtml(s) {
@@ -115,28 +125,19 @@ function getEngine() {
     return state.enginePromise;
 }
 
-function updateFileChip(name) {
-    const chip = document.getElementById('v3dFileInfo');
-    const label = document.getElementById('v3dFileName');
-    if (!chip || !label) return;
-    if (name) {
-        label.textContent = name;
-        chip.hidden = false;
-    } else {
-        chip.hidden = true;
-    }
-}
-
 function renderLoadedList() {
-    // Loaded models live in the left-rail "Modely" drawer now; here we keep the
-    // navbar file chip in sync and refresh the drawer if it's open.
-    const lastEntry = Array.from(state.loadedModels.values()).pop();
-    updateFileChip(lastEntry ? lastEntry.name : null);
+    // Loaded models live in the left-rail "Modely" drawer — just refresh it.
     refreshRailPanel();
 }
 
 async function loadIfcFromStorage(fileMeta) {
     console.log('[3d-viewer] loadIfcFromStorage:', fileMeta.name);
+    // With a model already on screen, rendering competes with the whole load
+    // path for CPU — not just the parse worker but also the IndexedDB read +
+    // decompression here on the main thread (brutal on software-GL, where one
+    // frame costs hundreds of ms). Freeze frames for the entire load.
+    const preEngine = state.engine;
+    if (preEngine && typeof preEngine.pauseRendering === 'function') preEngine.pauseRendering();
     try {
         setStatus(`${t('viewer3d.loading') || 'Načítám'} ${fileMeta.name}…`);
         const raw = await window.BIMStorage.getFileContent('ifc', fileMeta.id);
@@ -303,6 +304,8 @@ async function loadIfcFromStorage(fileMeta) {
             window.ErrorHandler.error((t('viewer3d.loadFailed') || 'Načtení selhalo') + ': ' + (e.message || e));
         }
         throw e;
+    } finally {
+        if (preEngine && typeof preEngine.resumeRendering === 'function') preEngine.resumeRendering();
     }
 }
 
