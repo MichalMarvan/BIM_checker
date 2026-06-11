@@ -10,7 +10,7 @@ import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
 import { selectAt, isPickable } from './selection.js';
-import { buildMergedModel, mergedElementBox } from './merged-model.js';
+import { buildMergedModel, mergedElementBox, extractElementGeometry } from './merged-model.js';
 import { getViewSpec } from './camera-presets.js';
 import { animateCameraTo } from './camera-animation.js';
 import { SectionVisuals } from './section-visuals.js';
@@ -280,10 +280,11 @@ export class ViewerCore {
     // Persistent UI selection (separate from AI-tool highlight). Click-to-select,
     // multi-select with Ctrl, box-select with Shift+drag. Hover is a transient
     // single-mesh marker shown while the cursor is over an element.
-    this._selected = new Map();     // 'modelId:expressId' → { mesh, origColor }
+    this._selected = new Map();     // 'modelId:expressId' → { mesh, origColor } | { mesh:null, ifcType, overlay }
     this._hoveredKey = null;        // 'modelId:expressId' | null
     this._hoverOrigColor = null;    // mesh.material.color hex before hover
     this._hoveredMesh = null;
+    this._hoveredOverlay = null;    // merged-model hover highlight group
 
     this._section = {
       active: false, type: null, planes: [],
@@ -648,6 +649,76 @@ export class ViewerCore {
   }
 
   /**
+   * Highlight overlay for one element of a merged model (etapa 2):
+   * geometry extracted from the merged buffer, attached as a child of the
+   * merged mesh (inherits its transform). Consists of a depth-tested solid
+   * tint, optionally an x-ray ghost pass (depthTest:false — the highlight
+   * stays readable through occluding construction) and an outline that also
+   * shows through. No shared materials are recolored, so there is no
+   * orig-color bookkeeping to get wrong.
+   */
+  _buildMergedOverlay(m, expressId, colorHex, { ghost = false, edgeColor = null } = {}) {
+    const baseMesh = m.meshes[0];
+    if (!baseMesh) return null;
+    const geom = extractElementGeometry(baseMesh, m.mergedTable, expressId);
+    if (!geom) return null;
+    const grp = new THREE.Group();
+    grp.userData.isMergedOverlay = true;
+
+    const solid = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({
+      color: colorHex,
+      transparent: true,
+      opacity: 0.82,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+      side: THREE.DoubleSide,
+    }));
+    grp.add(solid);
+
+    if (ghost) {
+      const gm = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({
+        color: colorHex,
+        transparent: true,
+        opacity: 0.25,
+        depthTest: false,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }));
+      gm.renderOrder = 998;
+      grp.add(gm);
+    }
+
+    if (edgeColor !== null) {
+      const eg = new THREE.EdgesGeometry(geom, EDGE_THRESHOLD_DEG);
+      const lines = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
+        color: edgeColor,
+        transparent: true,
+        opacity: 0.95,
+        depthTest: false,
+        depthWrite: false,
+      }));
+      lines.renderOrder = 999;
+      grp.add(lines);
+    }
+
+    baseMesh.add(grp);
+    return grp;
+  }
+
+  _removeMergedOverlay(grp) {
+    if (!grp) return;
+    if (grp.parent) grp.parent.remove(grp);
+    const geoms = new Set();
+    grp.traverse(o => {
+      if (o.geometry) geoms.add(o.geometry);
+      if (o.material) o.material.dispose();
+    });
+    for (const g of geoms) g.dispose();
+  }
+
+  /**
    * Compose the full per-item transform without baking anything into the
    * vertex buffer. Three pieces in order: entity placement (result.matrix)
    * × IfcMappedItem chain (item.parentMatrix from expandItems) × per-mesh
@@ -686,6 +757,21 @@ export class ViewerCore {
   removeModel(modelId) {
     const m = this._models.get(modelId);
     if (!m) return;
+    // Drop selection / hover records (and their merged overlays) pointing at
+    // this model before the group leaves the scene.
+    for (const [key, rec] of [...this._selected]) {
+      if (key.startsWith(modelId + ':')) {
+        if (rec.overlay) this._removeMergedOverlay(rec.overlay);
+        this._selected.delete(key);
+      }
+    }
+    if (this._hoveredKey && this._hoveredKey.startsWith(modelId + ':')) {
+      this._removeMergedOverlay(this._hoveredOverlay);
+      this._hoveredOverlay = null;
+      this._hoveredKey = null;
+      this._hoveredMesh = null;
+      this._hoverOrigColor = null;
+    }
     this._scene.remove(m.group);
     for (const mesh of m.meshes) {
       // Drop opacity tracking for removed meshes (Map keeps references alive)
@@ -1189,7 +1275,10 @@ export class ViewerCore {
     const arr = Array.isArray(items) ? items : [];
 
     const _deselect = (rec) => {
-      if (!rec.mesh) return;  // merged-model selection has no per-mesh visuals yet
+      if (!rec.mesh) {
+        this._removeMergedOverlay(rec.overlay);
+        return;
+      }
       rec.mesh.material.color.setHex(rec.origColor);
       // Dispose the lazy selection-edge overlay. Edge highlight on selected
       // items is per-mesh LineSegments (so we get a sharp coloured outline);
@@ -1220,11 +1309,19 @@ export class ViewerCore {
       if (this._selected.has(key)) continue;  // already selected, skip add
       const mesh = this._findMesh(it.modelId, it.expressId);
       if (!mesh) {
-        // Merged model: track selection state without visuals (highlight
-        // overlay extract = etapa 2) so the entity bar / API stay correct.
+        // Merged model: highlight via overlay extract — orange tint + x-ray
+        // ghost + outline (both visible through occluding elements).
         const m = this._models.get(it.modelId);
         const info = m && m.merged && m.elementInfo ? m.elementInfo.get(Number(it.expressId)) : null;
-        if (info) this._selected.set(key, { mesh: null, ifcType: info.ifcType });
+        if (!info) continue;
+        // Selection replaces the hover overlay on the same element
+        if (this._hoveredKey === key && this._hoveredOverlay) {
+          this._removeMergedOverlay(this._hoveredOverlay);
+          this._hoveredOverlay = null;
+        }
+        const overlay = this._buildMergedOverlay(m, Number(it.expressId), SELECT_COLOR,
+          { ghost: true, edgeColor: SELECT_EDGE_COLOR });
+        this._selected.set(key, { mesh: null, ifcType: info.ifcType, overlay });
         continue;
       }
       // The clicked mesh is usually hover-tinted at click time — its material
@@ -1280,6 +1377,10 @@ export class ViewerCore {
     if (this._hoveredMesh && this._hoverOrigColor !== null && !this._selected.has(this._hoveredKey)) {
       this._hoveredMesh.material.color.setHex(this._hoverOrigColor);
     }
+    if (this._hoveredOverlay) {
+      this._removeMergedOverlay(this._hoveredOverlay);
+      this._hoveredOverlay = null;
+    }
     this._hoveredKey = null;
     this._hoveredMesh = null;
     this._hoverOrigColor = null;
@@ -1290,7 +1391,18 @@ export class ViewerCore {
       return;
     }
     const mesh = this._findMesh(item.modelId, item.expressId);
-    if (!mesh) return;
+    if (!mesh) {
+      // Merged model — hover tint via overlay (no ghost/outline, keeps it calm)
+      const m = this._models.get(item.modelId);
+      if (m && m.merged) {
+        const overlay = this._buildMergedOverlay(m, Number(item.expressId), HOVER_COLOR);
+        if (overlay) {
+          this._hoveredKey = newKey;
+          this._hoveredOverlay = overlay;
+        }
+      }
+      return;
+    }
     this._hoveredKey = newKey;
     this._hoveredMesh = mesh;
     this._hoverOrigColor = mesh.material.color.getHex();

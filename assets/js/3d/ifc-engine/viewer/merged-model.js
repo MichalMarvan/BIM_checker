@@ -186,6 +186,49 @@ export function resolveMergedFace(table, faceIndex) {
 }
 
 /**
+ * Extract one element's triangles from the merged buffer into a standalone
+ * BufferGeometry (positions + normals, no colors) — used for the selection /
+ * hover highlight overlay. Reads the CURRENT buffer, so it stays correct
+ * after the federation bake rewrites vertices. Geometry is in the merged
+ * mesh's local frame — attach the overlay as a child of that mesh.
+ */
+export function extractElementGeometry(mesh, table, expressId) {
+  const pos = mesh.geometry.getAttribute('position');
+  const nor = mesh.geometry.getAttribute('normal');
+  const idx = mesh.geometry.index;
+  if (!pos || !idx) return null;
+
+  const rows = table.filter(r => r.expressId === expressId);
+  if (rows.length === 0) return null;
+
+  let vertTotal = 0;
+  let triTotal = 0;
+  for (const r of rows) { vertTotal += r.vertCount; triTotal += r.triCount; }
+
+  const outPos = new Float32Array(vertTotal * 3);
+  const outNor = new Float32Array(vertTotal * 3);
+  const outIdx = new Uint32Array(triTotal * 3);
+  let vOfs = 0;
+  let tOfs = 0;
+  for (const r of rows) {
+    outPos.set(pos.array.subarray(r.vertStart * 3, (r.vertStart + r.vertCount) * 3), vOfs * 3);
+    if (nor) outNor.set(nor.array.subarray(r.vertStart * 3, (r.vertStart + r.vertCount) * 3), vOfs * 3);
+    for (let i = 0; i < r.triCount * 3; i++) {
+      outIdx[tOfs * 3 + i] = idx.getX(r.triStart * 3 + i) - r.vertStart + vOfs;
+    }
+    vOfs += r.vertCount;
+    tOfs += r.triCount;
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(outPos, 3));
+  if (nor) geom.setAttribute('normal', new THREE.BufferAttribute(outNor, 3));
+  geom.setIndex(new THREE.BufferAttribute(outIdx, 1));
+  geom.computeBoundingSphere();
+  return geom;
+}
+
+/**
  * Element bbox computed from the CURRENT merged buffer (valid even after the
  * federation bake rewrites vertices), in world space.
  */

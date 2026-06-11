@@ -53,9 +53,14 @@ Jeden `THREE.Mesh` na (model × materiál/barva) s merged `BufferGeometry`:
 
 ## Etapy (každá samostatně ověřitelná v živém vieweru)
 
-1. Merge + elementTable + picking (selectAt/hover) — bez hide/opacity.
-   Featureflag `mergedGeometry: true` v options enginu, starý kód zůstává.
-2. Selekce/hover overlay extract + entity bar end-to-end.
+1. ✅ HOTOVO (2026-06-11) — Merge + elementTable + picking (selectAt/hover).
+   Featureflag `?merged=1` (engine options.mergedGeometry), starý kód zůstává.
+   D214: 202 items → 1 mesh, pick křížově validován (#93099). Bonus fix:
+   federační bake přepočítává boundingSphere (latentní raycast bug).
+2. ✅ HOTOVO (2026-06-11) — Selekce/hover overlay extract + entity bar
+   end-to-end. Včetně x-ray: výběr má ghost pass + outline s
+   depthTest:false — zvýraznění viditelné skrz překrývající konstrukce
+   (uložený nápad uživatele, ověřeno top-down screenshotem skrz mostovku).
 3. Visibility/alpha atribut: hide, isolate, show-all, opacity slider.
 4. Merged hrany + LOD přepnutí na per-model.
 5. Box-select, měření, řezy, walk-mode kolize nad elementTable; smazání
