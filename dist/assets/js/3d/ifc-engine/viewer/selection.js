@@ -10,6 +10,23 @@ const _raycaster = new THREE.Raycaster();
 const _ndc = new THREE.Vector2();
 
 /**
+ * THREE.Raycaster does NOT skip invisible meshes — hidden elements would
+ * still swallow clicks and block picking whatever is behind them. Treat a
+ * mesh as pickable only when it (and its ancestors) are visible and it is
+ * not faded out to (near-)full transparency via the opacity slider.
+ */
+export function isPickable(obj) {
+  const mat = obj.material;
+  if (mat && mat.transparent && mat.opacity <= 0.02) return false;
+  let o = obj;
+  while (o) {
+    if (o.visible === false) return false;
+    o = o.parent;
+  }
+  return true;
+}
+
+/**
  * Hit test the scene at canvas-relative (clientX, clientY).
  *
  * @param {THREE.Scene} scene
@@ -30,6 +47,7 @@ export function selectAt(scene, camera, canvas, clientX, clientY) {
   for (const hit of hits) {
     const mesh = hit.object;
     if (!mesh.isMesh) continue;
+    if (!isPickable(mesh)) continue;
     const ud = mesh.userData;
     if (!ud || !ud.modelId) continue;
     // Compute world-space face normal: transform local face.normal by mesh's

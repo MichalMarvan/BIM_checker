@@ -9,7 +9,7 @@ import { EdgesPass } from './post/edges-pass.js';
 import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
-import { selectAt } from './selection.js';
+import { selectAt, isPickable } from './selection.js';
 import { getViewSpec } from './camera-presets.js';
 import { animateCameraTo } from './camera-animation.js';
 import { SectionVisuals } from './section-visuals.js';
@@ -995,6 +995,7 @@ export class ViewerCore {
     for (const hit of hits) {
       const mesh = hit.object;
       if (!mesh.isMesh) continue;
+      if (!isPickable(mesh)) continue;
       const ud = mesh.userData;
       if (!ud || !ud.modelId) continue;
       out.push({ hit, mesh });
@@ -1076,9 +1077,18 @@ export class ViewerCore {
       if (this._selected.has(key)) continue;  // already selected, skip add
       const mesh = this._findMesh(it.modelId, it.expressId);
       if (!mesh) continue;
+      // The clicked mesh is usually hover-tinted at click time — its material
+      // shows the hover blue, not the real colour. Capture the original stored
+      // by setHoverEntity, otherwise deselect would restore the hover tint.
+      let origColor = mesh.material.color.getHex();
+      if (this._hoveredMesh === mesh && this._hoverOrigColor !== null) {
+        origColor = this._hoverOrigColor;
+        this._hoveredMesh = null;
+        this._hoverOrigColor = null;
+      }
       const rec = {
         mesh,
-        origColor: mesh.material.color.getHex(),
+        origColor,
       };
       this._selected.set(key, rec);
       mesh.material.color.setHex(SELECT_COLOR);
@@ -1158,6 +1168,7 @@ export class ViewerCore {
     const out = [];
     for (const { meshes } of this._models.values()) {
       for (const mesh of meshes) {
+        if (!isPickable(mesh)) continue;  // hidden/faded-out elements are not box-selectable
         if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
         mesh.updateMatrixWorld();
         mesh.geometry.boundingBox.getCenter(tmp);
@@ -1227,14 +1238,24 @@ export class ViewerCore {
     return this._entityOpacity.get(mesh) ?? 1;
   }
 
-  /** Find all expressIds in a model that share the same IFC type as given entity. */
+  /**
+   * Find all expressIds in a model that share the same IFC type as given
+   * entity. Works over the viewer's meshes (= pickable geometric elements);
+   * the entity index lives on the engine, not here — calling getEntityMeta
+   * on the viewer crashed the "same type" toolbar button.
+   */
   findSameTypeIds(modelId, expressId) {
     const m = this._models.get(modelId);
     if (!m) return [];
-    const meta = this.getEntityMeta(modelId, expressId);
-    if (!meta) return [];
-    const sameType = m.index.byType(meta.ifcType) || [];
-    return sameType.map(e => e.expressId);
+    const mesh = this._findMesh(modelId, expressId);
+    const type = mesh && mesh.userData ? mesh.userData.ifcType : null;
+    if (!type) return [];
+    const seen = new Set();
+    for (const me of m.meshes) {
+      const ud = me.userData || {};
+      if (ud.ifcType === type && ud.expressId !== undefined) seen.add(ud.expressId);
+    }
+    return [...seen];
   }
 
   // -------------------- Display modes (Phase 6.2.1) --------------------
@@ -1935,7 +1956,12 @@ export class ViewerCore {
     const maxDim = Math.max(size.x, size.y, size.z, 0.001);  // guard against zero-size
     const distance = this._fitDistance(maxDim, 2.0);  // 2× padding (more space around target)
 
-    const direction = new THREE.Vector3(1, 1, 1).normalize();
+    // Keep the user's current viewing direction — only re-target and dolly so
+    // the entity fills the view. Snapping to a fixed diagonal disorients
+    // whoever is inspecting the model from a deliberate angle.
+    let direction = this._camera.position.clone().sub(this._controls.target);
+    if (direction.lengthSq() < 1e-12) direction.set(1, 1, 1);
+    direction.normalize();
     this._camera.position.copy(center).add(direction.multiplyScalar(distance));
     this._camera.lookAt(center);
     this._controls.target.copy(center);
