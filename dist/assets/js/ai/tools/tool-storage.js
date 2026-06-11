@@ -25,7 +25,7 @@ function _contentToText(content) {
     if (content instanceof ArrayBuffer || ArrayBuffer.isView(content)) {
         return new TextDecoder('utf-8').decode(content);
     }
-    return content == null ? '' : String(content);
+    return (content === null || content === undefined) ? '' : String(content);
 }
 
 export function summarizeIDS(ids) {
