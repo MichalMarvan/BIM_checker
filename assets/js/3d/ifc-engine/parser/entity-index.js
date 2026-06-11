@@ -72,4 +72,58 @@ export class EntityIndex {
       typeCount: this._byType.size,
     };
   }
+
+  /**
+   * Drop entities that are only needed during geometry construction —
+   * points, curves, placements, profiles, breps make up 80–90 % of a
+   * typical IFC and are dead weight once meshes exist. Kept alive:
+   *  - every IfcRoot subtype (has a GUID): products, rels, psets, types,
+   *    spatial structure — everything user-facing lookups traverse
+   *  - non-root property / quantity / material / classification / unit /
+   *    georef / owner entities (matched by type prefix)
+   *  - the full reference closure of IfcAlignment* entities — the
+   *    alignment panel parses their geometry on demand after load
+   *
+   * Callers must warm whatever caches read geometry entities (e.g.
+   * engine.getCoords) BEFORE compacting.
+   *
+   * @returns {number} count of dropped entities
+   */
+  compact() {
+    const KEEP_TYPE = /^IFC(PROPERTY|ELEMENTQUANTITY|QUANTITY|PHYSICAL|MATERIAL|CLASSIFICATION|SIUNIT|UNIT|DERIVEDUNIT|MONETARYUNIT|MEASUREWITHUNIT|MAPCONVERSION|PROJECTEDCRS|COORDINATEREFERENCESYSTEM|ALIGNMENT|OWNERHISTORY|APPLICATION|PERSON|ORGANIZATION|ACTORROLE|PRESENTATIONLAYER)/;
+    const keep = new Set(this._byGuid.values());
+
+    // Reference closure from alignment entities (params hold #id refs).
+    const stack = [];
+    for (const [id, e] of this._byId) {
+      if (e.type.startsWith('IFCALIGNMENT')) stack.push(id);
+    }
+    while (stack.length) {
+      const id = stack.pop();
+      if (keep.has(id)) continue;
+      keep.add(id);
+      const e = this._byId.get(id);
+      if (!e) continue;
+      const refs = e.params.match(/#\d+/g);
+      if (refs) {
+        for (const r of refs) {
+          const rid = parseInt(r.slice(1), 10);
+          if (!keep.has(rid)) stack.push(rid);
+        }
+      }
+    }
+
+    let dropped = 0;
+    for (const [id, e] of this._byId) {
+      if (keep.has(id) || KEEP_TYPE.test(e.type)) continue;
+      this._byId.delete(id);
+      const typeSet = this._byType.get(e.type);
+      if (typeSet) {
+        typeSet.delete(id);
+        if (typeSet.size === 0) this._byType.delete(e.type);
+      }
+      dropped++;
+    }
+    return dropped;
+  }
 }

@@ -142,7 +142,11 @@ export class IfcEngine {
       }
       const t4 = performance.now();
       this._recomputeFederation();
-      console.log(`[ifc-engine] loadIfc timings (ms): decode=${(t1 - t0).toFixed(0)} parse=${(t2 - t1).toFixed(0)} index=${(t3 - t2).toFixed(0)} geometry=${(t4 - t3).toFixed(0)} total=${(performance.now() - t0).toFixed(0)}`);
+      // Warm caches that read geometry entities, then drop those entities —
+      // they are dead weight once meshes exist (80–90 % of the index).
+      this.getCoords(modelId);
+      const dropped = index.compact();
+      console.log(`[ifc-engine] loadIfc timings (ms): decode=${(t1 - t0).toFixed(0)} parse=${(t2 - t1).toFixed(0)} index=${(t3 - t2).toFixed(0)} geometry=${(t4 - t3).toFixed(0)} total=${(performance.now() - t0).toFixed(0)} | compacted ${dropped} geometry entities (${index.stats().entityCount} kept)`);
       return modelId;
     } finally {
       if (this._viewer && typeof this._viewer.resumeRendering === 'function') {

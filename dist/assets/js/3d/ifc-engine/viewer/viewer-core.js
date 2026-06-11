@@ -772,6 +772,60 @@ export class ViewerCore {
       m.featureEdgesMaterial.opacity = opacity;
       m.featureEdgesMaterial.visible = opacity > 0.02;
     }
+    this._updateEdgesLod();
+  }
+
+  /**
+   * Per-model edge LOD — with many models loaded, per-mesh outline
+   * LineSegments dominate the draw-call count (~2× meshes). Keep edges only
+   * for the models the camera actually sees up close: models are ranked by
+   * projected screen coverage (bounding-sphere radius / camera distance) and
+   * edge linesets stay visible until a global budget is exhausted.
+   * Throttled — ranking every frame would cost more than it saves.
+   */
+  _updateEdgesLod() {
+    const now = performance.now();
+    if (now - (this._edgesLodLast || 0) < 500) return;
+    this._edgesLodLast = now;
+
+    const MAX_EDGE_LINESETS = 1200;
+    let totalLinesets = 0;
+    for (const m of this._models.values()) totalLinesets += (m.featureEdges || []).length;
+    if (totalLinesets <= MAX_EDGE_LINESETS) {
+      // Under budget — make sure nothing stays hidden from an earlier pass
+      for (const m of this._models.values()) {
+        if (m._edgesLodHidden) {
+          for (const line of m.featureEdges) line.visible = true;
+          m._edgesLodHidden = false;
+        }
+      }
+      return;
+    }
+
+    const camPos = this._camera.position;
+    const scored = [];
+    for (const [id, m] of this._models) {
+      if (!m.featureEdges || m.featureEdges.length === 0) continue;
+      if (!m._edgeLodSphere) {
+        const box = computeRobustBbox(m.meshes);
+        if (!box) continue;
+        m._edgeLodSphere = box.getBoundingSphere(new THREE.Sphere());
+      }
+      const dist = Math.max(camPos.distanceTo(m._edgeLodSphere.center), 0.001);
+      scored.push({ id, m, score: m._edgeLodSphere.radius / dist });
+    }
+    scored.sort((a, b) => b.score - a.score);
+
+    let budget = MAX_EDGE_LINESETS;
+    for (const { m } of scored) {
+      const wantVisible = m.featureEdges.length <= budget;
+      if (wantVisible) budget -= m.featureEdges.length;
+      const hidden = !wantVisible;
+      if (m._edgesLodHidden !== hidden) {
+        for (const line of m.featureEdges) line.visible = !hidden;
+        m._edgesLodHidden = hidden;
+      }
+    }
   }
 
   /**
