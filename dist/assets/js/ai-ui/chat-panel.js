@@ -9,7 +9,7 @@
 import * as storage from '../ai/chat-storage.js';
 import { chatCompletion } from '../ai/ai-client.js';
 import { getEffectiveEndpoint } from '../ai/agent-manager.js';
-import { TOOL_DEFINITIONS } from '../ai/tool-defs.js';
+import { resolveToolsForAgent, MAX_TOOL_ITERATIONS } from '../ai/chat-tooling.js';
 import { executeToolCall } from '../ai/tool-executor.js';
 import { t, onLanguageChange } from './chat-i18n-helpers.js';
 import * as chatHeads from './chat-heads.js';
@@ -299,7 +299,7 @@ async function _send() {
     _state.busy = true;
     _state.abort = new AbortController();
 
-    const MAX_ITERATIONS = 5;
+    const MAX_ITERATIONS = MAX_TOOL_ITERATIONS;
     let iteration = 0;
     // Pending navigation requested by a tool — fired after the assistant's
     // wrap-up reply is persisted to storage. Setting window.location.href
@@ -327,9 +327,7 @@ async function _send() {
             _panel.querySelector('#chatMessages').appendChild(thinkingDiv);
 
             let streamed = '';
-            const filteredTools = (agent.enabledTools && Array.isArray(agent.enabledTools))
-                ? TOOL_DEFINITIONS.filter(toolDef => agent.enabledTools.includes(toolDef.function.name))
-                : TOOL_DEFINITIONS;
+            const filteredTools = resolveToolsForAgent(agent, getEffectiveEndpoint(agent));
             const result = await chatCompletion(
                 getEffectiveEndpoint(agent),
                 agent.apiKey,
