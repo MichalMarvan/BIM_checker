@@ -20,13 +20,7 @@ function _localFolderBackend() {
     return (b && b.kind === 'localFolder') ? b : null;
 }
 
-function _contentToText(content) {
-    if (typeof content === 'string') return content;
-    if (content instanceof ArrayBuffer || ArrayBuffer.isView(content)) {
-        return new TextDecoder('utf-8').decode(content);
-    }
-    return (content === null || content === undefined) ? '' : String(content);
-}
+const _contentToText = helpers.contentToText;
 
 export function summarizeIDS(ids) {
     const out = {};
@@ -97,6 +91,7 @@ export async function list_storage_files(args) {
 
     const lf = _localFolderBackend();
     if (lf) {
+        if (!lf.root) return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
         const files = await lf.getFiles(args.type);
         const needle = args.folder ? String(args.folder).toLowerCase() : null;
         const out = [];
@@ -149,6 +144,7 @@ export async function list_storage_folders(args) {
 
     const lf = _localFolderBackend();
     if (lf) {
+        if (!lf.root) return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
         if (lf._fileCache.size === 0) await lf.scan();
         const tree = lf.getFolderTree(args.type);
         const out = [];
@@ -494,6 +490,12 @@ async function tool_get_storage_info(_args) {
 }
 
 async function tool_save_file_to_folder(args) {
+    helpers.validateArgs(args, {
+        fileType: { required: true, enum: ['ifc', 'ids'] },
+        path: { required: true },
+        name: { required: true },
+        content: { required: true }
+    });
     const backend = window.BIMStorage.backend;
     if (!backend || backend.kind !== 'localFolder') {
         return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
@@ -533,6 +535,10 @@ async function tool_check_folder_writable(_args) {
 }
 
 async function tool_get_file_mtime(args) {
+    helpers.validateArgs(args, {
+        path: { required: true },
+        fileType: { enum: ['ifc', 'ids'] }
+    });
     const backend = window.BIMStorage.backend;
     if (!backend || backend.kind !== 'localFolder') {
         return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };

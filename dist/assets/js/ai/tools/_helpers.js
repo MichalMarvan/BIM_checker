@@ -21,6 +21,18 @@ export function getCurrentPageId() {
 
 export function _setCurrentPageForTest(id) { _testPageOverride = id; }
 
+/**
+ * Storage backends differ in content type: IndexedDB returns strings, the
+ * LocalFolder backend returns ArrayBuffer. Parsers need text — decode here.
+ */
+export function contentToText(content) {
+    if (typeof content === 'string') return content;
+    if (content instanceof ArrayBuffer || ArrayBuffer.isView(content)) {
+        return new TextDecoder('utf-8').decode(content);
+    }
+    return (content === null || content === undefined) ? '' : String(content);
+}
+
 const _ifcParseCache = new Map();
 const MAX_CACHE = 3;
 
@@ -40,7 +52,7 @@ export async function getParsedIfc(filename) {
     await window.BIMStorage.init();
     const meta = await window.BIMStorage.getFile('ifc', filename);
     if (!meta) throw new Error(`File not found: ${filename}`);
-    const content = await window.BIMStorage.getFileContent('ifc', meta.id);
+    const content = contentToText(await window.BIMStorage.getFileContent('ifc', meta.id));
     const entities = window.IFCParserCore.parseIFCContent(content, filename);
 
     if (_ifcParseCache.size >= MAX_CACHE) {

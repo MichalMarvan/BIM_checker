@@ -142,3 +142,71 @@ describe('tools/tool-ids', () => {
         }
     });
 });
+
+describe('tools/tool-ids (localFolder backend)', () => {
+    let idsTools;
+
+    const sampleIds = `<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS/1.0/ids.xsd"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <info><title>Test</title></info>
+  <specifications>
+    <specification name="Walls have FireRating" identifier="SPEC-1" minOccurs="1" maxOccurs="1" ifcVersion="IFC4">
+      <applicability minOccurs="1">
+        <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL"><propertySet><simpleValue>Pset_WallCommon</simpleValue></propertySet><baseName><simpleValue>FireRating</simpleValue></baseName></property>
+      </requirements>
+    </specification>
+  </specifications>
+</ids>`;
+
+    function makeFileHandle(name, text) {
+        const content = new TextEncoder().encode(text);
+        return {
+            kind: 'file',
+            name,
+            getFile: async () => ({
+                arrayBuffer: async () => content.buffer,
+                size: content.length,
+                lastModified: 1700000000000,
+                name
+            })
+        };
+    }
+
+    function makeDirHandle(name, entries) {
+        return {
+            kind: 'directory',
+            name,
+            async *values() { for (const e of entries) yield e; },
+            queryPermission: async () => 'granted',
+            requestPermission: async () => 'granted'
+        };
+    }
+
+    beforeEach(async () => {
+        idsTools = await import('../../assets/js/ai/tools/tool-ids.js');
+        const root = makeDirHandle('LF-IDS', [makeFileHandle('lf-spec.ids', sampleIds)]);
+        const backend = new window.LocalFolderStorageBackend(root);
+        await backend.scan();
+        window.BIMStorage.setBackend(backend);
+    });
+
+    afterEach(() => {
+        window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
+    });
+
+    it('list_ids_specifications parses ArrayBuffer content from the connected folder', async () => {
+        const r = await idsTools.list_ids_specifications({ filename: 'lf-spec.ids' });
+        expect(Array.isArray(r)).toBe(true);
+        expect(r.length).toBe(1);
+        expect(r[0].name).toBe('Walls have FireRating');
+    });
+
+    it('get_specification_detail parses ArrayBuffer content from the connected folder', async () => {
+        const r = await idsTools.get_specification_detail({ idsFileName: 'lf-spec.ids', specIndex: 0 });
+        expect(r.name).toBe('Walls have FireRating');
+    });
+});

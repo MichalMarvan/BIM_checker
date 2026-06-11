@@ -223,4 +223,84 @@ END-ISO-10303-21;`;
         try { await tools.find_property_in_ifc({ fileName: 'x.ifc' }); } catch (e) { threw = true; }
         expect(threw).toBe(true);
     });
+
+    it('find_property_in_ifc accepts standard `filename` param too', async () => {
+        const tools = await import('../../assets/js/ai/tools/tool-ifc.js');
+        const ifc = `ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION((''),'2;1');
+FILE_NAME('','',(),(), '', '', '');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+#1=IFCWALL('G1',$,'W1',$,$,$,$,$,$);
+ENDSEC;
+END-ISO-10303-21;`;
+        await window.BIMStorage.saveFile('ifc', { name: 'fp_alias.ifc', size: ifc.length, content: ifc });
+        try {
+            const r = await tools.find_property_in_ifc({ filename: 'fp_alias.ifc', propertyName: 'Whatever' });
+            expect(Array.isArray(r.matches)).toBe(true);
+        } finally {
+            await window.BIMStorage.deleteFile('ifc', 'fp_alias.ifc').catch(() => {});
+        }
+    });
+});
+
+describe('tools/tool-ifc (localFolder backend)', () => {
+    let ifcTools;
+
+    const TINY_IFC = `ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('test'),'2;1');
+FILE_NAME('t.ifc','',(),(), '', '', '');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+#1=IFCWALL('GUIDLF1',$,'WallLF1',$,$,$,$,$,$);
+#2=IFCWALL('GUIDLF2',$,'WallLF2',$,$,$,$,$,$);
+ENDSEC;
+END-ISO-10303-21;`;
+
+    function makeFileHandle(name, text) {
+        const content = new TextEncoder().encode(text);
+        return {
+            kind: 'file',
+            name,
+            getFile: async () => ({
+                arrayBuffer: async () => content.buffer,
+                size: content.length,
+                lastModified: 1700000000000,
+                name
+            })
+        };
+    }
+
+    function makeDirHandle(name, entries) {
+        return {
+            kind: 'directory',
+            name,
+            async *values() { for (const e of entries) yield e; },
+            queryPermission: async () => 'granted',
+            requestPermission: async () => 'granted'
+        };
+    }
+
+    beforeEach(async () => {
+        ifcTools = await import('../../assets/js/ai/tools/tool-ifc.js');
+        const root = makeDirHandle('LF-IFC', [makeFileHandle('lf-walls.ifc', TINY_IFC)]);
+        const backend = new window.LocalFolderStorageBackend(root);
+        await backend.scan();
+        window.BIMStorage.setBackend(backend);
+    });
+
+    afterEach(() => {
+        window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
+    });
+
+    it('search_ifc_entities parses ArrayBuffer content from the connected folder', async () => {
+        const r = await ifcTools.search_ifc_entities({ filename: 'lf-walls.ifc', entityType: 'IFCWALL' });
+        expect(r.totalCount).toBe(2);
+        expect(r.results.length).toBe(2);
+        expect(r.results[0].name).toBe('WallLF1');
+    });
 });

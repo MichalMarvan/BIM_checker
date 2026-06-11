@@ -523,4 +523,27 @@ END-ISO-10303-21;`;
         expect(r.ifcCount).toBe(2);
         expect(r.idsCount).toBe(1);
     });
+
+    it('save_file_to_folder validates required args', async () => {
+        storageTools.register(executor._registerTool);
+        const r = await executor.executeToolCall({ name: 'save_file_to_folder', arguments: {} });
+        expect(r.error).toBe('execution_error');
+        expect(String(r.message).includes('fileType')).toBe(true);
+    });
+
+    it('get_file_mtime validates required args', async () => {
+        storageTools.register(executor._registerTool);
+        const r = await executor.executeToolCall({ name: 'get_file_mtime', arguments: { fileType: 'ifc' } });
+        expect(r.error).toBe('execution_error');
+        expect(String(r.message).includes('path')).toBe(true);
+    });
+
+    it('list tools report not_connected while folder permission is pending', async () => {
+        const pending = new window.LocalFolderStorageBackend();
+        window.BIMStorage.setBackend(pending);
+        const files = await storageTools.list_storage_files({ type: 'ifc' });
+        expect(files.error).toBe('not_connected');
+        const folders = await storageTools.list_storage_folders({ type: 'ifc' });
+        expect(folders.error).toBe('not_connected');
+    });
 });

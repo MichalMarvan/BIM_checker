@@ -128,17 +128,20 @@ export async function compare_ifc_files(args) {
 }
 
 export async function find_property_in_ifc(args) {
-    helpers.validateArgs(args, {
-        fileName: { required: true },
+    // `filename` is the standard param across IFC tools; `fileName` kept for
+    // backward compatibility with older saved conversations.
+    const filename = args && (args.filename || args.fileName);
+    helpers.validateArgs({ ...args, filename }, {
+        filename: { required: true },
         propertyName: { required: true }
     });
     let entities;
     try {
-        entities = await helpers.getParsedIfc(args.fileName);
+        entities = await helpers.getParsedIfc(filename);
     } catch (_) {
         entities = null;
     }
-    if (!entities) return { error: 'not_found', message: t('ai.tool.ifc.fileNotFound', { fileName: args.fileName }) };
+    if (!entities) return { error: 'not_found', message: t('ai.tool.ifc.fileNotFound', { fileName: filename }) };
     const matches = [];
     let truncated = false;
     const targetValue = (args.value !== undefined && args.value !== null) ? String(args.value) : null;
@@ -162,7 +165,7 @@ export async function find_property_in_ifc(args) {
         }
         if (truncated) break;
     }
-    return { fileName: args.fileName, matches, truncated };
+    return { filename, matches, truncated };
 }
 
 export function register(registerFn) {
