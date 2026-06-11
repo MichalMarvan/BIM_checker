@@ -788,6 +788,28 @@ export class ViewerCore {
   }
 
   /**
+   * Fit camera to a single model's bbox. Keeps the current view direction
+   * (same contract as focusEntity) — only re-targets and dollies.
+   */
+  fitModel(modelId) {
+    const m = this._models.get(modelId);
+    if (!m) return;
+    const box = computeRobustBbox(m.meshes);
+    if (!box) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    const distance = this._fitDistance(maxDim, 1.5);
+    let direction = this._camera.position.clone().sub(this._controls.target);
+    if (direction.lengthSq() < 1e-12) direction.set(1, 1, 1);
+    direction.normalize();
+    this._camera.position.copy(center).add(direction.multiplyScalar(distance));
+    this._camera.lookAt(center);
+    this._controls.target.copy(center);
+    this._controls.update();
+  }
+
+  /**
    * Zoom camera toward/away from controls.target by factor.
    * factor > 1 → closer (distance / factor); factor < 1 → farther.
    */

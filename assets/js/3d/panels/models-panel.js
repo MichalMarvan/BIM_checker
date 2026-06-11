@@ -16,6 +16,15 @@ export default class ModelsPanel {
     this.engine = engine;
     this.host = host;
     this.ctx = ctx || {};
+    this.openMenuId = null;   // modelId with the ⋯ dropdown open
+    this.infoId = null;       // modelId with the inline info section open
+    this._onDocDown = (e) => {
+      if (this.openMenuId && !e.target.closest('.v3d-model-menu, [data-act="menu"]')) {
+        this.openMenuId = null;
+        this._render();
+      }
+    };
+    document.addEventListener('mousedown', this._onDocDown);
     titleEl.textContent = 'Modely';
   }
 
@@ -27,6 +36,12 @@ export default class ModelsPanel {
     return (this.ctx.getEngineIfReady && this.ctx.getEngineIfReady()) || this.engine;
   }
 
+  _modelMeta(modelId) {
+    const engine = this._engine();
+    if (!engine || typeof engine.getModels !== 'function') return null;
+    return engine.getModels().find(m => m.modelId === modelId) || null;
+  }
+
   _render() {
     const engine = this._engine();
     const models = (this.ctx.getLoadedModels && this.ctx.getLoadedModels()) || [];
@@ -34,20 +49,54 @@ export default class ModelsPanel {
       const visible = engine && typeof engine.isModelVisible === 'function'
         ? engine.isModelVisible(modelId)
         : true;
+      const menuOpen = this.openMenuId === modelId;
+      const infoOpen = this.infoId === modelId;
+      let infoHtml = '';
+      if (infoOpen) {
+        const meta = this._modelMeta(modelId) || {};
+        const rows = [
+          ['Schéma', meta.schema || '—'],
+          ['Entit', (meta.entityCount || (stats && stats.entityCount) || 0).toLocaleString('cs-CZ')],
+          ['Typů', meta.typeCount ? meta.typeCount.toLocaleString('cs-CZ') : null],
+        ].filter(([, v]) => v !== null && v !== undefined);
+        infoHtml = `<div class="v3d-model-info">${rows.map(([k, v]) =>
+          `<div class="v3d-model-info__row"><span>${k}</span><b>${escapeHtml(String(v))}</b></div>`).join('')}</div>`;
+      }
       return `
         <div class="v3d-model-card${visible ? '' : ' is-hidden'}" data-model-id="${escapeHtml(modelId)}">
-          <div class="v3d-model-card__main">
-            <div class="v3d-model-card__name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
-            <div class="v3d-model-card__stats">${stats && stats.entityCount ? `${stats.entityCount.toLocaleString('cs-CZ')} entit` : ''}</div>
-          </div>
-          <button class="v3d-model-card__btn" data-act="visibility" title="${visible ? 'Skrýt model' : 'Zobrazit model'}">
-            ${visible
+          <div class="v3d-model-card__row">
+            <div class="v3d-model-card__main">
+              <div class="v3d-model-card__name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+              <div class="v3d-model-card__stats">${stats && stats.entityCount ? `${stats.entityCount.toLocaleString('cs-CZ')} entit` : ''}</div>
+            </div>
+            <button class="v3d-model-card__btn" data-act="visibility" title="${visible ? 'Skrýt model' : 'Zobrazit model'}">
+              ${visible
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'}
-          </button>
-          <button class="v3d-model-card__btn v3d-model-card__btn--remove" data-act="remove" title="Odebrat model ze scény">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+            </button>
+            <button class="v3d-model-card__btn v3d-model-card__btn--remove" data-act="remove" title="Odebrat model ze scény">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <button class="v3d-model-card__btn" data-act="menu" title="Další akce">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+            </button>
+            ${menuOpen ? `
+            <div class="v3d-model-menu">
+              <button class="v3d-model-menu__item" data-act="zoom">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                Přiblížit na model
+              </button>
+              <button class="v3d-model-menu__item" data-act="isolate">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3.5"/></svg>
+                Izolovat model
+              </button>
+              <button class="v3d-model-menu__item" data-act="info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                ${infoOpen ? 'Skrýt informace' : 'Informace'}
+              </button>
+            </div>` : ''}
+          </div>
+          ${infoHtml}
         </div>`;
     }).join('');
 
@@ -67,8 +116,39 @@ export default class ModelsPanel {
         if (this.ctx.removeModel) this.ctx.removeModel(modelId);
         this._render();
       });
+      card.querySelector('[data-act="menu"]').addEventListener('click', () => {
+        this.openMenuId = this.openMenuId === modelId ? null : modelId;
+        this._render();
+      });
+      const menuAct = (act, fn) => {
+        const el = card.querySelector(`.v3d-model-menu [data-act="${act}"]`);
+        if (el) el.addEventListener('click', fn);
+      };
+      menuAct('zoom', () => {
+        const eng = this._engine();
+        if (eng && typeof eng.fitModel === 'function') eng.fitModel(modelId);
+        this.openMenuId = null;
+        this._render();
+      });
+      menuAct('isolate', () => {
+        const eng = this._engine();
+        const all = (this.ctx.getLoadedModels && this.ctx.getLoadedModels()) || [];
+        if (eng && typeof eng.setModelVisible === 'function') {
+          for (const m of all) eng.setModelVisible(m.modelId, m.modelId === modelId);
+        }
+        if (eng && typeof eng.fitModel === 'function') eng.fitModel(modelId);
+        this.openMenuId = null;
+        this._render();
+      });
+      menuAct('info', () => {
+        this.infoId = this.infoId === modelId ? null : modelId;
+        this.openMenuId = null;
+        this._render();
+      });
     });
   }
 
-  destroy() {}
+  destroy() {
+    document.removeEventListener('mousedown', this._onDocDown);
+  }
 }
