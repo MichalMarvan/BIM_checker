@@ -1518,6 +1518,11 @@ if (newValidationBtn) {
 const validationGroups = [];
 let currentGroupIndex = null;
 
+// Last-session persistence is allowed only after the initial restore attempt —
+// the first render runs with an empty list before _applyLastSession() and must
+// not overwrite the stored session with [].
+let _lastSessionRestoreDone = false;
+
 // Validator-internal storage state (renamed to avoid global-scope collisions with parser.js / viewer-init.js when all scripts load in the test runner)
 let validatorStorageDB = null;
 let ifcStorageData = null;
@@ -1571,6 +1576,13 @@ function deleteValidationGroup(index) {
 
 // Render validation groups
 function renderValidationGroups() {
+    // Every group mutation funnels through this render — persist the current
+    // composition including the empty state (deleting the last group must be
+    // remembered too, otherwise the old session reappears on the next visit).
+    if (typeof ValidationPresets !== 'undefined' && _lastSessionRestoreDone) {
+        ValidationPresets.saveLastSession(ValidationPresets.toPresetGroups(validationGroups));
+    }
+
     const container = document.getElementById('validationGroups');
 
     if (validationGroups.length === 0) {
@@ -1809,10 +1821,6 @@ function renderValidationGroups() {
 
     // Add drop zone event listeners
     setupDropZones();
-
-    if (typeof ValidationPresets !== 'undefined') {
-        ValidationPresets.saveLastSession(ValidationPresets.toPresetGroups(validationGroups));
-    }
 }
 
 function _repopulatePresetSelect() {
@@ -3329,7 +3337,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function _applyLastSession() {
     if (typeof ValidationPresets === 'undefined') return;
     const last = ValidationPresets.loadLastSession();
-    if (!last || !Array.isArray(last.groups)) return;
+    if (!last || !Array.isArray(last.groups)) {
+        _lastSessionRestoreDone = true;
+        return;
+    }
     const groupsContainer = document.getElementById('validationGroups');
     if (groupsContainer && last.groups.length > 0) {
         const reservedHeight = Math.min(160 * last.groups.length, window.innerHeight * 0.6);
@@ -3344,6 +3355,7 @@ async function _applyLastSession() {
     } catch (e) {
         console.warn('[validator] last-session hydration failed:', e);
     } finally {
+        _lastSessionRestoreDone = true;
         if (groupsContainer) groupsContainer.style.minHeight = '';
     }
     // Phase 8 hotfix: AI tool can request auto-run via flag
@@ -3356,6 +3368,11 @@ async function _applyLastSession() {
         }
     } catch (e) { /* ignore */ }
 }
+
+// Test hook — lets the test suite simulate the pre-restore window
+window._validatorTestInternals = {
+    setLastSessionRestored(v) { _lastSessionRestoreDone = !!v; }
+};
 
 // Phase 8: respond to AI tool mutations of last-session preset
 window.addEventListener('ai:applyLastSession', () => {
