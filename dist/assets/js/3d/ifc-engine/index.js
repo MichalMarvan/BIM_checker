@@ -1116,6 +1116,8 @@ export class IfcEngine {
   hideEntities(items) { if (this._viewer) this._viewer.hideEntities(items); }
   isolateEntities(items) { if (this._viewer) this._viewer.isolateEntities(items); }
   showAll() { if (this._viewer) this._viewer.showAll(); }
+  setModelVisible(modelId, visible) { if (this._viewer) this._viewer.setModelVisible(modelId, visible); }
+  isModelVisible(modelId) { return this._viewer ? this._viewer.isModelVisible(modelId) : true; }
   setEntityOpacity(items, alpha) { if (this._viewer) this._viewer.setEntityOpacity(items, alpha); }
   getEntityOpacity(modelId, expressId) {
     return this._viewer ? this._viewer.getEntityOpacity(modelId, expressId) : 1;

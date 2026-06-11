@@ -146,7 +146,8 @@ body[data-page="viewer3d"] {
 .v3d-toolbar {
     position: absolute;
     top: 10px;
-    left: 10px;
+    left: 62px;  /* clear the left rail (52px) */
+    transition: left 0.16s ease;
     z-index: 5;
     display: flex;
     flex-wrap: wrap;
@@ -194,7 +195,8 @@ body[data-page="viewer3d"] {
 .v3d-status {
     position: absolute;
     bottom: 12px;
-    left: 12px;
+    left: 64px;  /* clear the left rail (52px) */
+    transition: left 0.16s ease;
     z-index: 6;
     padding: 6px 12px;
     background: rgba(255, 255, 255, 0.95);
@@ -211,38 +213,115 @@ body[data-page="viewer3d"] {
 .v3d-status[data-kind="error"] { border-color: #dc2626; color: #dc2626; }
 .v3d-status[data-kind="success"] { border-color: #16a34a; color: #16a34a; }
 
-/* ===== Loaded-models chip stack (top-right) ===== */
-.v3d-loaded-list {
+/* ===== Left icon rail (Trimble-style) + drawer ===== */
+.v3d-rail {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 6;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 52px;
+    z-index: 20;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 4px;
-    max-width: 320px;
+    padding-top: 10px;
+    background: var(--bg-secondary, #ffffff);
+    border-right: 1px solid var(--border-primary);
 }
-.v3d-loaded-item {
+[data-theme="dark"] .v3d-rail { background: #1a1d29; border-color: rgba(255,255,255,0.08); }
+.v3d-rail__item {
+    width: 44px;
+    padding: 6px 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.v3d-rail__item svg { width: 19px; height: 19px; }
+.v3d-rail__label { font-size: 8.5px; font-weight: 600; letter-spacing: 0.01em; }
+.v3d-rail__item:hover { background: rgba(102, 126, 234, 0.1); color: var(--primary-color); }
+.v3d-rail__item.active {
+    background: rgba(102, 126, 234, 0.16);
+    color: var(--primary-color);
+    box-shadow: inset 2.5px 0 0 var(--primary-color);
+}
+
+.v3d-drawer {
+    position: absolute;
+    left: 52px;
+    top: 0;
+    bottom: 0;
+    width: 300px;
+    max-width: calc(100vw - 60px);
+    z-index: 19;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary, #ffffff);
+    border-right: 1px solid var(--border-primary);
+    box-shadow: 6px 0 18px rgba(15, 23, 42, 0.08);
+    animation: v3dDrawerIn 0.16s ease;
+}
+.v3d-drawer[hidden] { display: none; }
+/* Open drawer pushes the floating toolbar + status aside instead of covering them */
+.v3d-drawer:not([hidden]) ~ .v3d-toolbar { left: 362px; }
+.v3d-drawer:not([hidden]) ~ .v3d-status { left: 364px; }
+@keyframes v3dDrawerIn {
+    from { transform: translateX(-8px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+[data-theme="dark"] .v3d-drawer { background: #1f2230; border-color: rgba(255,255,255,0.08); }
+.v3d-drawer__header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-sm, 0.375rem);
-    font-size: 12px;
-    box-shadow: var(--shadow-sm);
-    backdrop-filter: blur(6px);
+    justify-content: space-between;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--border-primary);
 }
-[data-theme="dark"] .v3d-loaded-item { background: rgba(30, 30, 35, 0.92); color: #e5e7eb; }
-.v3d-loaded-item__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.v3d-loaded-item__stats { color: var(--text-tertiary); font-size: 10px; }
-.v3d-loaded-item__remove {
+.v3d-drawer__title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0; }
+.v3d-drawer__close {
     background: transparent; border: none; color: var(--text-tertiary);
-    cursor: pointer; padding: 2px 4px; font-size: 13px; border-radius: 3px;
-    line-height: 1;
+    font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px;
 }
-.v3d-loaded-item__remove:hover { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+.v3d-drawer__close:hover { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+.v3d-drawer__body { flex: 1; overflow-y: auto; padding: 12px; }
+.v3d-drawer__load-btn { width: 100%; margin-top: 10px; }
+
+/* Model cards inside the Models drawer */
+.v3d-model-list { display: flex; flex-direction: column; gap: 6px; }
+.v3d-model-card {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+}
+.v3d-model-card.is-hidden { opacity: 0.55; }
+.v3d-model-card__main { flex: 1; min-width: 0; }
+.v3d-model-card__name {
+    font-size: 12px; font-weight: 600; color: var(--text-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.v3d-model-card__stats { font-size: 10px; color: var(--text-tertiary); }
+.v3d-model-card__btn {
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px;
+    background: transparent; border: none; border-radius: 6px;
+    color: var(--text-tertiary); cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.v3d-model-card__btn svg { width: 15px; height: 15px; }
+.v3d-model-card__btn:hover { background: rgba(102, 126, 234, 0.1); color: var(--primary-color); }
+.v3d-model-card__btn--remove:hover { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
 
 /* ===== Storage picker modal — folder tree with checkboxes ===== */
 .v3d-picker-modal { max-width: 560px; width: 100%; }
@@ -768,8 +847,8 @@ body[data-page="viewer3d"] {
     .v3d-brand__version { display: none; }
     .v3d-file { display: none; }
     .v3d-btn { padding: 4px 8px; font-size: 11px; }
-    .v3d-toolbar { top: auto; bottom: 56px; left: 8px; right: 8px; max-width: none; overflow-x: auto; }
-    .v3d-loaded-list { top: auto; bottom: 8px; right: 8px; left: 8px; max-width: none; }
-    .v3d-status { bottom: auto; top: 56px; }
+    .v3d-toolbar { top: auto; bottom: 56px; left: 60px; right: 8px; max-width: none; overflow-x: auto; }
+    .v3d-status { bottom: auto; top: 56px; left: 64px; }
+    .v3d-drawer { width: calc(100vw - 52px); max-width: none; }
     .v3d-panel-host { top: auto; bottom: 96px; right: 8px; left: 8px; width: auto; height: 50vh; }
 }

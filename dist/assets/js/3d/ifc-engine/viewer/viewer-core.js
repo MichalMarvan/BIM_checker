@@ -1213,6 +1213,17 @@ export class ViewerCore {
     }
   }
 
+  /** Toggle a whole model on/off via its group — raycast respects it too. */
+  setModelVisible(modelId, visible) {
+    const m = this._models.get(modelId);
+    if (m && m.group) m.group.visible = !!visible;
+  }
+
+  isModelVisible(modelId) {
+    const m = this._models.get(modelId);
+    return m && m.group ? m.group.visible !== false : true;
+  }
+
   /**
    * Set per-entity opacity (alpha 0-1). 1 = fully opaque, 0 = invisible.
    * Sets material.transparent + opacity. Edge outlines stay opaque.

@@ -12,6 +12,8 @@
 
 console.log('[3d-viewer] module loaded — v58+ (lazy engine init)');
 
+import { initLeftRail, openRailPanel, refreshRailPanel } from './ui/left-rail.js';
+
 const state = {
     engine: null,
     enginePromise: null,
@@ -126,27 +128,11 @@ function updateFileChip(name) {
 }
 
 function renderLoadedList() {
-    const list = document.getElementById('viewer3dLoadedList');
-    if (!list) return;
-    if (state.loadedModels.size === 0) {
-        list.hidden = true;
-        list.innerHTML = '';
-        updateFileChip(null);
-        return;
-    }
-    list.hidden = false;
-    list.innerHTML = Array.from(state.loadedModels.entries()).map(([modelId, info]) => `
-        <div class="v3d-loaded-item" data-model-id="${modelId}">
-            <span class="v3d-loaded-item__name">📦 ${escapeHtml(info.name)}</span>
-            <span class="v3d-loaded-item__stats">${info.stats ? `${info.stats.entityCount}` : ''}</span>
-            <button class="v3d-loaded-item__remove" data-model-id="${modelId}" title="${t('viewer3d.removeModel') || 'Odebrat'}">✕</button>
-        </div>
-    `).join('');
-    list.querySelectorAll('.v3d-loaded-item__remove').forEach(btn => {
-        btn.addEventListener('click', () => removeModel(btn.dataset.modelId));
-    });
+    // Loaded models live in the left-rail "Modely" drawer now; here we keep the
+    // navbar file chip in sync and refresh the drawer if it's open.
     const lastEntry = Array.from(state.loadedModels.values()).pop();
     updateFileChip(lastEntry ? lastEntry.name : null);
+    refreshRailPanel();
 }
 
 async function loadIfcFromStorage(fileMeta) {
@@ -334,8 +320,11 @@ async function loadSelectedFromPicker() {
 }
 
 function removeModel(modelId) {
-    if (state.engine && typeof state.engine.removeModel === 'function') {
-        try { state.engine.removeModel(modelId); } catch (e) { console.warn('removeModel failed:', e); }
+    // Engine's public API is unloadModel; removeModel kept as legacy fallback
+    const eng = state.engine;
+    const unload = eng && (eng.unloadModel || eng.removeModel);
+    if (unload) {
+        try { unload.call(eng, modelId); } catch (e) { console.warn('removeModel failed:', e); }
     }
     state.loadedModels.delete(modelId);
     // When the scene is empty, drop the federation anchor so the next loaded
@@ -584,14 +573,17 @@ async function openStoragePicker() {
 }
 
 function wireUI() {
-    const loadBtn = document.getElementById('viewer3dLoadBtn');
-    console.log('[3d-viewer] wireUI: loadBtn =', loadBtn);
-    if (loadBtn) {
-        loadBtn.addEventListener('click', () => {
-            console.log('[3d-viewer] Load IFC clicked');
-            openStoragePicker();
-        });
-    }
+    initLeftRail({
+        getEngine,
+        getEngineIfReady: () => state.engine,
+        ctx: {
+            getLoadedModels: () => Array.from(state.loadedModels.entries())
+                .map(([modelId, info]) => ({ modelId, name: info.name, stats: info.stats })),
+            getEngineIfReady: () => state.engine,
+            removeModel,
+            openPicker: openStoragePicker,
+        },
+    });
 
     const closeBtn = document.getElementById('viewer3dPickerClose');
     if (closeBtn) closeBtn.addEventListener('click', () => {
@@ -855,7 +847,10 @@ function wireSelectionInteractions(engine, canvas) {
 function boot() {
     wireUI();
     wireEntityBarButtons();
-    setStatus(t('viewer3d.empty') || 'Žádný model — klikni na „Načíst IFC".');
+    setStatus(t('viewer3d.empty') || 'Žádný model — otevři Modely v levé liště.');
+    // Keep loading discoverable: with an empty scene, open the Models drawer
+    // right away (the navbar load button moved there).
+    if (state.loadedModels.size === 0) openRailPanel('models');
 }
 
 if (document.readyState === 'loading') {
