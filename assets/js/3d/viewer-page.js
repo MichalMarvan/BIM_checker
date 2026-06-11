@@ -581,7 +581,9 @@ function wireUI() {
                 .map(([modelId, info]) => ({ modelId, name: info.name, stats: info.stats })),
             getEngineIfReady: () => state.engine,
             removeModel,
-            openPicker: openStoragePicker,
+            buildTree: buildPickerTree,
+            loadFile: loadIfcFromStorage,
+            openStorage: () => openRailPanel('storage'),
         },
     });
 

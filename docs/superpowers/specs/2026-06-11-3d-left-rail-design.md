@@ -10,9 +10,11 @@ po vzoru Trimble Connect.
 
 ## Rozhodnutí (schváleno uživatelem)
 
-- Rail v1 má dvě položky: **Modely** a **Pohledy** (uložené pohledy se stěhují
-  z horní lišty). Strom modelu zůstává v horní liště — propojí se s dalšími
-  stránkami později.
+- Rail v1 má tři položky: **Modely** (jen načtené modely), **Storage**
+  (strom složek + IFC soubory s per-file načtením; iterace 2 na žádost
+  uživatele — rozdělení „Modely vs Storage" je přívětivější) a **Pohledy**
+  (stěhují se z horní lišty). Strom modelu zůstává v horní liště — propojí
+  se s dalšími stránkami později.
 - Tlačítko „Načíst IFC" z navbaru i chip-stack vpravo nahoře se ruší bez
   náhrady mimo drawer; objevitelnost řeší auto-otevření draweru Modely při
   startu s prázdnou scénou.
@@ -27,9 +29,13 @@ po vzoru Trimble Connect.
   Modely se mountují i bez enginu (ctx.getEngineIfReady), Pohledy si engine
   vyžádají přes `getEngine()`.
 - `assets/js/3d/panels/models-panel.js` — karty načtených modelů (název,
-  počet entit, 👁 viditelnost celého modelu, ✕ odebrání) + „+ Načíst ze
-  storage" (existující picker modal). Data čte z ctx (viewer-page vlastní
-  `state.loadedModels`).
+  počet entit, 👁 viditelnost celého modelu, ✕ odebrání) + tlačítko
+  „+ Načíst ze Storage" přepínající na záložku Storage. Data čte z ctx
+  (viewer-page vlastní `state.loadedModels`).
+- `assets/js/3d/panels/storage-panel.js` — strom složek (reuse
+  `buildPickerTree()` z viewer-page, normalizuje IDB i localFolder backend),
+  soubory s velikostí a tlačítkem Načíst (✓ u již načtených, „…" během
+  načítání), ↻ Obnovit. Načítá přes `ctx.loadFile` = `loadIfcFromStorage`.
 - Engine API: `setModelVisible(modelId, bool)` / `isModelVisible(modelId)`
   přes `group.visible` — raycast skryté modely automaticky ignoruje
   (isPickable prochází rodiče).

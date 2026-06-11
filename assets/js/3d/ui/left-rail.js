@@ -7,6 +7,7 @@
 
 const LOADERS = {
   models: () => import('../panels/models-panel.js'),
+  storage: () => import('../panels/storage-panel.js'),
   viewpoints: () => import('../panels/viewpoints-panel.js'),
 };
 
