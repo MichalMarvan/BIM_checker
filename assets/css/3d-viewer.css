@@ -377,7 +377,7 @@ body[data-page="viewer3d"] {
 .v3d-entity-bar__main {
     flex-shrink: 0;
     min-width: 0;
-    max-width: 280px;
+    max-width: 420px;  /* room for the full 22-char GUID in the meta row */
     line-height: 1.2;
     padding-right: 6px;
     border-right: 1px solid var(--border-primary);
@@ -401,7 +401,35 @@ body[data-page="viewer3d"] {
 .v3d-entity-bar__sep { margin: 0 3px; opacity: 0.5; }
 .v3d-entity-bar__type { color: var(--primary-color); font-weight: 600; font-family: ui-monospace, monospace; }
 .v3d-entity-bar__id { font-family: ui-monospace, monospace; }
-.v3d-entity-bar__guid { font-family: ui-monospace, monospace; opacity: 0.7; }
+.v3d-entity-bar__guid {
+    font-family: ui-monospace, monospace;
+    font-size: inherit;
+    color: inherit;
+    opacity: 0.7;
+    background: none;
+    border: none;
+    padding: 0 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.v3d-entity-bar__guid::after {
+    content: '⧉';
+    margin-left: 3px;
+    opacity: 0.55;
+}
+.v3d-entity-bar__guid:hover:not(:disabled) {
+    opacity: 1;
+    color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.08);
+}
+.v3d-entity-bar__guid:disabled { cursor: default; }
+.v3d-entity-bar__guid.is-copied {
+    opacity: 1;
+    color: #16a34a;
+}
+.v3d-entity-bar__guid.is-copied::after { content: '✓'; opacity: 1; }
+[data-theme="dark"] .v3d-entity-bar__guid.is-copied { color: #4ade80; }
 .v3d-entity-bar__count {
     padding: 3px 9px;
     background: rgba(255, 140, 0, 0.18);

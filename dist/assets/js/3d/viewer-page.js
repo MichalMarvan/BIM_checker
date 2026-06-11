@@ -612,9 +612,17 @@ function wireUI() {
         if (e.target === modal) modal.classList.remove('show');
     });
 
+    // Direct-action toolbar button (not a panel): restore visibility of everything
+    const showAllBtn = document.getElementById('v3dShowAllBtn');
+    if (showAllBtn) showAllBtn.addEventListener('click', () => {
+        state.engine?.showAll();
+        setStatus('✓ Viditelnost všech prvků obnovena', 'success');
+    });
+
     document.querySelectorAll('.v3d-tool').forEach(btn => {
         btn.addEventListener('click', async () => {
             const tool = btn.dataset.tool;
+            if (!tool) return;  // direct-action buttons (data-action) are wired separately
             try {
                 const [{ togglePanel }, panels] = await Promise.all([
                     import('./ui/panel-manager.js'),
@@ -648,13 +656,24 @@ function renderEntityBar(selected) {
     const eng = state.engine;
     const first = arr[0];
     const meta = eng?.getEntityMeta?.(first.modelId, first.expressId) || first;
-    document.getElementById('v3dEntityName').textContent = meta.name || '—';
-    document.getElementById('v3dEntityType').textContent = meta.ifcType || first.ifcType || '';
+    // Unnamed elements (Name=$ in IFC) promote the IFC type to the title line —
+    // a bare "—" title tells the user nothing. The meta row then drops the type.
+    const rawName = (meta.name || '').trim();
+    const ifcType = meta.ifcType || first.ifcType || '';
+    document.getElementById('v3dEntityName').textContent = rawName || ifcType || '—';
+    const typeEl = document.getElementById('v3dEntityType');
+    const typeSep = document.getElementById('v3dEntityTypeSep');
+    typeEl.textContent = ifcType;
+    typeEl.hidden = !rawName;
+    if (typeSep) typeSep.hidden = !rawName;
     document.getElementById('v3dEntityId').textContent = `#${first.expressId}`;
     const guidEl = document.getElementById('v3dEntityGuid');
     const fullGuid = meta.guid || '';
-    guidEl.textContent = fullGuid ? (fullGuid.length > 12 ? fullGuid.slice(0, 10) + '…' : fullGuid) : '—';
-    guidEl.title = fullGuid;
+    guidEl.textContent = fullGuid || '—';
+    guidEl.dataset.guid = fullGuid;
+    guidEl.disabled = !fullGuid;
+    guidEl.title = fullGuid ? `GUID ${fullGuid} — kliknutím zkopíruješ` : '';
+    guidEl.classList.remove('is-copied');
 
     const countEl = document.getElementById('v3dEntityCount');
     if (arr.length > 1) {
@@ -694,7 +713,6 @@ function wireEntityBarButtons() {
             if (sel.length === 0) return;
             state.engine.isolateEntities(sel.map(s => ({ modelId: s.modelId, expressId: s.expressId })));
         },
-        'show-all': () => state.engine?.showAll(),
         'same-type': () => {
             const sel = state.engine?.getSelectedEntities() || [];
             if (sel.length === 0) return;
@@ -740,6 +758,29 @@ function wireEntityBarButtons() {
                 sel.map(s => ({ modelId: s.modelId, expressId: s.expressId })),
                 alpha,
             );
+        });
+    }
+
+    // GUID click-to-copy with a short visual confirmation
+    const guidBtn = document.getElementById('v3dEntityGuid');
+    if (guidBtn) {
+        guidBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const guid = guidBtn.dataset.guid;
+            if (!guid) return;
+            try {
+                await navigator.clipboard.writeText(guid);
+            } catch (_) {
+                // Clipboard API unavailable (non-secure context) — select-fallback
+                const tmp = document.createElement('textarea');
+                tmp.value = guid;
+                document.body.appendChild(tmp);
+                tmp.select();
+                document.execCommand('copy');
+                tmp.remove();
+            }
+            guidBtn.classList.add('is-copied');
+            setTimeout(() => guidBtn.classList.remove('is-copied'), 1400);
         });
     }
 }

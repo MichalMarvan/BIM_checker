@@ -170,6 +170,9 @@
                 <button class="v3d-tool" data-tool="display" title="Zobrazení (Solid/X-ray/Wireframe)" data-i18n-title="viewer3d.tool.display">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
                 </button>
+                <button class="v3d-tool" id="v3dShowAllBtn" data-action="show-all" title="Zobrazit vše (zrušit skrytí a izolaci prvků)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><polyline points="15.5 19.5 17.5 21.5 21.5 17.5"/></svg>
+                </button>
                 <button class="v3d-tool" data-tool="georef" title="Geo-referenace" data-i18n-title="viewer3d.tool.georef">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
                 </button>
@@ -191,10 +194,10 @@
                 <div class="v3d-entity-bar__name" id="v3dEntityName">—</div>
                 <div class="v3d-entity-bar__meta">
                     <span class="v3d-entity-bar__type" id="v3dEntityType">—</span>
-                    <span class="v3d-entity-bar__sep">·</span>
+                    <span class="v3d-entity-bar__sep" id="v3dEntityTypeSep">·</span>
                     <span class="v3d-entity-bar__id" id="v3dEntityId">—</span>
                     <span class="v3d-entity-bar__sep">·</span>
-                    <span class="v3d-entity-bar__guid" id="v3dEntityGuid" title="">—</span>
+                    <button class="v3d-entity-bar__guid" id="v3dEntityGuid" title="">—</button>
                 </div>
             </div>
             <div class="v3d-entity-bar__count" id="v3dEntityCount" hidden></div>
@@ -210,10 +213,6 @@
                 <button class="v3d-eb-btn" data-eb-action="isolate" title="Skrýt vše ostatní">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <span>Izolovat</span>
-                </button>
-                <button class="v3d-eb-btn" data-eb-action="show-all" title="Obnovit viditelnost všech objektů">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    <span>Vše</span>
                 </button>
                 <button class="v3d-eb-btn" data-eb-action="same-type" title="Vybrat všechny stejného typu">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
