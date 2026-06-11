@@ -850,9 +850,9 @@ function boot() {
     wireUI();
     wireEntityBarButtons();
     setStatus(t('viewer3d.empty') || 'Žádný model — otevři Modely v levé liště.');
-    // Keep loading discoverable: with an empty scene, open the Models drawer
-    // right away (the navbar load button moved there).
-    if (state.loadedModels.size === 0) openRailPanel('models');
+    // Keep loading discoverable: with an empty scene, open the Storage drawer
+    // right away (loading lives there; Models shows only what's loaded).
+    if (state.loadedModels.size === 0) openRailPanel('storage');
 }
 
 if (document.readyState === 'loading') {

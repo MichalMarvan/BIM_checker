@@ -51,16 +51,9 @@ export default class ModelsPanel {
         </div>`;
     }).join('');
 
-    this.host.innerHTML = `
-      ${models.length === 0
-    ? '<p class="v3d-panel__hint">Žádný načtený model.<br>Soubory najdeš v záložce Storage.</p>'
-    : `<div class="v3d-model-list">${cards}</div>`}
-      <button class="v3d-btn v3d-btn--primary v3d-drawer__load-btn" data-act="open-storage">+ Načíst ze Storage</button>
-    `;
-
-    this.host.querySelector('[data-act="open-storage"]').addEventListener('click', () => {
-      if (this.ctx.openStorage) this.ctx.openStorage();
-    });
+    this.host.innerHTML = models.length === 0
+      ? '<p class="v3d-panel__hint">Žádný načtený model.<br>Soubory najdeš v záložce Storage.</p>'
+      : `<div class="v3d-model-list">${cards}</div>`;
     this.host.querySelectorAll('.v3d-model-card').forEach((card) => {
       const modelId = card.dataset.modelId;
       card.querySelector('[data-act="visibility"]').addEventListener('click', () => {
