@@ -65,6 +65,21 @@ function startServer(port) {
     });
 }
 
+// Browser resolution: explicit env override first. On x64 (GitHub CI) puppeteer's
+// bundled Chrome wins — ubuntu-latest's snap-wrapped /usr/bin/chromium-browser
+// never exposes the WS endpoint. On ARM Linux (Raspberry Pi) system chromium wins —
+// puppeteer's "linux_arm" download is an unusable x64 binary.
+function resolveBrowserPath() {
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
+    const armLinux = process.platform === 'linux' && process.arch.startsWith('arm');
+    const candidates = [];
+    if (!armLinux) {
+        try { candidates.push(puppeteer.executablePath()); } catch (e) { /* no bundled browser */ }
+    }
+    candidates.push('/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser');
+    return candidates.find(p => p && existsSync(p));
+}
+
 async function runTests() {
     const port = 8765;
     let server;
@@ -78,9 +93,11 @@ async function runTests() {
 
         // Launch browser
         console.log('Launching headless browser...');
+        const executablePath = resolveBrowserPath();
+        console.log(`Browser: ${executablePath || 'puppeteer default'}`);
         browser = await puppeteer.launch({
             headless: true,
-            executablePath: '/usr/bin/chromium-browser',
+            ...(executablePath ? { executablePath } : {}),
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
         });
 

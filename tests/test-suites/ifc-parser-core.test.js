@@ -134,3 +134,47 @@ END-ISO-10303-21;`;
         expect(types).toContain('IFCWALLSTANDARDCASE');
     });
 });
+
+describe('IFCParserCore.detectSchema', () => {
+    it('is exposed', () => {
+        expect(typeof window.IFCParserCore.detectSchema).toBe('function');
+    });
+
+    it('extracts IFC4 schema from header', () => {
+        const content = `ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('ViewDefinition [...]'),'2;1');
+FILE_NAME('test.ifc','2026-01-01',(''),(''),'','','');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+ENDSEC;
+END-ISO-10303-21;`;
+        expect(IFCParserCore.detectSchema(content)).toBe('IFC4');
+    });
+
+    it('extracts IFC4X3_ADD2 schema', () => {
+        const content = `HEADER; FILE_SCHEMA(('IFC4X3_ADD2')); ENDSEC;`;
+        expect(IFCParserCore.detectSchema(content)).toBe('IFC4X3_ADD2');
+    });
+
+    it('extracts IFC2X3 schema', () => {
+        const content = `HEADER; FILE_SCHEMA (('IFC2X3')); ENDSEC;`;
+        expect(IFCParserCore.detectSchema(content)).toBe('IFC2X3');
+    });
+
+    it('returns UNKNOWN when no FILE_SCHEMA present', () => {
+        expect(IFCParserCore.detectSchema('HEADER; ENDSEC;')).toBe('UNKNOWN');
+    });
+
+    it('returns UNKNOWN for empty/null content', () => {
+        expect(IFCParserCore.detectSchema('')).toBe('UNKNOWN');
+        expect(IFCParserCore.detectSchema(null)).toBe('UNKNOWN');
+        expect(IFCParserCore.detectSchema(undefined)).toBe('UNKNOWN');
+    });
+
+    it('tolerates extra whitespace inside parentheses', () => {
+        const content = `FILE_SCHEMA  (  (  'IFC4'  )  );`;
+        expect(IFCParserCore.detectSchema(content)).toBe('IFC4');
+    });
+});

@@ -351,4 +351,199 @@ END-ISO-10303-21;`;
         const r = await tools.replace_file_content({ type: 'ifc', name: 'gone.ifc', content: 'X' });
         expect(r.error).toBe('not_found');
     });
+
+    it('get_storage_info returns numeric file counts in indexedDB mode', async () => {
+        await window.BIMStorage.saveFile('ifc', makeFile('info1.ifc', 'IFC'));
+        try {
+            storageTools.register(executor._registerTool);
+            const r = await executor.executeToolCall({ name: 'get_storage_info', arguments: {} });
+            expect(r.backend).toBe('indexedDB');
+            expect(typeof r.ifcCount).toBe('number');
+            expect(typeof r.idsCount).toBe('number');
+            expect(r.ifcCount).toBe(1);
+        } finally {
+            await window.BIMStorage.deleteFile('ifc', 'info1.ifc').catch(() => {});
+        }
+    });
+});
+
+describe('tools/tool-storage (localFolder backend)', () => {
+    let storageTools, executor;
+    let backend;
+
+    const TINY_IFC = `ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('test'),'2;1');
+FILE_NAME('t.ifc','',(),(), '', '', '');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+#1=IFCWALL('GUID',$,'Wall1',$,$,$,$,$,$);
+#2=IFCWALL('GUID2',$,'Wall2',$,$,$,$,$,$);
+ENDSEC;
+END-ISO-10303-21;`;
+
+    function makeFileHandle(name, text) {
+        const content = new TextEncoder().encode(text !== undefined ? text : `content of ${name}`);
+        return {
+            kind: 'file',
+            name,
+            getFile: async () => ({
+                arrayBuffer: async () => content.buffer,
+                size: content.length,
+                lastModified: 1700000000000,
+                name
+            })
+        };
+    }
+
+    function makeDirHandle(name, entries) {
+        return {
+            kind: 'directory',
+            name,
+            async *values() { for (const e of entries) yield e; },
+            queryPermission: async () => 'granted',
+            requestPermission: async () => 'granted'
+        };
+    }
+
+    beforeEach(async () => {
+        storageTools = await import('../../assets/js/ai/tools/tool-storage.js');
+        executor = await import('../../assets/js/ai/tool-executor.js');
+        const root = makeDirHandle('CDE-Mirror', [
+            makeFileHandle('wall.ifc', TINY_IFC),
+            makeFileHandle('spec.ids', '<ids/>'),
+            makeDirHandle('subfolder', [
+                makeFileHandle('floor.ifc', TINY_IFC)
+            ])
+        ]);
+        backend = new window.LocalFolderStorageBackend(root);
+        await backend.scan();
+        window.BIMStorage.setBackend(backend);
+    });
+
+    afterEach(() => {
+        window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
+    });
+
+    it('list_storage_files lists folder files with their folder paths', async () => {
+        const result = await storageTools.list_storage_files({ type: 'ifc' });
+        expect(Array.isArray(result)).toBe(true);
+        expect(result.length).toBe(2);
+        const wall = result.find(f => f.name === 'wall.ifc');
+        const floor = result.find(f => f.name === 'floor.ifc');
+        expect(wall !== undefined).toBe(true);
+        expect(floor !== undefined).toBe(true);
+        expect(wall.folder).toBe('root');
+        expect(floor.folder).toBe('subfolder');
+    });
+
+    it('list_storage_files excludes other file types', async () => {
+        const result = await storageTools.list_storage_files({ type: 'ids' });
+        expect(result.length).toBe(1);
+        expect(result[0].name).toBe('spec.ids');
+    });
+
+    it('list_storage_files filters by subfolder name', async () => {
+        const result = await storageTools.list_storage_files({ type: 'ifc', folder: 'subfolder' });
+        expect(result.length).toBe(1);
+        expect(result[0].name).toBe('floor.ifc');
+    });
+
+    it('list_storage_folders returns folder tree with direct files', async () => {
+        const result = await storageTools.list_storage_folders({ type: 'ifc' });
+        expect(Array.isArray(result)).toBe(true);
+        const root = result.find(f => f.name === 'root');
+        const sub = result.find(f => f.name === 'subfolder');
+        expect(root !== undefined).toBe(true);
+        expect(sub !== undefined).toBe(true);
+        expect(root.fileCount).toBe(1);
+        expect(root.files[0]).toBe('wall.ifc');
+        expect(sub.fileCount).toBe(1);
+        expect(sub.files[0]).toBe('floor.ifc');
+    });
+
+    it('get_file_snippet decodes folder file content to text', async () => {
+        const r = await storageTools.get_file_snippet({ type: 'ifc', name: 'wall.ifc' });
+        expect(typeof r.snippet).toBe('string');
+        expect(r.snippet.includes('IFCWALL')).toBe(true);
+        expect(typeof r.totalBytes).toBe('number');
+    });
+
+    it('get_file_summary parses decoded folder file content', async () => {
+        const r = await storageTools.get_file_summary({ type: 'ifc', name: 'wall.ifc' });
+        expect(r.name).toBe('wall.ifc');
+        expect(typeof r.entityCount).toBe('number');
+        expect(r.entityCount >= 2).toBe(true);
+    });
+
+    it('create_folder returns clean read_only_backend error instead of crashing', async () => {
+        let r = null, threw = false;
+        try { r = await storageTools.create_folder({ type: 'ifc', name: 'Nope' }); } catch (e) { threw = true; }
+        expect(threw).toBe(false);
+        expect(r.error).toBe('read_only_backend');
+    });
+
+    it('delete_file_from_storage returns read_only_backend error without asking confirm', async () => {
+        const orig = window.confirm;
+        let confirmCalled = false;
+        window.confirm = () => { confirmCalled = true; return true; };
+        let r = null, threw = false;
+        try { r = await storageTools.delete_file_from_storage({ type: 'ifc', name: 'wall.ifc' }); } catch (e) { threw = true; }
+        window.confirm = orig;
+        expect(threw).toBe(false);
+        expect(r.error).toBe('read_only_backend');
+        expect(confirmCalled).toBe(false);
+    });
+
+    it('move_file returns read_only_backend error instead of crashing', async () => {
+        let r = null, threw = false;
+        try { r = await storageTools.move_file({ type: 'ifc', fileName: 'wall.ifc', targetFolderName: 'subfolder' }); } catch (e) { threw = true; }
+        expect(threw).toBe(false);
+        expect(r.error).toBe('read_only_backend');
+    });
+
+    it('replace_file_content returns read_only_backend error pointing to save_file_to_folder', async () => {
+        const orig = window.confirm;
+        let confirmCalled = false;
+        window.confirm = () => { confirmCalled = true; return true; };
+        let r = null, threw = false;
+        try { r = await storageTools.replace_file_content({ type: 'ifc', name: 'wall.ifc', content: 'NEW' }); } catch (e) { threw = true; }
+        window.confirm = orig;
+        expect(threw).toBe(false);
+        expect(r.error).toBe('read_only_backend');
+        expect(confirmCalled).toBe(false);
+    });
+
+    it('get_storage_info reports localFolder backend with counts', async () => {
+        storageTools.register(executor._registerTool);
+        const r = await executor.executeToolCall({ name: 'get_storage_info', arguments: {} });
+        expect(r.backend).toBe('localFolder');
+        expect(r.folderName).toBe('CDE-Mirror');
+        expect(r.ifcCount).toBe(2);
+        expect(r.idsCount).toBe(1);
+    });
+
+    it('save_file_to_folder validates required args', async () => {
+        storageTools.register(executor._registerTool);
+        const r = await executor.executeToolCall({ name: 'save_file_to_folder', arguments: {} });
+        expect(r.error).toBe('execution_error');
+        expect(String(r.message).includes('fileType')).toBe(true);
+    });
+
+    it('get_file_mtime validates required args', async () => {
+        storageTools.register(executor._registerTool);
+        const r = await executor.executeToolCall({ name: 'get_file_mtime', arguments: { fileType: 'ifc' } });
+        expect(r.error).toBe('execution_error');
+        expect(String(r.message).includes('path')).toBe(true);
+    });
+
+    it('list tools report not_connected while folder permission is pending', async () => {
+        const pending = new window.LocalFolderStorageBackend();
+        window.BIMStorage.setBackend(pending);
+        const files = await storageTools.list_storage_files({ type: 'ifc' });
+        expect(files.error).toBe('not_connected');
+        const folders = await storageTools.list_storage_folders({ type: 'ifc' });
+        expect(folders.error).toBe('not_connected');
+    });
 });

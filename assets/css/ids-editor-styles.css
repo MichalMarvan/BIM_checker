@@ -805,6 +805,22 @@
     opacity: 0.5;
 }
 
+.bsdd-input.bsdd-filter-active {
+    border-color: var(--success);
+    background-color: var(--success-light);
+    color: var(--success-dark);
+}
+
+.bsdd-input.bsdd-filter-active ~ .bsdd-search-icon {
+    color: var(--success);
+    opacity: 1;
+}
+
+.bsdd-input.bsdd-filter-active ~ .bsdd-search-icon::before {
+    content: "✓ ";
+    font-weight: 700;
+}
+
 .bsdd-dropdown {
     position: absolute;
     top: 100%;
@@ -891,4 +907,19 @@
     padding: 4px 8px;
     background: var(--bg-secondary);
     border-radius: var(--radius-sm);
+}
+
+.ifc-version-checkboxes {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.ifc-version-checkboxes label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
 }

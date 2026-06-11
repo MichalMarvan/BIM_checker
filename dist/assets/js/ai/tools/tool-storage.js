@@ -4,10 +4,35 @@ import * as helpers from './_helpers.js';
 function t(key, params) { return (typeof window.t === 'function') ? window.t(key, params) : key; }
 
 function _readOnlyGuard() {
-    if (window.BIMStorage && window.BIMStorage.backend && window.BIMStorage.backend.isReadOnly && window.BIMStorage.backend.isReadOnly()) {
+    const b = window.BIMStorage && window.BIMStorage.backend;
+    if (!b) return null;
+    // LocalFolder backend has no IndexedDB folder structure — folder CRUD, move,
+    // delete and replace operate on that structure, so they are unsupported there
+    // (file content edits go through save_file_to_folder instead).
+    if ((b.isReadOnly && b.isReadOnly()) || b.kind === 'localFolder') {
         return { error: 'read_only_backend', message: t('ai.tool.localFolder.readOnly') };
     }
     return null;
+}
+
+function _localFolderBackend() {
+    const b = window.BIMStorage && window.BIMStorage.backend;
+    return (b && b.kind === 'localFolder') ? b : null;
+}
+
+const _contentToText = helpers.contentToText;
+
+export function summarizeIDS(ids) {
+    const out = {};
+    out.specCount = ids?.specifications?.length || 0;
+    out.title = ids?.info?.title || null;
+    const set = new Set();
+    for (const spec of ids?.specifications || []) {
+        for (const v of (spec.ifcVersions || [])) set.add(v);
+    }
+    out.ifcVersions = [...set];
+    out.ifcVersion  = out.ifcVersions.length ? out.ifcVersions.join(' ') : null;
+    return out;
 }
 
 function _buildFolderPath(foldersMap, folderId) {
@@ -63,6 +88,23 @@ export async function list_storage_files(args) {
     helpers.validateArgs(args, { type: { required: true, enum: ['ifc', 'ids'] } });
     if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
     await window.BIMStorage.init();
+
+    const lf = _localFolderBackend();
+    if (lf) {
+        if (!lf.root) return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
+        const files = await lf.getFiles(args.type);
+        const needle = args.folder ? String(args.folder).toLowerCase() : null;
+        const out = [];
+        for (const f of files) {
+            const folderLabel = f.folderPath || 'root';
+            // 'root' matches everything — root and its descendants, same as the
+            // IndexedDB path semantics where every path starts at root.
+            if (needle && needle !== 'root' && !folderLabel.toLowerCase().includes(needle)) continue;
+            out.push({ name: f.name, size: f.size, folder: folderLabel, path: f.id });
+        }
+        return out;
+    }
+
     const sm = args.type === 'ifc' ? window.BIMStorage.ifcStorage : window.BIMStorage.idsStorage;
     if (!sm.data) await sm.load();
     const folders = sm.data.folders || {};
@@ -99,6 +141,26 @@ export async function list_storage_folders(args) {
     helpers.validateArgs(args, { type: { required: true, enum: ['ifc', 'ids'] } });
     if (typeof window.BIMStorage === 'undefined') throw new Error('BIMStorage not available');
     await window.BIMStorage.init();
+
+    const lf = _localFolderBackend();
+    if (lf) {
+        if (!lf.root) return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
+        if (lf._fileCache.size === 0) await lf.scan();
+        const tree = lf.getFolderTree(args.type);
+        const out = [];
+        const visit = (node) => {
+            out.push({
+                name: node.path || 'root',
+                fileCount: node.files.length,
+                files: node.files.map(f => f.name)
+            });
+            for (const sub of node.subfolders) visit(sub);
+        };
+        if (tree) visit(tree);
+        out.sort((a, b) => (b.fileCount - a.fileCount) || a.name.localeCompare(b.name));
+        return out;
+    }
+
     const sm = args.type === 'ifc' ? window.BIMStorage.ifcStorage : window.BIMStorage.idsStorage;
     if (!sm.data) await sm.load();
     const folders = sm.data.folders || {};
@@ -276,7 +338,7 @@ export async function get_file_snippet(args) {
     await window.BIMStorage.init();
     const file = await window.BIMStorage.getFile(args.type, args.name);
     if (!file) return { error: 'not_found' };
-    const content = await window.BIMStorage.getFileContent(args.type, file.id);
+    const content = _contentToText(await window.BIMStorage.getFileContent(args.type, file.id));
     const truncated = content.length > maxBytes;
     return {
         name: args.name,
@@ -295,7 +357,7 @@ export async function get_file_summary(args) {
     await window.BIMStorage.init();
     const file = await window.BIMStorage.getFile(args.type, args.name);
     if (!file) return { error: 'not_found' };
-    const content = await window.BIMStorage.getFileContent(args.type, file.id);
+    const content = _contentToText(await window.BIMStorage.getFileContent(args.type, file.id));
     const out = {
         name: args.name,
         size: file.size,
@@ -320,9 +382,7 @@ export async function get_file_summary(args) {
             return out;
         }
         const ids = window.parseIDS(content, args.name);
-        out.specCount = ids?.specifications?.length || 0;
-        out.title = ids?.info?.title || null;
-        out.ifcVersion = ids?.info?.ifcVersion || null;
+        Object.assign(out, summarizeIDS(ids));
     }
     return out;
 }
@@ -406,6 +466,7 @@ async function tool_rescan_local_folder(_args) {
 async function tool_get_storage_info(_args) {
     const b = window.BIMStorage.backend;
     if (!b) return { backend: 'unknown' };
+    await window.BIMStorage.init();
     if (b.kind === 'localFolder') {
         const ifcs = b.getStats ? b.getStats('ifc') : { count: 0 };
         const idss = b.getStats ? b.getStats('ids') : { count: 0 };
@@ -417,17 +478,24 @@ async function tool_get_storage_info(_args) {
             isReadOnly: b.isReadOnly()
         };
     }
+    // IndexedDB getStats returns { fileCount, totalSize } (not { count })
     const ifcs = b.getStats('ifc');
     const idss = b.getStats('ids');
     return {
         backend: 'indexedDB',
-        ifcCount: ifcs.count,
-        idsCount: idss.count,
+        ifcCount: ifcs.fileCount,
+        idsCount: idss.fileCount,
         isReadOnly: false
     };
 }
 
 async function tool_save_file_to_folder(args) {
+    helpers.validateArgs(args, {
+        fileType: { required: true, enum: ['ifc', 'ids'] },
+        path: { required: true },
+        name: { required: true },
+        content: { required: true }
+    });
     const backend = window.BIMStorage.backend;
     if (!backend || backend.kind !== 'localFolder') {
         return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
@@ -467,6 +535,10 @@ async function tool_check_folder_writable(_args) {
 }
 
 async function tool_get_file_mtime(args) {
+    helpers.validateArgs(args, {
+        path: { required: true },
+        fileType: { enum: ['ifc', 'ids'] }
+    });
     const backend = window.BIMStorage.backend;
     if (!backend || backend.kind !== 'localFolder') {
         return { error: 'not_connected', message: t('ai.tool.localFolder.notConnected') };
@@ -501,4 +573,9 @@ export function register(registerFn) {
     registerFn('save_file_to_folder', tool_save_file_to_folder);
     registerFn('check_folder_writable', tool_check_folder_writable);
     registerFn('get_file_mtime', tool_get_file_mtime);
+}
+
+if (typeof window !== 'undefined') {
+    window.ToolStorage = window.ToolStorage || {};
+    window.ToolStorage.summarizeIDS = summarizeIDS;
 }

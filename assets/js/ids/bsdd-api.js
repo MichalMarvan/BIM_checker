@@ -15,12 +15,22 @@ const BsddApi = {
     CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
 
     /**
-     * Build URL for text search
+     * Build URL for text search.
+     *
+     * When a dictionary filter is set we use /api/SearchInDictionary/v1 because
+     * /api/TextSearch/v2 silently returns zero matches for the IFC dictionaries
+     * (and others) when filtered, regardless of which parameter spelling is
+     * used. SearchInDictionary actually indexes the per-dictionary class list
+     * and returns the IFC entities (Wall, Curtain Wall, …) we want.
+     *
+     * Without a filter we stay on /api/TextSearch/v2 — its global index is
+     * what the unfiltered autocomplete should hit.
      */
     _buildSearchUrl(query, dictionaryUri) {
         const params = new URLSearchParams({ SearchText: query });
         if (dictionaryUri) {
             params.set('DictionaryUri', dictionaryUri);
+            return `/api/SearchInDictionary/v1?${params.toString()}`;
         }
         return `/api/TextSearch/v2?${params.toString()}`;
     },
@@ -75,17 +85,24 @@ const BsddApi = {
     /**
      * Search classes across all or a specific dictionary
      * Returns array of {name, code, uri, dictionaryName}
+     *
+     * Two endpoints, two response shapes:
+     *   TextSearch/v2        -> { classes: [{name, code, uri, dictionaryUri}] }
+     *   SearchInDictionary/v1 -> { dictionary: { uri, classes: [{name, referenceCode, uri, classType}] } }
      */
     async searchClasses(query, dictionaryUri) {
         if (!query || query.length < 2) return [];
         const apiPath = this._buildSearchUrl(query, dictionaryUri);
         const data = await this._fetchCached(apiPath);
-        return (data.classes || []).map(cls => ({
+        const classes = dictionaryUri
+            ? ((data.dictionary || {}).classes || [])
+            : (data.classes || []);
+        return classes.map(cls => ({
             name: cls.name,
-            code: cls.code || '',
+            code: cls.code || cls.referenceCode || '',
             uri: cls.uri,
-            dictionaryName: cls.dictionaryUri || '',
-            dictionaryUri: cls.dictionaryUri || ''
+            dictionaryName: cls.dictionaryUri || dictionaryUri || '',
+            dictionaryUri: cls.dictionaryUri || dictionaryUri || ''
         }));
     },
 

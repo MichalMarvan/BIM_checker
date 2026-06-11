@@ -38,11 +38,18 @@ describe('BsddApi', () => {
         const url = BsddApi._buildSearchUrl('wall');
         expect(url).toContain('/api/TextSearch/v2');
         expect(url).toContain('SearchText=wall');
+        expect(url.includes('DictionaryUri')).toBe(false);
     });
 
-    it('should build correct search URL with dictionary filter', () => {
+    it('should switch to SearchInDictionary endpoint when a dictionary filter is set', () => {
         const url = BsddApi._buildSearchUrl('wall', 'https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3');
+        // TextSearch/v2 silently ignores DictionaryUri and returns global etim results,
+        // so a filtered query must hit SearchInDictionary/v1 instead.
+        expect(url).toContain('/api/SearchInDictionary/v1');
+        expect(url.includes('/api/TextSearch')).toBe(false);
+        expect(url).toContain('SearchText=wall');
         expect(url).toContain('DictionaryUri=');
+        expect(url).toContain(encodeURIComponent('https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3'));
     });
 
     it('should debounce rapid calls', () => {

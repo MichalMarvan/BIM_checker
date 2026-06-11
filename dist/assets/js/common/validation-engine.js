@@ -287,10 +287,55 @@ const ValidationEngine = (function() {
      * Validate a batch of entities against a specification
      * @param {Array} entities
      * @param {Object} spec
+     * @param {Object} [options]
+     * @param {string} [options.ifcSchema] - IFC schema of the file being validated (e.g. 'IFC4')
      * @returns {Promise<Object>}
      */
-    async function validateBatch(entities, spec) {
-        const ifcVersion = spec.ifcVersion || 'IFC4';
+    async function validateBatch(entities, spec, options) {
+        options = options || {};
+        const ifcSchema = options.ifcSchema || 'UNKNOWN';
+        const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
+
+        const declared = Array.isArray(spec.ifcVersions)
+            ? spec.ifcVersions
+            : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : []);
+        const supported = declared.filter(v => SUPPORTED.includes(v));
+        const unsupported = declared.filter(v => !SUPPORTED.includes(v));
+
+        // All-unsupported → spec error
+        if (declared.length > 0 && supported.length === 0) {
+            return {
+                specification: spec.name,
+                status: 'error',
+                errorMessage: `No supported IFC version in spec.ifcVersions (declared: ${declared.join(', ')}). Allowed: ${SUPPORTED.join(', ')}.`,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            };
+        }
+
+        // Spec doesn't apply to this IFC file
+        if (declared.length > 0 && !declared.includes(ifcSchema)) {
+            return {
+                specification: spec.name,
+                status: 'skipped',
+                skipReason: 'ifc-version-mismatch',
+                ifcSchema,
+                declaredVersions: declared,
+                passCount: 0,
+                failCount: 0,
+                entityResults: []
+            };
+        }
+
+        // Pick hierarchy load version:
+        //   1) IFC file's schema, if supported by the spec
+        //   2) Otherwise the first supported declared version
+        //   3) Fallback to IFC4
+        const ifcVersion = (ifcSchema !== 'UNKNOWN' && supported.includes(ifcSchema))
+            ? ifcSchema
+            : (supported[0] || 'IFC4');
+
         if (typeof window !== 'undefined' && window.IFCHierarchy) {
             await window.IFCHierarchy.load(ifcVersion);
         }
@@ -309,7 +354,10 @@ const ValidationEngine = (function() {
             status: 'pass',
             passCount: 0,
             failCount: 0,
-            entityResults: []
+            entityResults: [],
+            warnings: unsupported.length > 0
+                ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
+                : []
         };
 
         const applicableEntities = filterByApplicability(entities, spec.applicability, ctx);
@@ -317,7 +365,6 @@ const ValidationEngine = (function() {
         for (const entity of applicableEntities) {
             const entityResult = validateEntity(entity, spec.requirements || [], spec.name);
             result.entityResults.push(entityResult);
-
             if (entityResult.status === 'pass') {
                 result.passCount++;
             } else {

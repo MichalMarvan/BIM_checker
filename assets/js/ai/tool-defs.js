@@ -12,7 +12,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_storage_files',
-            description: 'Lists all files in IndexedDB storage for the given type. Optionally filter by folder (substring match on path). Without `folder` returns all files.',
+            description: 'Lists all files in the active storage (browser IndexedDB or connected local folder) for the given type. Optionally filter by folder (substring match on path). Without `folder` returns all files. In local-folder mode each file also includes `path` (usable with save_file_to_folder / get_file_mtime).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -27,7 +27,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_storage_folders',
-            description: 'Returns a list of folders in storage with their direct files. Use this when the user talks about a folder and you want to know which files are in it.',
+            description: 'Returns a list of folders in the active storage (browser IndexedDB or connected local folder) with their direct files. Use this when the user talks about a folder and you want to know which files are in it.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -573,14 +573,14 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_file_mtime',
-            description: 'Returns the last-modified timestamp (Unix ms) of a file in the connected folder. Useful to detect external changes.',
+            description: 'Returns the last-modified timestamp (Unix ms) of a file in the connected folder. Useful to detect external changes. Use the `path` from list_storage_files.',
             parameters: {
                 type: 'object',
                 properties: {
                     fileType: { type: 'string', enum: ['ifc', 'ids'] },
                     path: { type: 'string' }
                 },
-                required: ['fileType', 'path']
+                required: ['path']
             }
         }
     },
@@ -625,7 +625,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'load_preset',
-            description: 'Loads a preset as the last-session preset (validator UI updates). andNavigate:true switches to the Validator page if not already there (and triggers auto-run).',
+            description: 'Loads a preset as the last-session preset (validator UI updates). Identify it via id OR name — one of them is required. andNavigate:true switches to the Validator page if not already there (and triggers auto-run).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -667,7 +667,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_specification_detail',
-            description: 'Details of a single specification in an IDS file. Find via specName or specIndex (0-based). Returns applicability + requirements facets.',
+            description: 'Details of a single specification in an IDS file. Identify it via specName or specIndex (0-based) — exactly one of them is required. Returns applicability + requirements facets.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -683,7 +683,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'get_facet_detail',
-            description: 'Details of a specific facet within a specification. facetType is entity|partOf|classification|attribute|property|material. in=applicability|requirements (default applicability).',
+            description: 'Details of a specific facet within a specification. Identify the specification via specName or specIndex — one of them is required. facetType is entity|partOf|classification|attribute|property|material. in=applicability|requirements (default applicability).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -748,11 +748,11 @@ export const TOOL_DEFINITIONS = [
             parameters: {
                 type: 'object',
                 properties: {
-                    fileName: { type: 'string' },
+                    filename: { type: 'string' },
                     propertyName: { type: 'string' },
                     value: { type: 'string' }
                 },
-                required: ['fileName', 'propertyName']
+                required: ['filename', 'propertyName']
             }
         }
     },

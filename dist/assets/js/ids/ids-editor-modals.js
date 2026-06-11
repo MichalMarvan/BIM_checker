@@ -5,6 +5,20 @@
  * Handles modal windows for adding/editing facets
  */
 
+/**
+ * Pick a single representative IFC version for property-set lookups.
+ * When a spec declares multiple versions (e.g. "IFC4 IFC4X3_ADD2"),
+ * we prefer the most feature-rich supported version.
+ */
+function pickPsetLookupVersion(ifcVersionStr) {
+    const tokens = (ifcVersionStr || '').trim().split(/\s+/).filter(Boolean);
+    const PRIORITY = ['IFC4X3_ADD2', 'IFC4', 'IFC2X3'];
+    for (const v of PRIORITY) {
+        if (tokens.includes(v)) return v;
+    }
+    return tokens[0] || 'IFC4';
+}
+
 class IDSEditorModals {
     constructor() {
         this.currentCallback = null;
@@ -226,9 +240,10 @@ class IDSEditorModals {
         this._currentBsddPropertyUri = data.uri || null;
         this._bsddPropertyResults = [];
 
-        // Get PropertySets for current IFC version (used as fallback)
+        // Get PropertySets for current IFC version (used as fallback).
+        // Use pickPsetLookupVersion so multi-value strings like "IFC4 IFC4X3_ADD2" resolve correctly.
         const propertySets = window.getPropertySetsForVersion
-            ? window.getPropertySetsForVersion(this.currentIfcVersion)
+            ? window.getPropertySetsForVersion(pickPsetLookupVersion(this.currentIfcVersion))
             : (window.IFC_PROPERTY_SETS || []);
 
         // Generate datalist options from IFC_PROPERTY_SETS
@@ -364,8 +379,13 @@ class IDSEditorModals {
             }
         });
 
-        // Initialize dictionary filter autocomplete
-        this._initDictionaryFilter('bsddDictFilterPropContainer', 'bsddDictFilterProp');
+        // Initialize dictionary filter autocomplete with IFC dictionary pre-selected
+        // (Property facets usually target IFC PropertySets, so default to the matching IFC dict).
+        this._initDictionaryFilter(
+            'bsddDictFilterPropContainer',
+            'bsddDictFilterProp',
+            (dicts) => this._findIfcDictionary(dicts)
+        );
 
         this.openModal();
     }
@@ -1042,6 +1062,11 @@ class IDSEditorModals {
             currentCardinality = 'optional';
         }
 
+        const checkedVersions = (specData.ifcVersions && specData.ifcVersions.length)
+            ? specData.ifcVersions
+            : (specData.ifcVersion ? specData.ifcVersion.trim().split(/\s+/).filter(Boolean) : ['IFC4']);
+        const isChecked = v => checkedVersions.includes(v) ? 'checked' : '';
+
         document.getElementById('specModalBody').innerHTML = `
             <div class="form-group">
                 <label>${t('editor.specName')}</label>
@@ -1051,11 +1076,11 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>${t('editor.ifcVersion')}</label>
-                <select id="specIfcVersion">
-                    <option value="IFC2X3" ${specData.ifcVersion === 'IFC2X3' ? 'selected' : ''}>IFC2X3</option>
-                    <option value="IFC4" ${!specData.ifcVersion || specData.ifcVersion === 'IFC4' ? 'selected' : ''}>IFC4</option>
-                    <option value="IFC4X3_ADD2" ${specData.ifcVersion === 'IFC4X3_ADD2' ? 'selected' : ''}>IFC4X3_ADD2</option>
-                </select>
+                <div class="ifc-version-checkboxes" id="specIfcVersionCheckboxes">
+                    <label><input type="checkbox" name="ifcVersion" value="IFC2X3" ${isChecked('IFC2X3')}> IFC2X3</label>
+                    <label><input type="checkbox" name="ifcVersion" value="IFC4" ${isChecked('IFC4')}> IFC4</label>
+                    <label><input type="checkbox" name="ifcVersion" value="IFC4X3_ADD2" ${isChecked('IFC4X3_ADD2')}> IFC4X3_ADD2</label>
+                </div>
                 <small>${t('editor.ifcVersionDesc')}</small>
             </div>
 
@@ -1144,9 +1169,10 @@ class IDSEditorModals {
             return;
         }
 
-        const ifcVersion = document.getElementById('specIfcVersion').value;
-        if (!ifcVersion) {
-            alert(t('editor.ifcVersionRequired'));
+        const checked = [...document.querySelectorAll('#specIfcVersionCheckboxes input[name="ifcVersion"]:checked')]
+            .map(el => el.value);
+        if (checked.length === 0) {
+            alert(t('editor.ifcVersion.required'));
             return;
         }
 
@@ -1159,7 +1185,8 @@ class IDSEditorModals {
 
         const specData = {
             name: name,
-            ifcVersion: ifcVersion,
+            ifcVersion: checked.join(' '),
+            ifcVersions: checked,
             description: document.getElementById('specDescription').value.trim(),
             minOccurs: occurs.minOccurs,
             maxOccurs: occurs.maxOccurs
@@ -1190,13 +1217,17 @@ class IDSEditorModals {
     /**
      * Initialize searchable dictionary filter autocomplete.
      * Loads dictionaries once, then filters client-side.
+     *
+     * @param {string} containerId   - container element id
+     * @param {string} hiddenInputId - hidden input id that stores the chosen dictionary URI
+     * @param {Function} [getDefault] - optional `(dictionaries) => dict|null` selector used to
+     *                                  pre-select a default dictionary when the modal opens
      */
-    async _initDictionaryFilter(containerId, hiddenInputId) {
+    async _initDictionaryFilter(containerId, hiddenInputId, getDefault = null) {
         const container = document.getElementById(containerId);
         const hiddenInput = document.getElementById(hiddenInputId);
         if (!container || !hiddenInput) return;
 
-        // Load dictionaries (cached after first call)
         if (!this._dictionaryCache) {
             try {
                 this._dictionaryCache = await BsddApi.getDictionaries();
@@ -1207,6 +1238,7 @@ class IDSEditorModals {
         }
 
         const dictionaries = this._dictionaryCache;
+        const dictDisplay = (d) => `${d.name} (${d.version})`;
 
         new BsddAutocomplete({
             container: container,
@@ -1220,7 +1252,7 @@ class IDSEditorModals {
                         .filter(d => d.name.toLowerCase().includes(lowerQuery) ||
                                      (d.version || '').toLowerCase().includes(lowerQuery))
                         .map(d => ({
-                            name: `${d.name} (${d.version})`,
+                            name: dictDisplay(d),
                             code: '',
                             uri: d.uri,
                             dictionaryName: d.name
@@ -1229,18 +1261,88 @@ class IDSEditorModals {
             },
             onSelect: (item) => {
                 hiddenInput.value = item.uri;
+                const si = document.getElementById(hiddenInputId + '_search');
+                if (si) si.classList.add('bsdd-filter-active');
             }
         });
 
-        // Allow clearing the filter by emptying the input
         const searchInput = document.getElementById(hiddenInputId + '_search');
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                if (!searchInput.value.trim()) {
+        if (!searchInput) return;
+
+        const setActive = (active) => {
+            searchInput.classList.toggle('bsdd-filter-active', active);
+        };
+
+        // Auto-resolve typed text against the cached dictionary list.
+        // Why: the click-only onSelect path loses the filter when users type and Tab/Enter away.
+        const resolveFromText = () => {
+            if (hiddenInput.value) return;
+            const text = searchInput.value.trim();
+            if (!text) return;
+            const lower = text.toLowerCase();
+            const match = dictionaries.find(d =>
+                dictDisplay(d).toLowerCase() === lower ||
+                d.name.toLowerCase() === lower
+            );
+            if (match) {
+                hiddenInput.value = match.uri;
+                searchInput.value = dictDisplay(match);
+                setActive(true);
+            }
+        };
+
+        searchInput.addEventListener('input', () => {
+            const text = searchInput.value.trim();
+            if (!text) {
+                hiddenInput.value = '';
+                setActive(false);
+                return;
+            }
+            // Invalidate the stored URI if the user has edited away from the resolved name.
+            if (hiddenInput.value) {
+                const current = dictionaries.find(d => d.uri === hiddenInput.value);
+                if (current && text !== dictDisplay(current)) {
                     hiddenInput.value = '';
+                    setActive(false);
                 }
-            });
+            }
+        });
+
+        // Delay blur resolution so a click on a dropdown item gets to fire onSelect first.
+        searchInput.addEventListener('blur', () => {
+            setTimeout(resolveFromText, 150);
+        });
+
+        // Defer Enter resolution so BsddAutocomplete's own Enter (select highlighted) wins first.
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                setTimeout(resolveFromText, 0);
+            }
+        });
+
+        if (getDefault && !hiddenInput.value) {
+            const match = getDefault(dictionaries);
+            if (match) {
+                hiddenInput.value = match.uri;
+                searchInput.value = dictDisplay(match);
+                setActive(true);
+            }
         }
+    }
+
+    /**
+     * Find the bSDD IFC dictionary matching the editor's current IFC version.
+     */
+    _findIfcDictionary(dictionaries) {
+        const v = pickPsetLookupVersion(this.currentIfcVersion);
+        const versionMap = {
+            'IFC4X3_ADD2': '4.3',
+            'IFC4': '4.0',
+            'IFC2X3': '2.3'
+        };
+        const target = versionMap[v];
+        if (!target) return null;
+        return dictionaries.find(d => d.name === 'IFC' && d.version === target) || null;
     }
 }
 

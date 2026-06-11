@@ -10,7 +10,7 @@ export async function list_ids_specifications(args) {
     await window.BIMStorage.init();
     const meta = await window.BIMStorage.getFile('ids', args.filename);
     if (!meta) return { error: 'not_found' };
-    const content = await window.BIMStorage.getFileContent('ids', meta.id);
+    const content = helpers.contentToText(await window.BIMStorage.getFileContent('ids', meta.id));
     const parsed = window.IDSParser.parse(content);
     const specs = (parsed && parsed.specifications) || [];
     return specs.map(s => ({
@@ -23,15 +23,23 @@ export async function list_ids_specifications(args) {
 
 function _resolveSpec(specs, args) {
     if (typeof args.specIndex === 'number') {
-        if (args.specIndex < 0 || args.specIndex >= specs.length) return { error: 'index_out_of_range' };
+        if (args.specIndex < 0 || args.specIndex >= specs.length) {
+            return { error: 'index_out_of_range', max: specs.length - 1 };
+        }
         return { spec: specs[args.specIndex], index: args.specIndex };
     }
     if (args.specName) {
         const idx = specs.findIndex(s => (s.name || '').trim() === String(args.specName).trim());
-        if (idx === -1) return { error: 'not_found', message: `Specifikace "${args.specName}" v souboru.` };
+        if (idx === -1) {
+            return {
+                error: 'not_found',
+                message: `Specification "${args.specName}" not found in the file.`,
+                availableSpecs: specs.map(s => s.name)
+            };
+        }
         return { spec: specs[idx], index: idx };
     }
-    return { error: 'missing_identifier', message: 'Zadej specName nebo specIndex.' };
+    return { error: 'missing_identifier', message: 'Provide either specName (string) or specIndex (0-based number).' };
 }
 
 export async function get_specification_detail(args) {
@@ -41,7 +49,7 @@ export async function get_specification_detail(args) {
     await window.BIMStorage.init();
     const file = await window.BIMStorage.getFile('ids', args.idsFileName);
     if (!file) return { error: 'not_found', message: `IDS soubor "${args.idsFileName}" neexistuje.` };
-    const content = await window.BIMStorage.getFileContent('ids', file.id);
+    const content = helpers.contentToText(await window.BIMStorage.getFileContent('ids', file.id));
     const parsed = window.IDSParser.parse(content);
     if (parsed.error) return { error: 'parse_error', message: parsed.error.message };
     const resolution = _resolveSpec(parsed.specifications || [], args);
@@ -74,7 +82,7 @@ export async function get_facet_detail(args) {
     await window.BIMStorage.init();
     const file = await window.BIMStorage.getFile('ids', args.idsFileName);
     if (!file) return { error: 'not_found' };
-    const content = await window.BIMStorage.getFileContent('ids', file.id);
+    const content = helpers.contentToText(await window.BIMStorage.getFileContent('ids', file.id));
     const parsed = window.IDSParser.parse(content);
     if (parsed.error) return { error: 'parse_error', message: parsed.error.message };
     const resolution = _resolveSpec(parsed.specifications || [], args);
@@ -102,7 +110,7 @@ export async function generate_ids_skeleton(args) {
         milestone: args.milestone || '',
         specifications: [{
             name: 'Empty Specification',
-            ifcVersion: args.ifcVersion || 'IFC4X3_ADD2',
+            ifcVersion: (Array.isArray(args.ifcVersion) ? args.ifcVersion.join(' ') : args.ifcVersion) || 'IFC4 IFC4X3_ADD2',
             identifier: '',
             description: '',
             instructions: '',
@@ -132,7 +140,7 @@ export async function add_specification_to_ids(args) {
     await window.BIMStorage.init();
     const file = await window.BIMStorage.getFile('ids', args.idsFileName);
     if (!file) return { error: 'not_found' };
-    const content = await window.BIMStorage.getFileContent('ids', file.id);
+    const content = helpers.contentToText(await window.BIMStorage.getFileContent('ids', file.id));
     const parsed = window.IDSParser.parse(content);
     if (parsed.error) return { error: 'parse_error', message: parsed.error.message };
     const idsData = {
@@ -148,7 +156,9 @@ export async function add_specification_to_ids(args) {
     };
     idsData.specifications.push({
         name: args.name,
-        ifcVersion: args.ifcVersion || idsData.specifications[0]?.ifcVersion || 'IFC4X3_ADD2',
+        ifcVersion: (Array.isArray(args.ifcVersion) ? args.ifcVersion.join(' ') : args.ifcVersion)
+            || idsData.specifications[0]?.ifcVersion
+            || 'IFC4 IFC4X3_ADD2',
         identifier: '',
         description: args.description || '',
         instructions: '',
@@ -172,7 +182,7 @@ export async function validate_ids_xml(args) {
     await window.BIMStorage.init();
     const file = await window.BIMStorage.getFile('ids', args.idsFileName);
     if (!file) return { error: 'not_found' };
-    const content = await window.BIMStorage.getFileContent('ids', file.id);
+    const content = helpers.contentToText(await window.BIMStorage.getFileContent('ids', file.id));
     const result = await window.IDSXSDValidator.validate(content);
     return { valid: result.valid, errorCount: (result.errors || []).length, errors: (result.errors || []).slice(0, 20) };
 }
