@@ -204,7 +204,7 @@ class LocalFolderStorageBackend {
         if (this._fileCache.size === 0) await this.scan();
         return Array.from(this._fileCache.values())
             .filter(r => r.type === type)
-            .map(r => ({ id: r.path, name: r.name, size: r.size, folderId: 'root' }));
+            .map(r => ({ id: r.path, name: r.name, size: r.size, folderId: 'root', folderPath: r.folderPath || '' }));
     }
 
     async getFile(type, name) {

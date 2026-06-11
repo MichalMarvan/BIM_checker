@@ -12,7 +12,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_storage_files',
-            description: 'Lists all files in IndexedDB storage for the given type. Optionally filter by folder (substring match on path). Without `folder` returns all files.',
+            description: 'Lists all files in the active storage (browser IndexedDB or connected local folder) for the given type. Optionally filter by folder (substring match on path). Without `folder` returns all files. In local-folder mode each file also includes `path` (usable with save_file_to_folder / get_file_mtime).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -27,7 +27,7 @@ export const TOOL_DEFINITIONS = [
         type: 'function',
         function: {
             name: 'list_storage_folders',
-            description: 'Returns a list of folders in storage with their direct files. Use this when the user talks about a folder and you want to know which files are in it.',
+            description: 'Returns a list of folders in the active storage (browser IndexedDB or connected local folder) with their direct files. Use this when the user talks about a folder and you want to know which files are in it.',
             parameters: {
                 type: 'object',
                 properties: {
