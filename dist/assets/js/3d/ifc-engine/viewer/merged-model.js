@@ -18,6 +18,7 @@
 // federation bake (shift × matrixWorld) keeps working unchanged.
 
 import * as THREE from 'three';
+import { extractFeatureEdges } from '../geometry/mesh-types.js';
 
 /**
  * @param {Array<{entity, ifcType, item, result, typeColor}>} accepted —
@@ -90,6 +91,13 @@ export function buildMergedModel(accepted, computeItemMatrix, material) {
   let vertOfs = 0;
   let triOfs = 0;
 
+  // Topology feature edges merged alongside (etapa 4) — one LineSegments per
+  // model instead of one per element. Chunks collected per item, baked into
+  // the same anchor frame, concatenated at the end.
+  const edgeChunks = [];
+  const edgesTable = [];
+  let edgeVertOfs = 0;
+
   for (const { cand, geom, matrix, vertCount, triCount } of prepared) {
     bakeMatrix.multiplyMatrices(toAnchor, matrix);
     normalMatrix.getNormalMatrix(bakeMatrix);
@@ -137,6 +145,25 @@ export function buildMergedModel(accepted, computeItemMatrix, material) {
       for (let i = 0; i < vertCount; i++) index[triOfs * 3 + i] = vertOfs + i;
     }
 
+    // Feature edges of this element, baked into the anchor frame
+    const localEdges = extractFeatureEdges(geom);
+    if (localEdges.length > 0) {
+      const baked = new Float32Array(localEdges.length);
+      for (let i = 0; i < localEdges.length; i += 3) {
+        v.set(localEdges[i], localEdges[i + 1], localEdges[i + 2]).applyMatrix4(bakeMatrix);
+        baked[i] = v.x;
+        baked[i + 1] = v.y;
+        baked[i + 2] = v.z;
+      }
+      edgeChunks.push(baked);
+      edgesTable.push({
+        expressId: cand.entity.expressId,
+        vertStart: edgeVertOfs,
+        vertCount: baked.length / 3,
+      });
+      edgeVertOfs += baked.length / 3;
+    }
+
     const expressId = cand.entity.expressId;
     table.push({
       expressId,
@@ -171,7 +198,18 @@ export function buildMergedModel(accepted, computeItemMatrix, material) {
 
   const mesh = new THREE.Mesh(merged, material);
   mesh.applyMatrix4(new THREE.Matrix4().makeTranslation(anchor.x, anchor.y, anchor.z));
-  return { mesh, table, elementInfo, elementsByType };
+
+  let edgePositions = null;
+  if (edgeVertOfs > 0) {
+    edgePositions = new Float32Array(edgeVertOfs * 3);
+    let ofs = 0;
+    for (const chunk of edgeChunks) {
+      edgePositions.set(chunk, ofs);
+      ofs += chunk.length;
+    }
+  }
+
+  return { mesh, table, elementInfo, elementsByType, edgePositions, edgesTable };
 }
 
 /** Binary search the range table by raycast faceIndex. */

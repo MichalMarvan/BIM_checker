@@ -66,9 +66,19 @@ Jeden `THREE.Mesh` na (model × materiál/barva) s merged `BufferGeometry`:
    normal materiálu): hide, isolate, show-all, opacity slider; discard
    v hlavním i normal-pass shaderu (žádné fantom obrysy), blending se
    zapíná jen při frakčním fade, picking přeskakuje skryté elementy.
-4. Merged hrany + LOD přepnutí na per-model.
-5. Box-select, měření, řezy, walk-mode kolize nad elementTable; smazání
-   staré per-mesh cesty + úklid.
+4. ✅ HOTOVO (2026-06-12) — Merged hrany: jeden LineSegments na model
+   (extractFeatureEdges per element, bake do anchor frame, elemHide atribut
+   i pro hrany — skrytí prvku skryje i jeho obrysy). LOD je per model
+   automaticky (1 lineset/model).
+5. ✅ HOTOVO (2026-06-12) — Box-select přes kešovaná těžiště elementů
+   (invalidate přes position.version po federačním bake), highlight/
+   clearHighlights/getHighlightedIds přes color atribut se snapshotem
+   základních barev (color/diff/timeline/clash panely fungují),
+   getHiddenEntityIds/getOpacityEntries z m.elementAlpha (viewpoints
+   round-trip ověřen). Měření jde přes raycastPoint (merged-ready).
+   **Merged je default**, `?merged=0` = legacy fallback. Smazání legacy
+   cesty ODLOŽENO, dokud se panely (color/diff/timeline/clash) neověří
+   v merged režimu v reálném provozu — pak samostatný úklidový commit.
 
 Odhad: etapy 1–3 jsou jádro (~většina práce), 4–5 dotažení. Ověřování:
 živý Chrome MCP workflow s D214 + heap/draw-call měření před–po.

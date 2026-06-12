@@ -11,6 +11,24 @@ import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
 import { selectAt, isPickable } from './selection.js';
 import { buildMergedModel, mergedElementBox, extractElementGeometry, resolveMergedFace } from './merged-model.js';
+
+/**
+ * Inject the per-element hide/fade attribute into a built-in material's
+ * shader (merged models — etapa 3/4). Works for mesh and line materials,
+ * both compile from ShaderLib chunks containing the replaced includes.
+ */
+function _patchElemHide(material, cacheKey) {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float elemHide;\nvarying float vElemHide;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvElemHide = elemHide;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vElemHide;')
+      .replace('#include <color_fragment>',
+        '#include <color_fragment>\nif (vElemHide > 0.995) discard;\ndiffuseColor.a *= (1.0 - vElemHide);');
+  };
+  material.customProgramCacheKey = () => cacheKey;
+}
 import { getViewSpec } from './camera-presets.js';
 import { animateCameraTo } from './camera-animation.js';
 import { SectionVisuals } from './section-visuals.js';
@@ -545,16 +563,7 @@ export class ViewerCore {
       // hidden elements discard (works on the opaque path), fractional
       // values multiply alpha (blending enabled by _applyDisplayMode when
       // any fade is active).
-      material.onBeforeCompile = (shader) => {
-        shader.vertexShader = shader.vertexShader
-          .replace('#include <common>', '#include <common>\nattribute float elemHide;\nvarying float vElemHide;')
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvElemHide = elemHide;');
-        shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying float vElemHide;')
-          .replace('#include <color_fragment>',
-            '#include <color_fragment>\nif (vElemHide > 0.995) discard;\ndiffuseColor.a *= (1.0 - vElemHide);');
-      };
-      material.customProgramCacheKey = () => 'merged-elem-hide';
+      _patchElemHide(material, 'merged-elem-hide');
       if (this._section.active && this._section.planes.length > 0) {
         material.clippingPlanes = this._section.planes;
         material.clipShadows = true;
@@ -563,20 +572,45 @@ export class ViewerCore {
       if (built) {
         built.mesh.userData = { modelId, merged: true, mergedTable: built.table };
         innerGroup.add(built.mesh);
+
+        // Merged topology feature edges — one LineSegments per model (etapa 4)
+        const mergedFeatureEdges = [];
+        let mergedEdgeMaterial = null;
+        if (built.edgePositions) {
+          const edgeGeom = new THREE.BufferGeometry();
+          edgeGeom.setAttribute('position', new THREE.BufferAttribute(built.edgePositions, 3));
+          edgeGeom.setAttribute('elemHide',
+            new THREE.BufferAttribute(new Float32Array(built.edgePositions.length / 3), 1));
+          mergedEdgeMaterial = new THREE.LineBasicMaterial({
+            color: 0x2a2a2e,
+            transparent: true,
+            opacity: FEATURE_EDGE_OPACITY,
+            depthTest: true,
+            depthWrite: false,
+          });
+          _patchElemHide(mergedEdgeMaterial, 'merged-edge-hide');
+          const edgeLines = new THREE.LineSegments(edgeGeom, mergedEdgeMaterial);
+          edgeLines.userData = { isFeatureEdges: true, merged: true };
+          edgeLines.visible = this._featureEdgesVisible === true;
+          built.mesh.add(edgeLines);
+          mergedFeatureEdges.push(edgeLines);
+        }
+
         this._scene.add(group);
         this._models.set(modelId, {
           group, innerGroup,
           meshes: [built.mesh],
           merged: true,
           mergedTable: built.table,
+          mergedEdgesTable: built.edgesTable,
           elementInfo: built.elementInfo,
           elementsByType: built.elementsByType,
-          featureEdges: [],
-          featureEdgesMaterial: null,
+          featureEdges: mergedFeatureEdges,
+          featureEdgesMaterial: mergedEdgeMaterial,
         });
         if (this._displayMode !== 'solid') this._applyDisplayMode();
         this._recomputeSceneBbox();
-        console.log(`[viewer] merged model ${modelId}: ${accepted.length} items → 1 mesh (${built.table.length} ranges, ${built.elementInfo.size} elements)`);
+        console.log(`[viewer] merged model ${modelId}: ${accepted.length} items → 1 mesh + ${mergedFeatureEdges.length} edge set (${built.table.length} ranges, ${built.elementInfo.size} elements)`);
       }
       return;
     }
@@ -1262,7 +1296,31 @@ export class ViewerCore {
    */
   highlight(items, defaultColor = 0xfacc15) {
     if (!Array.isArray(items)) return;
+    const tint = new THREE.Color();
     for (const item of items) {
+      const m = this._models.get(item.modelId);
+      if (m && m.merged) {
+        // Merged model: write the tint into the per-vertex color attribute
+        // ranges of this element; the base colors are snapshotted once so
+        // clearHighlights can restore them.
+        const colorAttr = m.meshes[0] && m.meshes[0].geometry.getAttribute('color');
+        if (!colorAttr) continue;
+        if (!m._baseColors) m._baseColors = colorAttr.array.slice();
+        if (!m._highlightedIds) m._highlightedIds = new Map();
+        tint.set(item.color ?? defaultColor);
+        const expressId = Number(item.expressId);
+        for (const row of m.mergedTable) {
+          if (row.expressId !== expressId) continue;
+          for (let i = row.vertStart; i < row.vertStart + row.vertCount; i++) {
+            colorAttr.array[i * 3] = tint.r;
+            colorAttr.array[i * 3 + 1] = tint.g;
+            colorAttr.array[i * 3 + 2] = tint.b;
+          }
+        }
+        colorAttr.needsUpdate = true;
+        m._highlightedIds.set(expressId, tint.getHex());
+        continue;
+      }
       const mesh = this._findMesh(item.modelId, item.expressId);
       if (!mesh) continue;
       // Save original (only on first highlight; nested highlights keep first save)
@@ -1281,6 +1339,14 @@ export class ViewerCore {
       mesh.material.color.setHex(hex);
     }
     this._highlights.clear();
+    for (const m of this._models.values()) {
+      if (m.merged && m._highlightedIds && m._highlightedIds.size > 0 && m._baseColors) {
+        const colorAttr = m.meshes[0].geometry.getAttribute('color');
+        colorAttr.array.set(m._baseColors);
+        colorAttr.needsUpdate = true;
+        m._highlightedIds.clear();
+      }
+    }
     if (this._displayMode !== 'solid') this._applyDisplayMode();
   }
 
@@ -1449,8 +1515,22 @@ export class ViewerCore {
 
     const tmp = new THREE.Vector3();
     const out = [];
-    for (const m of this._models.values()) {
-      if (m.merged) continue;  // box-select over the element table = etapa 5
+    for (const [mId, m] of this._models) {
+      if (m.merged) {
+        // Element-table path: project cached per-element bbox centers
+        if (!m.group.visible) continue;
+        const centers = this._mergedElementCenters(m);
+        for (const [expressId, center] of centers) {
+          const a = m.elementAlpha ? (m.elementAlpha.get(expressId) ?? 1) : 1;
+          if (a <= 0.02) continue;  // hidden/faded-out → not box-selectable
+          tmp.copy(center).project(this._camera);
+          if (tmp.z < -1 || tmp.z > 1) continue;
+          if (tmp.x < ndcMinX || tmp.x > ndcMaxX) continue;
+          if (tmp.y < ndcMinY || tmp.y > ndcMaxY) continue;
+          out.push({ modelId: mId, expressId });
+        }
+        continue;
+      }
       const meshes = m.meshes;
       for (const mesh of meshes) {
         if (!isPickable(mesh)) continue;  // hidden/faded-out elements are not box-selectable
@@ -1485,9 +1565,61 @@ export class ViewerCore {
       attr.array.fill(hide, row.vertStart, row.vertStart + row.vertCount);
     }
     attr.needsUpdate = true;
+    const edgeAttr = this._mergedEdgeAttr(m);
+    if (edgeAttr) {
+      for (const row of m.mergedEdgesTable) {
+        if (row.expressId !== expressId) continue;
+        edgeAttr.array.fill(hide, row.vertStart, row.vertStart + row.vertCount);
+      }
+      edgeAttr.needsUpdate = true;
+    }
     if (!m.elementAlpha) m.elementAlpha = new Map();
     if (a >= 1) m.elementAlpha.delete(expressId);
     else m.elementAlpha.set(expressId, a);
+  }
+
+  _mergedEdgeAttr(m) {
+    const lines = m.featureEdges && m.featureEdges[0];
+    return (lines && m.mergedEdgesTable) ? lines.geometry.getAttribute('elemHide') : null;
+  }
+
+  /**
+   * Lazy per-element world-space bbox centers for a merged model (one pass
+   * over the vertex buffer). Cache keyed on the position attribute version —
+   * the federation bake rewrites vertices and bumps it.
+   */
+  _mergedElementCenters(m) {
+    const mesh = m.meshes[0];
+    const pos = mesh && mesh.geometry.getAttribute('position');
+    if (!pos) return new Map();
+    if (m._elemCenters && m._elemCentersVersion === pos.version) return m._elemCenters;
+    const acc = new Map();  // expressId → [minx,miny,minz,maxx,maxy,maxz]
+    for (const row of m.mergedTable) {
+      let a = acc.get(row.expressId);
+      if (!a) acc.set(row.expressId, a = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
+      const end = row.vertStart + row.vertCount;
+      for (let i = row.vertStart; i < end; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+        if (x < a[0]) a[0] = x;
+        if (y < a[1]) a[1] = y;
+        if (z < a[2]) a[2] = z;
+        if (x > a[3]) a[3] = x;
+        if (y > a[4]) a[4] = y;
+        if (z > a[5]) a[5] = z;
+      }
+    }
+    mesh.updateMatrixWorld();
+    const centers = new Map();
+    const v = new THREE.Vector3();
+    for (const [expressId, a] of acc) {
+      v.set((a[0] + a[3]) / 2, (a[1] + a[4]) / 2, (a[2] + a[5]) / 2).applyMatrix4(mesh.matrixWorld);
+      centers.set(expressId, v.clone());
+    }
+    m._elemCenters = centers;
+    m._elemCentersVersion = pos.version;
+    return centers;
   }
 
   /** Any fractional fade active → the merged material needs blending. */
@@ -1526,6 +1658,8 @@ export class ViewerCore {
         const attr = m.meshes[0] && m.meshes[0].geometry.getAttribute('elemHide');
         if (!attr) continue;
         attr.array.fill(1);
+        const edgeAttr = this._mergedEdgeAttr(m);
+        if (edgeAttr) edgeAttr.array.fill(1);
         m.elementAlpha = new Map();
         for (const row of m.mergedTable) {
           if (keep.has(`${modelId}|${row.expressId}`)) {
@@ -1534,6 +1668,14 @@ export class ViewerCore {
           } else {
             m.elementAlpha.set(row.expressId, 0);
           }
+        }
+        if (edgeAttr) {
+          for (const row of m.mergedEdgesTable) {
+            if (keep.has(`${modelId}|${row.expressId}`)) {
+              edgeAttr.array.fill(0, row.vertStart, row.vertStart + row.vertCount);
+            }
+          }
+          edgeAttr.needsUpdate = true;
         }
         attr.needsUpdate = true;
         mergedTouched = true;
@@ -1556,6 +1698,11 @@ export class ViewerCore {
         if (attr) {
           attr.array.fill(0);
           attr.needsUpdate = true;
+        }
+        const edgeAttr = this._mergedEdgeAttr(m);
+        if (edgeAttr) {
+          edgeAttr.array.fill(0);
+          edgeAttr.needsUpdate = true;
         }
         if (m.elementAlpha) m.elementAlpha.clear();
         mergedTouched = true;
@@ -2926,8 +3073,16 @@ export class ViewerCore {
   /** @returns {Array<{modelId, expressId}>} entities currently hidden. */
   getHiddenEntityIds() {
     const out = [];
-    for (const { meshes } of this._models.values()) {
-      for (const mesh of meshes) {
+    for (const [modelId, m] of this._models) {
+      if (m.merged) {
+        if (m.elementAlpha) {
+          for (const [expressId, a] of m.elementAlpha) {
+            if (a <= 0.02) out.push({ modelId, expressId });
+          }
+        }
+        continue;
+      }
+      for (const mesh of m.meshes) {
         if (mesh.visible === false) {
           out.push({ modelId: mesh.userData.modelId, expressId: mesh.userData.expressId });
         }
@@ -2949,6 +3104,12 @@ export class ViewerCore {
         alpha,
       });
     }
+    for (const [modelId, m] of this._models) {
+      if (!m.merged || !m.elementAlpha) continue;
+      for (const [expressId, alpha] of m.elementAlpha) {
+        if (alpha > 0.02 && alpha < 1) out.push({ modelId, expressId, alpha });
+      }
+    }
     return out;
   }
 
@@ -2961,6 +3122,12 @@ export class ViewerCore {
         expressId: mesh.userData.expressId,
         color: mesh.material.color.getHex(),
       });
+    }
+    for (const [modelId, m] of this._models) {
+      if (!m.merged || !m._highlightedIds) continue;
+      for (const [expressId, color] of m._highlightedIds) {
+        out.push({ modelId, expressId, color });
+      }
     }
     return out;
   }

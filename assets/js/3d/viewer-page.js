@@ -90,10 +90,12 @@ function getEngine() {
         setStatus(t('viewer3d.initEngine') || 'Inicializuji 3D engine…');
         const mod = await import('./ifc-engine/index.js');
         const canvas = setupCanvas();
-        // Etapa 1 mesh-merging feature flag — opt-in via ?merged=1 while the
-        // merged pipeline matures (plan: docs/superpowers/specs/).
-        const mergedGeometry = new URLSearchParams(location.search).get('merged') === '1';
-        if (mergedGeometry) console.log('[3d-viewer] merged-geometry mode ON');
+        // Merged geometry is the default since etapa 5 (one mesh + one edge
+        // set per model). ?merged=0 falls back to the legacy per-element
+        // pipeline — kept until color/diff/timeline panels are fully
+        // validated against merged mode in the field.
+        const mergedGeometry = new URLSearchParams(location.search).get('merged') !== '0';
+        console.log(`[3d-viewer] geometry mode: ${mergedGeometry ? 'merged' : 'legacy (per-element)'}`);
         const engine = new mod.IfcEngine({ canvas, mergedGeometry });
         // Switch federation to 'manual' so engine's auto-recompute on every
         // addModel doesn't reset previously-positioned models back to their
