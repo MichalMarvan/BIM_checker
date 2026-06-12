@@ -161,6 +161,10 @@ export function buildMergedModel(accepted, computeItemMatrix, material) {
   merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
   merged.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  // Per-element visibility/fade (etapa 3): 0 = fully visible (the WebGL
+  // default for meshes that LACK the attribute — keeps the patched normal
+  // override material safe on legacy meshes), 1 = hidden. Fractions fade.
+  merged.setAttribute('elemHide', new THREE.BufferAttribute(new Float32Array(totalVerts), 1));
   merged.setIndex(new THREE.BufferAttribute(index, 1));
   merged.computeBoundingBox();
   merged.computeBoundingSphere();

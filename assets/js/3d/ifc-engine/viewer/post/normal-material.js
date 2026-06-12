@@ -32,19 +32,28 @@ export function createNormalMaterial(clippingPlanes = []) {
     uniforms: {},
     vertexShader: /* glsl */`
       varying vec3 vViewNormal;
+      // Merged-model per-element hide (0 = visible — also the WebGL default
+      // when the attribute is missing, so legacy meshes are unaffected).
+      attribute float elemHide;
+      varying float vElemHide;
       #include <clipping_planes_pars_vertex>
       void main() {
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         vViewNormal = normalize(normalMatrix * normal);
+        vElemHide = elemHide;
         gl_Position = projectionMatrix * mvPosition;
         #include <clipping_planes_vertex>
       }
     `,
     fragmentShader: /* glsl */`
       varying vec3 vViewNormal;
+      varying float vElemHide;
       #include <clipping_planes_pars_fragment>
       void main() {
         #include <clipping_planes_fragment>
+        // Hidden merged elements must not leave normals behind — the edges
+        // pass would draw phantom silhouettes of invisible geometry.
+        if (vElemHide > 0.98) discard;
         // DoubleSide rendering: IFC tessellation often has flipped winding,
         // so the rasterised face may be the geometric back face. Mirror the
         // normal exactly like MeshStandardMaterial does for double-sided

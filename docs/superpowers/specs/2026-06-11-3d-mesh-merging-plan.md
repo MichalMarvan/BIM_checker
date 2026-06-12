@@ -61,7 +61,11 @@ Jeden `THREE.Mesh` na (model × materiál/barva) s merged `BufferGeometry`:
    end-to-end. Včetně x-ray: výběr má ghost pass + outline s
    depthTest:false — zvýraznění viditelné skrz překrývající konstrukce
    (uložený nápad uživatele, ověřeno top-down screenshotem skrz mostovku).
-3. Visibility/alpha atribut: hide, isolate, show-all, opacity slider.
+3. ✅ HOTOVO (2026-06-12) — Visibility/alpha atribut `elemHide` (0=viditelný,
+   default chybějícího atributu — bezpečné pro legacy meshe v override
+   normal materiálu): hide, isolate, show-all, opacity slider; discard
+   v hlavním i normal-pass shaderu (žádné fantom obrysy), blending se
+   zapíná jen při frakčním fade, picking přeskakuje skryté elementy.
 4. Merged hrany + LOD přepnutí na per-model.
 5. Box-select, měření, řezy, walk-mode kolize nad elementTable; smazání
    staré per-mesh cesty + úklid.

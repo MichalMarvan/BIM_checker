@@ -10,7 +10,7 @@ import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
 import { selectAt, isPickable } from './selection.js';
-import { buildMergedModel, mergedElementBox, extractElementGeometry } from './merged-model.js';
+import { buildMergedModel, mergedElementBox, extractElementGeometry, resolveMergedFace } from './merged-model.js';
 import { getViewSpec } from './camera-presets.js';
 import { animateCameraTo } from './camera-animation.js';
 import { SectionVisuals } from './section-visuals.js';
@@ -541,6 +541,20 @@ export class ViewerCore {
       const material = DEFAULT_MATERIAL.clone();
       material.vertexColors = true;
       material.color.setHex(0xffffff);
+      // Per-element hide/fade via the elemHide attribute (etapa 3):
+      // hidden elements discard (works on the opaque path), fractional
+      // values multiply alpha (blending enabled by _applyDisplayMode when
+      // any fade is active).
+      material.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nattribute float elemHide;\nvarying float vElemHide;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvElemHide = elemHide;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vElemHide;')
+          .replace('#include <color_fragment>',
+            '#include <color_fragment>\nif (vElemHide > 0.995) discard;\ndiffuseColor.a *= (1.0 - vElemHide);');
+      };
+      material.customProgramCacheKey = () => 'merged-elem-hide';
       if (this._section.active && this._section.planes.length > 0) {
         material.clippingPlanes = this._section.planes;
         material.clipShadows = true;
@@ -1226,6 +1240,13 @@ export class ViewerCore {
       if (!isPickable(mesh)) continue;
       const ud = mesh.userData;
       if (!ud || !ud.modelId) continue;
+      if (ud.merged && ud.mergedTable) {
+        // Skip triangles of hidden merged elements (same rule as selectAt)
+        const row = resolveMergedFace(ud.mergedTable, hit.faceIndex);
+        if (!row) continue;
+        const hide = mesh.geometry.getAttribute('elemHide');
+        if (hide && hide.array[row.vertStart] > 0.98) continue;
+      }
       out.push({ hit, mesh });
       break;  // first model mesh only
     }
@@ -1449,33 +1470,99 @@ export class ViewerCore {
 
   // -------------------- Visibility / opacity --------------------
 
+  /**
+   * Write one merged element's hide value (1-alpha) into the elemHide
+   * attribute ranges and track it in m.elementAlpha for queries/UI.
+   */
+  _setMergedElementAlpha(m, expressId, alpha) {
+    const mesh = m.meshes[0];
+    const attr = mesh && mesh.geometry.getAttribute('elemHide');
+    if (!attr) return;
+    const a = Math.max(0, Math.min(1, alpha));
+    const hide = 1 - a;
+    for (const row of m.mergedTable) {
+      if (row.expressId !== expressId) continue;
+      attr.array.fill(hide, row.vertStart, row.vertStart + row.vertCount);
+    }
+    attr.needsUpdate = true;
+    if (!m.elementAlpha) m.elementAlpha = new Map();
+    if (a >= 1) m.elementAlpha.delete(expressId);
+    else m.elementAlpha.set(expressId, a);
+  }
+
+  /** Any fractional fade active → the merged material needs blending. */
+  _mergedNeedsBlend(m) {
+    if (!m.elementAlpha) return false;
+    for (const a of m.elementAlpha.values()) {
+      if (a > 0.005 && a < 0.995) return true;
+    }
+    return false;
+  }
+
   /** Set mesh.visible=false for all meshes matching given items. */
   hideEntities(items) {
     if (!Array.isArray(items)) return;
+    let mergedTouched = false;
     for (const it of items) {
+      const m = this._models.get(it.modelId);
+      if (m && m.merged) {
+        this._setMergedElementAlpha(m, Number(it.expressId), 0);
+        mergedTouched = true;
+        continue;
+      }
       const mesh = this._findMesh(it.modelId, it.expressId);
       if (mesh) mesh.visible = false;
     }
+    if (mergedTouched) this._applyDisplayMode();
   }
 
   /** Hide everything except the given entities (isolate mode). */
   isolateEntities(items) {
     if (!Array.isArray(items)) return;
     const keep = new Set(items.map(it => `${it.modelId}|${it.expressId}`));
-    for (const m of this._models.values()) {
-      if (m.merged) continue;  // per-element visibility in merged mode = etapa 3
+    let mergedTouched = false;
+    for (const [modelId, m] of this._models) {
+      if (m.merged) {
+        const attr = m.meshes[0] && m.meshes[0].geometry.getAttribute('elemHide');
+        if (!attr) continue;
+        attr.array.fill(1);
+        m.elementAlpha = new Map();
+        for (const row of m.mergedTable) {
+          if (keep.has(`${modelId}|${row.expressId}`)) {
+            attr.array.fill(0, row.vertStart, row.vertStart + row.vertCount);
+            m.elementAlpha.delete(row.expressId);
+          } else {
+            m.elementAlpha.set(row.expressId, 0);
+          }
+        }
+        attr.needsUpdate = true;
+        mergedTouched = true;
+        continue;
+      }
       for (const mesh of m.meshes) {
         const key = `${mesh.userData.modelId}|${mesh.userData.expressId}`;
         mesh.visible = keep.has(key);
       }
     }
+    if (mergedTouched) this._applyDisplayMode();
   }
 
   /** Restore visibility of all meshes (undo hide/isolate). */
   showAll() {
-    for (const { meshes } of this._models.values()) {
-      for (const mesh of meshes) mesh.visible = true;
+    let mergedTouched = false;
+    for (const m of this._models.values()) {
+      if (m.merged) {
+        const attr = m.meshes[0] && m.meshes[0].geometry.getAttribute('elemHide');
+        if (attr) {
+          attr.array.fill(0);
+          attr.needsUpdate = true;
+        }
+        if (m.elementAlpha) m.elementAlpha.clear();
+        mergedTouched = true;
+      }
+      for (const mesh of m.meshes) mesh.visible = true;
     }
+    if (mergedTouched) this._applyDisplayMode();
   }
 
   /** Toggle a whole model on/off via its group — raycast respects it too. */
@@ -1497,6 +1584,11 @@ export class ViewerCore {
     if (!Array.isArray(items)) return;
     const a = Math.max(0, Math.min(1, alpha));
     for (const it of items) {
+      const m = this._models.get(it.modelId);
+      if (m && m.merged) {
+        this._setMergedElementAlpha(m, Number(it.expressId), a);
+        continue;
+      }
       const mesh = this._findMesh(it.modelId, it.expressId);
       if (!mesh) continue;
       // Track in the override map (alpha=1 = no override)
@@ -1509,6 +1601,10 @@ export class ViewerCore {
 
   /** Get current opacity of an entity (1 if no override). */
   getEntityOpacity(modelId, expressId) {
+    const m = this._models.get(modelId);
+    if (m && m.merged) {
+      return (m.elementAlpha && m.elementAlpha.get(Number(expressId))) ?? 1;
+    }
     const mesh = this._findMesh(modelId, expressId);
     if (!mesh) return 1;
     return this._entityOpacity.get(mesh) ?? 1;
@@ -1560,7 +1656,11 @@ export class ViewerCore {
     const mode = this._displayMode;
     const highlightedMeshes = this._highlights;  // Map<mesh, originalHex>
 
-    for (const { meshes, group } of this._models.values()) {
+    for (const m of this._models.values()) {
+      const { meshes, group } = m;
+      // Fractional element fades on a merged model force blending even when
+      // the display mode itself is fully opaque.
+      const mergedBlend = m.merged ? this._mergedNeedsBlend(m) : false;
       for (const mesh of meshes) {
         const isHighlighted = highlightedMeshes.has(mesh);
         const mat = mesh.material;
@@ -1587,8 +1687,10 @@ export class ViewerCore {
 
         mat.wireframe = modeWireframe;
         mat.visible = modeVisible;
-        mat.transparent = finalAlpha < 1;
+        mat.transparent = finalAlpha < 1 || mergedBlend;
         mat.opacity = finalAlpha;
+        // mergedBlend alone keeps depthWrite on — fade applies per element in
+        // the shader while fully-opaque elements still occlude correctly.
         mat.depthWrite = finalAlpha >= 1;
         mat.needsUpdate = true;
       }

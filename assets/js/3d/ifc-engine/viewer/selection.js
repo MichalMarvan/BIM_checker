@@ -59,6 +59,10 @@ export function selectAt(scene, camera, canvas, clientX, clientY) {
     if (ud.merged && ud.mergedTable) {
       const row = resolveMergedFace(ud.mergedTable, hit.faceIndex);
       if (!row) continue;
+      // Hidden / faded-out elements must not swallow picks (mirror of the
+      // mesh-level isPickable rule, evaluated per element here).
+      const hide = mesh.geometry.getAttribute('elemHide');
+      if (hide && hide.array[row.vertStart] > 0.98) continue;
       expressId = row.expressId;
       ifcType = row.ifcType;
     }
