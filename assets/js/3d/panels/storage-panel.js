@@ -25,7 +25,8 @@ export default class StoragePanel {
     this.folders = {};
     this.files = {};
     this.expanded = new Set(['root']);
-    this.loading = new Set();   // fileIds currently loading
+    this.loading = new Set();    // fileIds currently loading
+    this.folderLoading = null;   // folderId of a running batch load
     titleEl.textContent = 'Storage';
   }
 
@@ -79,7 +80,7 @@ export default class StoragePanel {
     this.host.querySelectorAll('[data-load-file]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const file = this.files[btn.dataset.loadFile];
-        if (!file || !this.ctx.loadFile || this.loading.has(file.id)) return;
+        if (!file || !this.ctx.loadFile || this.loading.has(file.id) || this.folderLoading) return;
         this.loading.add(file.id);
         this._render();
         try {
@@ -90,6 +91,44 @@ export default class StoragePanel {
         }
       });
     });
+
+    // Folder batch load — all not-yet-loaded IFC files in the folder incl.
+    // subfolders, sequentially (the engine pauses rendering per load anyway).
+    this.host.querySelectorAll('[data-load-folder]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();  // the row click toggles expand
+        if (this.folderLoading || !this.ctx.loadFile) return;
+        const folderId = btn.dataset.loadFolder;
+        const loaded = this._loadedNames();
+        const files = this._filesInFolder(folderId).filter(f => !loaded.has(f.name));
+        if (files.length === 0) return;
+        this.folderLoading = folderId;
+        this._render();
+        try {
+          for (const f of files) {
+            this.loading.add(f.id);
+            this._render();
+            try {
+              await this.ctx.loadFile(f);
+            } finally {
+              this.loading.delete(f.id);
+            }
+          }
+        } finally {
+          this.folderLoading = null;
+          this._render();
+        }
+      });
+    });
+  }
+
+  /** Files of a folder including all descendants. */
+  _filesInFolder(folderId) {
+    const folder = this.folders[folderId];
+    if (!folder) return [];
+    const out = folder.files.map(fid => this.files[fid]).filter(Boolean);
+    for (const childId of folder.children) out.push(...this._filesInFolder(childId));
+    return out;
   }
 
   _renderFolder(folderId, level, loaded) {
@@ -106,7 +145,7 @@ export default class StoragePanel {
         <div class="v3d-st-file${isLoaded ? ' is-loaded' : ''}" style="padding-left:${pad + 16}px">
           <span class="v3d-st-file__name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
           <span class="v3d-st-file__size">${fmtSize(f.size)}</span>
-          <button class="v3d-st-load" data-load-file="${escapeHtml(f.id)}" ${isLoading ? 'disabled' : ''}
+          <button class="v3d-st-load" data-load-file="${escapeHtml(f.id)}" ${(isLoading || this.folderLoading) ? 'disabled' : ''}
                   title="${isLoaded ? 'Načíst znovu (přidá další instanci)' : 'Načíst do scény'}">
             ${isLoading ? '…' : (isLoaded ? '✓' : 'Načíst')}
           </button>
@@ -116,10 +155,18 @@ export default class StoragePanel {
       ? folder.children.map(cid => this._renderFolder(cid, level + 1, loaded)).join('')
       : '';
     const total = this._countFiles(folderId);
+    const batchRunning = this.folderLoading === folderId;
+    const loadBtn = total > 0
+      ? `<button class="v3d-st-load v3d-st-load--folder" data-load-folder="${escapeHtml(folderId)}"
+                 ${this.folderLoading ? 'disabled' : ''} title="Načíst všechny IFC ze složky (včetně podsložek)">
+           ${batchRunning ? '…' : `⤓ Načíst (${total})`}
+         </button>`
+      : '';
     return `
       <div class="v3d-st-folder" data-folder-toggle="${escapeHtml(folderId)}" style="padding-left:${pad}px">
         <span class="v3d-st-folder__arrow">${isOpen ? '▾' : '▸'}</span>
         <span class="v3d-st-folder__name">${escapeHtml(folder.name)}</span>
+        ${loadBtn}
         <span class="v3d-st-folder__count">${total}</span>
       </div>
       ${fileRows}${childRows}`;

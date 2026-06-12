@@ -420,6 +420,14 @@ body[data-page="viewer3d"] {
 }
 .v3d-st-load:hover:not(:disabled) { background: rgba(102, 126, 234, 0.1); border-color: var(--primary-color); }
 .v3d-st-load:disabled { color: var(--text-tertiary); cursor: default; }
+.v3d-st-load--folder {
+    min-width: 0;
+    font-size: 10px;
+    padding: 2px 7px;
+    color: var(--text-tertiary);
+    border-color: transparent;
+}
+.v3d-st-folder:hover .v3d-st-load--folder { color: var(--primary-color); border-color: var(--border-primary); }
 .v3d-st-file.is-loaded .v3d-st-load { color: #16a34a; border-color: rgba(22, 163, 74, 0.4); }
 .v3d-st-refresh { width: 100%; margin-top: 10px; }
 

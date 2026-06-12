@@ -364,7 +364,12 @@ function escAttr(s) {
 
 /** Build unified {folders, files} from active BIMStorage backend. */
 async function buildPickerTree() {
-    const backend = window.BIMStorage && window.BIMStorage.backend;
+    if (!window.BIMStorage) throw new Error('BIMStorage backend not ready');
+    // On a fresh page load the backend (and its folder metadata) isn't
+    // initialized yet — without this the IndexedDB branch below sees a null
+    // ifcStorage and we'd degrade to the flat no-folders fallback.
+    await window.BIMStorage.init();
+    const backend = window.BIMStorage.backend;
     if (!backend) throw new Error('BIMStorage backend not ready');
 
     // Folder mode — walk getFolderTree('ifc')

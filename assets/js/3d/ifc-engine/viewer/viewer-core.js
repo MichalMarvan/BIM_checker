@@ -569,6 +569,25 @@ export class ViewerCore {
         material.clipShadows = true;
       }
       const built = buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material);
+      if (!built) {
+        // Zero-geometry model (e.g. an IFC with no shape representations):
+        // register an empty record anyway so per-model ops (visibility,
+        // remove, bbox) behave the same as in the legacy path.
+        this._scene.add(group);
+        this._models.set(modelId, {
+          group, innerGroup,
+          meshes: [],
+          merged: true,
+          mergedTable: [],
+          mergedEdgesTable: [],
+          elementInfo: new Map(),
+          elementsByType: new Map(),
+          featureEdges: [],
+          featureEdgesMaterial: null,
+        });
+        this._recomputeSceneBbox();
+        return;
+      }
       if (built) {
         built.mesh.userData = { modelId, merged: true, mergedTable: built.table };
         innerGroup.add(built.mesh);
