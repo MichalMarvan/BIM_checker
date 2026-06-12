@@ -13,6 +13,31 @@ import { selectAt, isPickable } from './selection.js';
 import { buildMergedModel, mergedElementBox, extractElementGeometry, resolveMergedFace } from './merged-model.js';
 
 /**
+ * BVH acceleration for raycasting (three-mesh-bvh). Loaded lazily and
+ * gracefully — when the CDN module is unavailable the viewer keeps three's
+ * default linear raycast. acceleratedRaycast only engages on geometries
+ * that carry a boundsTree, so legacy meshes are unaffected either way.
+ */
+let _bvhModulePromise = null;
+function _loadBVH() {
+  if (!_bvhModulePromise) {
+    _bvhModulePromise = import('three-mesh-bvh').then((mod) => {
+      THREE.BufferGeometry.prototype.computeBoundsTree = mod.computeBoundsTree;
+      THREE.BufferGeometry.prototype.disposeBoundsTree = mod.disposeBoundsTree;
+      THREE.Mesh.prototype.raycast = mod.acceleratedRaycast;
+      return true;
+    }).catch((e) => {
+      console.warn('[viewer] three-mesh-bvh unavailable — raycasts stay linear:', e.message);
+      return false;
+    });
+  }
+  return _bvhModulePromise;
+}
+
+/** Never-pickable scene objects opt out of raycasting entirely. */
+const _noRaycast = () => {};
+
+/**
  * Inject the per-element hide/fade attribute into a built-in material's
  * shader (merged models — etapa 3/4). Works for mesh and line materials,
  * both compile from ShaderLib chunks containing the replaced includes.
@@ -450,6 +475,7 @@ export class ViewerCore {
       opacity: EDGE_MAX_OPACITY,
       depthTest: true,
     }));
+    edges.raycast = _noRaycast;
     // Mesh has already been applyMatrix4'd in addModel; copy that transform
     // so the overlay sits on the same world placement.
     edges.applyMatrix4(mesh.matrix);
@@ -610,6 +636,9 @@ export class ViewerCore {
           _patchElemHide(mergedEdgeMaterial, 'merged-edge-hide');
           const edgeLines = new THREE.LineSegments(edgeGeom, mergedEdgeMaterial);
           edgeLines.userData = { isFeatureEdges: true, merged: true };
+          // Edges are never pick targets, but Line.raycast would test every
+          // segment (measured: 53 % of the whole hover-pick cost) — opt out.
+          edgeLines.raycast = _noRaycast;
           edgeLines.visible = this._featureEdgesVisible === true;
           built.mesh.add(edgeLines);
           mergedFeatureEdges.push(edgeLines);
@@ -678,6 +707,7 @@ export class ViewerCore {
             edgeGeom.setAttribute('position', new THREE.BufferAttribute(localEdges, 3));
             const edgeLines = new THREE.LineSegments(edgeGeom, featureEdgesMaterial);
             edgeLines.userData = { isFeatureEdges: true, expressId: entity.expressId };
+            edgeLines.raycast = _noRaycast;
             // Follows the engine-wide toggle (default ON — Trimble-style
             // element outlines); setFeatureEdgesVisible flips the whole
             // layer and the state survives subsequent loads.
@@ -732,6 +762,8 @@ export class ViewerCore {
     const grp = new THREE.Group();
     grp.userData.isMergedOverlay = true;
 
+    // Overlays mirror the highlighted element's surface — raycasting them
+    // would double the pick cost for zero benefit (raycast opted out below).
     const solid = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({
       color: colorHex,
       transparent: true,
@@ -770,6 +802,7 @@ export class ViewerCore {
       grp.add(lines);
     }
 
+    grp.traverse(o => { if (o !== grp) o.raycast = _noRaycast; });
     baseMesh.add(grp);
     return grp;
   }
@@ -843,6 +876,7 @@ export class ViewerCore {
     for (const mesh of m.meshes) {
       // Drop opacity tracking for removed meshes (Map keeps references alive)
       if (this._entityOpacity) this._entityOpacity.delete(mesh);
+      if (mesh.geometry.boundsTree) mesh.geometry.boundsTree = null;
       mesh.geometry.dispose();
       mesh.material.dispose();
       // Lazy snap-edge BufferGeometry — may have been built on first snap
@@ -1600,6 +1634,24 @@ export class ViewerCore {
   _mergedEdgeAttr(m) {
     const lines = m.featureEdges && m.featureEdges[0];
     return (lines && m.mergedEdgesTable) ? lines.geometry.getAttribute('elemHide') : null;
+  }
+
+  /**
+   * (Re)build the raycast BVH for a merged model. Must run AFTER the
+   * federation bake (vertices are rewritten in place — a tree built earlier
+   * would index stale positions). No-ops gracefully when three-mesh-bvh
+   * could not be loaded or the model has no geometry.
+   */
+  async rebuildBVH(modelId) {
+    const m = this._models.get(modelId);
+    if (!m || !m.merged || !m.meshes[0]) return;
+    const ok = await _loadBVH();
+    if (!ok) return;
+    const geom = m.meshes[0].geometry;
+    const t0 = performance.now();
+    geom.boundsTree = null;
+    geom.computeBoundsTree();
+    console.log(`[viewer] BVH built for ${modelId} in ${(performance.now() - t0).toFixed(0)} ms (${(geom.index.count / 3) | 0} tris)`);
   }
 
   /**

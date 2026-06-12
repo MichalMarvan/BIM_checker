@@ -288,6 +288,14 @@ async function loadIfcFromStorage(fileMeta) {
             }
         } catch (e) { console.warn('[3d-viewer] federation bake failed:', e); }
 
+        // Raycast BVH — built after the bake (vertices were rewritten above).
+        // Async on purpose: the camera framing below doesn't need it.
+        try {
+            if (engine._viewer && typeof engine._viewer.rebuildBVH === 'function') {
+                engine._viewer.rebuildBVH(modelId).catch(e => console.warn('[3d-viewer] BVH build failed:', e));
+            }
+        } catch (e) { console.warn('[3d-viewer] BVH build failed:', e); }
+
         // Frame the camera on whatever is now in the scene
         if (typeof engine.fitAll === 'function') {
             try { engine.fitAll(); console.log('[3d-viewer] fitAll done'); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
@@ -802,13 +810,21 @@ function wireSelectionInteractions(engine, canvas) {
     let hoverRaf = 0;
     let dragStart = null;     // { x, y, isShift }
     let dragRect = null;      // div element while dragging
+    let lastWheel = 0;
     const BOX = document.getElementById('v3dBoxSelect');
+
+    // Wheel zoom moves the camera — don't pay for hover raycasts mid-gesture
+    canvas.addEventListener('wheel', () => { lastWheel = performance.now(); }, { passive: true });
 
     canvas.addEventListener('mousemove', (e) => {
         // Hover preview (throttled to rAF)
         if (hoverRaf) return;
         hoverRaf = requestAnimationFrame(() => {
             hoverRaf = 0;
+            // Camera interactions must never pay for a full-scene pick: any
+            // held button = orbit/pan drag, recent wheel = zoom in progress.
+            if (e.buttons !== 0) return;
+            if (performance.now() - lastWheel < 200) return;
             // Suspend hover during drag-select to avoid flicker
             if (dragStart && (Math.abs(e.clientX - dragStart.x) > 3 || Math.abs(e.clientY - dragStart.y) > 3)) return;
             const hit = engine.pickEntity(e.clientX, e.clientY);
