@@ -379,6 +379,12 @@ function escAttr(s) {
 /** Build unified {folders, files} from active BIMStorage backend. */
 async function buildPickerTree() {
     if (!window.BIMStorage) throw new Error('BIMStorage backend not ready');
+    // On a fresh page load the previously-connected folder backend is restored
+    // asynchronously (reconnect + scan + setBackend). If we build the tree
+    // before that finishes, the active backend is still the empty default
+    // IndexedDB one and the panel shows "no files" until a manual Obnovit.
+    // Wait for the restore so the first build already sees the real backend.
+    try { await window.BIMStorageBackendRestore?.ready; } catch { /* fall through to whatever backend is active */ }
     // On a fresh page load the backend (and its folder metadata) isn't
     // initialized yet — without this the IndexedDB branch below sees a null
     // ifcStorage and we'd degrade to the flat no-folders fallback.
@@ -388,7 +394,13 @@ async function buildPickerTree() {
 
     // Folder mode — walk getFolderTree('ifc')
     if (backend.kind === 'localFolder' && typeof backend.getFolderTree === 'function') {
-        const tree = backend.getFolderTree('ifc');
+        let tree = backend.getFolderTree('ifc');
+        // Folder connected but not scanned yet (tree is null until the first
+        // scan) — scan now so we don't fall back to an empty tree.
+        if (!tree && backend.root && typeof backend.scan === 'function') {
+            await backend.scan();
+            tree = backend.getFolderTree('ifc');
+        }
         const folders = {};
         const files = {};
         function walk(node, parentId, folderId) {

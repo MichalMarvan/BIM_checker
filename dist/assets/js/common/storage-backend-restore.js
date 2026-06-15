@@ -43,11 +43,17 @@
         }
     }
 
+    // Expose a promise that resolves once the initial restore (folder
+    // reconnect + scan + setBackend) has finished, so consumers can wait for
+    // the real backend instead of racing the default empty IndexedDB one.
+    let ready;
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', restore);
+        ready = new Promise((resolve) => {
+            document.addEventListener('DOMContentLoaded', () => { restore().then(resolve, resolve); });
+        });
     } else {
-        restore();
+        ready = restore().then(() => {}, () => {});
     }
 
-    window.BIMStorageBackendRestore = { restore };
+    window.BIMStorageBackendRestore = { restore, ready };
 })();
