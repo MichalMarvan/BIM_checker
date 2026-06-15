@@ -1641,6 +1641,13 @@ export class ViewerCore {
    * federation bake (vertices are rewritten in place — a tree built earlier
    * would index stale positions). No-ops gracefully when three-mesh-bvh
    * could not be loaded or the model has no geometry.
+   *
+   * CRITICAL: indirect:true. The default build REORDERS geometry.index in
+   * place for memory locality — that desyncs raycast faceIndex from the
+   * mergedTable triStart ranges, so picks resolve to the WRONG element
+   * (clicks "land elsewhere"). Indirect mode leaves the index buffer intact
+   * and keeps its sort in a side buffer, so faceIndex stays in original
+   * order and resolveMergedFace() maps correctly.
    */
   async rebuildBVH(modelId) {
     const m = this._models.get(modelId);
@@ -1650,7 +1657,7 @@ export class ViewerCore {
     const geom = m.meshes[0].geometry;
     const t0 = performance.now();
     geom.boundsTree = null;
-    geom.computeBoundsTree();
+    geom.computeBoundsTree({ indirect: true });
     console.log(`[viewer] BVH built for ${modelId} in ${(performance.now() - t0).toFixed(0)} ms (${(geom.index.count / 3) | 0} tris)`);
   }
 
