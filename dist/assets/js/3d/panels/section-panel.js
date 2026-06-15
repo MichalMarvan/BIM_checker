@@ -239,7 +239,7 @@ export default class SectionPanel {
         c._layer = this.engine.getElementLayer?.(c.modelId, c.expressId) || null;
         c._dz = this.engine.getElevationOffset?.(c.modelId) || 0;
       }
-      const dxf = curvesToDxf(curves, plane);
+      const dxf = await buildDxf(curves, plane);
       const blob = new Blob([dxf], { type: 'application/dxf' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -260,6 +260,70 @@ function plural(n, one, few, many) {
   if (n === 1) return one;
   if (n >= 2 && n <= 4) return few;
   return many;
+}
+
+/**
+ * Build the DXF. Prefers @tarikjabiri/dxf — it emits a complete modern
+ * AC1021 (AutoCAD 2007, UTF-8) file with proper handles / tables / objects,
+ * which AutoCAD opens without the audit flood the hand-rolled R12 triggered.
+ * Falls back to the bundled R12 writer if the library can't be loaded
+ * (offline). Geometry is flattened the same way in both (see makeProjector);
+ * consecutive duplicate vertices are dropped so AutoCAD doesn't flag
+ * zero-length segments.
+ */
+async function buildDxf(curves, plane) {
+  const project = makeProjector(plane);
+  const layerName = (c) => {
+    const type = String(c.ifcType || 'IFC');
+    return c._layer ? `${c._layer} (${type})` : type;
+  };
+  // Project + dedupe each loop → { layer, rgb, closed, pts:[{x,y}] }
+  const shapes = [];
+  const layerColor = new Map();
+  for (const c of curves) {
+    const layer = cleanName(layerName(c));
+    const rgb = (c.color ?? 0x808080) & 0xffffff;
+    if (!layerColor.has(layer)) layerColor.set(layer, rgb);
+    const dz = c._dz || 0;
+    for (const loop of (c.loops || [])) {
+      const src = loop.points || [];
+      const pts = [];
+      let prev = null;
+      for (const p of src) {
+        const raw = Array.isArray(p) ? p : [p.x, p.y, p.z];
+        const [x, y] = project(raw, dz);
+        if (prev && Math.hypot(x - prev[0], y - prev[1]) < 1e-4) continue; // drop micro-segments
+        pts.push([x, y]); prev = [x, y];
+      }
+      if (pts.length >= 2) shapes.push({ layer, rgb, closed: !!loop.closed, pts });
+    }
+  }
+  if (shapes.length === 0) return null;
+
+  try {
+    const m = await import('https://esm.sh/@tarikjabiri/dxf@2.6.2');
+    const { DxfWriter, LWPolylineFlags, TrueColor } = m;
+    const d = new DxfWriter();
+    for (const [layer, rgb] of layerColor) {
+      d.addLayer(layer, TrueColor.fromHex(rgb.toString(16).padStart(6, '0')), 'Continuous');
+    }
+    for (const s of shapes) {
+      d.addLWPolyline(
+        s.pts.map(([x, y]) => ({ point: { x, y } })),
+        { layerName: s.layer, flags: s.closed ? LWPolylineFlags.Closed : 0, trueColor: TrueColor.fromHex(s.rgb.toString(16).padStart(6, '0')) },
+      );
+    }
+    // AutoCAD prefers CRLF; the library emits LF.
+    return d.stringify().replace(/\r?\n/g, '\r\n');
+  } catch (e) {
+    console.warn('[section] DXF library unavailable, using built-in R12 writer:', e.message);
+    return curvesToDxf(curves, plane);
+  }
+}
+
+/** Keep unicode/spaces/parens (AC1021 is UTF-8); strip only forbidden chars. */
+function cleanName(s) {
+  return (String(s).replace(/[<>/\\":;?*|,='`]/g, '_').trim() || 'IFC').slice(0, 240);
 }
 
 /**
