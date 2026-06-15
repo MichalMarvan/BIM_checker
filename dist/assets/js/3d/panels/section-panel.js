@@ -233,6 +233,12 @@ export default class SectionPanel {
         return;
       }
       const plane = (this.engine.getSectionPlanes() || []).find((p) => p.id === planeId);
+      // Enrich each curve with its CAD layer ("hladina") and the model's
+      // elevation offset (scene-local Y → authored IFC Z).
+      for (const c of curves) {
+        c._layer = this.engine.getElementLayer?.(c.modelId, c.expressId) || null;
+        c._dz = this.engine.getElevationOffset?.(c.modelId) || 0;
+      }
       const dxf = curvesToDxf(curves, plane);
       const blob = new Blob([dxf], { type: 'application/dxf' });
       const a = document.createElement('a');
@@ -271,30 +277,37 @@ function plural(n, one, few, many) {
 function curvesToDxf(curves, plane) {
   const project = makeProjector(plane);
 
-  // Collect layers (IFC types) for the LAYER table, with a colour per type.
-  const layers = new Map(); // name → aci colour
-  let aci = 1;
+  // Layer name = "hladina (IFCTYPE)"; colour from the cut element's own
+  // display colour (true RGB). Build the LAYER table first.
+  const layerName = (c) => {
+    const type = String(c.ifcType || 'IFC');
+    return sanitizeLayer(c._layer ? `${c._layer} (${type})` : type);
+  };
+  const layers = new Map(); // name → rgb
   for (const c of curves) {
-    const name = sanitizeLayer(c.ifcType || 'IFC');
-    if (!layers.has(name)) layers.set(name, (aci++ % 255) + 1);
+    const name = layerName(c);
+    if (!layers.has(name)) layers.set(name, c.color ?? 0x808080);
   }
 
   const head = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(layers.size)];
-  for (const [name, colour] of layers) {
-    head.push('0', 'LAYER', '2', name, '70', '0', '62', String(colour), '6', 'CONTINUOUS');
+  for (const [name, rgb] of layers) {
+    head.push('0', 'LAYER', '2', name, '70', '0', '62', String(rgbToAci(rgb)), '420', String(rgb & 0xffffff), '6', 'CONTINUOUS');
   }
   head.push('0', 'ENDTAB', '0', 'ENDSEC');
 
   const ents = ['0', 'SECTION', '2', 'ENTITIES'];
   for (const c of curves) {
-    const layer = sanitizeLayer(c.ifcType || 'IFC');
+    const layer = layerName(c);
+    const rgb = (c.color ?? 0x808080) & 0xffffff;
+    const dz = c._dz || 0;
     for (const loop of (c.loops || [])) {
       const pts = loop.points || [];
       if (pts.length < 2) continue;
-      ents.push('0', 'POLYLINE', '8', layer, '66', '1', '70', loop.closed ? '1' : '0', '10', '0', '20', '0', '30', '0');
+      // Per-entity true colour (420) so lines carry the cut element's colour.
+      ents.push('0', 'POLYLINE', '8', layer, '62', String(rgbToAci(rgb)), '420', String(rgb), '66', '1', '70', loop.closed ? '1' : '0', '10', '0', '20', '0', '30', '0');
       for (const p of pts) {
         const raw = Array.isArray(p) ? p : [p.x, p.y, p.z];
-        const [X, Y] = project(raw);
+        const [X, Y] = project(raw, dz);
         ents.push('0', 'VERTEX', '8', layer, '10', fmtNum(X), '20', fmtNum(Y), '30', '0');
       }
       ents.push('0', 'SEQEND');
@@ -304,13 +317,26 @@ function curvesToDxf(curves, plane) {
   return head.concat(ents).join('\n');
 }
 
+/** Crude 24-bit RGB → nearest AutoCAD Color Index (fallback for old CAD). */
+function rgbToAci(rgb) {
+  const r = (rgb >> 16) & 255, g = (rgb >> 8) & 255, b = rgb & 255;
+  if (r > 200 && g > 200 && b > 200) return 7;   // white/light → 7
+  if (r > 180 && g < 80 && b < 80) return 1;       // red
+  if (r < 80 && g > 180 && b < 80) return 3;       // green
+  if (r < 80 && g < 80 && b > 180) return 5;       // blue
+  if (r > 180 && g > 180 && b < 80) return 2;       // yellow
+  if (r > 180 && g < 80 && b > 180) return 6;       // magenta
+  if (r < 80 && g > 180 && b > 180) return 4;       // cyan
+  return 8;                                          // grey
+}
+
 /**
  * Returns p(3D)→[X,Y] projecting section curves into the drawing plane.
  * Falls back to a passthrough (X=x, Y=z) when no plane is supplied.
  */
 function makeProjector(plane) {
   if (!plane || !plane.normal || !plane.point) {
-    return (p) => [p[0], p[2]];
+    return (p, dz = 0) => [p[0], p[2] + 0 * dz];
   }
   const n = plane.normal;
   const off = plane.offset || 0;
@@ -326,15 +352,17 @@ function makeProjector(plane) {
   let hx = n[2], hz = -n[0];
   const len = Math.hypot(hx, hz) || 1;
   hx /= len; hz /= len;
-  return (p) => {
+  return (p, dz = 0) => {
     const X = (p[0] - O[0]) * hx + (p[2] - O[2]) * hz;  // horizontal in-plane
-    const Y = p[1];                                      // height (= cut's Z)
+    const Y = p[1] + dz;                                 // authored IFC Z (= scene-local Y + elevation offset)
     return [X, Y];
   };
 }
 
 function fmtNum(v) { return (Math.round(v * 1e5) / 1e5).toString(); }
-function sanitizeLayer(s) { return String(s).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 31) || 'IFC'; }
+// Keep spaces, parentheses and unicode (modern DXF R2000+ allows them);
+// only strip the few characters AutoCAD forbids in layer names.
+function sanitizeLayer(s) { return (String(s).replace(/[<>/\\":;?*|,=]/g, '_').trim() || 'IFC').slice(0, 200); }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

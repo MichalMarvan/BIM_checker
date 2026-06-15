@@ -233,6 +233,12 @@ async function loadIfcFromStorage(fileMeta) {
                         console.log('[3d-viewer] federation anchor set:', state.federationAnchor);
                     }
                     const [ax, ay, az] = state.federationAnchor;
+                    // Remember the vertical shift so tools can recover authored
+                    // IFC Z from scene-local Y (DXF elevation export): the bake
+                    // subtracts the anchor, and pre-bake three-Y == IFC Z.
+                    if (typeof engine.setModelElevationOffset === 'function') {
+                        engine.setModelElevationOffset(modelId, ay);
+                    }
                     // Get a fresh Matrix4 by cloning an existing one (avoids re-importing three)
                     const shift = internal.group.matrix.clone().identity().makeTranslation(-ax, -ay, -az);
 

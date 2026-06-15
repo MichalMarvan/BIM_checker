@@ -3,6 +3,7 @@
 // Add: events + viewer in Phase 1.
 
 import { EntityIndex } from './parser/entity-index.js';
+import { buildLayerIndex } from './parser/presentation-layers.js';
 import { ViewerCore } from './viewer/viewer-core.js';
 import { splitParams } from './parser/step-parser.js';
 import { parseRef, parseRefList } from './geometry/step-helpers.js';
@@ -147,6 +148,10 @@ export class IfcEngine {
       // Warm caches that read geometry entities, then drop those entities —
       // they are dead weight once meshes exist (80–90 % of the index).
       this.getCoords(modelId);
+      // Element → CAD layer ("hladina"). Built before compaction, which
+      // drops the shape-representation entities this lookup walks.
+      const rec = this._models.get(modelId);
+      if (rec) rec.layerIndex = buildLayerIndex(index);
       const dropped = index.compact();
       console.log(`[ifc-engine] loadIfc timings (ms): decode=${(t1 - t0).toFixed(0)} parse=${(t2 - t1).toFixed(0)} index=${(t3 - t2).toFixed(0)} geometry=${(t4 - t3).toFixed(0)} total=${(performance.now() - t0).toFixed(0)} | compacted ${dropped} geometry entities (${index.stats().entityCount} kept)`);
       return modelId;
@@ -1230,6 +1235,23 @@ export class IfcEngine {
    * @param {number} expressId
    * @returns {{ modelId, expressId, ifcType, name, guid } | null}
    */
+  /** CAD layer ("hladina") of an element, or null. */
+  getElementLayer(modelId, expressId) {
+    const m = this._models.get(modelId);
+    return (m && m.layerIndex) ? (m.layerIndex.get(Number(expressId)) || null) : null;
+  }
+
+  /** Absolute elevation offset to add to scene-local Y → authored IFC Z. */
+  setModelElevationOffset(modelId, dz) {
+    const m = this._models.get(modelId);
+    if (m) m.elevationOffset = dz;
+  }
+
+  getElevationOffset(modelId) {
+    const m = this._models.get(modelId);
+    return (m && Number.isFinite(m.elevationOffset)) ? m.elevationOffset : 0;
+  }
+
   getEntityMeta(modelId, expressId) {
     const m = this._models.get(modelId);
     if (!m) return null;

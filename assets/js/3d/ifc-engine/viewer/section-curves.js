@@ -43,6 +43,7 @@ export function computeSectionCurves(viewer, planeSpec) {
       if (!mesh || mesh.visible === false) continue;
       const tagged = computeMeshSegments(mesh, plane, true);
       const hideAttr = mesh.geometry.getAttribute('elemHide');
+      const colorAttr = mesh.geometry.getAttribute('color');
       for (const { seg, tri } of tagged) {
         const row = resolveMergedFace(m.mergedTable, tri);
         if (!row) continue;
@@ -51,7 +52,15 @@ export function computeSectionCurves(viewer, planeSpec) {
         let entry = byEntity.get(key);
         if (!entry) {
           const info = m.elementInfo && m.elementInfo.get(row.expressId);
-          entry = { modelId, expressId: row.expressId, ifcType: info ? info.ifcType : row.ifcType, color: 0x808080, segments: [] };
+          // Element's display colour = its per-vertex colour at the first vertex
+          let color = 0x808080;
+          if (colorAttr) {
+            const i = row.vertStart * 3;
+            color = (Math.round(colorAttr.array[i] * 255) << 16)
+                  | (Math.round(colorAttr.array[i + 1] * 255) << 8)
+                  | Math.round(colorAttr.array[i + 2] * 255);
+          }
+          entry = { modelId, expressId: row.expressId, ifcType: info ? info.ifcType : row.ifcType, color, segments: [] };
           byEntity.set(key, entry);
         }
         entry.segments.push(seg);
