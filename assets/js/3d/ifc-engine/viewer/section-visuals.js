@@ -202,6 +202,10 @@ export class SectionVisuals {
       f.position.copy(pos);
       f.lookAt(pos.clone().add(n));
       f.visible = true;
+      // Tag for drag picking — the section panel raycasts these quads to
+      // grab and slide a plane along its normal.
+      f.userData.sectionPlaneId = entry.id;
+      f.userData.sectionFace = true;
     }
     this._group.visible = true;
     this._visible = true;

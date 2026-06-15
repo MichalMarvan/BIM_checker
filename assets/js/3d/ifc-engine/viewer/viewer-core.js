@@ -2179,6 +2179,59 @@ export class ViewerCore {
     }));
   }
 
+  /** Enable/disable orbit controls (section drag suspends them). */
+  setOrbitEnabled(on) { if (this._controls) this._controls.enabled = !!on; }
+
+  /**
+   * Raycast the section-plane preview quads under the cursor.
+   * @returns {{ id }|null} the plane whose visual was hit
+   */
+  pickSectionPlaneAt(clientX, clientY) {
+    const vis = this._sectionVisuals;
+    if (!vis || !vis._group || !vis._group.visible) return null;
+    const rect = this._canvas.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, this._camera);
+    const faces = vis._group.children.filter(o => o.visible && o.userData && o.userData.sectionFace);
+    const hits = ray.intersectObjects(faces, false);
+    return hits.length ? { id: hits[0].object.userData.sectionPlaneId } : null;
+  }
+
+  /**
+   * Slide a section plane along its normal so it sits under the cursor.
+   * Closest point between the plane's normal line (origin O, dir n) and the
+   * camera ray gives the new offset. Returns the applied offset (clamped).
+   */
+  dragSectionPlaneTo(id, clientX, clientY) {
+    const e = this._sectionPlanesList.find(p => p.id === id);
+    if (!e) return null;
+    const O = new THREE.Vector3(...e.point);
+    const n = new THREE.Vector3(...e.normal).normalize();
+    const rect = this._canvas.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, this._camera);
+    const ro = ray.ray.origin, rd = ray.ray.direction;  // rd is unit
+    const w0 = new THREE.Vector3().subVectors(O, ro);
+    const b = n.dot(rd);
+    const denom = 1 - b * b;                 // a*c - b² with a=c=1
+    if (Math.abs(denom) < 1e-6) return e.offset;  // ray ∥ normal — ignore
+    const d = n.dot(w0), eDot = rd.dot(w0);
+    let s = (b * eDot - d) / denom;          // offset along n from O
+    s = Math.max(-500, Math.min(500, s));
+    e.offset = s;
+    e.plane = this._buildPlane(e.point, e.normal, e.offset);
+    this._refreshSectionPlanes();
+    return s;
+  }
+
   /** Internal: build THREE.Plane from point + normal + offset along normal. */
   _buildPlane(point, normal, offset) {
     const n = new THREE.Vector3(...normal).normalize();

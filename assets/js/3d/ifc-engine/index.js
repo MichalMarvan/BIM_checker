@@ -830,6 +830,9 @@ export class IfcEngine {
   pickEntity(x, y) { return this._viewer ? this._viewer.pickEntity(x, y) : null; }
   pickFace(x, y) { return this._viewer ? this._viewer.pickFace(x, y) : null; }
   pickEdgeAt(x, y, opts) { return this._viewer ? this._viewer.pickEdgeAt(x, y, opts) : null; }
+  setOrbitEnabled(on) { if (this._viewer) this._viewer.setOrbitEnabled(on); }
+  pickSectionPlaneAt(x, y) { return this._viewer ? this._viewer.pickSectionPlaneAt(x, y) : null; }
+  dragSectionPlaneTo(id, x, y) { return this._viewer ? this._viewer.dragSectionPlaneTo(id, x, y) : null; }
   resize(w, h) { if (this._viewer) this._viewer.resize(w, h); }
   getProjection() { return this._viewer ? this._viewer.getProjection() : 'perspective'; }
 

@@ -20,7 +20,62 @@ export default class SectionPanel {
     this._pickCleanup = null;
   }
 
-  mount() { this._render(); }
+  mount() {
+    this._render();
+    this._wireDrag();
+  }
+
+  /**
+   * Drag a section plane in the 3D scene: pointerdown on a plane's visual
+   * grabs it, drag slides it along its normal, orbit is suspended meanwhile.
+   * Active for the whole life of the panel; gated strictly on hitting a
+   * section-plane quad so normal selection/orbit are untouched otherwise.
+   */
+  _wireDrag() {
+    const canvas = this._canvas();
+    if (!canvas) return;
+    let dragId = null;
+    const xy = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+    const onDown = (e) => {
+      if (e.button !== 0 || this._mode) return;   // not while placing a new plane
+      const [x, y] = xy(e);
+      const hit = this.engine.pickSectionPlaneAt?.(x, y);
+      if (!hit) return;
+      dragId = hit.id;
+      this.engine.setOrbitEnabled?.(false);
+      canvas.style.cursor = 'ns-resize';
+      e.preventDefault(); e.stopPropagation();
+    };
+    const onMove = (e) => {
+      if (dragId === null) return;
+      const [x, y] = xy(e);
+      const off = this.engine.dragSectionPlaneTo?.(dragId, x, y);
+      const slider = this.host.querySelector(`[data-off="${dragId}"]`);
+      if (slider && Number.isFinite(off)) {
+        slider.value = String(off);
+        const sub = slider.closest('.v3d-panel__item')?.querySelector('.v3d-panel__item-sub');
+        if (sub) sub.textContent = `offset ${off.toFixed(2)} m`;
+      }
+      e.preventDefault(); e.stopPropagation();
+    };
+    const onUp = () => {
+      if (dragId === null) return;
+      dragId = null;
+      this.engine.setOrbitEnabled?.(true);
+      canvas.style.cursor = this._mode ? 'crosshair' : '';
+    };
+
+    canvas.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onUp, true);
+    this._dragCleanup = () => {
+      canvas.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+      this.engine.setOrbitEnabled?.(true);
+    };
+  }
 
   _render() {
     const planes = this.engine.getSectionPlanes?.() || [];
@@ -59,7 +114,7 @@ export default class SectionPanel {
                 <button class="v3d-panel__item-btn" data-act="vis" data-id="${p.id}" title="${visible ? 'Skrýt rovinu' : 'Zobrazit rovinu'}">${visible ? '●' : '◌'}</button>
                 <button class="v3d-panel__item-btn" data-act="dxf" data-id="${p.id}" title="Exportovat křivky řezu do DXF">⇣</button>
                 <button class="v3d-panel__item-btn v3d-panel__item-btn--danger" data-act="rm" data-id="${p.id}" title="Odebrat rovinu">✕</button>
-                <input class="v3d-section-offset" type="range" min="-60" max="60" step="0.05" value="${p.offset ?? 0}" data-off="${p.id}"
+                <input class="v3d-section-offset" type="range" min="-60" max="60" step="0.01" value="${p.offset ?? 0}" data-off="${p.id}"
                        title="Posun roviny podél normály" style="flex:1 1 100%;margin-top:6px;accent-color:var(--primary-color)">
               </div>`;
           }).join('')}
@@ -191,7 +246,7 @@ export default class SectionPanel {
     }
   }
 
-  destroy() { this._stopPick(); }
+  destroy() { this._stopPick(); if (this._dragCleanup) this._dragCleanup(); }
 }
 
 function plural(n, one, few, many) {
