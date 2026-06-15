@@ -329,7 +329,9 @@ function curvesToDxf(curves, plane) {
   w(0, 'TABLE'); w(2, 'LTYPE'); w(70, 1);
   w(0, 'LTYPE'); w(2, 'CONTINUOUS'); w(70, 0); w(3, 'Solid line'); w(72, 65); w(73, 0); w(40, '0.0');
   w(0, 'ENDTAB');
-  w(0, 'TABLE'); w(2, 'LAYER'); w(70, layers.size);
+  w(0, 'TABLE'); w(2, 'LAYER'); w(70, layers.size + 1);
+  // Layer 0 is always expected to exist by AutoCAD.
+  w(0, 'LAYER'); w(2, '0'); w(70, 0); w(62, 7); w(6, 'CONTINUOUS');
   for (const [name, aci] of layers) {
     w(0, 'LAYER'); w(2, name); w(70, 0); w(62, aci); w(6, 'CONTINUOUS');
   }
@@ -348,7 +350,10 @@ function curvesToDxf(curves, plane) {
   }
   w(0, 'ENDSEC');
   w(0, 'EOF');
-  return out.join('\n');
+  // CRLF line endings + trailing CRLF: AutoCAD's DXF reader is line-oriented
+  // and expects CRLF on Windows — bare LF makes DXFIN abort ("press Enter,
+  // nothing loads"), even though lenient parsers accept LF.
+  return out.join('\r\n') + '\r\n';
 }
 
 /** 24-bit RGB → nearest AutoCAD Color Index over the 9 standard colours. */
