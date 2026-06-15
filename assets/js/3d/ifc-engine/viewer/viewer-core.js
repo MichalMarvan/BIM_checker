@@ -126,6 +126,13 @@ const EDGE_THRESHOLD_DEG = 45;
 const EDGE_COLOR = 0x111111;
 const EDGE_MAX_OPACITY = 0.95;
 
+// Render layer carrying solid model geometry. The auxiliary normal pass
+// (feeds SSAO + screen-space edges) renders ONLY this layer, so section-plane
+// visuals, the scissors handle, ghosts and other overlays never enter the
+// normal buffer — a section quad slicing through geometry would otherwise
+// z-fight there and spray black edge/AO speckle all over the model.
+const NORMAL_PASS_LAYER = 1;
+
 // Feature-edge overlay (Trimble-style element outlines) — distance fade.
 // 1px lines accumulate when the whole model fits the viewport: at fitAll
 // distance the render reads "more black than colour". Fade the overlay by
@@ -240,6 +247,8 @@ export class ViewerCore {
     // curves, and cost double geometry memory per mesh).
     const _pipelineSize = this._renderer.getDrawingBufferSize(new THREE.Vector2());
     this._pipeline = new PostPipeline(this._renderer, _pipelineSize.x, _pipelineSize.y);
+    // Normal pass renders only model geometry (see NORMAL_PASS_LAYER).
+    this._pipeline.setNormalPassLayer(NORMAL_PASS_LAYER);
     // Pass order matters: SSAO darkens scene first, edges draw over the
     // already-AO-modulated colour. The other way round would draw edges
     // and then multiply them down with AO, washing them out.
@@ -616,6 +625,7 @@ export class ViewerCore {
       }
       if (built) {
         built.mesh.userData = { modelId, merged: true, mergedTable: built.table };
+        built.mesh.layers.enable(NORMAL_PASS_LAYER);  // include in the normal pass
         innerGroup.add(built.mesh);
 
         // Merged topology feature edges — one LineSegments per model (etapa 4)
@@ -691,6 +701,7 @@ export class ViewerCore {
           }
           const combinedMatrix = this._itemMatrix(item, result);
           const mesh = new THREE.Mesh(item.bufferGeometry, material);
+          mesh.layers.enable(NORMAL_PASS_LAYER);  // include in the normal pass
           mesh.applyMatrix4(combinedMatrix);
           mesh.userData = { modelId, ifcType, expressId: entity.expressId };
           innerGroup.add(mesh);

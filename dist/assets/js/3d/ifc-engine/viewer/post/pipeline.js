@@ -62,6 +62,7 @@ export class PostPipeline {
     this._normalRT = null;            // lazy-allocated on first need
     this._normalMaterial = null;      // lazy-allocated; depends on clipping planes
     this._clipPlanes = [];            // active section planes (set by the viewer)
+    this._normalPassLayer = null;     // restrict normal pass to this layer (null = all)
     this._normalsClearColor = new THREE.Color(0x808080);  // 0.5 = "no normal"
 
     // Output pass: blits the (possibly post-processed) color RT to the
@@ -153,7 +154,14 @@ export class PostPipeline {
       renderer.setClearColor(this._normalsClearColor, 1.0);
       renderer.setRenderTarget(this._normalRT);
       renderer.clear(true, true, false);  // color + depth clear
+      // Restrict to the model-geometry layer so overlays (section plane quad,
+      // handle, ghost, measure/pin helpers) never enter the normal buffer —
+      // a section quad slicing through geometry z-fights here and the edges /
+      // SSAO passes turn that into black speckle smeared over the model.
+      const prevLayerMask = camera.layers.mask;
+      if (this._normalPassLayer !== null) camera.layers.set(this._normalPassLayer);
       renderer.render(scene, camera);
+      camera.layers.mask = prevLayerMask;
       scene.overrideMaterial = prevOverride;
       scene.background = prevBg;
       renderer.setClearColor(prevClear, prevAlpha);
@@ -205,6 +213,9 @@ export class PostPipeline {
 
   /** Section planes the auxiliary normal pass must clip with (per-material). */
   setClipPlanes(planes) { this._clipPlanes = planes || []; }
+
+  /** Render layer the normal pass is restricted to (null = render everything). */
+  setNormalPassLayer(layer) { this._normalPassLayer = layer; }
 
   /** Used by edges/SSAO passes to declare their dependency on the normal buffer. */
   getNormalTexture() { return this._normalRT ? this._normalRT.texture : null; }
