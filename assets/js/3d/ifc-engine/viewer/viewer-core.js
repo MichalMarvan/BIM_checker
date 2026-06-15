@@ -1281,6 +1281,73 @@ export class ViewerCore {
     };
   }
 
+  /**
+   * Nearest feature edge under the cursor → world-space { point, tangent }.
+   * Used by the section tool's perpendicular-cut modes. Reuses the model's
+   * feature-edge segments (merged: the hovered element's edge ranges;
+   * legacy: the mesh's lazy EdgesGeometry).
+   */
+  pickEdgeAt(clientX, clientY, opts = {}) {
+    const thresholdPx = opts.thresholdPx ?? 16;
+    const hits = this._raycastFull(clientX, clientY);
+    if (hits.length === 0) return null;
+    const { hit, mesh } = hits[0];
+    const rect = this._canvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    const camera = this._camera;
+    const projectToScreen = (p) => {
+      const proj = p.clone().project(camera);
+      return { x: (proj.x * 0.5 + 0.5) * w + rect.left, y: (-proj.y * 0.5 + 0.5) * h + rect.top };
+    };
+
+    // Collect candidate edge segments (same source logic as snapAt)
+    const ud = mesh.userData || {};
+    const sources = [];   // { attr, start, count, matrix }
+    if (ud.merged && ud.mergedTable) {
+      const row = resolveMergedFace(ud.mergedTable, hit.faceIndex);
+      const m = this._models.get(ud.modelId);
+      const lines = m && m.featureEdges && m.featureEdges[0];
+      if (row && lines && m.mergedEdgesTable) {
+        lines.updateMatrixWorld();
+        const eAttr = lines.geometry.attributes.position;
+        for (const r of m.mergedEdgesTable) {
+          if (r.expressId === row.expressId) {
+            sources.push({ attr: eAttr, start: r.vertStart, count: r.vertCount, matrix: lines.matrixWorld });
+          }
+        }
+      }
+    } else {
+      const edgeGeom = this._lazyEdgeGeometry(mesh);
+      if (edgeGeom && edgeGeom.attributes.position) {
+        mesh.updateMatrixWorld();
+        sources.push({ attr: edgeGeom.attributes.position, start: 0, count: edgeGeom.attributes.position.count, matrix: mesh.matrixWorld });
+      }
+    }
+    if (sources.length === 0) return null;
+
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), closest = new THREE.Vector3();
+    const ndcX = ((clientX - rect.left) / w) * 2 - 1;
+    const ndcY = -((clientY - rect.top) / h) * 2 + 1;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera({ x: ndcX, y: ndcY }, camera);
+    let best = null;
+    for (const src of sources) {
+      for (let i = src.start; i + 1 < src.start + src.count; i += 2) {
+        a.fromBufferAttribute(src.attr, i).applyMatrix4(src.matrix);
+        b.fromBufferAttribute(src.attr, i + 1).applyMatrix4(src.matrix);
+        ray.ray.distanceSqToSegment(a, b, null, closest);
+        const s = projectToScreen(closest);
+        const dx = s.x - clientX, dy = s.y - clientY;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < thresholdPx * thresholdPx && (!best || d2 < best.d2)) {
+          const dir = b.clone().sub(a).normalize();
+          best = { d2, point: [closest.x, closest.y, closest.z], tangent: [dir.x, dir.y, dir.z] };
+        }
+      }
+    }
+    return best ? { point: best.point, tangent: best.tangent } : null;
+  }
+
   /** Resize renderer + camera frustum/aspect to match container. */
   resize(w, h) {
     if (!w || !h) return;

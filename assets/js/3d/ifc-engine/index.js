@@ -829,6 +829,7 @@ export class IfcEngine {
   // Phase 6 audit fix: facade methods to replace 4 _viewer leak sites in app/.
   pickEntity(x, y) { return this._viewer ? this._viewer.pickEntity(x, y) : null; }
   pickFace(x, y) { return this._viewer ? this._viewer.pickFace(x, y) : null; }
+  pickEdgeAt(x, y, opts) { return this._viewer ? this._viewer.pickEdgeAt(x, y, opts) : null; }
   resize(w, h) { if (this._viewer) this._viewer.resize(w, h); }
   getProjection() { return this._viewer ? this._viewer.getProjection() : 'perspective'; }
 
