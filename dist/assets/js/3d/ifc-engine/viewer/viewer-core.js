@@ -9,7 +9,7 @@ import { EdgesPass } from './post/edges-pass.js';
 import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
-import { selectAt, isPickable } from './selection.js';
+import { selectAt, isPickable, isClippedOut } from './selection.js';
 import { buildMergedModel, mergedElementBox, extractElementGeometry, resolveMergedFace } from './merged-model.js';
 
 /**
@@ -1246,7 +1246,16 @@ export class ViewerCore {
    * Hit test at client coords; returns SelectionHit or null.
    */
   selectAt(clientX, clientY) {
-    return selectAt(this._scene, this._camera, this._canvas, clientX, clientY);
+    return selectAt(this._scene, this._camera, this._canvas, clientX, clientY, this._activeSectionPlanes());
+  }
+
+  /** Visible section clip planes as THREE.Plane[], or null when none active. */
+  _activeSectionPlanes() {
+    const list = this._sectionPlanesList;
+    if (!list || list.length === 0) return null;
+    const out = [];
+    for (const e of list) { if (e.visible && e.plane) out.push(e.plane); }
+    return out.length ? out : null;
   }
 
   /**
@@ -1387,6 +1396,7 @@ export class ViewerCore {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(ndc, this._camera);
     const hits = raycaster.intersectObjects(this._scene.children, true);
+    const clipPlanes = this._activeSectionPlanes();
     const out = [];
     for (const hit of hits) {
       const mesh = hit.object;
@@ -1394,6 +1404,8 @@ export class ViewerCore {
       if (!isPickable(mesh)) continue;
       const ud = mesh.userData;
       if (!ud || !ud.modelId) continue;
+      // Section-clipped geometry is invisible — don't let it swallow the pick.
+      if (isClippedOut(hit.point, clipPlanes)) continue;
       if (ud.merged && ud.mergedTable) {
         // Skip triangles of hidden merged elements (same rule as selectAt)
         const row = resolveMergedFace(ud.mergedTable, hit.faceIndex);
@@ -2398,6 +2410,12 @@ export class ViewerCore {
       for (const edges of model.featureEdges || []) {
         if (edges && edges.material) this._setLineClip(edges.material, planes);
       }
+    }
+    // The screen-space edges/SSAO passes render an auxiliary normal buffer.
+    // It must clip with the same planes, otherwise removed geometry's normals
+    // survive and the edges pass ghosts faint outlines onto what's behind.
+    if (this._pipeline && typeof this._pipeline.setClipPlanes === 'function') {
+      this._pipeline.setClipPlanes(planes);
     }
   }
 

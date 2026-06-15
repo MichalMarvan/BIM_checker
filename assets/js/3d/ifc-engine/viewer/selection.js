@@ -28,6 +28,23 @@ export function isPickable(obj) {
 }
 
 /**
+ * THREE.Raycaster ignores material.clippingPlanes, so a section cut would
+ * still let you pick the geometry it removed. A point is clipped away when it
+ * lies on the negative side of any active plane (the kept region is the
+ * intersection of every plane's positive half-space). Small epsilon keeps
+ * points sitting exactly on the cut face pickable.
+ * @param {THREE.Vector3} point
+ * @param {Array<THREE.Plane>|null} clipPlanes
+ */
+export function isClippedOut(point, clipPlanes) {
+  if (!clipPlanes) return false;
+  for (const pl of clipPlanes) {
+    if (pl.distanceToPoint(point) < -1e-4) return true;
+  }
+  return false;
+}
+
+/**
  * Hit test the scene at canvas-relative (clientX, clientY).
  *
  * @param {THREE.Scene} scene
@@ -37,7 +54,7 @@ export function isPickable(obj) {
  * @param {number} clientY — page-relative y
  * @returns {{ modelId, expressId, ifcType, point, distance } | null}
  */
-export function selectAt(scene, camera, canvas, clientX, clientY) {
+export function selectAt(scene, camera, canvas, clientX, clientY, clipPlanes = null) {
   const rect = canvas.getBoundingClientRect();
   _ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
   _ndc.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
@@ -51,6 +68,10 @@ export function selectAt(scene, camera, canvas, clientX, clientY) {
     if (!isPickable(mesh)) continue;
     const ud = mesh.userData;
     if (!ud || !ud.modelId) continue;
+
+    // Geometry removed by a section cut must not be pickable — skip hits on
+    // the clipped-away side and fall through to the visible surface behind.
+    if (isClippedOut(hit.point, clipPlanes)) continue;
 
     // Merged-geometry models carry one mesh for all elements — resolve the
     // element from the triangle-range table by raycast faceIndex.

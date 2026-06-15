@@ -61,7 +61,7 @@ export class PostPipeline {
     // detection sharpness). Shares the same w×h as sceneRT.
     this._normalRT = null;            // lazy-allocated on first need
     this._normalMaterial = null;      // lazy-allocated; depends on clipping planes
-    this._normalClippingPlanes = null;
+    this._clipPlanes = [];            // active section planes (set by the viewer)
     this._normalsClearColor = new THREE.Color(0x808080);  // 0.5 = "no normal"
 
     // Output pass: blits the (possibly post-processed) color RT to the
@@ -134,12 +134,15 @@ export class PostPipeline {
     renderer.render(scene, camera);
 
     // 2. (Conditional) Normal pass — second scene render with override
-    //    material into normalRT. Only runs if a pass needs it. Re-uses the
-    //    main scene's clipping planes so section views Just Work.
+    //    material into normalRT. Only runs if a pass needs it. Clips with the
+    //    active section planes (the viewer uses per-material clipping, so the
+    //    renderer's global clippingPlanes is empty — we must pass the section
+    //    planes here or the normal buffer keeps cut-away geometry and the
+    //    edges pass ghosts its outlines onto whatever is behind.
     const needsNormals = this._passes.some(p => p && p.needsNormals);
     if (needsNormals) {
       this._ensureNormalRT();
-      this._ensureNormalMaterial(this._renderer.clippingPlanes || []);
+      this._ensureNormalMaterial(this._clipPlanes);
       const prevOverride = scene.overrideMaterial;
       const prevBg = scene.background;
       scene.overrideMaterial = this._normalMaterial;
@@ -187,17 +190,21 @@ export class PostPipeline {
   }
 
   _ensureNormalMaterial(clippingPlanes) {
-    // Recompile material when the clipping plane array reference changes
-    // (e.g. section toggled on/off). three.js needs a fresh material for
-    // a different number of clipping uniforms.
-    if (this._normalMaterial && this._normalClippingPlanes === clippingPlanes &&
-        this._normalMaterial.clippingPlanes?.length === clippingPlanes.length) {
+    const count = clippingPlanes ? clippingPlanes.length : 0;
+    // Only recompile when the plane COUNT changes — three.js bakes the number
+    // of clipping uniforms at compile time. For the same count we just repoint
+    // at the current planes; their values are uploaded per frame from the
+    // material's clippingPlanes, so dragging a section costs no recompile.
+    if (this._normalMaterial && (this._normalMaterial.clippingPlanes?.length ?? 0) === count) {
+      this._normalMaterial.clippingPlanes = clippingPlanes;
       return;
     }
     if (this._normalMaterial) this._normalMaterial.dispose();
     this._normalMaterial = createNormalMaterial(clippingPlanes);
-    this._normalClippingPlanes = clippingPlanes;
   }
+
+  /** Section planes the auxiliary normal pass must clip with (per-material). */
+  setClipPlanes(planes) { this._clipPlanes = planes || []; }
 
   /** Used by edges/SSAO passes to declare their dependency on the normal buffer. */
   getNormalTexture() { return this._normalRT ? this._normalRT.texture : null; }
