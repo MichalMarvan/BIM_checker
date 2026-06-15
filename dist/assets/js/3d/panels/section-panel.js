@@ -68,9 +68,10 @@ export default class SectionPanel {
   }
 
   _add(axis) {
-    // Use scene center as point; normal aligns with axis.
-    const n = axis === 'X' ? [1, 0, 0] : axis === 'Y' ? [0, 1, 0] : [0, 0, 1];
-    this.engine.addSectionPlane([0, 0, 0], n);
+    // Axes are presented in IFC/BIM convention (Z = up). The viewer renders
+    // in three.js Y-up, so map BIM → three: BIM-Z (vertical, plan cut) →
+    // three-Y, BIM-Y (horizontal depth) → three-Z, BIM-X → three-X.
+    this.engine.addSectionPlane([0, 0, 0], bimAxisToThreeNormal(axis));
     this._render();
   }
 
@@ -108,13 +109,24 @@ export default class SectionPanel {
   destroy() {}
 }
 
-/** Vrátí 'X' | 'Y' | 'Z', pokud je normála zarovnaná s osou, jinak null. */
+/** BIM axis letter (Z = up) → three.js Y-up normal vector. */
+function bimAxisToThreeNormal(axis) {
+  if (axis === 'X') return [1, 0, 0];
+  if (axis === 'Z') return [0, 1, 0];   // BIM vertical → three Y
+  return [0, 0, 1];                      // BIM Y (depth) → three Z
+}
+
+/**
+ * Returns the BIM axis letter ('X' | 'Y' | 'Z', Z = up) for an axis-aligned
+ * three.js normal, or null. Inverse of bimAxisToThreeNormal: three-Y → 'Z',
+ * three-Z → 'Y'.
+ */
 function axisOf(normal) {
   if (!Array.isArray(normal) || normal.length < 3) return null;
   const [x, y, z] = normal.map(Math.abs);
   if (x > 0.99 && y < 0.01 && z < 0.01) return 'X';
-  if (y > 0.99 && x < 0.01 && z < 0.01) return 'Y';
-  if (z > 0.99 && x < 0.01 && y < 0.01) return 'Z';
+  if (y > 0.99 && x < 0.01 && z < 0.01) return 'Z';  // three-Y is BIM vertical
+  if (z > 0.99 && x < 0.01 && y < 0.01) return 'Y';  // three-Z is BIM depth
   return null;
 }
 
