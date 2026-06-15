@@ -9,15 +9,13 @@ export default class IdsTemplatesPanel {
 
   mount() {
     this.host.innerHTML = `
-      <p class="v3d-panel__hint">Nahrajte IDS XML soubor pro validaci modelu. Pro fulltext editor IDS přejděte na stránku IDS Validator.</p>
-      <div class="v3d-panel__field">
-        <label class="v3d-pill" style="cursor:pointer">
-          ⇡ IDS XML
-          <input type="file" accept=".xml,.ids" hidden data-act="upload">
-        </label>
-      </div>
-      <div class="v3d-panel__field">
-        <a class="v3d-pill" href="ids-ifc-validator.html" style="text-decoration:none;display:inline-block">→ Otevřít IDS Validator</a>
+      <div class="v3d-panel__section">
+        <h4>Validace IDS</h4>
+        <p class="v3d-panel__hint">Nahrajte IDS XML soubor pro validaci načtených modelů. Pro plnohodnotný editor IDS přejděte na stránku IDS Validator.</p>
+        <div class="v3d-panel__row">
+          <label class="v3d-panel__btn v3d-panel__btn--primary">⇡ Nahrát IDS XML<input type="file" accept=".xml,.ids" hidden data-act="upload"></label>
+          <a class="v3d-panel__btn" href="ids-ifc-validator.html">→ IDS Validator</a>
+        </div>
       </div>
       <div data-role="result"></div>
     `;
@@ -25,38 +23,67 @@ export default class IdsTemplatesPanel {
   }
 
   async _validate(file) {
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     const out = this.host.querySelector('[data-role="result"]');
-    out.innerHTML = '<p class="v3d-panel__hint">Validuji…</p>';
+    out.innerHTML = '<div class="v3d-panel__msg">Validuji…</div>';
     try {
       const xml = await file.text();
       // Try the project IDS validator
       const parser = await import('../../ids/parser.js').catch(() => null);
       const validator = await import('../../ids/validator.js').catch(() => null);
-      if (!parser || !validator) throw new Error('IDS modul nenalezen.');
+      if (!parser || !validator) {
+        out.innerHTML = '<div class="v3d-panel__msg v3d-panel__msg--warn">IDS modul nenalezen. Validaci spusťte na stránce IDS Validator.</div>';
+        return;
+      }
       const ids = parser.parseIds?.(xml) || parser.default?.(xml);
       const specs = ids?.specifications || [];
+      if (!specs.length) {
+        out.innerHTML = '<div class="v3d-panel__msg v3d-panel__msg--warn">IDS soubor neobsahuje žádné specifikace.</div>';
+        return;
+      }
       const models = this.engine.getModels?.() || [];
-      let pass = 0, fail = 0;
-      const lines = [];
+      if (!models.length) {
+        out.innerHTML = '<div class="v3d-panel__msg v3d-panel__msg--warn">Nejsou načteny žádné modely k validaci.</div>';
+        return;
+      }
+      if (typeof validator.runSpecification !== 'function') {
+        out.innerHTML = '<div class="v3d-panel__msg v3d-panel__msg--warn">IDS validátor nepodporuje runSpecification.</div>';
+        return;
+      }
+      let pass = 0;
+      let fail = 0;
+      const rows = [];
       for (const m of models) {
         for (const spec of specs) {
-          const result = validator.runSpecification?.(spec, this.engine, m.modelId);
-          if (!result) continue;
+          const result = validator.runSpecification(spec, this.engine, m.modelId);
+          if (!result) {
+            continue;
+          }
           pass += result.pass || 0;
           fail += result.fail || 0;
-          lines.push(`<li><strong>${escapeHtml(spec.name || 'spec')}</strong> · ${m.name}: ${result.pass || 0} pass / ${result.fail || 0} fail</li>`);
+          rows.push(`
+            <div class="v3d-panel__item">
+              <div class="v3d-panel__item-main">
+                <div class="v3d-panel__item-title">${escapeHtml(spec.name || 'spec')}</div>
+                <div class="v3d-panel__item-sub">${escapeHtml(m.name)}</div>
+              </div>
+              <span class="v3d-panel__badge">${result.pass || 0} ✓ / ${result.fail || 0} ✗</span>
+            </div>
+          `);
         }
       }
+      if (!rows.length) {
+        out.innerHTML = '<div class="v3d-panel__msg v3d-panel__msg--warn">Žádné výsledky validace.</div>';
+        return;
+      }
       out.innerHTML = `
-        <div class="v3d-panel__pills" style="margin-top:8px">
-          <span class="v3d-pill" style="color:#16a34a">${pass} PASS</span>
-          <span class="v3d-pill" style="color:#dc2626">${fail} FAIL</span>
-        </div>
-        <ul class="v3d-panel__list">${lines.join('')}</ul>
+        <div class="v3d-panel__msg v3d-panel__msg--${fail > 0 ? 'warn' : 'ok'}">${pass} PASS · ${fail} FAIL</div>
+        ${rows.join('')}
       `;
     } catch (e) {
-      out.innerHTML = `<p class="v3d-panel__hint" style="color:#dc2626">✗ ${escapeHtml(e.message || String(e))}</p>`;
+      out.innerHTML = `<div class="v3d-panel__msg v3d-panel__msg--err">✗ ${escapeHtml(e.message || String(e))}</div>`;
     }
   }
 

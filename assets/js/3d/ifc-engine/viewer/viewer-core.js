@@ -1683,14 +1683,33 @@ export class ViewerCore {
     }
     mesh.updateMatrixWorld();
     const centers = new Map();
+    const boxes = new Map();
     const v = new THREE.Vector3();
     for (const [expressId, a] of acc) {
       v.set((a[0] + a[3]) / 2, (a[1] + a[4]) / 2, (a[2] + a[5]) / 2).applyMatrix4(mesh.matrixWorld);
       centers.set(expressId, v.clone());
+      // World-space element box (8 corners through matrixWorld)
+      const box = new THREE.Box3();
+      for (let c = 0; c < 8; c++) {
+        v.set(
+          (c & 1) ? a[3] : a[0],
+          (c & 2) ? a[4] : a[1],
+          (c & 4) ? a[5] : a[2],
+        ).applyMatrix4(mesh.matrixWorld);
+        box.expandByPoint(v);
+      }
+      boxes.set(expressId, box);
     }
     m._elemCenters = centers;
+    m._elemBoxes = boxes;
     m._elemCentersVersion = pos.version;
     return centers;
+  }
+
+  /** Per-element world bboxes for a merged model (same cache as centers). */
+  _mergedElementBoxes(m) {
+    this._mergedElementCenters(m);
+    return m._elemBoxes || new Map();
   }
 
   /** Any fractional fade active → the merged material needs blending. */
@@ -2344,13 +2363,55 @@ export class ViewerCore {
     const PRIORITY = ['vertex', 'intersection', 'midpoint', 'center', 'perpendicular', 'edge'];
     const candidates = []; // { point, type, dist2 }
 
+    // Snap candidate sources. Merged models snap against the ELEMENT under
+    // the cursor only — projecting the whole merged buffer (10^5–10^6
+    // points) per mouse move would freeze measuring, and per-element ranges
+    // are exactly what the user aims at. Legacy meshes keep whole-mesh
+    // iteration (they ARE one element).
+    const ud = mesh.userData || {};
+    let vertexRanges = [];   // { attr, start, count, matrix }
+    let segmentSources = []; // { attr, start, count, matrix } — consecutive point pairs
+    if (ud.merged && ud.mergedTable) {
+      const row = resolveMergedFace(ud.mergedTable, hit.faceIndex);
+      const m = this._models.get(ud.modelId);
+      if (row && m) {
+        const posAttr = mesh.geometry.attributes.position;
+        if (posAttr) {
+          vertexRanges = m.mergedTable
+            .filter(r => r.expressId === row.expressId)
+            .map(r => ({ attr: posAttr, start: r.vertStart, count: r.vertCount, matrix }));
+        }
+        const lines = m.featureEdges && m.featureEdges[0];
+        if (lines && m.mergedEdgesTable) {
+          lines.updateMatrixWorld();
+          const eAttr = lines.geometry.attributes.position;
+          segmentSources = m.mergedEdgesTable
+            .filter(r => r.expressId === row.expressId)
+            .map(r => ({ attr: eAttr, start: r.vertStart, count: r.vertCount, matrix: lines.matrixWorld }));
+        }
+      }
+    } else {
+      const posAttr = mesh.geometry.attributes.position;
+      if (posAttr) vertexRanges = [{ attr: posAttr, start: 0, count: posAttr.count, matrix }];
+      // Lazy-build EdgesGeometry on demand (snap may be the first consumer
+      // for a given mesh). The buffer is mesh-local — apply matrixWorld.
+      const edgeGeom = this._lazyEdgeGeometry(mesh);
+      if (edgeGeom && edgeGeom.attributes?.position) {
+        segmentSources = [{
+          attr: edgeGeom.attributes.position,
+          start: 0,
+          count: edgeGeom.attributes.position.count,
+          matrix,
+        }];
+      }
+    }
+
     // Vertex candidates
     if (enabled.has('vertex')) {
-      const positionAttr = mesh.geometry.attributes.position;
-      if (positionAttr) {
-        const v = new THREE.Vector3();
-        for (let i = 0; i < positionAttr.count; i++) {
-          v.fromBufferAttribute(positionAttr, i).applyMatrix4(matrix);
+      const v = new THREE.Vector3();
+      for (const range of vertexRanges) {
+        for (let i = range.start; i < range.start + range.count; i++) {
+          v.fromBufferAttribute(range.attr, i).applyMatrix4(range.matrix);
           const d2 = screenDist2(v);
           if (d2 < thresholdPx * thresholdPx) {
             candidates.push({ point: [v.x, v.y, v.z], type: 'vertex', dist2: d2 });
@@ -2360,14 +2421,7 @@ export class ViewerCore {
     }
 
     // Edge / midpoint / perpendicular / nearest-on-edge candidates
-    // Lazy-build EdgesGeometry on demand (snap may be the first consumer
-    // for a given mesh). Apply the mesh's worldMatrix to the edge buffer
-    // because the underlying BufferGeometry is in mesh-local space.
-    const edgeGeom = this._lazyEdgeGeometry(mesh);
-    if (edgeGeom && edgeGeom.attributes?.position) {
-      const ePos = edgeGeom.attributes.position;
-      mesh.updateMatrixWorld();
-      const eMatrix = mesh.matrixWorld;
+    if (segmentSources.length > 0) {
       const a = new THREE.Vector3();
       const b = new THREE.Vector3();
 
@@ -2377,9 +2431,10 @@ export class ViewerCore {
       // Collect screen-space segments for intersection check (only if needed)
       const segs = (enabled.has('intersection')) ? [] : null;
 
-      for (let i = 0; i < ePos.count; i += 2) {
-        a.fromBufferAttribute(ePos, i).applyMatrix4(eMatrix);
-        b.fromBufferAttribute(ePos, i + 1).applyMatrix4(eMatrix);
+      for (const src of segmentSources) {
+      for (let i = src.start; i + 1 < src.start + src.count; i += 2) {
+        a.fromBufferAttribute(src.attr, i).applyMatrix4(src.matrix);
+        b.fromBufferAttribute(src.attr, i + 1).applyMatrix4(src.matrix);
 
         if (enabled.has('midpoint')) {
           const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
@@ -2419,6 +2474,7 @@ export class ViewerCore {
           const sb = projectToScreen(b);
           segs.push({ a3: a.clone(), b3: b.clone(), sa, sb });
         }
+      }
       }
 
       // Intersection: only segments whose screen extent passes near the cursor

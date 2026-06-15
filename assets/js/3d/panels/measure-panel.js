@@ -4,6 +4,16 @@ const HIST_KEY = 'bim_checker_measurements_v1';
 const loadHist = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; } };
 const saveHist = (l) => localStorage.setItem(HIST_KEY, JSON.stringify(l));
 
+const KIND_CZ = { distance: 'Vzdálenost', angle: 'Úhel', area: 'Plocha' };
+const SNAPS = [
+  { id: 'vertex', label: 'Vrchol' },
+  { id: 'midpoint', label: 'Střed hrany' },
+  { id: 'center', label: 'Těžiště' },
+  { id: 'edge', label: 'Hrana' },
+  { id: 'perpendicular', label: '⟂ Kolmo' },
+  { id: 'intersection', label: '× Průsečík' },
+];
+
 export default class MeasurePanel {
   constructor({ engine, host, titleEl }) {
     this.engine = engine;
@@ -11,52 +21,77 @@ export default class MeasurePanel {
     titleEl.textContent = 'Měření';
     this._cleanup = null;
     this._mode = 'distance';
+    this._snaps = new Set(['vertex']);
+    this._msg = null; // jednorázová zpráva pro příští render
   }
 
   mount() { this._render(); }
 
   _render() {
     const hist = loadHist();
+    const last = hist[hist.length - 1];
+    const msg = this._msg;
+    this._msg = null;
     this.host.innerHTML = `
-      <div class="v3d-panel__pills">
-        <button class="v3d-pill active" data-mode="distance">📏 Vzdálenost</button>
-        <button class="v3d-pill" data-mode="angle">∠ Úhel</button>
-        <button class="v3d-pill" data-mode="area">▱ Plocha</button>
-      </div>
-      <div class="v3d-panel__section" style="margin-top:8px">
-        <h4>Snap</h4>
-        <div class="v3d-panel__pills" data-role="snap">
-          <button class="v3d-pill active" data-snap="vertex">V</button>
-          <button class="v3d-pill" data-snap="midpoint">M</button>
-          <button class="v3d-pill" data-snap="center">C</button>
-          <button class="v3d-pill" data-snap="edge">E</button>
-          <button class="v3d-pill" data-snap="perpendicular">⟂</button>
-          <button class="v3d-pill" data-snap="intersection">×</button>
+      <div class="v3d-panel__section">
+        <h4>Režim měření</h4>
+        <div class="v3d-panel__pills" data-role="modes">
+          <button class="v3d-pill ${this._mode === 'distance' ? 'active' : ''}" data-mode="distance">📏 Vzdálenost</button>
+          <button class="v3d-pill ${this._mode === 'angle' ? 'active' : ''}" data-mode="angle">∠ Úhel</button>
+          <button class="v3d-pill ${this._mode === 'area' ? 'active' : ''}" data-mode="area">▱ Plocha</button>
         </div>
+      </div>
+      <div class="v3d-panel__section">
+        <h4>Přichytávání</h4>
+        <div class="v3d-panel__pills" data-role="snap">
+          ${SNAPS.map(s => `<button class="v3d-pill ${this._snaps.has(s.id) ? 'active' : ''}" data-snap="${s.id}">${s.label}</button>`).join('')}
+        </div>
+        <p class="v3d-panel__hint">Aktivní přichytávání se použijí při klikání do modelu.</p>
       </div>
       <div class="v3d-panel__field">
-        <button class="v3d-btn v3d-btn--primary" data-role="start">Začít měřit</button>
-        <button class="v3d-pill" data-role="stop">Zastavit</button>
-      </div>
-      <p class="v3d-panel__hint" data-role="status"></p>
-      <div class="v3d-panel__section">
-        <h4>Historie (${hist.length})</h4>
-        <div class="v3d-panel__pills" style="margin-bottom:6px">
-          <button class="v3d-pill" data-act="export-csv">⇣ CSV</button>
-          <button class="v3d-pill" data-act="export-json">⇣ JSON</button>
-          <button class="v3d-pill" data-act="clear">Smazat</button>
+        <div class="v3d-panel__row">
+          <button class="v3d-panel__btn v3d-panel__btn--primary" data-role="start">▶ Začít měřit</button>
+          <button class="v3d-panel__btn" data-role="stop">⏹ Stop</button>
         </div>
-        <ul class="v3d-panel__list">
+      </div>
+      <div data-role="status">${msg ? `<div class="v3d-panel__msg v3d-panel__msg--${msg.type}">${escapeHtml(msg.text)}</div>` : ''}</div>
+      ${last ? `
+        <div class="v3d-panel__section">
+          <h4>Poslední měření</h4>
+          <div class="v3d-panel__kv"><span>Typ</span><b>${escapeHtml(KIND_CZ[last.kind] || last.kind)}</b></div>
+          <div class="v3d-panel__kv"><span>Hodnota</span><b>${escapeHtml(fmt(last.value, last.unit))}</b></div>
+          ${last.label ? `<div class="v3d-panel__kv"><span>Název</span><b>${escapeHtml(last.label)}</b></div>` : ''}
+        </div>
+      ` : ''}
+      <hr class="v3d-panel__divider" />
+      <div class="v3d-panel__section">
+        <h4>Historie <span class="v3d-panel__badge">${hist.length}</span></h4>
+        ${hist.length > 0 ? `
+          <div class="v3d-panel__field">
+            <div class="v3d-panel__row">
+              <button class="v3d-panel__btn v3d-panel__btn--sm" data-act="export-csv">⇣ CSV</button>
+              <button class="v3d-panel__btn v3d-panel__btn--sm" data-act="export-json">⇣ JSON</button>
+              <button class="v3d-panel__btn v3d-panel__btn--sm v3d-panel__btn--danger" data-act="clear">Smazat vše</button>
+            </div>
+          </div>
           ${hist.slice(-30).reverse().map((h, idx) => {
             const realIdx = hist.length - 1 - idx;
             return `
-              <li>
-                <span style="flex:1">${escapeHtml(h.label || h.kind)} = <strong>${fmt(h.value, h.unit)}</strong></span>
-                <button class="v3d-pill" data-act="rename" data-i="${realIdx}">✎</button>
-                <button class="v3d-pill" data-act="rm" data-i="${realIdx}">✕</button>
-              </li>`;
-          }).join('') || '<li style="color:var(--text-tertiary)">Prázdné</li>'}
-        </ul>
+              <div class="v3d-panel__item">
+                <div class="v3d-panel__item-main">
+                  <div class="v3d-panel__item-title">${escapeHtml(fmt(h.value, h.unit))}</div>
+                  <div class="v3d-panel__item-sub">${escapeHtml(h.label || KIND_CZ[h.kind] || h.kind)}</div>
+                </div>
+                <button class="v3d-panel__item-btn" data-act="rename" data-i="${realIdx}" title="Přejmenovat">✎</button>
+                <button class="v3d-panel__item-btn v3d-panel__item-btn--danger" data-act="rm" data-i="${realIdx}" title="Smazat">✕</button>
+              </div>`;
+          }).join('')}
+        ` : `
+          <div class="v3d-panel__empty">
+            <div class="v3d-panel__empty-icon">📏</div>
+            <p>Zatím žádná měření.<br>Zvolte režim a klikněte na „Začít měřit“.</p>
+          </div>
+        `}
       </div>
     `;
     this.host.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
@@ -65,6 +100,8 @@ export default class MeasurePanel {
     }));
     this.host.querySelectorAll('[data-snap]').forEach((b) => b.addEventListener('click', () => {
       b.classList.toggle('active');
+      if (b.classList.contains('active')) this._snaps.add(b.dataset.snap);
+      else this._snaps.delete(b.dataset.snap);
     }));
     this.host.querySelector('[data-role="start"]').addEventListener('click', () => this._start());
     this.host.querySelector('[data-role="stop"]').addEventListener('click', () => this._stop());
@@ -77,15 +114,28 @@ export default class MeasurePanel {
     return s;
   }
 
+  _setStatus(text, type = 'ok') {
+    const el = this.host.querySelector('[data-role="status"]');
+    if (!el) return;
+    el.innerHTML = text ? `<div class="v3d-panel__msg v3d-panel__msg--${type}">${escapeHtml(text)}</div>` : '';
+  }
+
   _start() {
     this._stop();
     const canvas = document.querySelector('#viewerContainer canvas');
-    if (!canvas) return;
+    if (!canvas) {
+      this._setStatus('Plátno vieweru nenalezeno — načtěte nejprve model.', 'warn');
+      return;
+    }
     const points = [];
-    const need = this._mode === 'distance' ? 2 : this._mode === 'angle' ? 3 : 3; // area = 3+
+    const need = this._mode === 'distance' ? 2 : 3; // area = 3+
 
-    const status = this.host.querySelector('[data-role="status"]');
-    status.textContent = `Klikněte ${need}+ bodů.`;
+    const instructions = {
+      distance: 'Klikněte 2 body v modelu.',
+      angle: 'Klikněte 3 body — vrchol úhlu jako druhý.',
+      area: 'Klikejte body obrysu (min. 3), dokončete dvojklikem.',
+    };
+    this._setStatus(instructions[this._mode] || `Klikněte ${need}+ bodů.`);
 
     const onMove = (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -104,14 +154,14 @@ export default class MeasurePanel {
       const enabled = this._enabledSnaps();
       const snap = this.engine.snapAt?.(x, y, { enabled, thresholdPx: 12, lastPoint: points[points.length - 1] });
       const pt = snap?.point || this.engine.raycastPoint(x, y);
-      if (!pt) { status.textContent = 'Mimo geometrii.'; return; }
+      if (!pt) { this._setStatus('Mimo geometrii — klikněte na model.', 'warn'); return; }
       const p = Array.isArray(pt) ? pt : [pt.x, pt.y, pt.z];
       points.push(p);
       this.engine.getMeasureVisuals?.()?.addInProgressPoint?.(p);
 
       if (this._mode === 'distance' && points.length === 2) this._finish(points);
       else if (this._mode === 'angle' && points.length === 3) this._finish(points);
-      else status.textContent = `${points.length}/${need}+ bodů. ${this._mode === 'area' ? 'Dokončete dvojklikem.' : ''}`;
+      else this._setStatus(`Bod ${points.length}/${need}${this._mode === 'area' ? '+ — dokončete dvojklikem.' : '.'}`);
     };
 
     const onDbl = () => {
@@ -136,25 +186,27 @@ export default class MeasurePanel {
     if (this._mode === 'distance') result = this.engine.measureDistance(points[0], points[1]);
     else if (this._mode === 'angle') result = this.engine.measureAngle(points[0], points[1], points[2]);
     else result = this.engine.measureArea(points);
+    const value = result?.value ?? result;
+    const unit = result?.unit ?? (this._mode === 'angle' ? '°' : this._mode === 'area' ? 'm²' : 'm');
     const hist = loadHist();
-    hist.push({ kind: this._mode, value: result?.value ?? result, unit: result?.unit ?? (this._mode === 'angle' ? '°' : this._mode === 'area' ? 'm²' : 'm'), points, label: '' });
+    hist.push({ kind: this._mode, value, unit, points, label: '' });
     saveHist(hist);
-    this.engine.getMeasureVisuals?.()?.addMeasurement?.({ kind: this._mode, points, value: result?.value ?? result });
+    this.engine.getMeasureVisuals?.()?.addMeasurement?.({ kind: this._mode, points, value });
     this._stop();
+    this._msg = { type: 'ok', text: `Naměřeno: ${KIND_CZ[this._mode] || this._mode} = ${fmt(value, unit)}` };
     this._render();
   }
 
   _stop() {
     if (this._cleanup) { this._cleanup(); this._cleanup = null; }
-    const status = this.host.querySelector('[data-role="status"]');
-    if (status) status.textContent = '';
+    this._setStatus('');
   }
 
   _histAction(act, i) {
     const hist = loadHist();
     if (act === 'rm') { hist.splice(i, 1); saveHist(hist); this._render(); }
-    else if (act === 'rename') { const n = prompt('Název:', hist[i].label || ''); if (n != null) { hist[i].label = n; saveHist(hist); this._render(); } }
-    else if (act === 'clear') { if (confirm('Smazat historii?')) { saveHist([]); this._render(); } }
+    else if (act === 'rename') { const n = prompt('Název měření:', hist[i].label || ''); if (n !== null) { hist[i].label = n; saveHist(hist); this._render(); } }
+    else if (act === 'clear') { if (confirm('Smazat celou historii měření?')) { saveHist([]); this._render(); } }
     else if (act === 'export-csv') exportCsv(hist);
     else if (act === 'export-json') exportJson(hist);
   }
@@ -166,7 +218,7 @@ function fmt(v, u) { const n = Number(v); return Number.isFinite(n) ? `${n.toFix
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function exportCsv(hist) {
   const safe = (s) => {
-    const v = String(s == null ? '' : s);
+    const v = String(s === null || s === undefined ? '' : s);
     return /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
   };
   const head = 'kind,label,value,unit,points\n';

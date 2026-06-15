@@ -22,7 +22,11 @@ export default class EntityDetailPanel {
     const sel = this.engine.getSelectedEntities?.() || this.ctx.selection || [];
     if (sel.length === 0) {
       this.titleEl.textContent = 'Detail prvku';
-      this.host.innerHTML = '<p class="v3d-panel__hint">Žádný vybraný prvek. Klikněte do scény.</p>';
+      this.host.innerHTML = `
+        <div class="v3d-panel__empty">
+          <div class="v3d-panel__empty-icon">👆</div>
+          <p>Žádný vybraný prvek.<br>Klikněte na prvek ve scéně.</p>
+        </div>`;
       return;
     }
     const first = sel[0];
@@ -35,6 +39,11 @@ export default class EntityDetailPanel {
     const guid = meta.guid || props?.guid || '';
 
     const blocks = [];
+
+    // Engine without property support → degrade with a warn note.
+    if (typeof this.engine.getProperties !== 'function') {
+      blocks.push('<div class="v3d-panel__msg v3d-panel__msg--warn">Engine neposkytuje vlastnosti prvků — zobrazuje se jen identita.</div>');
+    }
 
     // ── Identity ─────────────────────────────────────────────────────────
     blocks.push(`
@@ -53,7 +62,7 @@ export default class EntityDetailPanel {
     `);
 
     // ── Atributy (entity-level, excluding Name which is already in Identity) ─
-    const attrs = (props?.attributes || []).filter(a => a.name !== 'Name' && a.value != null);
+    const attrs = (props?.attributes || []).filter(a => a.name !== 'Name' && a.value !== null && a.value !== undefined);
     if (attrs.length > 0) {
       blocks.push(`
         <section class="v3d-ent-card">
@@ -85,6 +94,10 @@ export default class EntityDetailPanel {
           <div class="v3d-ent-card__body">${rowsHtml}</div>
         </section>
       `);
+    }
+
+    if (props && (props.propertySets || []).length === 0) {
+      blocks.push('<p class="v3d-panel__hint">Prvek nemá žádné property sety.</p>');
     }
 
     // ── Multi-select tail ───────────────────────────────────────────────

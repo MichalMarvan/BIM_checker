@@ -5,34 +5,58 @@ export default class SectionPanel {
     this.engine = engine;
     this.host = host;
     titleEl.textContent = 'Řez modelem';
+    this._msg = null; // jednorázová zpráva pro příští render
   }
 
   mount() { this._render(); }
 
   _render() {
     const planes = this.engine.getSectionPlanes?.() || [];
+    const activeAxes = new Set(planes.map(p => axisOf(p.normal)).filter(Boolean));
+    const msg = this._msg;
+    this._msg = null;
     this.host.innerHTML = `
-      <div class="v3d-panel__pills">
-        <button class="v3d-pill" data-axis="X">⊕ X</button>
-        <button class="v3d-pill" data-axis="Y">⊕ Y</button>
-        <button class="v3d-pill" data-axis="Z">⊕ Z</button>
-        <button class="v3d-pill" data-act="clear">Vyčistit</button>
+      <div class="v3d-panel__section">
+        <h4>Přidat rovinu řezu</h4>
+        <div class="v3d-panel__pills">
+          <button class="v3d-pill ${activeAxes.has('X') ? 'active' : ''}" data-axis="X" title="Rovina kolmá na osu X">⊕ Osa X</button>
+          <button class="v3d-pill ${activeAxes.has('Y') ? 'active' : ''}" data-axis="Y" title="Rovina kolmá na osu Y">⊕ Osa Y</button>
+          <button class="v3d-pill ${activeAxes.has('Z') ? 'active' : ''}" data-axis="Z" title="Rovina kolmá na osu Z">⊕ Osa Z</button>
+        </div>
+        <p class="v3d-panel__hint">Rovina vznikne ve středu scény, kolmo na zvolenou osu. Zvýrazněné osy už rovinu mají.</p>
       </div>
-      <p class="v3d-panel__hint">Nová rovina v aktuálním středu scény.</p>
-      <ul class="v3d-panel__list" style="margin-top:8px">
-        ${planes.map(p => `
-          <li>
-            <span style="flex:1">${escapeHtml(p.name || '#' + p.id)} <small style="color:var(--text-tertiary)">offset ${(p.offset ?? 0).toFixed(2)}</small></span>
-            <button class="v3d-pill" data-act="flip" data-id="${p.id}">↔</button>
-            <button class="v3d-pill" data-act="vis" data-id="${p.id}">${p.visible === false ? '◌' : '●'}</button>
-            <button class="v3d-pill" data-act="dxf" data-id="${p.id}">DXF</button>
-            <button class="v3d-pill" data-act="rm" data-id="${p.id}">✕</button>
-          </li>
-        `).join('') || '<li style="color:var(--text-tertiary)">Žádné roviny</li>'}
-      </ul>
+      <div data-role="status">${msg ? `<div class="v3d-panel__msg v3d-panel__msg--${msg.type}">${escapeHtml(msg.text)}</div>` : ''}</div>
+      <hr class="v3d-panel__divider" />
+      <div class="v3d-panel__section">
+        <h4>Roviny <span class="v3d-panel__badge">${planes.length}</span></h4>
+        ${planes.length === 0 ? `
+          <div class="v3d-panel__empty">
+            <div class="v3d-panel__empty-icon">✂️</div>
+            <p>Žádné roviny řezu.<br>Přidejte rovinu tlačítky výše.</p>
+          </div>
+        ` : `
+          ${planes.map(p => {
+            const axis = axisOf(p.normal);
+            const visible = p.visible !== false;
+            return `
+              <div class="v3d-panel__item">
+                <div class="v3d-panel__item-main">
+                  <div class="v3d-panel__item-title">${escapeHtml(p.name || '#' + p.id)}</div>
+                  <div class="v3d-panel__item-sub">${axis ? `osa ${axis} · ` : ''}offset ${(p.offset ?? 0).toFixed(2)} m${visible ? '' : ' · skrytá'}</div>
+                </div>
+                <button class="v3d-panel__item-btn" data-act="flip" data-id="${p.id}" title="Otočit směr řezu">↔</button>
+                <button class="v3d-panel__item-btn" data-act="vis" data-id="${p.id}" title="${visible ? 'Skrýt rovinu' : 'Zobrazit rovinu'}">${visible ? '●' : '◌'}</button>
+                <button class="v3d-panel__item-btn" data-act="dxf" data-id="${p.id}" title="Exportovat křivky řezu do DXF">⇣</button>
+                <button class="v3d-panel__item-btn v3d-panel__item-btn--danger" data-act="rm" data-id="${p.id}" title="Odebrat rovinu">✕</button>
+              </div>`;
+          }).join('')}
+          <button class="v3d-panel__btn v3d-panel__btn--sm v3d-panel__btn--danger" data-act="clear">✕ Odebrat všechny</button>
+          <p class="v3d-panel__hint">⇣ stáhne křivky řezu jako DXF.</p>
+        `}
+      </div>
     `;
     this.host.querySelectorAll('[data-axis]').forEach((b) => b.addEventListener('click', () => this._add(b.dataset.axis)));
-    this.host.querySelector('[data-act="clear"]').addEventListener('click', () => { this.engine.clearSectionPlanes?.(); this._render(); });
+    this.host.querySelector('[data-act="clear"]')?.addEventListener('click', () => { this.engine.clearSectionPlanes?.(); this._render(); });
     this.host.querySelectorAll('[data-act="flip"]').forEach((b) => b.addEventListener('click', () => { this.engine.updateSectionPlane?.(b.dataset.id, { flip: true }); this._render(); }));
     this.host.querySelectorAll('[data-act="vis"]').forEach((b) => b.addEventListener('click', () => {
       const p = (this.engine.getSectionPlanes() || []).find(x => x.id === b.dataset.id);
@@ -50,10 +74,23 @@ export default class SectionPanel {
     this._render();
   }
 
+  _setStatus(text, type) {
+    const el = this.host.querySelector('[data-role="status"]');
+    if (!el) return;
+    el.innerHTML = text ? `<div class="v3d-panel__msg v3d-panel__msg--${type}">${escapeHtml(text)}</div>` : '';
+  }
+
   async _exportDxf(planeId) {
+    if (typeof this.engine.computeSectionCurves !== 'function') {
+      this._setStatus('Výpočet křivek řezu není v tomto prostředí dostupný.', 'warn');
+      return;
+    }
     try {
-      const curves = this.engine.computeSectionCurves?.(planeId);
-      if (!curves || curves.length === 0) { alert('Žádné křivky pro tuto rovinu.'); return; }
+      const curves = this.engine.computeSectionCurves(planeId);
+      if (!curves || curves.length === 0) {
+        this._setStatus('Žádné křivky pro tuto rovinu — rovina nejspíš neprotíná geometrii.', 'warn');
+        return;
+      }
       const dxf = curvesToDxf(curves);
       const blob = new Blob([dxf], { type: 'application/dxf' });
       const a = document.createElement('a');
@@ -61,12 +98,30 @@ export default class SectionPanel {
       a.download = `section-${planeId}.dxf`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      this._setStatus(`DXF staženo (${curves.length} ${plural(curves.length, 'křivka', 'křivky', 'křivek')}).`, 'ok');
     } catch (e) {
-      console.error(e); alert('Export DXF selhal: ' + e.message);
+      console.error(e);
+      this._setStatus(`Export DXF selhal: ${e.message}`, 'err');
     }
   }
 
   destroy() {}
+}
+
+/** Vrátí 'X' | 'Y' | 'Z', pokud je normála zarovnaná s osou, jinak null. */
+function axisOf(normal) {
+  if (!Array.isArray(normal) || normal.length < 3) return null;
+  const [x, y, z] = normal.map(Math.abs);
+  if (x > 0.99 && y < 0.01 && z < 0.01) return 'X';
+  if (y > 0.99 && x < 0.01 && z < 0.01) return 'Y';
+  if (z > 0.99 && x < 0.01 && y < 0.01) return 'Z';
+  return null;
+}
+
+function plural(n, one, few, many) {
+  if (n === 1) return one;
+  if (n >= 2 && n <= 4) return few;
+  return many;
 }
 
 function curvesToDxf(curves) {

@@ -62,7 +62,7 @@ export default class ViewpointsPanel {
     const vp = {
       name,
       created: new Date().toISOString(),
-      camera: this.engine.getCameraState(),
+      camera: this.engine.getCameraState?.() || null,
       hidden: this.engine.getHiddenEntityIds() || [],
       opacity: this.engine.getOpacityEntries() || [],
       highlights: this.engine.getHighlightedIds() || [],

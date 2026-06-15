@@ -81,10 +81,30 @@ function buildEntityList(viewer, predicate) {
   // Group meshes by entity (modelId, expressId) — one entity may have
   // multiple meshes (multiple representations).
   const entities = new Map(); // key → { modelId, expressId, ifcType, meshes, bbox }
-  for (const { meshes } of viewer._models.values()) {
+  for (const [modelId, m] of viewer._models) {
+    if (m.merged) {
+      // Merged model: per-element world bboxes from the element table.
+      // No per-element meshes exist, so the 'mesh' narrow phase falls back
+      // to bbox results for these entries (see detectClashes guard).
+      const boxes = typeof viewer._mergedElementBoxes === 'function'
+        ? viewer._mergedElementBoxes(m)
+        : new Map();
+      for (const [expressId, bbox] of boxes) {
+        const info = m.elementInfo && m.elementInfo.get(expressId);
+        entities.set(entityKey(modelId, expressId), {
+          modelId,
+          expressId,
+          ifcType: info ? info.ifcType : null,
+          meshes: [],
+          bbox: bbox.clone(),
+        });
+      }
+      continue;
+    }
+    const meshes = m.meshes;
     for (const mesh of meshes) {
       const ud = mesh.userData;
-      if (!ud?.modelId || ud.expressId == null) continue;
+      if (!ud?.modelId || ud.expressId === null || ud.expressId === undefined) continue;
       const key = entityKey(ud.modelId, ud.expressId);
       let entry = entities.get(key);
       if (!entry) {
@@ -214,8 +234,9 @@ export async function detectClashes(viewer, opts) {
 
     if (!isHard && !isClearance && !isDuplicate) continue;
 
-    // Mesh narrow-phase for hard: refine bbox-positive into actual triangle test
-    if (isHard && method === 'mesh') {
+    // Mesh narrow-phase for hard: refine bbox-positive into actual triangle test.
+    // Merged-model entries carry no per-element meshes — keep the bbox verdict.
+    if (isHard && method === 'mesh' && a.meshes.length > 0 && b.meshes.length > 0) {
       let actualHit = false;
       try {
         outer: for (const mA of a.meshes) {
