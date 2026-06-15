@@ -186,6 +186,12 @@ body[data-page="viewer3d"] {
     position: relative;
 }
 .v3d-tool:last-child { border-right: none; }
+/* Tools can be temporarily hidden via the `hidden` attribute in the markup
+   (re-enable a tool by removing it). A class rule would otherwise win over
+   the UA [hidden] rule because .v3d-tool sets display. Groups with no visible
+   tool collapse so no empty pill is left behind. */
+.v3d-tool[hidden] { display: none !important; }
+.v3d-toolbar__group:not(:has(.v3d-tool:not([hidden]))) { display: none; }
 .v3d-tool:hover { background: rgba(102, 126, 234, 0.1); color: var(--primary-color); }
 .v3d-tool.active { background: rgba(102, 126, 234, 0.16); color: var(--primary-color); }
 .v3d-tool.is-disabled { opacity: 0.5; cursor: not-allowed; }
