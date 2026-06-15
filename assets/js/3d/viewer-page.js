@@ -819,6 +819,19 @@ function wireSelectionInteractions(engine, canvas) {
     let lastWheel = 0;
     const BOX = document.getElementById('v3dBoxSelect');
 
+    // Open the section ("clip") panel on demand — used when the user clicks a
+    // plane handle while the panel is closed. No-op if it is already open
+    // (otherwise togglePanel would close it).
+    async function openSectionPanel() {
+        const [{ togglePanel, getActiveTool }, panels] = await Promise.all([
+            import('./ui/panel-manager.js'),
+            import('./panels/index.js'),
+        ]);
+        if (getActiveTool() === 'clip') return;
+        panels.ensureRegistered();
+        await togglePanel('clip', engine, { state, t, setStatus });
+    }
+
     // Wheel zoom moves the camera — don't pay for hover raycasts mid-gesture
     canvas.addEventListener('wheel', () => { lastWheel = performance.now(); }, { passive: true });
 
@@ -873,6 +886,16 @@ function wireSelectionInteractions(engine, canvas) {
             const mode = e.ctrlKey || e.metaKey ? 'add' : 'replace';
             engine.selectEntities(items, mode);
         } else if (!wasDrag) {
+            // Clicking a section plane's scissors handle reopens its panel
+            // (so you can tweak a plane after closing the panel). Small target
+            // → it never hijacks selection of elements behind the plane quad.
+            const planeHit = engine.pickSectionPlaneAt?.(e.clientX, e.clientY);
+            if (planeHit) {
+                openSectionPanel();
+                BOX.hidden = true;
+                dragStart = null;
+                return;
+            }
             // Click: single pick
             const hit = engine.pickEntity(e.clientX, e.clientY);
             if (!hit) {

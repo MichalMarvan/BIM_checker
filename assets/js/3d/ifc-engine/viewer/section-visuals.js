@@ -7,6 +7,37 @@ const FACE_COLOR = 0x4facfe;
 const FACE_OPACITY = 0.12;
 const EDGE_COLOR = 0x4facfe;
 const VISUAL_RENDER_ORDER = 100;
+const HANDLE_COUNT = 6;          // matches the 6 face placeholders
+
+/**
+ * Canvas texture: a filled disc with a scissors glyph — the drag grip drawn
+ * at each section plane's centre. depthTest is disabled on the material so it
+ * reads as a gizmo floating over the geometry.
+ */
+function makeScissorsTexture() {
+  const S = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d');
+  const r = S / 2;
+  // Disc
+  ctx.beginPath();
+  ctx.arc(r, r, r - 6, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.96)';
+  ctx.fill();
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = '#2563eb';
+  ctx.stroke();
+  // Scissors glyph
+  ctx.fillStyle = '#1e293b';
+  ctx.font = `${Math.round(S * 0.56)}px "Segoe UI Symbol", "Noto Sans Symbols2", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('✂', r, r + 4);
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  return tex;
+}
 
 export class SectionVisuals {
   constructor(scene) {
@@ -16,10 +47,32 @@ export class SectionVisuals {
     this._scene.add(this._group);
     this._visible = false;
     this._faces = [];
+    this._handles = [];
     this._wire = null;
     this._buildPlaceholder();
+    this._buildHandles();
     this._ghost = null;  // ghost preview mesh, lazy
     this.hide();
+  }
+
+  /** Build the scissors drag-grip discs (one per face placeholder). */
+  _buildHandles() {
+    const tex = makeScissorsTexture();
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      depthTest: false,    // gizmo: always visible / grabbable, even behind geometry
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    for (let i = 0; i < HANDLE_COUNT; i++) {
+      const h = new THREE.Mesh(new THREE.CircleGeometry(1, 48), mat.clone());
+      h.renderOrder = VISUAL_RENDER_ORDER + 3;  // over faces, wire and ghost
+      h.visible = false;
+      h.userData = { sectionHandle: true };
+      this._handles.push(h);
+      this._group.add(h);
+    }
   }
 
   _ensureGhost() {
@@ -186,12 +239,15 @@ export class SectionVisuals {
   showMultiPlanes(planes, size = 50) {
     this._wire.visible = false;
     const SIZE = size;
+    const HANDLE_R = Math.max(0.6, SIZE * 0.1);   // grip disc radius (world units)
     const THREE_NS = this._faces[0].position.constructor; // Vector3 from Three.js
     for (let i = 0; i < this._faces.length; i++) {
       const f = this._faces[i];
+      const h = this._handles[i];
       const entry = planes[i];
       if (!entry) {
         f.visible = false;
+        if (h) h.visible = false;
         continue;
       }
       const p = new THREE_NS(...entry.point);
@@ -202,10 +258,20 @@ export class SectionVisuals {
       f.position.copy(pos);
       f.lookAt(pos.clone().add(n));
       f.visible = true;
-      // Tag for drag picking — the section panel raycasts these quads to
-      // grab and slide a plane along its normal.
+      // The quad is a passive indicator only (it must NOT capture drags, or it
+      // would steal orbit over its whole 25 m span). Drag/click grabs the
+      // scissors handle instead — so don't tag the face as a pick target.
       f.userData.sectionPlaneId = entry.id;
-      f.userData.sectionFace = true;
+      f.userData.sectionFace = false;
+      // Scissors grip at the plane centre — the single drag/click target.
+      if (h) {
+        h.scale.set(HANDLE_R, HANDLE_R, 1);
+        h.position.copy(pos);
+        h.lookAt(pos.clone().add(n));
+        h.visible = true;
+        h.userData.sectionPlaneId = entry.id;
+        h.userData.sectionHandle = true;
+      }
     }
     this._group.visible = true;
     this._visible = true;
@@ -220,6 +286,11 @@ export class SectionVisuals {
     for (const f of this._faces) {
       f.geometry.dispose();
       f.material.dispose();
+    }
+    for (const h of this._handles) {
+      h.geometry.dispose();
+      if (h.material.map) h.material.map.dispose();
+      h.material.dispose();
     }
     this._wire.geometry.dispose();
     this._wire.material.dispose();

@@ -51,10 +51,8 @@ export default class SectionPanel {
       if (dragId === null) return;
       const [x, y] = xy(e);
       const off = this.engine.dragSectionPlaneTo?.(dragId, x, y);
-      const slider = this.host.querySelector(`[data-off="${dragId}"]`);
-      if (slider && Number.isFinite(off)) {
-        slider.value = String(off);
-        const sub = slider.closest('.v3d-panel__item')?.querySelector('.v3d-panel__item-sub');
+      if (Number.isFinite(off)) {
+        const sub = this.host.querySelector(`.v3d-panel__item[data-plane="${dragId}"] .v3d-panel__item-sub`);
         if (sub) sub.textContent = `offset ${off.toFixed(2)} m`;
       }
       e.preventDefault(); e.stopPropagation();
@@ -105,7 +103,7 @@ export default class SectionPanel {
           ${planes.map((p) => {
             const visible = p.visible !== false;
             return `
-              <div class="v3d-panel__item" style="flex-wrap:wrap">
+              <div class="v3d-panel__item" data-plane="${p.id}">
                 <div class="v3d-panel__item-main">
                   <div class="v3d-panel__item-title">${escapeHtml(p.name || '#' + p.id)}</div>
                   <div class="v3d-panel__item-sub">offset ${(p.offset ?? 0).toFixed(2)} m${visible ? '' : ' · skrytá'}</div>
@@ -114,12 +112,10 @@ export default class SectionPanel {
                 <button class="v3d-panel__item-btn" data-act="vis" data-id="${p.id}" title="${visible ? 'Skrýt rovinu' : 'Zobrazit rovinu'}">${visible ? '●' : '◌'}</button>
                 <button class="v3d-panel__item-btn" data-act="dxf" data-id="${p.id}" title="Exportovat křivky řezu do DXF">⇣</button>
                 <button class="v3d-panel__item-btn v3d-panel__item-btn--danger" data-act="rm" data-id="${p.id}" title="Odebrat rovinu">✕</button>
-                <input class="v3d-section-offset" type="range" min="-60" max="60" step="0.01" value="${p.offset ?? 0}" data-off="${p.id}"
-                       title="Posun roviny podél normály" style="flex:1 1 100%;margin-top:6px;accent-color:var(--primary-color)">
               </div>`;
           }).join('')}
           <button class="v3d-panel__btn v3d-panel__btn--sm v3d-panel__btn--danger" data-act="clear">✕ Odebrat všechny</button>
-          <p class="v3d-panel__hint">Posuvník posouvá rovinu podél normály. ⇣ stáhne křivky řezu jako DXF.</p>
+          <p class="v3d-panel__hint">Táhni za rukojeť ✂ uprostřed roviny pro posun řezu. ⇣ stáhne křivky řezu jako DXF.</p>
         `}
       </div>
     `;
@@ -135,12 +131,6 @@ export default class SectionPanel {
     }));
     this.host.querySelectorAll('[data-act="rm"]').forEach((b) => b.addEventListener('click', () => { this.engine.removeSectionPlane?.(b.dataset.id); this._render(); }));
     this.host.querySelectorAll('[data-act="dxf"]').forEach((b) => b.addEventListener('click', () => this._exportDxf(b.dataset.id)));
-    // Offset sliders — live update without a full re-render (keeps the thumb grabbed)
-    this.host.querySelectorAll('[data-off]').forEach((s) => s.addEventListener('input', () => {
-      this.engine.updateSectionPlane?.(s.dataset.off, { offset: parseFloat(s.value) });
-      const sub = s.closest('.v3d-panel__item')?.querySelector('.v3d-panel__item-sub');
-      if (sub) sub.textContent = `offset ${parseFloat(s.value).toFixed(2)} m`;
-    }));
   }
 
   _toggleMode(mode) {

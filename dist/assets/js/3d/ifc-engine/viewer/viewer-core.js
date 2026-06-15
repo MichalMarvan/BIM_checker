@@ -2153,7 +2153,13 @@ export class ViewerCore {
     if (typeof opts.visible === 'boolean') e.visible = opts.visible;
     if (typeof opts.name === 'string') e.name = opts.name;
     if (opts.flip === true) {
+      // Flip reverses which half-space is kept, but the plane must stay put.
+      // The offset is measured along the normal (plane sits at point+n*offset);
+      // negating the normal alone would move the plane by 2*offset to the
+      // other side. Negate the offset too so the geometry stays in place and
+      // only the cut direction reverses.
       e.normal = [-e.normal[0], -e.normal[1], -e.normal[2]];
+      e.offset = -e.offset;
     }
     e.plane = this._buildPlane(e.point, e.normal, e.offset);
     this._refreshSectionPlanes();
@@ -2183,8 +2189,10 @@ export class ViewerCore {
   setOrbitEnabled(on) { if (this._controls) this._controls.enabled = !!on; }
 
   /**
-   * Raycast the section-plane preview quads under the cursor.
-   * @returns {{ id }|null} the plane whose visual was hit
+   * Raycast the scissors handle discs under the cursor. The big plane quad is
+   * intentionally not a pick target (it would hijack orbit across its whole
+   * span) — drag and click-to-reopen both grab the centre handle.
+   * @returns {{ id }|null} the plane whose handle was hit
    */
   pickSectionPlaneAt(clientX, clientY) {
     const vis = this._sectionVisuals;
@@ -2196,8 +2204,8 @@ export class ViewerCore {
     );
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this._camera);
-    const faces = vis._group.children.filter(o => o.visible && o.userData && o.userData.sectionFace);
-    const hits = ray.intersectObjects(faces, false);
+    const handles = vis._group.children.filter(o => o.visible && o.userData && o.userData.sectionHandle);
+    const hits = ray.intersectObjects(handles, false);
     return hits.length ? { id: hits[0].object.userData.sectionPlaneId } : null;
   }
 
@@ -2293,6 +2301,18 @@ export class ViewerCore {
     const triCount = indexAttr ? indexAttr.count / 3 : positionAttr.count / 3;
     if (!hit.face || !hit.face.normal) return [];
 
+    // For merged models, restrict the coplanar scan to the hovered element's
+    // triangle range. Scanning every triangle (120k+ on a single bridge) costs
+    // ~50 ms per hover (the preview lags badly and feels like it won't snap)
+    // and bleeds the highlight across coplanar triangles of unrelated elements.
+    // The element's range from the merge table is small and exact.
+    let triStart = 0, triEnd = triCount;
+    const mud = mesh.userData;
+    if (mud && mud.merged && mud.mergedTable && hit.faceIndex !== null && hit.faceIndex !== undefined) {
+      const row = resolveMergedFace(mud.mergedTable, hit.faceIndex);
+      if (row) { triStart = row.triStart; triEnd = row.triStart + row.triCount; }
+    }
+
     mesh.updateMatrixWorld();
     const matrix = mesh.matrixWorld;
 
@@ -2313,7 +2333,7 @@ export class ViewerCore {
     const triNormal = new THREE.Vector3();
     const e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
 
-    for (let t = 0; t < triCount; t++) {
+    for (let t = triStart; t < triEnd; t++) {
       let ia, ib, ic;
       if (indexAttr) {
         ia = indexAttr.getX(t * 3);
@@ -2362,13 +2382,30 @@ export class ViewerCore {
   }
 
   _applyPlanesToAllMeshes(planes) {
-    for (const { meshes } of this._models.values()) {
-      for (const mesh of meshes) {
+    for (const model of this._models.values()) {
+      for (const mesh of model.meshes) {
         mesh.material.clippingPlanes = planes;
         mesh.material.clipShadows = planes.length > 0;
         mesh.material.needsUpdate = true;
+        // Legacy per-mesh edge outline (lazy) — clip it with the same planes.
+        const eo = mesh.userData?.edges;
+        if (eo && eo.material) this._setLineClip(eo.material, planes);
+      }
+      // Feature-edge outlines (Trimble-style topology lines) are separate
+      // LineSegments — without clipping they keep floating where the solid
+      // has been cut away. Clip them by the same planes so the edges of the
+      // removed half disappear with the fill.
+      for (const edges of model.featureEdges || []) {
+        if (edges && edges.material) this._setLineClip(edges.material, planes);
       }
     }
+  }
+
+  /** Apply clipping planes to a line material, recompiling only on count change. */
+  _setLineClip(material, planes) {
+    const prev = material.clippingPlanes ? material.clippingPlanes.length : 0;
+    material.clippingPlanes = planes;
+    if (prev !== planes.length) material.needsUpdate = true;  // (de)activate clip path
   }
 
   _ensureVisuals() {
