@@ -272,41 +272,24 @@ function plural(n, one, few, many) {
  * zero-length segments.
  */
 async function buildDxf(curves, plane) {
-  const project = makeProjector(plane);
-  const layerName = (c) => {
-    const type = String(c.ifcType || 'IFC');
-    return c._layer ? `${c._layer} (${type})` : type;
-  };
-  // Project + dedupe each loop → { layer, rgb, closed, pts:[{x,y}] }
-  const shapes = [];
-  const layerColor = new Map();
-  for (const c of curves) {
-    const layer = cleanName(layerName(c));
-    const rgb = (c.color ?? 0x808080) & 0xffffff;
-    if (!layerColor.has(layer)) layerColor.set(layer, rgb);
-    const dz = c._dz || 0;
-    for (const loop of (c.loops || [])) {
-      const src = loop.points || [];
-      const pts = [];
-      let prev = null;
-      for (const p of src) {
-        const raw = Array.isArray(p) ? p : [p.x, p.y, p.z];
-        const [x, y] = project(raw, dz);
-        if (prev && Math.hypot(x - prev[0], y - prev[1]) < 1e-4) continue; // drop micro-segments
-        pts.push([x, y]); prev = [x, y];
-      }
-      if (pts.length >= 2) shapes.push({ layer, rgb, closed: !!loop.closed, pts });
-    }
-  }
+  const { shapes, layerColor } = cleanShapes(curves, plane);
   if (shapes.length === 0) return null;
 
   try {
     const m = await import('https://esm.sh/@tarikjabiri/dxf@2.6.2');
     const { DxfWriter, LWPolylineFlags, TrueColor } = m;
     const d = new DxfWriter();
+    // CRITICAL: pass an ACI *integer* to addLayer, never a TrueColor object.
+    // The library writes the colour straight into LAYER group code 62, which
+    // is the AutoCAD Color Index and is only legal in -256..256. A TrueColor
+    // there becomes a 24-bit RGB (e.g. 8750469) → out of range → AutoCAD
+    // rejects the whole DXFIN ("press Enter", nothing imports). Lenient
+    // readers (Rhino, ezdxf) silently tolerate it, which masked the bug.
     for (const [layer, rgb] of layerColor) {
-      d.addLayer(layer, TrueColor.fromHex(rgb.toString(16).padStart(6, '0')), 'Continuous');
+      d.addLayer(layer, rgbToAci(rgb), 'Continuous');
     }
+    // Entities carry the *exact* element colour via true colour (group 420),
+    // which AutoCAD accepts on entities — so the cut keeps real RGB fidelity.
     for (const s of shapes) {
       d.addLWPolyline(
         s.pts.map(([x, y]) => ({ point: { x, y } })),
@@ -317,63 +300,89 @@ async function buildDxf(curves, plane) {
     return d.stringify().replace(/\r?\n/g, '\r\n');
   } catch (e) {
     console.warn('[section] DXF library unavailable, using built-in R12 writer:', e.message);
-    return curvesToDxf(curves, plane);
+    return shapesToDxfR12(shapes, layerColor);
   }
 }
 
-/** Keep unicode/spaces/parens (AC1021 is UTF-8); strip only forbidden chars. */
-function cleanName(s) {
-  return (String(s).replace(/[<>/\\":;?*|,='`]/g, '_').trim() || 'IFC').slice(0, 240);
-}
-
 /**
- * Build a complete AutoCAD R12 (AC1009) DXF from 3D section curves.
- *
- * R12 is the most universally importable DXF flavour: it needs no handles,
- * BLOCK_RECORD/CLASSES/OBJECTS sections, but it DOES require a HEADER
- * ($ACADVER) and a TABLES section where every referenced linetype
- * (CONTINUOUS) is actually defined — omitting those is what made AutoCAD
- * abort the import. R12 has no true-colour, so colours are AutoCAD Color
- * Index (62), and layer names are ASCII (diacritics transliterated) since
- * pre-2007 DXF is codepage-encoded, not UTF-8.
- *
- * Coordinates: the cut is flattened into the drawing XY plane.
- *  • vertical-ish cut → elevation view: X = signed horizontal distance within
- *    the cut plane (≈0-centred), Y = the point's authored IFC Z (real
- *    elevation), so the drawing reads upright with true heights on Y.
- *  • horizontal cut → plan view: X/Y = the two ground axes.
- * Layer = "hladina (IFCTYPE)"; colour = the cut element's own colour.
+ * Project every loop to 2D and discard degenerate geometry that makes
+ * AutoCAD abort the import (Rhino merely skips it): dedupe consecutive
+ * vertices within 1 mm, drop loops with < 2 distinct vertices or a total
+ * length under 1 mm. Returns clean shapes + a layer→colour map, shared by
+ * both the library and the R12 fallback writers.
  */
-function curvesToDxf(curves, plane) {
+function cleanShapes(curves, plane) {
   const project = makeProjector(plane);
-
   const layerName = (c) => {
     const type = String(c.ifcType || 'IFC');
-    return sanitizeLayer(c._layer ? `${c._layer} (${type})` : type);
+    return cleanName(c._layer ? `${c._layer} (${type})` : type);
   };
-
-  // Pass 1: project every loop, collect layers + drawing bounds.
-  const polylines = []; // { layer, aci, closed, pts:[[X,Y],...] }
-  const layers = new Map(); // name → aci
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const DEDUP = 1e-3;   // 1 mm
+  const shapes = [];
+  const layerColor = new Map();
   for (const c of curves) {
     const layer = layerName(c);
-    const aci = rgbToAci((c.color ?? 0x808080) & 0xffffff);
-    if (!layers.has(layer)) layers.set(layer, aci);
+    const rgb = (c.color ?? 0x808080) & 0xffffff;
     const dz = c._dz || 0;
     for (const loop of (c.loops || [])) {
       const src = loop.points || [];
-      if (src.length < 2) continue;
       const pts = [];
+      let prev = null;
+      let length = 0;
       for (const p of src) {
         const raw = Array.isArray(p) ? p : [p.x, p.y, p.z];
-        const [X, Y] = project(raw, dz);
-        pts.push([X, Y]);
-        if (X < minX) minX = X; if (X > maxX) maxX = X;
-        if (Y < minY) minY = Y; if (Y > maxY) maxY = Y;
+        const [x, y] = project(raw, dz);
+        if (prev) {
+          const d = Math.hypot(x - prev[0], y - prev[1]);
+          if (d < DEDUP) continue;   // merge coincident / sub-mm vertices
+          length += d;
+        }
+        pts.push([x, y]); prev = [x, y];
       }
-      polylines.push({ layer, aci, closed: !!loop.closed, pts });
+      if (pts.length < 2 || length < DEDUP) continue;   // skip degenerate slivers
+      if (!layerColor.has(layer)) layerColor.set(layer, rgb);
+      shapes.push({ layer, rgb, closed: !!loop.closed && pts.length >= 3, pts });
     }
+  }
+  return { shapes, layerColor };
+}
+
+/**
+ * AutoCAD-bulletproof layer name: transliterate diacritics, collapse every
+ * non [A-Za-z0-9_-] character (spaces, parens, …) to '_', cap the length.
+ * AutoCAD rejects/“repairs” names with spaces, parens or non-ASCII bytes
+ * on import even in newer DXF versions — keeping names plain ASCII avoids it.
+ */
+function cleanName(s) {
+  const ascii = String(s).replace(/[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/g, (c) => DIACRITICS[c] || c);
+  const safe = ascii.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+  return (safe || 'IFC').slice(0, 80);
+}
+
+/**
+ * Offline fallback writer: a complete AutoCAD R12 (AC1009) DXF from the
+ * already-cleaned 2D shapes (same degenerate-free geometry the library path
+ * uses). R12 needs a HEADER ($ACADVER) and a TABLES section where every
+ * referenced linetype (CONTINUOUS) is defined; colours are AutoCAD Color
+ * Index (62) and layer names ASCII (R12 is codepage, not UTF-8).
+ */
+function shapesToDxfR12(shapes, layerColor) {
+  // ASCII-safe layer names + ACI colours for R12.
+  const layers = new Map(); // r12 name → aci
+  const r12Name = new Map(); // original → r12 name
+  for (const [name, rgb] of layerColor) {
+    const safe = sanitizeLayer(name);
+    r12Name.set(name, safe);
+    if (!layers.has(safe)) layers.set(safe, rgbToAci(rgb));
+  }
+  const polylines = [];
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const s of shapes) {
+    for (const [X, Y] of s.pts) {
+      if (X < minX) minX = X; if (X > maxX) maxX = X;
+      if (Y < minY) minY = Y; if (Y > maxY) maxY = Y;
+    }
+    polylines.push({ layer: r12Name.get(s.layer) || sanitizeLayer(s.layer), aci: rgbToAci(s.rgb), closed: s.closed, pts: s.pts });
   }
   if (!Number.isFinite(minX)) { minX = minY = 0; maxX = maxY = 1; }
 
