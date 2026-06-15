@@ -263,70 +263,104 @@ function plural(n, one, few, many) {
 }
 
 /**
- * Build a 2D DXF (mm-agnostic model units) from 3D section curves.
+ * Build a complete AutoCAD R12 (AC1009) DXF from 3D section curves.
+ *
+ * R12 is the most universally importable DXF flavour: it needs no handles,
+ * BLOCK_RECORD/CLASSES/OBJECTS sections, but it DOES require a HEADER
+ * ($ACADVER) and a TABLES section where every referenced linetype
+ * (CONTINUOUS) is actually defined — omitting those is what made AutoCAD
+ * abort the import. R12 has no true-colour, so colours are AutoCAD Color
+ * Index (62), and layer names are ASCII (diacritics transliterated) since
+ * pre-2007 DXF is codepage-encoded, not UTF-8.
  *
  * Coordinates: the cut is flattened into the drawing XY plane.
- *  • vertical-ish cut → elevation view: DXF X = signed horizontal distance
- *    within the cut plane (centred near 0), DXF Y = the point's height (the
- *    real Z of the cut) so the drawing reads upright with elevations on Y.
- *  • horizontal cut → plan view: DXF X/Y = the two ground axes, relative to
- *    the plane origin.
- * Layers (DXF code 8) = IFC type, so types stay on separate layers; a LAYER
- * table is emitted so CAD apps show them with distinct colours.
+ *  • vertical-ish cut → elevation view: X = signed horizontal distance within
+ *    the cut plane (≈0-centred), Y = the point's authored IFC Z (real
+ *    elevation), so the drawing reads upright with true heights on Y.
+ *  • horizontal cut → plan view: X/Y = the two ground axes.
+ * Layer = "hladina (IFCTYPE)"; colour = the cut element's own colour.
  */
 function curvesToDxf(curves, plane) {
   const project = makeProjector(plane);
 
-  // Layer name = "hladina (IFCTYPE)"; colour from the cut element's own
-  // display colour (true RGB). Build the LAYER table first.
   const layerName = (c) => {
     const type = String(c.ifcType || 'IFC');
     return sanitizeLayer(c._layer ? `${c._layer} (${type})` : type);
   };
-  const layers = new Map(); // name → rgb
-  for (const c of curves) {
-    const name = layerName(c);
-    if (!layers.has(name)) layers.set(name, c.color ?? 0x808080);
-  }
 
-  const head = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(layers.size)];
-  for (const [name, rgb] of layers) {
-    head.push('0', 'LAYER', '2', name, '70', '0', '62', String(rgbToAci(rgb)), '420', String(rgb & 0xffffff), '6', 'CONTINUOUS');
-  }
-  head.push('0', 'ENDTAB', '0', 'ENDSEC');
-
-  const ents = ['0', 'SECTION', '2', 'ENTITIES'];
+  // Pass 1: project every loop, collect layers + drawing bounds.
+  const polylines = []; // { layer, aci, closed, pts:[[X,Y],...] }
+  const layers = new Map(); // name → aci
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const c of curves) {
     const layer = layerName(c);
-    const rgb = (c.color ?? 0x808080) & 0xffffff;
+    const aci = rgbToAci((c.color ?? 0x808080) & 0xffffff);
+    if (!layers.has(layer)) layers.set(layer, aci);
     const dz = c._dz || 0;
     for (const loop of (c.loops || [])) {
-      const pts = loop.points || [];
-      if (pts.length < 2) continue;
-      // Per-entity true colour (420) so lines carry the cut element's colour.
-      ents.push('0', 'POLYLINE', '8', layer, '62', String(rgbToAci(rgb)), '420', String(rgb), '66', '1', '70', loop.closed ? '1' : '0', '10', '0', '20', '0', '30', '0');
-      for (const p of pts) {
+      const src = loop.points || [];
+      if (src.length < 2) continue;
+      const pts = [];
+      for (const p of src) {
         const raw = Array.isArray(p) ? p : [p.x, p.y, p.z];
         const [X, Y] = project(raw, dz);
-        ents.push('0', 'VERTEX', '8', layer, '10', fmtNum(X), '20', fmtNum(Y), '30', '0');
+        pts.push([X, Y]);
+        if (X < minX) minX = X; if (X > maxX) maxX = X;
+        if (Y < minY) minY = Y; if (Y > maxY) maxY = Y;
       }
-      ents.push('0', 'SEQEND');
+      polylines.push({ layer, aci, closed: !!loop.closed, pts });
     }
   }
-  ents.push('0', 'ENDSEC', '0', 'EOF');
-  return head.concat(ents).join('\n');
+  if (!Number.isFinite(minX)) { minX = minY = 0; maxX = maxY = 1; }
+
+  const out = [];
+  const w = (code, val) => { out.push(String(code), String(val)); };
+
+  // HEADER
+  w(0, 'SECTION'); w(2, 'HEADER');
+  w(9, '$ACADVER'); w(1, 'AC1009');
+  w(9, '$INSBASE'); w(10, '0.0'); w(20, '0.0'); w(30, '0.0');
+  w(9, '$EXTMIN'); w(10, fmtNum(minX)); w(20, fmtNum(minY)); w(30, '0.0');
+  w(9, '$EXTMAX'); w(10, fmtNum(maxX)); w(20, fmtNum(maxY)); w(30, '0.0');
+  w(0, 'ENDSEC');
+
+  // TABLES — LTYPE (define CONTINUOUS) + LAYER
+  w(0, 'SECTION'); w(2, 'TABLES');
+  w(0, 'TABLE'); w(2, 'LTYPE'); w(70, 1);
+  w(0, 'LTYPE'); w(2, 'CONTINUOUS'); w(70, 0); w(3, 'Solid line'); w(72, 65); w(73, 0); w(40, '0.0');
+  w(0, 'ENDTAB');
+  w(0, 'TABLE'); w(2, 'LAYER'); w(70, layers.size);
+  for (const [name, aci] of layers) {
+    w(0, 'LAYER'); w(2, name); w(70, 0); w(62, aci); w(6, 'CONTINUOUS');
+  }
+  w(0, 'ENDTAB');
+  w(0, 'ENDSEC');
+
+  // ENTITIES — old-style POLYLINE / VERTEX / SEQEND (R12)
+  w(0, 'SECTION'); w(2, 'ENTITIES');
+  for (const pl of polylines) {
+    w(0, 'POLYLINE'); w(8, pl.layer); w(62, pl.aci); w(66, 1); w(70, pl.closed ? 1 : 0);
+    w(10, '0.0'); w(20, '0.0'); w(30, '0.0');
+    for (const [X, Y] of pl.pts) {
+      w(0, 'VERTEX'); w(8, pl.layer); w(10, fmtNum(X)); w(20, fmtNum(Y)); w(30, '0.0');
+    }
+    w(0, 'SEQEND'); w(8, pl.layer);
+  }
+  w(0, 'ENDSEC');
+  w(0, 'EOF');
+  return out.join('\n');
 }
 
-/** Crude 24-bit RGB → nearest AutoCAD Color Index (fallback for old CAD). */
+/** 24-bit RGB → nearest AutoCAD Color Index over the 9 standard colours. */
 function rgbToAci(rgb) {
   const r = (rgb >> 16) & 255, g = (rgb >> 8) & 255, b = rgb & 255;
-  if (r > 200 && g > 200 && b > 200) return 7;   // white/light → 7
-  if (r > 180 && g < 80 && b < 80) return 1;       // red
-  if (r < 80 && g > 180 && b < 80) return 3;       // green
-  if (r < 80 && g < 80 && b > 180) return 5;       // blue
-  if (r > 180 && g > 180 && b < 80) return 2;       // yellow
-  if (r > 180 && g < 80 && b > 180) return 6;       // magenta
-  if (r < 80 && g > 180 && b > 180) return 4;       // cyan
+  if (r > 200 && g > 200 && b > 200) return 7;   // white/light
+  if (r > 150 && g < 90 && b < 90) return 1;       // red
+  if (r < 90 && g > 150 && b < 90) return 3;       // green
+  if (r < 90 && g < 90 && b > 150) return 5;       // blue
+  if (r > 150 && g > 150 && b < 90) return 2;       // yellow
+  if (r > 150 && g < 90 && b > 150) return 6;       // magenta
+  if (r < 90 && g > 150 && b > 150) return 4;       // cyan
   return 8;                                          // grey
 }
 
@@ -359,10 +393,26 @@ function makeProjector(plane) {
   };
 }
 
-function fmtNum(v) { return (Math.round(v * 1e5) / 1e5).toString(); }
-// Keep spaces, parentheses and unicode (modern DXF R2000+ allows them);
-// only strip the few characters AutoCAD forbids in layer names.
-function sanitizeLayer(s) { return (String(s).replace(/[<>/\\":;?*|,=]/g, '_').trim() || 'IFC').slice(0, 200); }
+// DXF reals must carry a decimal point (strict readers reject bare integers
+// on 10/20/30/40 codes).
+function fmtNum(v) {
+  const s = (Math.round(v * 1e5) / 1e5).toString();
+  return /[.eE]/.test(s) ? s : s + '.0';
+}
+
+// Czech (and common Latin) diacritics → ASCII. R12 DXF is codepage-encoded,
+// not UTF-8, so non-ASCII layer names corrupt or block the import.
+const DIACRITICS = {
+  á: 'a', č: 'c', ď: 'd', é: 'e', ě: 'e', í: 'i', ň: 'n', ó: 'o', ř: 'r',
+  š: 's', ť: 't', ú: 'u', ů: 'u', ý: 'y', ž: 'z',
+  Á: 'A', Č: 'C', Ď: 'D', É: 'E', Ě: 'E', Í: 'I', Ň: 'N', Ó: 'O', Ř: 'R',
+  Š: 'S', Ť: 'T', Ú: 'U', Ů: 'U', Ý: 'Y', Ž: 'Z',
+};
+/** ASCII, AutoCAD-safe layer name: transliterate diacritics, strip forbidden chars. */
+function sanitizeLayer(s) {
+  const ascii = String(s).replace(/[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/g, (c) => DIACRITICS[c] || c);
+  return (ascii.replace(/[<>/\\":;?*|,='`]/g, '_').replace(/[^\x20-\x7E]/g, '_').trim() || 'IFC').slice(0, 200);
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
