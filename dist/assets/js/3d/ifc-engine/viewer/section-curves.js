@@ -16,6 +16,7 @@
 // intersection points. Coplanar / all-one-side triangles produce nothing.
 
 import * as THREE from 'three';
+import { resolveMergedFace } from './merged-model.js';
 
 const SIGN_EPS = 1e-6;
 const STITCH_EPS = 1e-4;
@@ -33,13 +34,36 @@ export function computeSectionCurves(viewer, planeSpec) {
   // Group results by entity
   const byEntity = new Map(); // key → { modelId, expressId, ifcType, color, segments }
 
-  for (const { meshes } of viewer._models.values()) {
-    for (const mesh of meshes) {
+  for (const [modelId, m] of viewer._models) {
+    if (m.merged) {
+      // One mesh for all elements — tag each crossing segment with the
+      // element that owns its triangle (via the merged range table) so the
+      // DXF still gets per-element loops and per-IFC-type layers.
+      const mesh = m.meshes[0];
+      if (!mesh || mesh.visible === false) continue;
+      const tagged = computeMeshSegments(mesh, plane, true);
+      const hideAttr = mesh.geometry.getAttribute('elemHide');
+      for (const { seg, tri } of tagged) {
+        const row = resolveMergedFace(m.mergedTable, tri);
+        if (!row) continue;
+        if (hideAttr && hideAttr.array[row.vertStart] > 0.98) continue; // skip hidden elements
+        const key = `${modelId}|${row.expressId}`;
+        let entry = byEntity.get(key);
+        if (!entry) {
+          const info = m.elementInfo && m.elementInfo.get(row.expressId);
+          entry = { modelId, expressId: row.expressId, ifcType: info ? info.ifcType : row.ifcType, color: 0x808080, segments: [] };
+          byEntity.set(key, entry);
+        }
+        entry.segments.push(seg);
+      }
+      continue;
+    }
+    for (const mesh of m.meshes) {
       if (mesh.visible === false) continue;
       const segs = computeMeshSegments(mesh, plane);
       if (segs.length === 0) continue;
       const ud = mesh.userData;
-      if (!ud?.modelId || ud.expressId == null) continue;
+      if (!ud?.modelId || ud.expressId === null || ud.expressId === undefined) continue;
       const key = `${ud.modelId}|${ud.expressId}`;
       let entry = byEntity.get(key);
       if (!entry) {
@@ -81,7 +105,11 @@ function buildPlane(spec) {
   return new THREE.Plane(n, -n.dot(p));
 }
 
-function computeMeshSegments(mesh, plane) {
+/**
+ * @param {boolean} [tagged] when true, return [{ seg:[p0,p1], tri }] so the
+ *   caller can map each segment to its merged element; otherwise [[p0,p1]].
+ */
+function computeMeshSegments(mesh, plane, tagged = false) {
   const geom = mesh.geometry;
   const pos = geom?.attributes?.position;
   if (!pos) return [];
@@ -134,7 +162,8 @@ function computeMeshSegments(mesh, plane) {
       ]);
     }
     if (crossings.length !== 2) continue;
-    out.push([crossings[0], crossings[1]]);
+    if (tagged) out.push({ seg: [crossings[0], crossings[1]], tri: t });
+    else out.push([crossings[0], crossings[1]]);
   }
   return out;
 }

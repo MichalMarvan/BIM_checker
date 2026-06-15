@@ -232,7 +232,8 @@ export default class SectionPanel {
         this._setStatus('Žádné křivky — rovina nejspíš neprotíná geometrii.', 'warn');
         return;
       }
-      const dxf = curvesToDxf(curves);
+      const plane = (this.engine.getSectionPlanes() || []).find((p) => p.id === planeId);
+      const dxf = curvesToDxf(curves, plane);
       const blob = new Blob([dxf], { type: 'application/dxf' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -255,23 +256,85 @@ function plural(n, one, few, many) {
   return many;
 }
 
-function curvesToDxf(curves) {
-  const lines = ['0', 'SECTION', '2', 'ENTITIES'];
+/**
+ * Build a 2D DXF (mm-agnostic model units) from 3D section curves.
+ *
+ * Coordinates: the cut is flattened into the drawing XY plane.
+ *  • vertical-ish cut → elevation view: DXF X = signed horizontal distance
+ *    within the cut plane (centred near 0), DXF Y = the point's height (the
+ *    real Z of the cut) so the drawing reads upright with elevations on Y.
+ *  • horizontal cut → plan view: DXF X/Y = the two ground axes, relative to
+ *    the plane origin.
+ * Layers (DXF code 8) = IFC type, so types stay on separate layers; a LAYER
+ * table is emitted so CAD apps show them with distinct colours.
+ */
+function curvesToDxf(curves, plane) {
+  const project = makeProjector(plane);
+
+  // Collect layers (IFC types) for the LAYER table, with a colour per type.
+  const layers = new Map(); // name → aci colour
+  let aci = 1;
   for (const c of curves) {
-    const layer = c.ifcType || 'IFC';
+    const name = sanitizeLayer(c.ifcType || 'IFC');
+    if (!layers.has(name)) layers.set(name, (aci++ % 255) + 1);
+  }
+
+  const head = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(layers.size)];
+  for (const [name, colour] of layers) {
+    head.push('0', 'LAYER', '2', name, '70', '0', '62', String(colour), '6', 'CONTINUOUS');
+  }
+  head.push('0', 'ENDTAB', '0', 'ENDSEC');
+
+  const ents = ['0', 'SECTION', '2', 'ENTITIES'];
+  for (const c of curves) {
+    const layer = sanitizeLayer(c.ifcType || 'IFC');
     for (const loop of (c.loops || [])) {
       const pts = loop.points || [];
       if (pts.length < 2) continue;
-      lines.push('0', 'POLYLINE', '8', layer, '66', '1', '70', loop.closed ? '1' : '0', '10', '0', '20', '0', '30', '0');
+      ents.push('0', 'POLYLINE', '8', layer, '66', '1', '70', loop.closed ? '1' : '0', '10', '0', '20', '0', '30', '0');
       for (const p of pts) {
-        lines.push('0', 'VERTEX', '8', layer, '10', String(p[0] ?? p.x ?? 0), '20', String(p[1] ?? p.y ?? 0), '30', String(p[2] ?? p.z ?? 0));
+        const raw = Array.isArray(p) ? p : [p.x, p.y, p.z];
+        const [X, Y] = project(raw);
+        ents.push('0', 'VERTEX', '8', layer, '10', fmtNum(X), '20', fmtNum(Y), '30', '0');
       }
-      lines.push('0', 'SEQEND');
+      ents.push('0', 'SEQEND');
     }
   }
-  lines.push('0', 'ENDSEC', '0', 'EOF');
-  return lines.join('\n');
+  ents.push('0', 'ENDSEC', '0', 'EOF');
+  return head.concat(ents).join('\n');
 }
+
+/**
+ * Returns p(3D)→[X,Y] projecting section curves into the drawing plane.
+ * Falls back to a passthrough (X=x, Y=z) when no plane is supplied.
+ */
+function makeProjector(plane) {
+  if (!plane || !plane.normal || !plane.point) {
+    return (p) => [p[0], p[2]];
+  }
+  const n = plane.normal;
+  const off = plane.offset || 0;
+  // On-plane origin (point shifted by offset along the normal)
+  const O = [plane.point[0] + n[0] * off, plane.point[1] + n[1] * off, plane.point[2] + n[2] * off];
+  const nUp = Math.abs(n[1]);              // |normal · world-up|, up = three-Y
+  if (nUp > 0.99) {
+    // Horizontal cut → plan view (X east, Y north), local to origin.
+    return (p) => [p[0] - O[0], p[2] - O[2]];
+  }
+  // Vertical-ish cut → elevation view. In-plane horizontal axis = up × n,
+  // normalised in the ground plane: cross((0,1,0), n) = (n.z, 0, -n.x).
+  let hx = n[2], hz = -n[0];
+  const len = Math.hypot(hx, hz) || 1;
+  hx /= len; hz /= len;
+  return (p) => {
+    const X = (p[0] - O[0]) * hx + (p[2] - O[2]) * hz;  // horizontal in-plane
+    const Y = p[1];                                      // height (= cut's Z)
+    return [X, Y];
+  };
+}
+
+function fmtNum(v) { return (Math.round(v * 1e5) / 1e5).toString(); }
+function sanitizeLayer(s) { return String(s).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 31) || 'IFC'; }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
