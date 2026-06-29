@@ -393,7 +393,7 @@ function buildHandoffEntity(item) {
     };
 }
 
-function openIfcMultiViewerHandoff(scope) {
+function openIfcMultiViewerHandoff(scope, opts = {}) {
     const selected = state.engine?.getSelectedEntities?.() || [];
     const isSelection = scope === 'selection';
     if (isSelection && selected.length === 0) {
@@ -402,9 +402,14 @@ function openIfcMultiViewerHandoff(scope) {
     }
 
     const selectedModelIds = new Set(selected.map(s => s.modelId));
-    const files = isSelection
-        ? getLoadedModelPayloads().filter(m => selectedModelIds.has(m.modelId))
-        : getLoadedModelPayloads({ visibleOnly: true });
+    let files;
+    if (isSelection) {
+        files = getLoadedModelPayloads().filter(m => selectedModelIds.has(m.modelId));
+    } else if (scope === 'model' && opts.modelId) {
+        files = getLoadedModelPayloads().filter(m => m.modelId === opts.modelId);
+    } else {
+        files = getLoadedModelPayloads({ visibleOnly: true });
+    }
 
     if (files.length === 0) {
         setStatus('Nejdřív načti alespoň jeden IFC model.', 'error');
@@ -683,9 +688,10 @@ function wireUI() {
         getEngineIfReady: () => state.engine,
         ctx: {
             getLoadedModels: () => Array.from(state.loadedModels.entries())
-                .map(([modelId, info]) => ({ modelId, name: info.name, stats: info.stats })),
+                .map(([modelId, info]) => ({ modelId, name: info.name, fileId: info.fileId, stats: info.stats })),
             getEngineIfReady: () => state.engine,
             removeModel,
+            openTableForModel: (modelId) => openIfcMultiViewerHandoff('model', { modelId }),
             buildTree: buildPickerTree,
             loadFile: loadIfcFromStorage,
             openStorage: () => openRailPanel('storage'),
@@ -722,10 +728,6 @@ function wireUI() {
         btn.addEventListener('click', async () => {
             const tool = btn.dataset.tool;
             if (!tool) return;  // direct-action buttons (data-action) are wired separately
-            if (tool === 'schedule') {
-                openIfcMultiViewerHandoff('models');
-                return;
-            }
             try {
                 const [{ togglePanel }, panels] = await Promise.all([
                     import('./ui/panel-manager.js'),

@@ -90,6 +90,10 @@ export default class ModelsPanel {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3.5"/></svg>
                 Izolovat model
               </button>
+              <button class="v3d-model-menu__item" data-act="table">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="4" x2="8" y2="20"/><line x1="14" y1="4" x2="14" y2="20"/></svg>
+                Otevřít v tabulce
+              </button>
               <button class="v3d-model-menu__item" data-act="info">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                 ${infoOpen ? 'Skrýt informace' : 'Informace'}
@@ -139,6 +143,9 @@ export default class ModelsPanel {
         if (eng && typeof eng.fitModel === 'function') eng.fitModel(modelId);
         this.openMenuId = null;
         this._render();
+      });
+      menuAct('table', () => {
+        if (this.ctx.openTableForModel) this.ctx.openTableForModel(modelId);
       });
       menuAct('info', () => {
         this.infoId = this.infoId === modelId ? null : modelId;
