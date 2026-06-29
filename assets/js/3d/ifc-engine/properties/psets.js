@@ -4,6 +4,12 @@
 //   IfcRelDefinesByProperties(GlobalId, OwnerHistory, Name, Description, RelatedObjects, RelatingPropertyDefinition)
 //   IfcPropertySet(GlobalId, OwnerHistory, Name, Description, HasProperties)
 //   IfcPropertySingleValue(Name, Description, NominalValue, Unit)
+//   IfcPropertyEnumeratedValue(Name, Description, EnumerationValues, EnumerationReference)
+//   IfcPropertyListValue(Name, Description, ListValues, Unit)
+//   IfcPropertyBoundedValue(Name, Description, UpperBoundValue, LowerBoundValue, Unit, SetPointValue)
+//   IfcPropertyTableValue(Name, Description, DefiningValues, DefinedValues, Expression, DefiningUnit, DefinedUnit, CurveInterpolation)
+//   IfcPropertyReferenceValue(Name, Description, UsageName, PropertyReference)
+//   IfcComplexProperty(Name, Description, UsageName, HasProperties)
 //
 // NominalValue is wrapped: IFCLABEL('foo'), IFCREAL(1.0), IFCBOOLEAN(.T.), IFC*MEASURE(2.5), etc.
 // Unwrap to primitive + remember the wrapper type.
@@ -48,7 +54,29 @@ function getRelIndex(entityIndex) {
 function unquoteString(raw) {
   if (!raw || raw === '$' || raw === '*') return null;
   const m = raw.match(/^'(.*)'$/s);
-  return m ? decodeIFCString(m[1]) : null;
+  return m ? decodeIFCString(m[1].replace(/''/g, "'")) : null;
+}
+
+function unwrapList(raw) {
+  const refs = parseRefList(raw);
+  if (refs.length > 0) return refs;
+  if (!raw || raw === '$' || raw === '*') return [];
+  const trimmed = String(raw).trim();
+  if (!trimmed.startsWith('(') || !trimmed.endsWith(')')) return [];
+  return splitParams(trimmed.slice(1, -1)).map(v => unwrapNominalValue(v));
+}
+
+function unwrapReference(entityIndex, raw) {
+  const ref = parseRef(raw);
+  if (!ref) return null;
+  const entity = entityIndex.byExpressId(ref);
+  if (!entity) return { expressId: ref };
+  const parts = splitParams(entity.params);
+  return {
+    expressId: ref,
+    type: entity.type,
+    name: parts.map(unquoteString).find(Boolean) || `#${ref}`,
+  };
 }
 
 /**
@@ -73,7 +101,7 @@ function unwrapNominalValue(raw) {
   const inner = wrapMatch[2].trim();
 
   if (inner.startsWith("'") && inner.endsWith("'")) {
-    return { value: decodeIFCString(inner.slice(1, -1)), type };
+    return { value: decodeIFCString(inner.slice(1, -1).replace(/''/g, "'")), type };
   }
   if (inner === '.T.') return { value: true, type };
   if (inner === '.F.') return { value: false, type };
@@ -84,16 +112,83 @@ function unwrapNominalValue(raw) {
 }
 
 /**
- * Extract a single IFCPROPERTYSINGLEVALUE → { name, value, type }.
+ * Extract one IfcProperty subtype → { name, value, type }.
  */
-function extractSingleValue(entityIndex, propId) {
+function extractPropertyValue(entityIndex, propId, seen = new Set()) {
+  if (!propId || seen.has(propId)) return null;
+  seen.add(propId);
+
   const prop = entityIndex.byExpressId(propId);
-  if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') return null;
+  if (!prop) return null;
   const parts = splitParams(prop.params);
   const name = unquoteString(parts[0]);
   if (!name) return null;
-  const { value, type } = unwrapNominalValue(parts[2]);
-  return { name, value, type };
+
+  if (prop.type === 'IFCPROPERTYSINGLEVALUE') {
+    const { value, type } = unwrapNominalValue(parts[2]);
+    return { name, value, type };
+  }
+
+  if (prop.type === 'IFCPROPERTYENUMERATEDVALUE') {
+    return { name, value: unwrapList(parts[2]).map(v => v.value ?? v), type: prop.type };
+  }
+
+  if (prop.type === 'IFCPROPERTYLISTVALUE') {
+    return { name, value: unwrapList(parts[2]).map(v => v.value ?? v), type: prop.type };
+  }
+
+  if (prop.type === 'IFCPROPERTYBOUNDEDVALUE') {
+    const upper = unwrapNominalValue(parts[2]);
+    const lower = unwrapNominalValue(parts[3]);
+    const setPoint = unwrapNominalValue(parts[5]);
+    return {
+      name,
+      value: {
+        lower: lower.value,
+        upper: upper.value,
+        setPoint: setPoint.value,
+      },
+      type: prop.type,
+    };
+  }
+
+  if (prop.type === 'IFCPROPERTYTABLEVALUE') {
+    const defining = unwrapList(parts[2]).map(v => v.value ?? v);
+    const defined = unwrapList(parts[3]).map(v => v.value ?? v);
+    return {
+      name,
+      value: defining.map((key, i) => ({ defining: key, defined: defined[i] ?? null })),
+      type: prop.type,
+    };
+  }
+
+  if (prop.type === 'IFCPROPERTYREFERENCEVALUE') {
+    return {
+      name,
+      value: {
+        usageName: unquoteString(parts[2]) || '',
+        reference: unwrapReference(entityIndex, parts[3]),
+      },
+      type: prop.type,
+    };
+  }
+
+  if (prop.type === 'IFCCOMPLEXPROPERTY') {
+    const properties = parseRefList(parts[3])
+      .map(id => extractPropertyValue(entityIndex, id, new Set(seen)))
+      .filter(Boolean);
+    return {
+      name,
+      value: properties.reduce((acc, item) => {
+        acc[item.name] = item.value;
+        return acc;
+      }, {}),
+      properties,
+      type: prop.type,
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -107,7 +202,7 @@ export function extractPropertySet(entityIndex, psetId) {
   const propRefs = parseRefList(parts[4]);
   const properties = [];
   for (const propId of propRefs) {
-    const prop = extractSingleValue(entityIndex, propId);
+    const prop = extractPropertyValue(entityIndex, propId);
     if (prop) properties.push(prop);
   }
   return { name, properties };

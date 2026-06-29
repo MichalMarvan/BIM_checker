@@ -10,6 +10,9 @@
 //   IfcQuantityVolume(Name, Description, Unit, VolumeValue, Formula)
 //   IfcQuantityCount(Name, Description, Unit, CountValue, Formula)
 //   IfcQuantityWeight(Name, Description, Unit, WeightValue, Formula)
+//   IfcQuantityTime(Name, Description, Unit, TimeValue, Formula)
+//   IfcQuantityNumber(Name, Description, Unit, NumberValue, Formula)
+//   IfcPhysicalComplexQuantity(Name, Description, HasQuantities, Discrimination, Quality, Usage)
 //
 // IfcRelDefinesByProperties.RelatingPropertyDefinition can point to either
 // IfcPropertySet OR IfcElementQuantity — we already have the rel index from
@@ -26,6 +29,8 @@ const QUANTITY_TYPES = {
   IFCQUANTITYVOLUME: { kind: 'volume', valueIndex: 3 },
   IFCQUANTITYCOUNT:  { kind: 'count', valueIndex: 3 },
   IFCQUANTITYWEIGHT: { kind: 'weight', valueIndex: 3 },
+  IFCQUANTITYTIME:   { kind: 'time', valueIndex: 3 },
+  IFCQUANTITYNUMBER: { kind: 'number', valueIndex: 3 },
 };
 
 function unquoteString(raw) {
@@ -35,7 +40,7 @@ function unquoteString(raw) {
 }
 
 function parseFloatStrict(raw) {
-  if (raw == null || raw === '$') return null;
+  if (raw === null || raw === undefined || raw === '$') return null;
   const n = parseFloat(raw);
   return Number.isFinite(n) ? n : null;
 }
@@ -49,7 +54,7 @@ function buildRelToQuantityIndex(entityIndex) {
     const parts = splitParams(rel.params);
     const relatedRefs = parseRefList(parts[4]);
     const targetRef = parseRef(parts[5]);
-    if (targetRef == null) continue;
+    if (targetRef === null || targetRef === undefined) continue;
     const target = entityIndex.byExpressId(targetRef);
     if (!target || target.type !== 'IFCELEMENTQUANTITY') continue;
     for (const refId of relatedRefs) {
@@ -62,17 +67,42 @@ function buildRelToQuantityIndex(entityIndex) {
   return cached;
 }
 
-function extractSingleQuantity(entityIndex, qtyId) {
+function extractQuantityEntries(entityIndex, qtyId, prefix = '', seen = new Set()) {
+  if (!qtyId || seen.has(qtyId)) return [];
+  seen.add(qtyId);
+
   const qty = entityIndex.byExpressId(qtyId);
-  if (!qty) return null;
-  const meta = QUANTITY_TYPES[qty.type];
-  if (!meta) return null;
+  if (!qty) return [];
   const parts = splitParams(qty.params);
   const name = unquoteString(parts[0]);
-  if (!name) return null;
+  if (!name) return [];
+
+  if (qty.type === 'IFCPHYSICALCOMPLEXQUANTITY') {
+    const nextPrefix = prefix ? `${prefix} / ${name}` : name;
+    return parseRefList(parts[2]).flatMap(id => extractQuantityEntries(entityIndex, id, nextPrefix, new Set(seen)));
+  }
+
+  const meta = QUANTITY_TYPES[qty.type];
+  if (!meta) return [];
   const value = parseFloatStrict(parts[meta.valueIndex]);
-  if (value == null) return null;
-  return { name, kind: meta.kind, value };
+  if (value === null || value === undefined) return [];
+  return [{ name: prefix ? `${prefix} / ${name}` : name, kind: meta.kind, value }];
+}
+
+/**
+ * Extract one IfcElementQuantity set.
+ * @param {EntityIndex} entityIndex
+ * @param {number} qsetId
+ * @returns {{name: string, quantities: Array<{name, kind, value}>} | null}
+ */
+export function extractElementQuantitySet(entityIndex, qsetId) {
+  const qset = entityIndex.byExpressId(qsetId);
+  if (!qset || qset.type !== 'IFCELEMENTQUANTITY') return null;
+  const parts = splitParams(qset.params);
+  const name = unquoteString(parts[2]) || 'Unnamed QTO';
+  const quantities = parseRefList(parts[5])
+    .flatMap(qtyId => extractQuantityEntries(entityIndex, qtyId));
+  return { name, quantities };
 }
 
 /**
@@ -86,14 +116,8 @@ export function extractIfcQuantities(entityIndex, expressId) {
   const qsetIds = index.get(expressId) || [];
   const out = [];
   for (const qsetId of qsetIds) {
-    const qset = entityIndex.byExpressId(qsetId);
-    if (!qset) continue;
-    const parts = splitParams(qset.params);
-    const qtyRefs = parseRefList(parts[5]);
-    for (const qtyId of qtyRefs) {
-      const q = extractSingleQuantity(entityIndex, qtyId);
-      if (q) out.push(q);
-    }
+    const qset = extractElementQuantitySet(entityIndex, qsetId);
+    if (qset) out.push(...qset.quantities);
   }
   return out;
 }

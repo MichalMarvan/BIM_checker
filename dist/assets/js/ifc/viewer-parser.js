@@ -382,9 +382,49 @@ function extractGUID(params) {
 }
 
 function extractName(params) {
-    const matches = params.match(/'([^']*)'/g);
-    const rawName = matches && matches.length > 1 ? matches[1].replace(/'/g, '') : null;
-    return rawName ? decodeIFCString(rawName) : null;
+    const parts = splitParams(params);
+    return unquoteParam(parts[2]);
+}
+
+function unquoteParam(raw) {
+    if (!raw || raw === '$' || raw === '*') return null;
+    const match = String(raw).match(/^'(.*)'$/s);
+    return match ? decodeIFCString(match[1].replace(/''/g, "'")) : null;
+}
+
+function unwrapIfcValue(raw) {
+    if (!raw || raw === '$' || String(raw).trim() === '') return '';
+    const wrapMatch = String(raw).match(/^(IFC[A-Z0-9_]+)\s*\((.*)\)$/i);
+    if (!wrapMatch) return String(raw);
+
+    const type = wrapMatch[1].toUpperCase();
+    const inner = wrapMatch[2].trim();
+    if (inner.startsWith("'") && inner.endsWith("'")) {
+        return decodeIFCString(inner.slice(1, -1).replace(/''/g, "'"));
+    }
+    if (inner === '.T.') return 'TRUE';
+    if (inner === '.F.') return 'FALSE';
+    if (inner === '.U.') return 'UNKNOWN';
+    if (type.includes('BOOLEAN') || type.includes('LOGICAL')) return inner;
+
+    const numericMatch = inner.match(/^[+-]?\d+\.?\d*(?:[eE][+-]?\d+)?$/);
+    return numericMatch ? inner : String(inner);
+}
+
+function unwrapIfcList(raw) {
+    if (!raw || raw === '$' || raw === '*') return [];
+    const trimmed = String(raw).trim();
+    if (!trimmed.startsWith('(') || !trimmed.endsWith(')')) return [];
+    return splitParams(trimmed.slice(1, -1)).map(unwrapIfcValue);
+}
+
+function formatReferenceValue(entityMap, raw) {
+    const match = raw ? String(raw).match(/#(\d+)/) : null;
+    if (!match) return '';
+    const entity = entityMap?.get(match[1]);
+    if (!entity) return `#${match[1]}`;
+    const label = splitParams(entity.params).map(unquoteParam).find(Boolean);
+    return label ? `${label} (#${match[1]})` : `${entity.type} #${match[1]}`;
 }
 
 // =======================
@@ -403,8 +443,8 @@ function parsePropertySet(params, entityMap) {
             for (const propId of propIds) {
                 const id = propId.substring(1);
                 const propEntity = entityMap.get(id);
-                if (propEntity && propEntity.type === 'IFCPROPERTYSINGLEVALUE') {
-                    const prop = parseProperty(propEntity.params);
+                if (propEntity) {
+                    const prop = parseProperty(propEntity, entityMap);
                     if (prop) {
                         properties[prop.name] = prop.value;
                     }
@@ -416,57 +456,54 @@ function parsePropertySet(params, entityMap) {
     return { name, properties };
 }
 
-function parseProperty(params) {
+function parseProperty(propEntity, entityMap) {
+    const params = typeof propEntity === 'string' ? propEntity : propEntity.params;
+    const propType = typeof propEntity === 'string' ? 'IFCPROPERTYSINGLEVALUE' : propEntity.type;
     const parts = splitParams(params);
-    if (parts.length < 3) {
-        return null;
-    }
-    const rawName = parts[0].replace(/'/g, '');
-    const name = decodeIFCString(rawName);
-    let value = parts[2] || '';
+    const name = unquoteParam(parts[0]);
+    if (!name) return null;
 
-    // Handle $ (undefined/null) value
-    if (value === '$' || value.trim() === '') {
-        return { name, value: '' };
+    if (propType === 'IFCPROPERTYSINGLEVALUE') {
+        return { name, value: unwrapIfcValue(parts[2]) };
     }
 
-    // String types
-    const stringMatch = value.match(/IFC(?:LABEL|TEXT|IDENTIFIER|DESCRIPTIVEMEASURE)\s*\(\s*'([^']*)'\s*\)/i);
-    if (stringMatch) {
-        value = decodeIFCString(stringMatch[1]);
-        return { name, value };
+    if (propType === 'IFCPROPERTYENUMERATEDVALUE' || propType === 'IFCPROPERTYLISTVALUE') {
+        return { name, value: unwrapIfcList(parts[2]).join(', ') };
     }
 
-    // Boolean type
-    const booleanMatch = value.match(/IFCBOOLEAN\s*\(\s*\.(T|F)\.\s*\)/i);
-    if (booleanMatch) {
-        value = booleanMatch[1].toUpperCase() === 'T' ? 'TRUE' : 'FALSE';
-        return { name, value };
+    if (propType === 'IFCPROPERTYBOUNDEDVALUE') {
+        const upper = unwrapIfcValue(parts[2]);
+        const lower = unwrapIfcValue(parts[3]);
+        const setPoint = unwrapIfcValue(parts[5]);
+        return { name, value: [`min ${lower}`, `max ${upper}`, setPoint ? `set ${setPoint}` : ''].filter(Boolean).join(', ') };
     }
 
-    // Logical type
-    const logicalMatch = value.match(/IFCLOGICAL\s*\(\s*\.(T|F|U)\.\s*\)/i);
-    if (logicalMatch) {
-        const v = logicalMatch[1].toUpperCase();
-        value = v === 'T' ? 'TRUE' : v === 'F' ? 'FALSE' : 'UNKNOWN';
-        return { name, value };
+    if (propType === 'IFCPROPERTYTABLEVALUE') {
+        const defining = unwrapIfcList(parts[2]);
+        const defined = unwrapIfcList(parts[3]);
+        return { name, value: defining.map((key, index) => `${key}: ${defined[index] ?? ''}`).join('; ') };
     }
 
-    // Numeric types
-    const numericMatch = value.match(/IFC(?:[A-Z]+)?(?:MEASURE)?\s*\(\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)\s*\)/i);
-    if (numericMatch) {
-        value = numericMatch[1];
-        return { name, value };
+    if (propType === 'IFCPROPERTYREFERENCEVALUE') {
+        const usageName = unquoteParam(parts[2]);
+        const refValue = formatReferenceValue(entityMap, parts[3]);
+        return { name, value: [usageName, refValue].filter(Boolean).join(': ') };
     }
 
-    // Plane angle measure
-    const angleMatch = value.match(/IFCPLANEANGLEMEASURE\s*\(\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)\s*\)/i);
-    if (angleMatch) {
-        value = angleMatch[1];
-        return { name, value };
+    if (propType === 'IFCCOMPLEXPROPERTY') {
+        const childIds = parts[3] ? parts[3].match(/#\d+/g) : null;
+        const childProps = [];
+        if (childIds) {
+            for (const childId of childIds) {
+                const child = entityMap.get(childId.substring(1));
+                const prop = child ? parseProperty(child, entityMap) : null;
+                if (prop) childProps.push(`${prop.name}: ${prop.value}`);
+            }
+        }
+        return { name, value: childProps.join('; ') };
     }
 
-    return { name, value };
+    return null;
 }
 
 function parseRelDefines(params) {

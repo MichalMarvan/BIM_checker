@@ -24,6 +24,11 @@ describe('IFCParserCore helpers', () => {
         expect(IFCParserCore._extractName(params)).toBe('SŽ_test');
     });
 
+    it('extractName uses the IFC Name position and ignores Description fallback', () => {
+        const params = "'guid', #1, $, 'Description text', $";
+        expect(IFCParserCore._extractName(params)).toBe(null);
+    });
+
     it('decodeIFCString handles plain ASCII', () => {
         expect(IFCParserCore._decodeIFCString('hello')).toBe('hello');
     });
@@ -105,6 +110,27 @@ END-ISO-10303-21;`;
         expect(entities.length).toBe(1);
         expect(entities[0].propertySets['Pset_WallCommon']).toBeDefined();
         expect(entities[0].propertySets['Pset_WallCommon']['FireRating']).toBe('EI60');
+    });
+
+    it('parses non-single property value types into table text', () => {
+        const ifc = `ISO-10303-21;
+DATA;
+#1=IFCWALL('guid-1',$,'Wall',$,$,$,$,$,$);
+#2=IFCPROPERTYENUMERATEDVALUE('EnumProp',$,(IFCLABEL('A'),IFCLABEL('B')),$);
+#3=IFCPROPERTYLISTVALUE('ListProp',$,(IFCREAL(1.5),IFCREAL(2.5)),$);
+#4=IFCPROPERTYBOUNDEDVALUE('BoundedProp',$,IFCREAL(10.),IFCREAL(2.),$,IFCREAL(5.));
+#5=IFCPROPERTYSINGLEVALUE('ChildProp',$,IFCLABEL('Nested'),$);
+#6=IFCCOMPLEXPROPERTY('ComplexProp',$,'Usage',(#5));
+#7=IFCPROPERTYSET('pset-guid',$,'Pset_Test',$,(#2,#3,#4,#6));
+#8=IFCRELDEFINESBYPROPERTIES('rel-guid',$,$,$,(#1),#7);
+ENDSEC;
+END-ISO-10303-21;`;
+        const entities = IFCParserCore.parseIFCContent(ifc, 't.ifc');
+        const pset = entities[0].propertySets.Pset_Test;
+        expect(pset.EnumProp).toBe('A, B');
+        expect(pset.ListProp).toBe('1.5, 2.5');
+        expect(pset.BoundedProp).toBe('min 2., max 10., set 5.');
+        expect(pset.ComplexProp).toBe('ChildProp: Nested');
     });
 
     it('skips entities without GUID', () => {

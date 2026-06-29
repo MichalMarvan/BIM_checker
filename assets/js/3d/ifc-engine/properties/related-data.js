@@ -5,6 +5,7 @@ import { splitParams } from '../parser/step-parser.js';
 import { decodeIFCString } from '../parser/ifc-decoder.js';
 import { parseRef, parseRefList } from '../geometry/step-helpers.js';
 import { extractPropertySet } from './psets.js';
+import { extractElementQuantitySet } from './quantities.js';
 
 const _relatedIndexCache = new WeakMap();
 
@@ -91,10 +92,25 @@ function extractTypePropertySets(entityIndex, expressId) {
     const psetRefs = refList(parts[5]);
     for (const psetId of psetRefs) {
       const pset = extractPropertySet(entityIndex, psetId);
-      if (!pset) continue;
+      if (pset) {
+        out.push({
+          ...pset,
+          source: 'type',
+          setType: 'pset',
+          typeId,
+          typeName,
+          typeClass: typeEntity.type,
+        });
+        continue;
+      }
+
+      const qset = extractElementQuantitySet(entityIndex, psetId);
+      if (!qset) continue;
       out.push({
-        ...pset,
+        name: qset.name,
+        properties: qset.quantities.map(q => ({ name: q.name, value: q.value, type: q.kind })),
         source: 'type',
+        setType: 'quantity',
         typeId,
         typeName,
         typeClass: typeEntity.type,
@@ -201,13 +217,13 @@ function parseMaterialDefinition(entityIndex, materialId, seen) {
   }
 
   if (entity.type === 'IFCMATERIALPROFILE') {
-    const material = parseMaterialDefinition(entityIndex, parseRef(parts[1]), new Set(seen));
+    const material = parseMaterialDefinition(entityIndex, parseRef(parts[2]), new Set(seen));
     return {
       type: entity.type,
       expressId: materialId,
-      name: unquoteString(parts[2]) || material?.name || `Profil #${materialId}`,
+      name: unquoteString(parts[0]) || material?.name || `Profil #${materialId}`,
       materialName: material?.name || '',
-      category: unquoteString(parts[4]) || material?.category || '',
+      category: unquoteString(parts[5]) || material?.category || '',
       material,
     };
   }

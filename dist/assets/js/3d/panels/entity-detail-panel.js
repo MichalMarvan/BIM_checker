@@ -65,8 +65,9 @@ export default class EntityDetailPanel {
       </section>
     `);
 
-    // ── Atributy (entity-level, excluding Name which is already in Identity) ─
-    const attrs = (props?.attributes || []).filter(a => a.name !== 'Name' && a.value !== null && a.value !== undefined);
+    // ── Atributy (entity-level, excluding values already shown in Identity) ─
+    const identityAttrs = new Set(['Name', 'GlobalId']);
+    const attrs = (props?.attributes || []).filter(a => !identityAttrs.has(a.name) && a.value !== null && a.value !== undefined);
     if (attrs.length > 0) {
       blocks.push(`
         <section class="v3d-ent-card">
