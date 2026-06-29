@@ -37,6 +37,7 @@ export default class EntityDetailPanel {
     const ifcType = meta.ifcType || props?.category || '?';
     const name = meta.name || props?.name || '—';
     const guid = meta.guid || props?.guid || '';
+    const modelName = this._modelName(first.modelId);
 
     const blocks = [];
 
@@ -54,9 +55,10 @@ export default class EntityDetailPanel {
         </header>
         <div class="v3d-ent-card__body">
           ${row('Jméno', name)}
+          ${row('IFC soubor', modelName || first.modelId, { full: true })}
           ${row('Express ID', String(first.expressId), { code: true })}
           ${guid ? row('GUID', guid, { code: true, full: true }) : ''}
-          ${row('Model', first.modelId, { code: true, mute: true })}
+          ${modelName ? row('Model ID', first.modelId, { code: true, mute: true }) : ''}
         </div>
       </section>
     `);
@@ -147,6 +149,11 @@ export default class EntityDetailPanel {
 
   destroy() {
     if (this._handler) this.engine.off?.('selectionChanged', this._handler);
+  }
+
+  _modelName(modelId) {
+    const models = this.engine.getModels?.() || [];
+    return models.find(m => m.modelId === modelId)?.name || '';
   }
 }
 
