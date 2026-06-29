@@ -24,6 +24,8 @@ const state = {
                               // keep their real-world relative positions.
 };
 
+const IFC_VIEWER_HANDOFF_PREFIX = 'bim-ifc-viewer-handoff';
+
 function t(key) {
     return (window.i18n && window.i18n.t) ? window.i18n.t(key) : key;
 }
@@ -171,7 +173,7 @@ async function loadIfcFromStorage(fileMeta) {
             console.warn('[3d-viewer] mesh introspection failed:', e);
         }
 
-        state.loadedModels.set(modelId, { name: fileMeta.name, stats });
+        state.loadedModels.set(modelId, { name: fileMeta.name, fileId: fileMeta.id, stats });
         renderLoadedList();
 
         // Log what georef data this IFC actually carries — federation strategy
@@ -362,6 +364,64 @@ function removeModel(modelId) {
         setStatus(t('viewer3d.empty') || 'Žádný model');
     }
     renderLoadedList();
+}
+
+function getLoadedModelPayloads({ visibleOnly = false } = {}) {
+    const engine = state.engine;
+    const models = Array.from(state.loadedModels.entries()).map(([modelId, info]) => ({
+        modelId,
+        fileId: info.fileId || '',
+        name: info.name,
+    }));
+    if (!visibleOnly || !engine || typeof engine.isModelVisible !== 'function') return models;
+    const visible = models.filter(m => engine.isModelVisible(m.modelId));
+    return visible.length > 0 ? visible : models;
+}
+
+function buildHandoffEntity(item) {
+    const meta = state.engine?.getEntityMeta?.(item.modelId, item.expressId) || {};
+    const model = state.loadedModels.get(item.modelId) || {};
+    return {
+        modelId: item.modelId,
+        expressId: item.expressId,
+        ifcId: String(item.expressId),
+        guid: meta.guid || item.guid || '',
+        ifcType: meta.ifcType || item.ifcType || '',
+        name: meta.name || item.name || '',
+        fileName: model.name || '',
+        fileId: model.fileId || '',
+    };
+}
+
+function openIfcMultiViewerHandoff(scope) {
+    const selected = state.engine?.getSelectedEntities?.() || [];
+    const isSelection = scope === 'selection';
+    if (isSelection && selected.length === 0) {
+        setStatus('Vyber prvek nebo skupinu prvků pro otevření v tabulce.', 'error');
+        return;
+    }
+
+    const selectedModelIds = new Set(selected.map(s => s.modelId));
+    const files = isSelection
+        ? getLoadedModelPayloads().filter(m => selectedModelIds.has(m.modelId))
+        : getLoadedModelPayloads({ visibleOnly: true });
+
+    if (files.length === 0) {
+        setStatus('Nejdřív načti alespoň jeden IFC model.', 'error');
+        return;
+    }
+
+    const payload = {
+        version: 1,
+        source: '3d-viewer',
+        mode: isSelection ? (selected.length === 1 ? 'entity' : 'selection') : (files.length === 1 ? 'model' : 'models'),
+        files,
+        entities: isSelection ? selected.map(buildHandoffEntity) : [],
+        createdAt: new Date().toISOString(),
+    };
+    const key = `${IFC_VIEWER_HANDOFF_PREFIX}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem(key, JSON.stringify(payload));
+    window.location.assign(`./ifc-viewer-multi-file.html?handoff=${encodeURIComponent(key)}`);
 }
 
 // In-memory state for picker tree
@@ -662,6 +722,10 @@ function wireUI() {
         btn.addEventListener('click', async () => {
             const tool = btn.dataset.tool;
             if (!tool) return;  // direct-action buttons (data-action) are wired separately
+            if (tool === 'schedule') {
+                openIfcMultiViewerHandoff('models');
+                return;
+            }
             try {
                 const [{ togglePanel }, panels] = await Promise.all([
                     import('./ui/panel-manager.js'),
@@ -773,6 +837,7 @@ function wireEntityBarButtons() {
             panels.ensureRegistered();
             await togglePanel('entity-detail', state.engine, { selection: sel });
         },
+        table: () => openIfcMultiViewerHandoff('selection'),
         close: () => state.engine?.clearSelection(),
     };
 

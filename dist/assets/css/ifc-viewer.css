@@ -412,6 +412,19 @@
     background-color: var(--gray-50);
 }
 
+.data-table tbody tr.handoff-highlight td {
+    background: rgba(37, 99, 235, 0.12);
+    border-bottom-color: rgba(37, 99, 235, 0.35);
+}
+
+.data-table tbody tr.handoff-highlight td.sticky-col {
+    background: rgba(37, 99, 235, 0.16);
+}
+
+.data-table tbody tr.handoff-highlight:hover td {
+    background: rgba(37, 99, 235, 0.2);
+}
+
 .file-badge {
     display: inline-block;
     padding: 4px 10px;

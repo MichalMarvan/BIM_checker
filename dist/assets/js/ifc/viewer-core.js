@@ -130,6 +130,8 @@ const ViewerState = {
     selectedEntities: new Set(),
     modifications: {},
     editingCell: null,
+    handoffFilter: null,
+    handoffRowKeys: new Set(),
 
     // Spatial tree
     spatialTrees: [],

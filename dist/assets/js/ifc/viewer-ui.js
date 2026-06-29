@@ -704,9 +704,29 @@ function sortByProperty(psetName, propName) {
 // FILTERING AND RENDERING
 // =======================
 
+function handoffRowKey(item) {
+    return `${item.fileName || ''}|||${item.guid || ''}|||${item.ifcId || ''}`;
+}
+
+function matchesHandoffFilter(item, filter) {
+    if (!filter) return true;
+    if (filter.fileNames && filter.fileNames.size > 0 && !filter.fileNames.has(item.fileName)) {
+        return false;
+    }
+    if (!filter.hasEntities) return true;
+    if (filter.rowKeys && filter.rowKeys.has(handoffRowKey(item))) return true;
+    if (filter.guids && item.guid && filter.guids.has(String(item.guid).toLowerCase())) return true;
+    const idsForFile = filter.ifcIdsByFile && filter.ifcIdsByFile.get(item.fileName);
+    return !!(idsForFile && idsForFile.has(String(item.ifcId)));
+}
+
 function applyFiltersAndRender() {
     const state = window.ViewerState;
     state.filteredData = [...state.allData];
+
+    if (state.handoffFilter) {
+        state.filteredData = state.filteredData.filter(item => matchesHandoffFilter(item, state.handoffFilter));
+    }
 
     if (window.selectedSpatialIds && window.selectedSpatialIds.size > 0) {
         state.filteredData = state.filteredData.filter(item => {
@@ -925,6 +945,9 @@ function renderTable() {
 
     for (const item of pageData) {
         const row = document.createElement('tr');
+        if (state.handoffRowKeys && state.handoffRowKeys.has(handoffRowKey(item))) {
+            row.classList.add('handoff-highlight');
+        }
 
         if (state.editMode) {
             const checkCell = document.createElement('td');
@@ -1169,6 +1192,7 @@ window.sortByColumn = sortByColumn;
 window.sortByProperty = sortByProperty;
 window.applyFiltersAndRender = applyFiltersAndRender;
 window.renderTable = renderTable;
+window.handoffRowKey = handoffRowKey;
 window.updatePaginationInfo = updatePaginationInfo;
 window.showStatistics = showStatistics;
 window.toggleEntitySelection = toggleEntitySelection;
