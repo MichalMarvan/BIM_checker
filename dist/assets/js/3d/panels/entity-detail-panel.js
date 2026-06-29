@@ -32,6 +32,8 @@ export default class EntityDetailPanel {
     const first = sel[0];
     const meta = this.engine.getEntityMeta?.(first.modelId, first.expressId) || {};
     const props = this.engine.getProperties?.(first.modelId, first.expressId);
+    const related = this.engine.getRelatedData?.(first.modelId, first.expressId) || {};
+    const quantities = this.engine.getQuantities?.(first.modelId, first.expressId) || { ifc: [] };
     this.titleEl.textContent = sel.length > 1 ? `Detail (${sel.length})` : 'Detail prvku';
 
     const ifcType = meta.ifcType || props?.category || '?';
@@ -80,6 +82,56 @@ export default class EntityDetailPanel {
       `);
     }
 
+    // ── IFC quantities (QTO/BaseQuantities) ──────────────────────────────
+    const ifcQuantities = quantities.ifc || [];
+    if (ifcQuantities.length > 0) {
+      blocks.push(`
+        <section class="v3d-ent-card">
+          <header class="v3d-ent-card__head">
+            <span class="v3d-ent-card__icon" aria-hidden="true">∑</span>
+            <span class="v3d-ent-card__title">QTO / množství</span>
+            <span class="v3d-ent-card__count">${ifcQuantities.length}</span>
+          </header>
+          <div class="v3d-ent-card__body">
+            ${ifcQuantities.map(q => row(q.name, formatQuantity(q))).join('')}
+          </div>
+        </section>
+      `);
+    }
+
+    // ── Materials ────────────────────────────────────────────────────────
+    const materials = related.materials || [];
+    if (materials.length > 0) {
+      const rowsHtml = materials.flatMap(materialRows).join('');
+      blocks.push(`
+        <section class="v3d-ent-card">
+          <header class="v3d-ent-card__head">
+            <span class="v3d-ent-card__icon" aria-hidden="true">◩</span>
+            <span class="v3d-ent-card__title">Materiály</span>
+            <span class="v3d-ent-card__count">${materials.length}</span>
+          </header>
+          <div class="v3d-ent-card__body">${rowsHtml}</div>
+        </section>
+      `);
+    }
+
+    // ── Classifications ─────────────────────────────────────────────────
+    const classifications = related.classifications || [];
+    if (classifications.length > 0) {
+      blocks.push(`
+        <section class="v3d-ent-card">
+          <header class="v3d-ent-card__head">
+            <span class="v3d-ent-card__icon" aria-hidden="true">⌗</span>
+            <span class="v3d-ent-card__title">Klasifikace</span>
+            <span class="v3d-ent-card__count">${classifications.length}</span>
+          </header>
+          <div class="v3d-ent-card__body">
+            ${classifications.map(c => row(c.system || 'Klasifikace', formatClassification(c), { full: true })).join('')}
+          </div>
+        </section>
+      `);
+    }
+
     // ── Per-PSet (collapsible) ───────────────────────────────────────────
     for (const ps of (props?.propertySets || [])) {
       const collapsed = this._collapsed.has(ps.name);
@@ -98,7 +150,29 @@ export default class EntityDetailPanel {
       `);
     }
 
-    if (props && (props.propertySets || []).length === 0) {
+    // ── Type-level PSet data (read-only) ─────────────────────────────────
+    for (const ps of (related.typePropertySets || [])) {
+      const collapseKey = `type:${ps.typeId}:${ps.name}`;
+      const collapsed = this._collapsed.has(collapseKey);
+      const rowsHtml = (ps.properties || []).length === 0
+        ? '<p class="v3d-ent-card__empty">Prázdný typový PSet</p>'
+        : ps.properties.map(p => row(p.name, formatValue(p.value))).join('');
+      blocks.push(`
+        <section class="v3d-ent-card v3d-ent-card--collapsible ${collapsed ? 'is-collapsed' : ''}" data-pset="${escapeAttr(collapseKey)}">
+          <header class="v3d-ent-card__head v3d-ent-card__head--clickable" data-toggle>
+            <svg class="v3d-ent-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <span class="v3d-ent-card__title">Typ: ${escapeHtml(ps.name)}</span>
+            <span class="v3d-ent-card__count">${ps.properties?.length || 0}</span>
+          </header>
+          <div class="v3d-ent-card__body">
+            ${row('IfcType', `${ps.typeName} (#${ps.typeId})`, { full: true, mute: true })}
+            ${rowsHtml}
+          </div>
+        </section>
+      `);
+    }
+
+    if (props && (props.propertySets || []).length === 0 && (related.typePropertySets || []).length === 0) {
       blocks.push('<p class="v3d-panel__hint">Prvek nemá žádné property sety.</p>');
     }
 
@@ -179,6 +253,55 @@ function formatValue(v) {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'object') return JSON.stringify(v);
   return String(v);
+}
+
+function formatQuantity(q) {
+  const kind = q.kind ? ` ${q.kind}` : '';
+  return `${formatValue(q.value)}${kind}`;
+}
+
+function formatClassification(c) {
+  const parts = [];
+  if (c.code) parts.push(c.code);
+  if (c.name) parts.push(c.name);
+  if (c.uri) parts.push(c.uri);
+  return parts.join(' · ') || '—';
+}
+
+function materialRows(material) {
+  const rows = [];
+  if (material.layers && material.layers.length > 0) {
+    rows.push(row(material.name || material.type, `${material.layers.length} vrstev`, { full: true }));
+    for (const layer of material.layers) {
+      rows.push(row(layer.name || 'Vrstva', formatMaterialPart(layer), { full: true }));
+    }
+    return rows;
+  }
+  if (material.constituents && material.constituents.length > 0) {
+    rows.push(row(material.name || material.type, `${material.constituents.length} složek`, { full: true }));
+    for (const part of material.constituents) {
+      rows.push(row(part.name || 'Složka', formatMaterialPart(part), { full: true }));
+    }
+    return rows;
+  }
+  if (material.profiles && material.profiles.length > 0) {
+    rows.push(row(material.name || material.type, `${material.profiles.length} profilů`, { full: true }));
+    for (const profile of material.profiles) {
+      rows.push(row(profile.name || 'Profil', formatMaterialPart(profile), { full: true }));
+    }
+    return rows;
+  }
+  rows.push(row(material.type || 'Materiál', material.name || '—', { full: true }));
+  return rows;
+}
+
+function formatMaterialPart(part) {
+  const parts = [];
+  if (part.materialName && part.materialName !== part.name) parts.push(part.materialName);
+  if (part.thickness !== null && part.thickness !== undefined) parts.push(`${part.thickness} tl.`);
+  if (part.fraction !== null && part.fraction !== undefined) parts.push(`${part.fraction} podíl`);
+  if (part.category) parts.push(part.category);
+  return parts.join(' · ') || part.name || '—';
 }
 
 function escapeHtml(s) {

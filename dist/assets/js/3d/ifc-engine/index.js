@@ -6,8 +6,9 @@ import { EntityIndex } from './parser/entity-index.js';
 import { buildLayerIndex } from './parser/presentation-layers.js';
 import { ViewerCore } from './viewer/viewer-core.js';
 import { splitParams } from './parser/step-parser.js';
-import { parseRef, parseRefList } from './geometry/step-helpers.js';
+import { parseRefList } from './geometry/step-helpers.js';
 import { extractPropertiesFor } from './properties/psets.js';
+import { extractRelatedData } from './properties/related-data.js';
 import { extractSpatialHierarchy, collectAllElementIds } from './properties/spatial.js';
 import { extractIfcQuantities } from './properties/quantities.js';
 import { extractCoords } from './coords/geo-coords.js';
@@ -271,6 +272,7 @@ export class IfcEngine {
     if (this._ragChunks) this._ragChunks.delete(modelId);
     this._coordsCache.delete(modelId);
     this._manualOffsets.delete(modelId);
+    if (this._relatedDataCache) this._relatedDataCache.delete(modelId);
     this._recomputeFederation();
   }
 
@@ -1131,6 +1133,29 @@ export class IfcEngine {
   }
 
   /**
+   * Extract type-level PSet data, material associations, and classifications.
+   * Kept separate from getProperties() so occurrence PSet editing remains clear.
+   *
+   * @param {string} modelId
+   * @param {number} expressId
+   * @returns {{typePropertySets: Array, materials: Array, classifications: Array} | null}
+   */
+  getRelatedData(modelId, expressId) {
+    const m = this._models.get(modelId);
+    if (!m) return null;
+    if (!this._relatedDataCache) this._relatedDataCache = new Map();
+    let modelCache = this._relatedDataCache.get(modelId);
+    if (!modelCache) {
+      modelCache = new Map();
+      this._relatedDataCache.set(modelId, modelCache);
+    }
+    if (modelCache.has(expressId)) return modelCache.get(expressId);
+    const related = extractRelatedData(m.index, expressId);
+    modelCache.set(expressId, related);
+    return related;
+  }
+
+  /**
    * Highlight a list of entities. No-op without canvas.
    * @param {Array<{ modelId, expressId, color? }>} items
    * @param {number|string} [defaultColor]
@@ -1557,6 +1582,7 @@ export class IfcEngine {
     if (this._viewer) this._viewer.dispose();
     this._models.clear();
     this._propsCache = null;
+    this._relatedDataCache = null;
     this._coordsCache.clear();
     this._manualOffsets.clear();
   }

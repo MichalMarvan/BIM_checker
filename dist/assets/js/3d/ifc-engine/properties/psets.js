@@ -99,7 +99,7 @@ function extractSingleValue(entityIndex, propId) {
 /**
  * Extract a full IFCPROPERTYSET → { name, properties: [...] }.
  */
-function extractPropertySet(entityIndex, psetId) {
+export function extractPropertySet(entityIndex, psetId) {
   const pset = entityIndex.byExpressId(psetId);
   if (!pset || pset.type !== 'IFCPROPERTYSET') return null;
   const parts = splitParams(pset.params);
