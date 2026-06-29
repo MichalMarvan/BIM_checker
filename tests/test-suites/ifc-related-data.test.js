@@ -47,6 +47,22 @@ END-ISO-10303-21;`;
         expect(related.materials[0].layers[0].thickness).toBe(200);
     });
 
+    it('inherits material associations from the element type', async () => {
+        const ifc = `ISO-10303-21;
+DATA;
+#1=IFCWALL('wall-guid',$,'Wall',$,$,$,$,$,$);
+#10=IFCWALLTYPE('type-guid',$,'Basic wall type',$,$,$,$,$,.NOTDEFINED.);
+#11=IFCRELDEFINESBYTYPE('rel-type-guid',$,$,$,(#1),#10);
+#20=IFCMATERIAL('Brick',$,'masonry');
+#21=IFCRELASSOCIATESMATERIAL('rel-mat-guid',$,$,$,(#10),#20);
+ENDSEC;
+END-ISO-10303-21;`;
+        const related = await parseRelated(ifc);
+        expect(related.materials.length).toBe(1);
+        expect(related.materials[0].name).toBe('Brick');
+        expect(related.materials[0].category).toBe('masonry');
+    });
+
     it('extracts classification code and system through IfcRelAssociatesClassification', async () => {
         const ifc = `ISO-10303-21;
 DATA;
@@ -61,5 +77,22 @@ END-ISO-10303-21;`;
         expect(related.classifications[0].system).toBe('Uniclass');
         expect(related.classifications[0].code).toBe('Ss_25_10');
         expect(related.classifications[0].name).toBe('Walls');
+    });
+
+    it('inherits classification associations from the element type', async () => {
+        const ifc = `ISO-10303-21;
+DATA;
+#1=IFCWALL('wall-guid',$,'Wall',$,$,$,$,$,$);
+#10=IFCWALLTYPE('type-guid',$,'Basic wall type',$,$,$,$,$,.NOTDEFINED.);
+#11=IFCRELDEFINESBYTYPE('rel-type-guid',$,$,$,(#1),#10);
+#30=IFCCLASSIFICATION('bSDD',$,$,'Uniclass',$,$,$);
+#31=IFCCLASSIFICATIONREFERENCE('https://example.test/Ss_25_10','Ss_25_10','Walls',#30,$,$);
+#32=IFCRELASSOCIATESCLASSIFICATION('rel-class-guid',$,$,$,(#10),#31);
+ENDSEC;
+END-ISO-10303-21;`;
+        const related = await parseRelated(ifc);
+        expect(related.classifications.length).toBe(1);
+        expect(related.classifications[0].system).toBe('Uniclass');
+        expect(related.classifications[0].code).toBe('Ss_25_10');
     });
 });

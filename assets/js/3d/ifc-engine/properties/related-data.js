@@ -107,7 +107,7 @@ function extractTypePropertySets(entityIndex, expressId) {
 
 function extractMaterials(entityIndex, expressId) {
   const index = getRelatedIndex(entityIndex);
-  const refs = index.materialsByElement.get(expressId) || [];
+  const refs = collectRefsForElementAndTypes(index.materialsByElement, index.typeByElement, expressId);
   return refs
     .map(ref => parseMaterialDefinition(entityIndex, ref, new Set()))
     .filter(Boolean);
@@ -239,10 +239,23 @@ function parseMaterialDefinition(entityIndex, materialId, seen) {
 
 function extractClassifications(entityIndex, expressId) {
   const index = getRelatedIndex(entityIndex);
-  const refs = index.classificationsByElement.get(expressId) || [];
+  const refs = collectRefsForElementAndTypes(index.classificationsByElement, index.typeByElement, expressId);
   return refs
     .map(ref => parseClassification(entityIndex, ref, new Set()))
     .filter(Boolean);
+}
+
+function collectRefsForElementAndTypes(valueByEntity, typeByElement, expressId) {
+  const out = [];
+  for (const ref of valueByEntity.get(expressId) || []) {
+    if (!out.includes(ref)) out.push(ref);
+  }
+  for (const typeId of typeByElement.get(expressId) || []) {
+    for (const ref of valueByEntity.get(typeId) || []) {
+      if (!out.includes(ref)) out.push(ref);
+    }
+  }
+  return out;
 }
 
 function parseClassification(entityIndex, classificationId, seen) {
