@@ -41,7 +41,8 @@ const server = createServer((req, res) => {
         page.on('pageerror', e => console.log(`[pageerror] ${e.message.slice(0, 300)}`));
         page.on('error', e => console.log(`[CRASH] ${e.message}`));
         await page.goto('http://localhost:8768/pages/3d-viewer.html', { waitUntil: 'domcontentloaded', timeout: 30000 });
-        const res = await page.evaluate(async () => {
+        const merged = process.argv[3] === '--merged';
+        const res = await page.evaluate(async (merged) => {
             const t0 = performance.now();
             try {
                 const resp = await fetch('/__sample.ifc');
@@ -52,7 +53,7 @@ const server = createServer((req, res) => {
                 canvas.width = 800; canvas.height = 600;
                 container.appendChild(canvas);
                 const mod = await import('/assets/js/3d/ifc-engine/index.js');
-                const eng = new mod.IfcEngine({ canvas });
+                const eng = new mod.IfcEngine({ canvas, mergedGeometry: merged });
                 const id = await eng.loadIfc(buf, { name: 'big.ifc' });
                 const tLoad = performance.now();
                 const vm = eng._viewer?._models?.get(id);
@@ -66,7 +67,7 @@ const server = createServer((req, res) => {
             } catch (e) {
                 return { ok: false, error: e.message, stack: (e.stack || '').split('\n').slice(0, 5).join(' | ') };
             }
-        });
+        }, merged);
         console.log('RESULT:', JSON.stringify(res));
     } catch (e) {
         console.log('HARNESS ERROR:', e.message);

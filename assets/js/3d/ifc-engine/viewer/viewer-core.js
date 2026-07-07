@@ -549,6 +549,13 @@ export class ViewerCore {
       _lastYield = performance.now();
     };
 
+    // Merged mode never mutates leaf geometry (it copies vertices into one
+    // big baked buffer), so IfcMappedItem instances can share the cached
+    // original instead of cloning it — geometry-core reads this flag. The
+    // legacy path keeps clones: its meshes reference leaf geometry directly
+    // and the federation bake would corrupt shared buffers.
+    entityIndex._shareLeafGeometry = !!this._mergedGeometry;
+
     const group = new THREE.Group();
     group.userData = { modelId };
     // IFC files are Z-up by convention; Three.js scene uses Y-up. Rotate the
@@ -622,6 +629,13 @@ export class ViewerCore {
     if (skipped > 0) {
       console.warn(`[viewer] addModel: skipped ${skipped} outlier mesh items (extent > ${cap.toFixed(0)}, median ${medianExt.toFixed(2)})`);
     }
+    // Above the item cap the whole feature-edge pass is skipped (both paths):
+    // on 50k+ item files it costs minutes + hundreds of MB and the lines are
+    // sub-pixel noise anyway.
+    const skipFeatureEdges = accepted.length > 20000;
+    if (skipFeatureEdges) {
+      console.warn(`[viewer] addModel: ${accepted.length} items — skipping feature edges`);
+    }
     // Merged path (etapa 1): single vertex-colored mesh + faceIndex→element
     // table. No per-element feature edges yet (merged edges = etapa 4).
     if (this._mergedGeometry) {
@@ -637,7 +651,7 @@ export class ViewerCore {
         material.clippingPlanes = this._section.planes;
         material.clipShadows = true;
       }
-      const built = await buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material, maybeYield);
+      const built = await buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material, maybeYield, skipFeatureEdges);
       if (!built) {
         // Zero-geometry model (e.g. an IFC with no shape representations):
         // register an empty record anyway so per-model ops (visibility,
@@ -711,13 +725,7 @@ export class ViewerCore {
 
     // Instanced leaves (IfcMappedItem) carry userData.leafId — their cloned
     // geometry is identical, so feature edges are extracted once per leaf.
-    // Above the item cap the whole edge pass is skipped: on 50k+ item files
-    // it costs minutes and the lines are sub-pixel noise anyway.
     const edgeCache = new Map();
-    const skipFeatureEdges = accepted.length > 20000;
-    if (skipFeatureEdges) {
-      console.warn(`[viewer] addModel: ${accepted.length} items — skipping per-mesh feature edges`);
-    }
 
     for (const { entity, ifcType, item, result, typeColor } of accepted) {
       await maybeYield();

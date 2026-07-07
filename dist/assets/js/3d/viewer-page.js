@@ -321,10 +321,17 @@ async function loadIfcFromStorage(fileMeta) {
         } catch (e) { console.warn('[3d-viewer] BVH build failed:', e); }
 
         // Frame the camera only for the first model on an empty scene —
-        // later loads keep whatever view the user has set.
-        if (!hadModels && typeof engine.fitAll === 'function') {
-            try { engine.fitAll(); console.log('[3d-viewer] fitAll done'); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
-        } else if (hadModels) {
+        // later loads keep whatever view the user has set. Race-safe for
+        // concurrent batch lanes: the page-level flag makes sure exactly one
+        // load performs the initial fit; the length===1 arm restores auto-fit
+        // after the user cleared the scene and loaded a fresh model.
+        const isOnlyModel = (typeof engine.getModels === 'function') && engine.getModels().length === 1;
+        if ((!hadModels && !state.initialFitDone) || isOnlyModel) {
+            if (typeof engine.fitAll === 'function') {
+                try { engine.fitAll(); console.log('[3d-viewer] fitAll done'); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
+            }
+            state.initialFitDone = true;
+        } else {
             console.log('[3d-viewer] fitAll skipped — preserving user view');
         }
 
@@ -357,16 +364,27 @@ async function loadIfcFromStorage(fileMeta) {
 // Debug/tooling hook (scripts/debug-3d-load.js drives the real load path).
 window.__loadIfcFromStorage = loadIfcFromStorage;
 
+// Two files in flight at once: while one model builds geometry on the main
+// thread (cooperatively yielding), the other reads from IndexedDB and parses
+// in its own worker — classic pipeline overlap. More than 2 mostly adds RAM
+// (each in-flight file holds its text + entity buffers) without speeding up
+// the single main thread that all geometry builds share.
+const CONCURRENT_LOADS = 2;
+
 async function loadSelectedFromPicker() {
     const ids = Array.from(pickerState.selected);
     if (ids.length === 0) return;
     const modal = document.getElementById('viewer3dPickerModal');
     if (modal) modal.classList.remove('show');
-    for (const fileId of ids) {
-        const meta = pickerState.files[fileId];
-        if (!meta) continue;
-        try { await loadIfcFromStorage(meta); } catch (_) { /* keep going through the batch */ }
-    }
+    const queue = [...ids];
+    const lanes = Array.from({ length: Math.min(CONCURRENT_LOADS, queue.length) }, async () => {
+        while (queue.length > 0) {
+            const meta = pickerState.files[queue.shift()];
+            if (!meta) continue;
+            try { await loadIfcFromStorage(meta); } catch (_) { /* keep going through the batch */ }
+        }
+    });
+    await Promise.all(lanes);
     pickerState.selected.clear();
 }
 

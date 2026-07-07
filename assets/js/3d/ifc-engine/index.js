@@ -91,10 +91,16 @@ export class IfcEngine {
     };
     try {
       const t0 = performance.now();
-      const text = typeof input === 'string' ? input : new TextDecoder('utf-8').decode(input);
+      let text = typeof input === 'string' ? input : new TextDecoder('utf-8').decode(input);
       const t1 = performance.now();
 
       const { entities, schema } = await this._parseInWorker(text);
+      // The raw file text (and the caller's buffer) would otherwise stay
+      // referenced through the whole geometry build — that's file-size × 2 of
+      // dead weight per in-flight model. Release both now; everything below
+      // works off the parsed entities.
+      text = null;
+      input = null;
       const t2 = performance.now();
       releaseParsePause();
       const entityMap = new Map(entities.map(e => [e.expressId, e]));

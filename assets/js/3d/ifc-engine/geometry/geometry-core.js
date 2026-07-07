@@ -47,7 +47,11 @@ function buildLeafGeometry(entityIndex, itemExpressId, useCache = false) {
     if (!cache) cache = entityIndex._leafGeomCache = new Map();
     if (cache.has(itemExpressId)) {
       const cached = cache.get(itemExpressId);
-      return cached ? cached.clone() : null;
+      if (!cached) return null;
+      // Merged pipeline only reads leaf buffers (bakes copies), so instances
+      // can share one geometry. The legacy per-mesh path bakes matrices INTO
+      // the buffers later — there every instance needs its own copy.
+      return entityIndex._shareLeafGeometry ? cached : cached.clone();
     }
     const geom = buildLeafGeometryUncached(entityIndex, itemExpressId);
     if (geom) geom.userData.leafId = itemExpressId;

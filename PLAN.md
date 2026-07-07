@@ -382,3 +382,10 @@ Branch: 3d-viewer-integration
 - [x] fitAll jen pro první model na prázdné scéně — další loady drží uživatelský pohled (dřív 290 souborů = 290 resetů kamery)
 - [x] Pauza renderingu při parse/IO jen na software GL — HW-akcelerované stroje mají plynulý orbit i během načítání
 - [x] `window.__loadIfcFromStorage` expose pro debug harness, SW cache v138
+
+## 3D viewer: paralelní načítání + RAM dieta ✅ (2026-07-07)
+- [x] Picker batch: 2 souběžné lajny (pipeline overlap — geometrie jednoho modelu na main threadu, parse dalšího ve workeru); race-safe initial fit
+- [x] RAM: raw text + vstupní buffer uvolněny hned po parse (−2× velikost souboru na model v letu)
+- [x] RAM: merged mód sdílí cached leaf geometrii mezi IfcMappedItem instancemi (bez klonů; legacy path klony drží kvůli federation bake)
+- [x] Feature-edge cap >20k itemů platí i pro merged path
+- [x] Ověřeno headless: 4 modely souběžně přes reálnou page cestu, kamera zachována; end-to-end RAM měření 197MB Revitu na RPi5 vyteklo z timeoutu (stroj je pomalý) — korektnost potvrzena, číslo chybí

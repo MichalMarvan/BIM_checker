@@ -20,6 +20,8 @@
 import * as THREE from 'three';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
 
+const _NO_EDGES = new Float32Array(0);
+
 /**
  * @param {Array<{entity, ifcType, item, result, typeColor}>} accepted —
  *        outlier-filtered items from addModel
@@ -32,7 +34,7 @@ import { extractFeatureEdges } from '../geometry/mesh-types.js';
  *   elementInfo — Map<expressId, { ifcType }>
  *   elementsByType — Map<UPPERCASE_TYPE, number[]>
  */
-export async function buildMergedModel(accepted, computeItemMatrix, material, maybeYield = null) {
+export async function buildMergedModel(accepted, computeItemMatrix, material, maybeYield = null, skipEdges = false) {
   // Pass 1 — sizes + per-item matrices + anchor from transformed bboxes (f64)
   const prepared = [];
   let totalVerts = 0;
@@ -151,13 +153,17 @@ export async function buildMergedModel(accepted, computeItemMatrix, material, ma
     }
 
     // Feature edges of this element, baked into the anchor frame
-    const leafId = geom.userData?.leafId;
     let localEdges;
-    if (leafId !== undefined && edgeCache.has(leafId)) {
-      localEdges = edgeCache.get(leafId);
+    if (skipEdges) {
+      localEdges = _NO_EDGES;
     } else {
-      localEdges = extractFeatureEdges(geom);
-      if (leafId !== undefined) edgeCache.set(leafId, localEdges);
+      const leafId = geom.userData?.leafId;
+      if (leafId !== undefined && edgeCache.has(leafId)) {
+        localEdges = edgeCache.get(leafId);
+      } else {
+        localEdges = extractFeatureEdges(geom);
+        if (leafId !== undefined) edgeCache.set(leafId, localEdges);
+      }
     }
     if (localEdges.length > 0) {
       const baked = new Float32Array(localEdges.length);
