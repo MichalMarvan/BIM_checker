@@ -140,12 +140,19 @@ function renderLoadedList() {
 
 async function loadIfcFromStorage(fileMeta) {
     console.log('[3d-viewer] loadIfcFromStorage:', fileMeta.name);
-    // With a model already on screen, rendering competes with the whole load
-    // path for CPU — not just the parse worker but also the IndexedDB read +
-    // decompression here on the main thread (brutal on software-GL, where one
-    // frame costs hundreds of ms). Freeze frames for the entire load.
+    // With a model already on screen, rendering competes with the IndexedDB
+    // read + decompression on the main thread (brutal on software-GL, where
+    // one frame costs hundreds of ms). Freeze frames for THIS phase only —
+    // engine.loadIfc manages its own pause across the parse worker and then
+    // deliberately lets frames flow during the yielding geometry build, so
+    // the viewport stays orbitable while a big model streams in.
     const preEngine = state.engine;
-    if (preEngine && typeof preEngine.pauseRendering === 'function') preEngine.pauseRendering();
+    let pagePauseActive = false;
+    if (preEngine && typeof preEngine.pauseRendering === 'function') { preEngine.pauseRendering(); pagePauseActive = true; }
+    const releasePagePause = () => {
+        if (pagePauseActive && preEngine && typeof preEngine.resumeRendering === 'function') preEngine.resumeRendering();
+        pagePauseActive = false;
+    };
     try {
         setStatus(`${t('viewer3d.loading') || 'Načítám'} ${fileMeta.name}…`);
         const raw = await window.BIMStorage.getFileContent('ifc', fileMeta.id);
@@ -157,6 +164,7 @@ async function loadIfcFromStorage(fileMeta) {
         else buffer = raw;
         console.log('[3d-viewer] buffer ready, requesting engine…');
         const engine = await getEngine();
+        releasePagePause();
         console.log('[3d-viewer] engine ready, calling loadIfc…');
         const modelId = await engine.loadIfc(buffer, { name: fileMeta.name });
         console.log('[3d-viewer] loadIfc resolved, modelId =', modelId);
@@ -332,7 +340,7 @@ async function loadIfcFromStorage(fileMeta) {
         }
         throw e;
     } finally {
-        if (preEngine && typeof preEngine.resumeRendering === 'function') preEngine.resumeRendering();
+        releasePagePause();
     }
 }
 

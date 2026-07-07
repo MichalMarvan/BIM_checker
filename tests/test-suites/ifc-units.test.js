@@ -150,4 +150,23 @@ describe('3D IFC product type detection', () => {
         expect(types.has('IFCWALLTYPE')).toBe(false);
         expect(types.has('IFCRELAGGREGATES')).toBe(false);
     });
+
+    it('keeps subtraction features (IfcVoidingFeature) hidden from products', async () => {
+        // Tekla exports voiding features (drill/cut reference volumes) as
+        // products with a 'Reference' SolidModel shape — they must not be
+        // listed or rendered (their volume is the hole, not material).
+        const ifc = HEADER + `
+#1=IFCVOIDINGFEATURE('g1',$,'COLUMN','D31080',$,#5,#10,'(?)',.HOLE.);
+#5=IFCLOCALPLACEMENT($,$);
+#10=IFCPRODUCTDEFINITIONSHAPE($,$,(#11));
+#11=IFCSHAPEREPRESENTATION($,'Reference','SolidModel',());
+` + FOOTER;
+        const [types, { HIDDEN_PRODUCT_TYPES }] = await Promise.all([
+            detect(ifc),
+            import('../../assets/js/3d/ifc-engine/constants.js')
+        ]);
+        expect(types.has('IFCVOIDINGFEATURE')).toBe(false);
+        expect(HIDDEN_PRODUCT_TYPES.has('IFCVOIDINGFEATURE')).toBe(true);
+        expect(HIDDEN_PRODUCT_TYPES.has('IFCOPENINGSTANDARDCASE')).toBe(true);
+    });
 });

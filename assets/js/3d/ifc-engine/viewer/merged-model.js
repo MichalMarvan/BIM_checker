@@ -32,7 +32,7 @@ import { extractFeatureEdges } from '../geometry/mesh-types.js';
  *   elementInfo — Map<expressId, { ifcType }>
  *   elementsByType — Map<UPPERCASE_TYPE, number[]>
  */
-export function buildMergedModel(accepted, computeItemMatrix, material) {
+export async function buildMergedModel(accepted, computeItemMatrix, material, maybeYield = null) {
   // Pass 1 — sizes + per-item matrices + anchor from transformed bboxes (f64)
   const prepared = [];
   let totalVerts = 0;
@@ -42,6 +42,7 @@ export function buildMergedModel(accepted, computeItemMatrix, material) {
   const corner = new THREE.Vector3();
 
   for (const cand of accepted) {
+    if (maybeYield) await maybeYield();
     const geom = cand.item.bufferGeometry;
     const pos = geom.getAttribute('position');
     if (!pos || pos.count === 0) continue;
@@ -102,6 +103,7 @@ export function buildMergedModel(accepted, computeItemMatrix, material) {
   const edgeCache = new Map();
 
   for (const { cand, geom, matrix, vertCount, triCount } of prepared) {
+    if (maybeYield) await maybeYield();
     bakeMatrix.multiplyMatrices(toAnchor, matrix);
     normalMatrix.getNormalMatrix(bakeMatrix);
 

@@ -56,14 +56,17 @@ export const PRODUCT_TYPES = new Set([
 
 /**
  * Product types that carry geometry but must NOT be rendered as solids:
- * - IFCOPENINGELEMENT — the Body of an opening is the *subtracted* volume
- *   (IfcRelVoidsElement). Drawing it paints a solid box over every window
- *   and door hole. Until real CSG subtraction lands, viewers hide these.
+ * - IFCOPENINGELEMENT / IFCOPENINGSTANDARDCASE / IFCVOIDINGFEATURE — the
+ *   IfcFeatureElementSubtraction family: their Body/Reference shape is the
+ *   *subtracted* volume (IfcRelVoidsElement). Drawing it paints a solid over
+ *   the hole — Tekla exports IfcVoidingFeature drill/cut references that can
+ *   dwarf the element itself (31 m circles in D222_SO127401_SKR). Until real
+ *   CSG subtraction lands, viewers hide these.
  * - IFCSPACE — room volumes; drawn solid they fill the whole interior and
  *   occlude everything inside (standard viewers hide them by default).
  */
 export const HIDDEN_PRODUCT_TYPES = new Set([
-  'IFCOPENINGELEMENT', 'IFCSPACE',
+  'IFCOPENINGELEMENT', 'IFCOPENINGSTANDARDCASE', 'IFCVOIDINGFEATURE', 'IFCSPACE',
 ]);
 
 /**

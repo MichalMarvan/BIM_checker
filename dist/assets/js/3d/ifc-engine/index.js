@@ -72,10 +72,21 @@ export class IfcEngine {
       throw new Error('loadIfc: options.name is required');
     }
     // Rendering the existing scene competes with the parse worker for CPU
-    // cores (brutal on software-GL) — freeze frames for the duration.
+    // cores (brutal on software-GL) — freeze frames for the parse phase ONLY.
+    // The geometry build that follows runs on the main thread with
+    // cooperative yields (addModel), so frames must flow there: that's what
+    // keeps the viewport orbitable while a big model streams in.
+    let parsePauseActive = false;
     if (this._viewer && typeof this._viewer.pauseRendering === 'function') {
       this._viewer.pauseRendering();
+      parsePauseActive = true;
     }
+    const releaseParsePause = () => {
+      if (parsePauseActive && this._viewer && typeof this._viewer.resumeRendering === 'function') {
+        this._viewer.resumeRendering();
+      }
+      parsePauseActive = false;
+    };
     try {
       const t0 = performance.now();
       const text = typeof input === 'string' ? input : new TextDecoder('utf-8').decode(input);
@@ -83,6 +94,7 @@ export class IfcEngine {
 
       const { entities, schema } = await this._parseInWorker(text);
       const t2 = performance.now();
+      releaseParsePause();
       const entityMap = new Map(entities.map(e => [e.expressId, e]));
       const index = new EntityIndex(entityMap);
       // Build style index once per model: maps geometry item expressId → hex color
@@ -117,7 +129,7 @@ export class IfcEngine {
       };
       this._models.set(modelId, { meta, index });
       if (this._viewer) {
-        this._viewer.addModel(modelId, index, { lengthScale });
+        await this._viewer.addModel(modelId, index, { lengthScale });
         this._viewer._emit('modelLoaded', { modelId, stats: { ...meta } });
       }
       const t4 = performance.now();
@@ -136,9 +148,7 @@ export class IfcEngine {
       console.log(`[ifc-engine] loadIfc timings (ms): decode=${(t1 - t0).toFixed(0)} parse=${(t2 - t1).toFixed(0)} index=${(t3 - t2).toFixed(0)} geometry=${(t4 - t3).toFixed(0)} total=${(performance.now() - t0).toFixed(0)} | compacted ${dropped} geometry entities (${index.stats().entityCount} kept)`);
       return modelId;
     } finally {
-      if (this._viewer && typeof this._viewer.resumeRendering === 'function') {
-        this._viewer.resumeRendering();
-      }
+      releaseParsePause();
     }
   }
 

@@ -6,6 +6,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BIM Checker - Test Runner</title>
+    <!-- Import map: geometry test suites import engine modules that use the
+         bare 'three' specifier (same mapping as pages/3d-viewer.html). -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://esm.sh/three@0.182.0/build/three.module.js"
+            }
+        }
+    </script>
     <link rel="stylesheet" href="../assets/css/mobile-nav.css">
     <style>
         * {
@@ -461,6 +470,7 @@
     <script src="test-suites/ifc-parser.test.js"></script>
     <script src="test-suites/ifc-related-data.test.js"></script>
     <script src="test-suites/ifc-units.test.js"></script>
+    <script src="test-suites/ifc-revolved-solid.test.js"></script>
     <script src="test-suites/ifc-string-encoding.test.js"></script>
     <script src="test-suites/ids-parser.test.js"></script>
     <script src="test-suites/ids-xml-generator.test.js"></script>

@@ -240,7 +240,22 @@ export class ViewerCore {
       preserveDrawingBuffer: false,
     });
     this._renderer.localClippingEnabled = true;
-    this._renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Software rasterizers (SwiftShader / llvmpipe / Mesa soft / MS Basic
+    // Render — GPU-blocklisted or driverless laptops) spend hundreds of ms
+    // per frame at full resolution with SSAO. Detect and downshift: 1:1
+    // pixel ratio here, SSAO disabled below. HW-accelerated machines keep
+    // the full pipeline.
+    this._softwareGL = false;
+    try {
+      const gl = this._renderer.getContext();
+      const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      const glName = dbgInfo ? gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) : '';
+      this._softwareGL = /swiftshader|llvmpipe|softpipe|软件|software|basic render/i.test(String(glName));
+      if (this._softwareGL) {
+        console.warn(`[viewer] software WebGL detected (${glName}) — pixelRatio 1, SSAO off`);
+      }
+    } catch (e) { /* detection is best-effort */ }
+    this._renderer.setPixelRatio(this._softwareGL ? 1 : Math.min(window.devicePixelRatio || 1, 2));
     this._renderer.setSize(canvas.width, canvas.height, false);
 
     // Post-processing pipeline. Fáze B: transparent wrapper. Fáze D: edges
@@ -255,6 +270,7 @@ export class ViewerCore {
     // already-AO-modulated colour. The other way round would draw edges
     // and then multiply them down with AO, washing them out.
     this._ssaoPass = new SSAOPass(this._pipeline, this._camera);
+    if (this._softwareGL) this._ssaoPass.enabled = false;
     this._pipeline.addPass(this._ssaoPass);
     this._edgesPass = new EdgesPass(this._pipeline, this._camera);
     this._pipeline.addPass(this._edgesPass);
@@ -515,11 +531,23 @@ export class ViewerCore {
    *        unit to metres (e.g., 0.001 for MILLIMETRE). Applied via group.scale
    *        so the entire model ends up in metres regardless of IFC declaration.
    */
-  addModel(modelId, entityIndex, opts = {}) {
+  async addModel(modelId, entityIndex, opts = {}) {
     if (this._models.has(modelId)) {
       this.removeModel(modelId);
     }
     const lengthScale = (opts && typeof opts.lengthScale === 'number' && opts.lengthScale > 0) ? opts.lengthScale : 1;
+
+    // Cooperative yielding: geometry build used to run synchronously and
+    // block the main thread for the whole model (minutes on big files) — the
+    // viewport was dead, no orbit/pan, browser showed "page unresponsive".
+    // Give the event loop a breath every ~33 ms so the render loop draws a
+    // frame and OrbitControls stay live while the model builds.
+    let _lastYield = performance.now();
+    const maybeYield = async () => {
+      if (performance.now() - _lastYield < 33) return;
+      await new Promise(r => setTimeout(r, 0));
+      _lastYield = performance.now();
+    };
 
     const group = new THREE.Group();
     group.userData = { modelId };
@@ -573,6 +601,7 @@ export class ViewerCore {
       const entities = entityIndex.byType(ifcType);
       const typeColor = IFC_TYPE_COLORS[ifcType] ?? DEFAULT_COLOR;
       for (const entity of entities) {
+        await maybeYield();
         const result = buildEntityGeometry(entityIndex, entity.expressId);
         if (!result || result.items.length === 0) continue;
         for (const item of result.items) {
@@ -608,7 +637,7 @@ export class ViewerCore {
         material.clippingPlanes = this._section.planes;
         material.clipShadows = true;
       }
-      const built = buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material);
+      const built = await buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material, maybeYield);
       if (!built) {
         // Zero-geometry model (e.g. an IFC with no shape representations):
         // register an empty record anyway so per-model ops (visibility,
@@ -691,6 +720,7 @@ export class ViewerCore {
     }
 
     for (const { entity, ifcType, item, result, typeColor } of accepted) {
+      await maybeYield();
       // The original two-loop entity iteration is now flattened above; render
       // a single mesh + edges per accepted item below.
       {

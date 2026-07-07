@@ -370,3 +370,10 @@ CDE workflow end-to-end: pull from cloud → edit in BIM_checker → save back �
 - [x] +9 testů (911 celkem), SW cache v135 → v136
 
 Branch: 3d-viewer-integration
+
+## 3D viewer: Tekla geometrie + responzivní načítání ✅ (2026-07-07)
+- [x] IfcRevolvedAreaSolid přepsán z lathe aproximace na korektní ring-sweep kolem IfcAxis1Placement (osa 100+ m od profilu = zakřivené vaznice; dřív levitovaly o desítky metrů) + podpora děr v profilu (RHS trubky) + end caps
+- [x] IfcVoidingFeature/IfcOpeningStandardCase do HIDDEN_PRODUCT_TYPES (Tekla vrtné/řezné reference — 31m kruhy v D222_SO127401_SKR)
+- [x] addModel async s kooperativními yieldy (~33 ms budget) — viewport žije během stavby geometrie; pauza renderingu jen přes parse worker fázi
+- [x] Detekce software WebGL (SwiftShader/llvmpipe) → SSAO off + pixelRatio 1 na slabých strojích
+- [x] +4 testy (915 celkem), import mapa three v test-runneru, SW cache v137

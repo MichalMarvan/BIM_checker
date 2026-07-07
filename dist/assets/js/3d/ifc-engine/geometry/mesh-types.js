@@ -1334,12 +1334,17 @@ export function revolvedAreaSolidToGeometry(entityIndex, expressId) {
   const profileId = parseRef(parts[0]);
   const positionId = parseRef(parts[1]);
   const axisId = parseRef(parts[2]);
-  const angle = parseFloatScalar(parts[3]) || (Math.PI * 2);
+  let angle = parseFloatScalar(parts[3]);
+  if (!Number.isFinite(angle) || angle === 0) angle = Math.PI * 2;
   if (!profileId) return null;
   const profile = resolveProfilePoints(entityIndex, profileId);
   if (!profile || profile.outer.length < 3) return null;
 
-  // Resolve revolution axis: IfcAxis1Placement(Location, Axis)
+  // Resolve revolution axis: IfcAxis1Placement(Location, Axis). Both live in
+  // the solid's Position frame; per spec the axis lies in the profile plane
+  // z=0. The LOCATION matters — Tekla revolves curved roof members about an
+  // axis 100+ m away from the profile (huge radius, small angle), so any
+  // shortcut that drops the axis position displaces the member by that much.
   let axisOrigin = [0, 0, 0];
   let axisDir = [0, 0, 1];
   if (axisId) {
@@ -1353,54 +1358,96 @@ export function revolvedAreaSolidToGeometry(entityIndex, expressId) {
     }
   }
 
-  // The profile lives in the local XY plane. The revolution axis (axisDir) is
-  // a 3D vector in the same local frame. Approximate by treating the axis as
-  // a line in the XY plane (IFC always positions the profile so the axis is
-  // in-plane — most exporters use axis = [0, 1, 0] i.e. local Y).
-  // We project each profile vertex onto a radius about the axis, then lathe.
-  const axisVec2 = new THREE.Vector2(axisDir[0] || 0, axisDir[1] || 0);
-  if (axisVec2.lengthSq() < 1e-9) axisVec2.set(0, 1);
-  axisVec2.normalize();
-  const originVec2 = new THREE.Vector2(axisOrigin[0] || 0, axisOrigin[1] || 0);
-  // Convert profile outer to (radius, height) pairs along the axis direction.
-  // radius = perpendicular distance from axis; height = projection onto axis.
-  const perp = new THREE.Vector2(-axisVec2.y, axisVec2.x);
-  const lathePoints = [];
-  for (const [x, y] of profile.outer) {
-    const p = new THREE.Vector2(x, y).sub(originVec2);
-    const r = Math.abs(p.dot(perp));
-    const h = p.dot(axisVec2);
-    lathePoints.push(new THREE.Vector2(r, h));
+  // Negative sweep = positive sweep about the flipped axis.
+  if (angle < 0) {
+    angle = -angle;
+    axisDir = [-(axisDir[0] || 0), -(axisDir[1] || 0), -(axisDir[2] || 0)];
   }
-  // LatheGeometry wants points sorted by Y ascending; if our points aren't,
-  // ExtrudeGeometry might still work but normals can flip. We sort to be safe.
-  lathePoints.sort((a, b) => a.y - b.y);
+  if (angle > Math.PI * 2) angle = Math.PI * 2;
+  const fullTurn = Math.abs(angle - Math.PI * 2) < 1e-6;
 
-  let geom;
-  try {
-    const segments = Math.max(8, Math.ceil((angle / (Math.PI * 2)) * 32));
-    geom = new THREE.LatheGeometry(lathePoints, segments, 0, angle);
-  } catch (e) {
-    return null;
+  const dir = new THREE.Vector3(axisDir[0] || 0, axisDir[1] || 0, axisDir[2] || 0);
+  if (dir.lengthSq() < 1e-12) dir.set(0, 0, 1);
+  dir.normalize();
+  const origin = new THREE.Vector3(axisOrigin[0] || 0, axisOrigin[1] || 0, axisOrigin[2] || 0);
+
+  // Orient loops so the shared wall-quad code emits consistent winding:
+  // outer CCW, holes CW. Also drop a duplicated closing point if present.
+  const dedupe = (pts) => {
+    if (pts.length > 1) {
+      const [fx, fy] = pts[0];
+      const [lx, ly] = pts[pts.length - 1];
+      if (Math.abs(fx - lx) < 1e-9 && Math.abs(fy - ly) < 1e-9) return pts.slice(0, -1);
+    }
+    return pts;
+  };
+  const signedArea = (pts) => {
+    let a = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[(i + 1) % pts.length];
+      a += x1 * y2 - x2 * y1;
+    }
+    return a / 2;
+  };
+  const orient = (pts, ccw) => {
+    const p = dedupe(pts);
+    return (signedArea(p) > 0) === ccw ? p : [...p].reverse();
+  };
+  const outerLoop = orient(profile.outer, true);
+  if (outerLoop.length < 3) return null;
+  const holeLoops = (profile.holes || []).filter(h => h && h.length >= 3).map(h => orient(h, false));
+
+  // Ring transforms: rotate about the axis line by θ_i, then move to Position.
+  // Applied in doubles here; geometryFromPositionsIndices extracts the local
+  // origin before the Float32 conversion, which keeps precision even with the
+  // 100 m axis offsets.
+  const steps = Math.max(2, Math.min(96, Math.ceil((angle / (Math.PI * 2)) * 48)));
+  const posM = positionId ? placement3DToMatrix(entityIndex, positionId) : null;
+  const ringMats = [];
+  for (let i = 0; i <= steps; i++) {
+    const m = new THREE.Matrix4().makeTranslation(origin.x, origin.y, origin.z)
+      .multiply(new THREE.Matrix4().makeRotationAxis(dir, (angle * i) / steps))
+      .multiply(new THREE.Matrix4().makeTranslation(-origin.x, -origin.y, -origin.z));
+    if (posM) m.premultiply(posM);
+    ringMats.push(m);
+  }
+  const v = new THREE.Vector3();
+  const ringOf = (loop, m) => loop.map(([x, y]) => {
+    v.set(x, y, 0).applyMatrix4(m);
+    return [v.x, v.y, v.z];
+  });
+
+  const positions = [];
+  const indices = [];
+  for (const loop of [outerLoop, ...holeLoops]) {
+    const K = loop.length;
+    let prev = ringOf(loop, ringMats[0]);
+    for (let i = 1; i <= steps; i++) {
+      const cur = ringOf(loop, ringMats[i]);
+      const base = positions.length / 3;
+      for (const p of prev) positions.push(p[0], p[1], p[2]);
+      for (const p of cur) positions.push(p[0], p[1], p[2]);
+      for (let j = 0; j < K; j++) {
+        const j1 = (j + 1) % K;
+        const a0 = base + j, a1 = base + j1;
+        const b0 = base + K + j, b1 = base + K + j1;
+        indices.push(a0, b0, b1, a0, b1, a1);
+      }
+      prev = cur;
+    }
+  }
+  // End caps close the sweep for partial revolutions (material is DoubleSide,
+  // so cap orientation is forgiving).
+  if (!fullTurn) {
+    pushTriangulatedPolygonWithHoles(
+      ringOf(outerLoop, ringMats[0]), holeLoops.map(h => ringOf(h, ringMats[0])), positions, indices);
+    pushTriangulatedPolygonWithHoles(
+      ringOf(outerLoop, ringMats[steps]), holeLoops.map(h => ringOf(h, ringMats[steps])), positions, indices);
   }
 
-  // LatheGeometry revolves around Y axis; we need to align local Y of the
-  // lathe to the IFC axis direction. The relationship is: lathe Y matches the
-  // axisVec direction in the XY plane. Build a basis where lathe Y = (axisVec2 in XY, 0 in Z).
-  // For simple case where axisDir == [0,1,0] in local frame, no extra rotation needed.
-  // We construct the rotation that maps Y_lathe → axisVec2 in XY plane.
-  const angleZ = Math.atan2(axisVec2.x, axisVec2.y);
-  if (Math.abs(angleZ) > 1e-6) {
-    geom.applyMatrix4(new THREE.Matrix4().makeRotationZ(angleZ));
-  }
-  // Translate so the lathe origin sits at axisOrigin in local frame.
-  geom.applyMatrix4(new THREE.Matrix4().makeTranslation(axisOrigin[0] || 0, axisOrigin[1] || 0, axisOrigin[2] || 0));
-
-  if (positionId) {
-    geom.applyMatrix4(placement3DToMatrix(entityIndex, positionId));
-  }
-  mergeVerticesInPlace(geom, 1e-4);
-  computeCreasedVertexNormals(geom);
+  const geom = geometryFromPositionsIndices(positions, indices);
+  if (!geom) return null;
   geom.computeBoundingBox();
   return geom;
 }
