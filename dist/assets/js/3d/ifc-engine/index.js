@@ -31,6 +31,7 @@ import { extractEntityName, extractEntityGuid } from './parser/entity-name.js';
 import { buildStyleIndex } from './geometry/styled-items.js';
 import { extractLengthScale, buildContextScaleMap } from './parser/units.js';
 import { detectProductTypes } from './parser/product-detect.js';
+import { serializeModelCache, deserializeModelCache } from './cache/model-cache.js';
 
 let _modelCounter = 0;
 function generateModelId() {
@@ -1210,6 +1211,89 @@ export class IfcEngine {
     const coords = extractCoords(m.index);
     this._coordsCache.set(modelId, coords);
     return coords;
+  }
+
+  /**
+   * Serialize a loaded merged-mode model into a .bimcache ArrayBuffer.
+   *
+   * MUST be called right after loadIfc resolves and BEFORE any federation
+   * bake — the bake rewrites the merged vertex buffer to scene-local coords
+   * and resets the mesh matrix, which would poison the cache.
+   *
+   * @returns {Promise<ArrayBuffer|null>} null when the model isn't cacheable
+   *   (legacy per-mesh mode, zero geometry, unknown id).
+   */
+  async exportModelCache(modelId) {
+    const rec = this._models.get(modelId);
+    const vm = this._viewer?._models?.get(modelId);
+    if (!rec || !vm || !vm.merged || !vm.meshes || vm.meshes.length !== 1) return null;
+    const mesh = vm.meshes[0];
+    const geom = mesh.geometry;
+    const pos = geom.getAttribute('position');
+    if (!pos || pos.count === 0) return null;
+
+    const entities = [];
+    for (const [id, e] of rec.index._byId) entities.push([id, e.type, e.params]);
+    const elementInfo = [];
+    for (const [id, info] of vm.elementInfo) elementInfo.push([id, info.ifcType]);
+    const elementsByType = {};
+    for (const [t, ids] of vm.elementsByType) elementsByType[t] = ids;
+    const edgeGeom = vm.featureEdges && vm.featureEdges[0] ? vm.featureEdges[0].geometry : null;
+    const me = mesh.matrix.elements;
+
+    return serializeModelCache({
+      meta: { ...rec.meta },
+      lengthScale: rec.meta.lengthScale,
+      productTypes: [...(rec.index._productTypes || [])],
+      anchor: [me[12], me[13], me[14]],
+      position: pos.array,
+      normal: geom.getAttribute('normal')?.array || null,
+      color: geom.getAttribute('color')?.array || null,
+      index: geom.index ? geom.index.array : null,
+      table: vm.mergedTable || [],
+      elementInfo,
+      elementsByType,
+      edgePositions: edgeGeom ? edgeGeom.getAttribute('position').array : null,
+      edgesTable: vm.mergedEdgesTable || [],
+      entities,
+      layerIndex: rec.layerIndex ? [...rec.layerIndex.entries()] : [],
+      coords: this._coordsCache.get(modelId) || null,
+    });
+  }
+
+  /**
+   * Register a model from a .bimcache buffer — skips parse + triangulation
+   * entirely. Returns null on format/version mismatch (caller falls back to
+   * the normal loadIfc path and regenerates the cache).
+   *
+   * @param {ArrayBuffer} cacheBuffer
+   * @param {{ name?: string }} options
+   * @returns {Promise<string|null>} modelId
+   */
+  async loadModelFromCache(cacheBuffer, options = {}) {
+    const t0 = performance.now();
+    const payload = deserializeModelCache(cacheBuffer);
+    if (!payload || !payload.position) return null;
+
+    const entityMap = new Map(payload.entities.map(([id, type, params]) => [id, { expressId: id, type, params }]));
+    const index = new EntityIndex(entityMap);
+    index._lengthScale = payload.lengthScale;
+    index._productTypes = new Set(payload.productTypes || []);
+
+    const modelId = generateModelId();
+    const meta = { ...payload.meta, modelId, name: options.name || payload.meta.name };
+    this._models.set(modelId, { meta, index });
+    const rec = this._models.get(modelId);
+    rec.layerIndex = new Map(payload.layerIndex || []);
+    if (payload.coords) this._coordsCache.set(modelId, payload.coords);
+
+    if (this._viewer) {
+      this._viewer.addModelFromCache(modelId, payload, { lengthScale: payload.lengthScale });
+      this._viewer._emit('modelLoaded', { modelId, stats: { ...meta } });
+    }
+    this._recomputeFederation();
+    console.log(`[ifc-engine] loadModelFromCache: ${meta.name} in ${(performance.now() - t0).toFixed(0)} ms (${payload.position.length / 3} verts, ${meta.entityCount} entities kept)`);
+    return modelId;
   }
 
   /**

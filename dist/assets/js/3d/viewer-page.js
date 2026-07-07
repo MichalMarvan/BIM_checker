@@ -159,13 +159,14 @@ async function loadIfcFromStorage(fileMeta) {
     };
     try {
         setStatus(`${t('viewer3d.loading') || 'Načítám'} ${fileMeta.name}…`);
-        const raw = await window.BIMStorage.getFileContent('ifc', fileMeta.id);
+        let raw = await window.BIMStorage.getFileContent('ifc', fileMeta.id);
         if (!raw) throw new Error('Empty file content');
         let buffer;
         if (raw instanceof ArrayBuffer) buffer = raw;
         else if (typeof raw === 'string') buffer = new TextEncoder().encode(raw).buffer;
         else if (raw && raw.buffer instanceof ArrayBuffer) buffer = raw.buffer;
         else buffer = raw;
+        raw = null; // buffer holds the only reference from here on
         console.log('[3d-viewer] buffer ready, requesting engine…');
         const engine = await getEngine();
         // Camera policy: auto-frame only when the scene was empty when this
@@ -173,9 +174,55 @@ async function loadIfcFromStorage(fileMeta) {
         // must NOT touch the view — the user is often orbiting mid-load.
         const hadModels = (typeof engine.getModels === 'function') && engine.getModels().length > 0;
         releasePagePause();
-        console.log('[3d-viewer] engine ready, calling loadIfc…');
-        const modelId = await engine.loadIfc(buffer, { name: fileMeta.name });
-        console.log('[3d-viewer] loadIfc resolved, modelId =', modelId);
+
+        // ---- .bimcache: second open of the same file skips parse+triangulate ----
+        // Key = SHA-256 of the file bytes; version guards live in the cache
+        // format itself. ?cache=0 bypasses both read and write.
+        const cacheEnabled = new URLSearchParams(location.search).get('cache') !== '0'
+            && !!(window.crypto && crypto.subtle) && typeof engine.loadModelFromCache === 'function';
+        let modelId = null;
+        let contentHash = null;
+        let fromCache = false;
+        if (cacheEnabled) {
+            try {
+                const digest = await crypto.subtle.digest('SHA-256', buffer);
+                contentHash = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+                const cacheStore = await import('./ifc-engine/cache/cache-store.js');
+                const cachedBuf = await cacheStore.cacheGet(contentHash);
+                if (cachedBuf) {
+                    modelId = await engine.loadModelFromCache(cachedBuf, { name: fileMeta.name });
+                    fromCache = !!modelId;
+                    if (!modelId) cacheStore.cacheDelete(contentHash); // stale format/version
+                }
+            } catch (e) {
+                console.warn('[3d-viewer] cache lookup failed (falling back to full load):', e);
+            }
+        }
+
+        if (!modelId) {
+            console.log('[3d-viewer] engine ready, calling loadIfc…');
+            const loadPromise = engine.loadIfc(buffer, { name: fileMeta.name });
+            // Release page-side references — the engine frees its own copy
+            // after parse; these were pinning file-size bytes till load end.
+            buffer = null;
+            modelId = await loadPromise;
+            // Export BEFORE the federation bake below — the bake rewrites the
+            // merged vertex buffer to scene-local coords.
+            if (cacheEnabled && contentHash) {
+                try {
+                    const cacheBuf = await engine.exportModelCache(modelId);
+                    if (cacheBuf) {
+                        import('./ifc-engine/cache/cache-store.js')
+                            .then(cs => cs.cachePut(contentHash, cacheBuf, { name: fileMeta.name }))
+                            .then(ok => { if (ok) console.log(`[3d-viewer] cached ${fileMeta.name} (${Math.round(cacheBuf.byteLength / 1048576)} MB)`); })
+                            .catch(e => console.warn('[3d-viewer] cache write failed:', e));
+                    }
+                } catch (e) {
+                    console.warn('[3d-viewer] cache export failed:', e);
+                }
+            }
+        }
+        console.log(`[3d-viewer] load resolved, modelId = ${modelId}${fromCache ? ' (from cache)' : ''}`);
         const stats = (typeof engine.getStats === 'function') ? engine.getStats(modelId) : null;
         console.log('[3d-viewer] stats =', stats);
 
@@ -347,7 +394,7 @@ async function loadIfcFromStorage(fileMeta) {
         if (meshCount === 0) {
             setStatus(`⚠ ${fileMeta.name} — 0 mesh (geometrie tohoto IFC zatím není podporovaná)`, 'error');
         } else {
-            setStatus(`✓ ${fileMeta.name}${stats ? ` — ${stats.entityCount} entit, ${meshCount} mesh` : ''}`, 'success');
+            setStatus(`✓ ${fileMeta.name}${stats ? ` — ${stats.entityCount} entit, ${meshCount} mesh` : ''}${fromCache ? ' ⚡ cache' : ''}`, 'success');
         }
         return modelId;
     } catch (e) {

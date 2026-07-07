@@ -639,18 +639,7 @@ export class ViewerCore {
     // Merged path (etapa 1): single vertex-colored mesh + faceIndex→element
     // table. No per-element feature edges yet (merged edges = etapa 4).
     if (this._mergedGeometry) {
-      const material = DEFAULT_MATERIAL.clone();
-      material.vertexColors = true;
-      material.color.setHex(0xffffff);
-      // Per-element hide/fade via the elemHide attribute (etapa 3):
-      // hidden elements discard (works on the opaque path), fractional
-      // values multiply alpha (blending enabled by _applyDisplayMode when
-      // any fade is active).
-      _patchElemHide(material, 'merged-elem-hide');
-      if (this._section.active && this._section.planes.length > 0) {
-        material.clippingPlanes = this._section.planes;
-        material.clipShadows = true;
-      }
+      const material = this._makeMergedMaterial();
       const built = await buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material, maybeYield, skipFeatureEdges);
       if (!built) {
         // Zero-geometry model (e.g. an IFC with no shape representations):
@@ -672,51 +661,7 @@ export class ViewerCore {
         return;
       }
       if (built) {
-        built.mesh.userData = { modelId, merged: true, mergedTable: built.table };
-        built.mesh.layers.enable(NORMAL_PASS_LAYER);  // include in the normal pass
-        innerGroup.add(built.mesh);
-
-        // Merged topology feature edges — one LineSegments per model (etapa 4)
-        const mergedFeatureEdges = [];
-        let mergedEdgeMaterial = null;
-        if (built.edgePositions) {
-          const edgeGeom = new THREE.BufferGeometry();
-          edgeGeom.setAttribute('position', new THREE.BufferAttribute(built.edgePositions, 3));
-          edgeGeom.setAttribute('elemHide',
-            new THREE.BufferAttribute(new Float32Array(built.edgePositions.length / 3), 1));
-          mergedEdgeMaterial = new THREE.LineBasicMaterial({
-            color: 0x2a2a2e,
-            transparent: true,
-            opacity: FEATURE_EDGE_OPACITY,
-            depthTest: true,
-            depthWrite: false,
-          });
-          _patchElemHide(mergedEdgeMaterial, 'merged-edge-hide');
-          const edgeLines = new THREE.LineSegments(edgeGeom, mergedEdgeMaterial);
-          edgeLines.userData = { isFeatureEdges: true, merged: true };
-          // Edges are never pick targets, but Line.raycast would test every
-          // segment (measured: 53 % of the whole hover-pick cost) — opt out.
-          edgeLines.raycast = _noRaycast;
-          edgeLines.visible = this._featureEdgesVisible === true;
-          built.mesh.add(edgeLines);
-          mergedFeatureEdges.push(edgeLines);
-        }
-
-        this._scene.add(group);
-        this._models.set(modelId, {
-          group, innerGroup,
-          meshes: [built.mesh],
-          merged: true,
-          mergedTable: built.table,
-          mergedEdgesTable: built.edgesTable,
-          elementInfo: built.elementInfo,
-          elementsByType: built.elementsByType,
-          featureEdges: mergedFeatureEdges,
-          featureEdgesMaterial: mergedEdgeMaterial,
-        });
-        if (this._displayMode !== 'solid') this._applyDisplayMode();
-        this._recomputeSceneBbox();
-        console.log(`[viewer] merged model ${modelId}: ${accepted.length} items → 1 mesh + ${mergedFeatureEdges.length} edge set (${built.table.length} ranges, ${built.elementInfo.size} elements)`);
+        this._finishMergedModel(modelId, built, group, innerGroup);
       }
       return;
     }
@@ -818,6 +763,118 @@ export class ViewerCore {
     });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
     this._recomputeSceneBbox();
+  }
+
+  /** Vertex-colored merged-model material with elemHide + section planes. */
+  _makeMergedMaterial() {
+    const material = DEFAULT_MATERIAL.clone();
+    material.vertexColors = true;
+    material.color.setHex(0xffffff);
+    // Per-element hide/fade via the elemHide attribute (etapa 3):
+    // hidden elements discard (works on the opaque path), fractional
+    // values multiply alpha (blending enabled by _applyDisplayMode when
+    // any fade is active).
+    _patchElemHide(material, 'merged-elem-hide');
+    if (this._section.active && this._section.planes.length > 0) {
+      material.clippingPlanes = this._section.planes;
+      material.clipShadows = true;
+    }
+    return material;
+  }
+
+  /**
+   * Shared tail of the merged pipeline: attach the built mesh + edges to the
+   * scene graph and register the model record. Called by addModel (fresh
+   * build) and addModelFromCache (deserialized .bimcache).
+   */
+  _finishMergedModel(modelId, built, group, innerGroup) {
+    built.mesh.userData = { modelId, merged: true, mergedTable: built.table };
+    built.mesh.layers.enable(NORMAL_PASS_LAYER);  // include in the normal pass
+    innerGroup.add(built.mesh);
+
+    // Merged topology feature edges — one LineSegments per model (etapa 4)
+    const mergedFeatureEdges = [];
+    let mergedEdgeMaterial = null;
+    if (built.edgePositions) {
+      const edgeGeom = new THREE.BufferGeometry();
+      edgeGeom.setAttribute('position', new THREE.BufferAttribute(built.edgePositions, 3));
+      edgeGeom.setAttribute('elemHide',
+        new THREE.BufferAttribute(new Float32Array(built.edgePositions.length / 3), 1));
+      mergedEdgeMaterial = new THREE.LineBasicMaterial({
+        color: 0x2a2a2e,
+        transparent: true,
+        opacity: FEATURE_EDGE_OPACITY,
+        depthTest: true,
+        depthWrite: false,
+      });
+      _patchElemHide(mergedEdgeMaterial, 'merged-edge-hide');
+      const edgeLines = new THREE.LineSegments(edgeGeom, mergedEdgeMaterial);
+      edgeLines.userData = { isFeatureEdges: true, merged: true };
+      // Edges are never pick targets, but Line.raycast would test every
+      // segment (measured: 53 % of the whole hover-pick cost) — opt out.
+      edgeLines.raycast = _noRaycast;
+      edgeLines.visible = this._featureEdgesVisible === true;
+      built.mesh.add(edgeLines);
+      mergedFeatureEdges.push(edgeLines);
+    }
+
+    this._scene.add(group);
+    this._models.set(modelId, {
+      group, innerGroup,
+      meshes: [built.mesh],
+      merged: true,
+      mergedTable: built.table,
+      mergedEdgesTable: built.edgesTable,
+      elementInfo: built.elementInfo,
+      elementsByType: built.elementsByType,
+      featureEdges: mergedFeatureEdges,
+      featureEdgesMaterial: mergedEdgeMaterial,
+    });
+    if (this._displayMode !== 'solid') this._applyDisplayMode();
+    this._recomputeSceneBbox();
+    console.log(`[viewer] merged model ${modelId}: 1 mesh + ${mergedFeatureEdges.length} edge set (${built.table.length} ranges, ${built.elementInfo.size} elements)`);
+  }
+
+  /**
+   * Reconstruct a merged model from a deserialized .bimcache payload —
+   * geometry buffers go straight into BufferAttributes, no parsing, no
+   * triangulation. Mirrors addModel's group setup exactly (Z-up rotation,
+   * lengthScale, innerGroup), so downstream code (federation bake, BVH,
+   * selection, panels) can't tell the difference.
+   */
+  addModelFromCache(modelId, payload, opts = {}) {
+    if (this._models.has(modelId)) this.removeModel(modelId);
+    const lengthScale = (opts && typeof opts.lengthScale === 'number' && opts.lengthScale > 0) ? opts.lengthScale : 1;
+
+    const group = new THREE.Group();
+    group.userData = { modelId };
+    group.rotation.x = -Math.PI / 2;
+    if (lengthScale !== 1) group.scale.setScalar(lengthScale);
+    const innerGroup = new THREE.Group();
+    group.add(innerGroup);
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(payload.position, 3));
+    if (payload.normal) geom.setAttribute('normal', new THREE.BufferAttribute(payload.normal, 3));
+    if (payload.color) geom.setAttribute('color', new THREE.BufferAttribute(payload.color, 3));
+    geom.setAttribute('elemHide', new THREE.BufferAttribute(new Float32Array(payload.position.length / 3), 1));
+    if (payload.index) geom.setIndex(new THREE.BufferAttribute(payload.index, 1));
+    geom.computeBoundingBox();
+    geom.computeBoundingSphere();
+
+    const mesh = new THREE.Mesh(geom, this._makeMergedMaterial());
+    const a = payload.anchor || [0, 0, 0];
+    mesh.applyMatrix4(new THREE.Matrix4().makeTranslation(a[0], a[1], a[2]));
+
+    const built = {
+      mesh,
+      table: payload.table || [],
+      elementInfo: new Map((payload.elementInfo || []).map(([id, ifcType]) => [id, { ifcType }])),
+      elementsByType: new Map(Object.entries(payload.elementsByType || {})),
+      edgePositions: (payload.edgePositions && payload.edgePositions.length > 0) ? payload.edgePositions : null,
+      edgesTable: payload.edgesTable || [],
+    };
+    this._finishMergedModel(modelId, built, group, innerGroup);
   }
 
   /**

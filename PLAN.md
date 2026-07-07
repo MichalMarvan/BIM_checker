@@ -389,3 +389,12 @@ Branch: 3d-viewer-integration
 - [x] RAM: merged mód sdílí cached leaf geometrii mezi IfcMappedItem instancemi (bez klonů; legacy path klony drží kvůli federation bake)
 - [x] Feature-edge cap >20k itemů platí i pro merged path
 - [x] Ověřeno headless: 4 modely souběžně přes reálnou page cestu, kamera zachována; end-to-end RAM měření 197MB Revitu na RPi5 vyteklo z timeoutu (stroj je pomalý) — korektnost potvrzena, číslo chybí
+
+## 3D viewer: .bimcache — cache načtených modelů v1 (IndexedDB) ✅ (2026-07-07)
+- [x] `cache/model-cache.js` — binární serializace hotového modelu (merged geometry buffery, element tabulky, hrany, kompaktovaný index entit, vrstvy, geo-coords); versioned formát (CACHE_FORMAT_VERSION + GEOMETRY_PIPELINE_VERSION — bump při změně geometry pipeline!)
+- [x] `cache/cache-store.js` — IndexedDB store klíčovaný SHA-256 obsahu, LRU evikce při quota
+- [x] engine.exportModelCache / loadModelFromCache; viewer.addModelFromCache (sdílená registrace s addModel přes _finishMergedModel)
+- [x] Integrace v loadIfcFromStorage: hash → hit (skip parse+triangulace) / miss (load → export před federation bake → async put); ?cache=0 bypass; status „⚡ cache"
+- [x] Ověřeno headless: 2. načtení stejného souboru — engine část 32 ms místo ~9 s; tabulky/bbox/vlastnosti identické
+- [x] +3 testy (918 celkem), SW v140
+- [ ] v2: zápis .bimcache do připojené složky (`BIM_checker/cache/`) — přenositelnost mezi počítači; vyžaduje write permission ve folder storage
