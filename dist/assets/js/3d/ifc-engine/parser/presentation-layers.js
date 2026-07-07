@@ -6,7 +6,7 @@
 // and product-definition-shape entities that compaction later drops.
 
 import { decodeIFCString } from './ifc-decoder.js';
-import { PRODUCT_TYPES } from '../constants.js';
+import { detectProductTypes } from './product-detect.js';
 
 /** First single-quoted attribute, IFC-decoded (layer Name). */
 function firstQuoted(params) {
@@ -65,7 +65,7 @@ export function buildLayerIndex(index) {
 
   // Product → layer, via the PDS (or shape rep) it references
   const layerOf = new Map();
-  for (const type of PRODUCT_TYPES) {
+  for (const type of detectProductTypes(index)) {
     for (const e of index.byType(type)) {
       for (const r of allRefs(e.params)) {
         if (shapeRepToLayer.has(r)) { layerOf.set(e.expressId, shapeRepToLayer.get(r)); break; }

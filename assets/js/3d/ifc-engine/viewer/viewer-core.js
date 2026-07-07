@@ -9,6 +9,7 @@ import { EdgesPass } from './post/edges-pass.js';
 import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
+import { HIDDEN_PRODUCT_TYPES } from '../constants.js';
 import { selectAt, isPickable, isClippedOut } from './selection.js';
 import { buildMergedModel, mergedElementBox, extractElementGeometry, resolveMergedFace } from './merged-model.js';
 
@@ -36,6 +37,7 @@ function _loadBVH() {
 
 /** Never-pickable scene objects opt out of raycasting entirely. */
 const _noRaycast = () => {};
+const _EMPTY_EDGES = new Float32Array(0);
 
 /**
  * Inject the per-element hide/fade attribute into a built-in material's
@@ -565,6 +567,9 @@ export class ViewerCore {
 
     const candidates = [];
     for (const ifcType of entityIndex.types()) {
+      // Openings are subtracted volumes, spaces are room air — rendering
+      // either as solids hides the actual construction (see constants.js).
+      if (HIDDEN_PRODUCT_TYPES.has(ifcType)) continue;
       const entities = entityIndex.byType(ifcType);
       const typeColor = IFC_TYPE_COLORS[ifcType] ?? DEFAULT_COLOR;
       for (const entity of entities) {
@@ -675,6 +680,16 @@ export class ViewerCore {
 
     const meshes = [];
 
+    // Instanced leaves (IfcMappedItem) carry userData.leafId — their cloned
+    // geometry is identical, so feature edges are extracted once per leaf.
+    // Above the item cap the whole edge pass is skipped: on 50k+ item files
+    // it costs minutes and the lines are sub-pixel noise anyway.
+    const edgeCache = new Map();
+    const skipFeatureEdges = accepted.length > 20000;
+    if (skipFeatureEdges) {
+      console.warn(`[viewer] addModel: ${accepted.length} items — skipping per-mesh feature edges`);
+    }
+
     for (const { entity, ifcType, item, result, typeColor } of accepted) {
       // The original two-loop entity iteration is now flattened above; render
       // a single mesh + edges per accepted item below.
@@ -712,7 +727,18 @@ export class ViewerCore {
           // up mesh.matrix automatically without re-baking huge translations
           // into a Float32Array (which would lose ~10 cm of accuracy at
           // S-JTSK magnitudes and visibly drift off the mesh surface).
-          const localEdges = extractFeatureEdges(item.bufferGeometry);
+          let localEdges;
+          if (skipFeatureEdges) {
+            localEdges = _EMPTY_EDGES;
+          } else {
+            const leafId = item.bufferGeometry?.userData?.leafId;
+            if (leafId !== undefined && edgeCache.has(leafId)) {
+              localEdges = edgeCache.get(leafId);
+            } else {
+              localEdges = extractFeatureEdges(item.bufferGeometry);
+              if (leafId !== undefined) edgeCache.set(leafId, localEdges);
+            }
+          }
           if (localEdges.length > 0) {
             const edgeGeom = new THREE.BufferGeometry();
             edgeGeom.setAttribute('position', new THREE.BufferAttribute(localEdges, 3));

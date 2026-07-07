@@ -31,9 +31,33 @@ import { parseRef, parseRefList } from './step-helpers.js';
 
 /**
  * Build BufferGeometry for a single leaf geometry entity (no container types).
+ *
+ * `useCache` — set on the IfcMappedItem path: Revit/Tekla exports instance the
+ * same IfcRepresentationMap thousands of times (furniture, fixtures, bolts),
+ * and re-triangulating + re-welding the source per instance dominated load
+ * time on large files. The first build is stored on the index and returned
+ * as-is; later hits return a clone (own typed arrays, so downstream matrix
+ * bakes can't corrupt siblings). index.js drops the cache after compact().
+ *
  * @returns {THREE.BufferGeometry | null}
  */
-function buildLeafGeometry(entityIndex, itemExpressId) {
+function buildLeafGeometry(entityIndex, itemExpressId, useCache = false) {
+  if (useCache) {
+    let cache = entityIndex._leafGeomCache;
+    if (!cache) cache = entityIndex._leafGeomCache = new Map();
+    if (cache.has(itemExpressId)) {
+      const cached = cache.get(itemExpressId);
+      return cached ? cached.clone() : null;
+    }
+    const geom = buildLeafGeometryUncached(entityIndex, itemExpressId);
+    if (geom) geom.userData.leafId = itemExpressId;
+    cache.set(itemExpressId, geom);
+    return geom;
+  }
+  return buildLeafGeometryUncached(entityIndex, itemExpressId);
+}
+
+function buildLeafGeometryUncached(entityIndex, itemExpressId) {
   const entity = entityIndex.byExpressId(itemExpressId);
   if (!entity) return null;
   switch (entity.type) {
@@ -84,7 +108,7 @@ function unwrapBooleanFirstOperand(entityIndex, expressId, visited = new Set()) 
  * @param {Array<{bufferGeometry, bbox, color}>} out
  * @param {number} depth — recursion guard
  */
-function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0) {
+function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0, inMapped = false) {
   if (depth > 8) return;
   for (const itemRef of itemRefs) {
     const item = entityIndex.byExpressId(itemRef);
@@ -95,7 +119,7 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0) {
       const resolved = resolveMappedItem(entityIndex, itemRef);
       if (!resolved) continue;
       const childMatrix = parentMatrix.clone().multiply(resolved.matrix);
-      expandItems(entityIndex, resolved.innerItemRefs, childMatrix, out, depth + 1);
+      expandItems(entityIndex, resolved.innerItemRefs, childMatrix, out, depth + 1, true);
       continue;
     }
 
@@ -129,12 +153,12 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0) {
       }
       const leafId = unwrapBooleanFirstOperand(entityIndex, itemRef);
       if (!leafId) continue;
-      expandItems(entityIndex, [leafId], parentMatrix, out, depth + 1);
+      expandItems(entityIndex, [leafId], parentMatrix, out, depth + 1, inMapped);
       continue;
     }
 
-    // Leaf geometry
-    const geom = buildLeafGeometry(entityIndex, itemRef);
+    // Leaf geometry — cache/instance when reached through an IfcMappedItem
+    const geom = buildLeafGeometry(entityIndex, itemRef, inMapped);
     if (!geom) continue;
     geom.computeBoundingBox();
     const color = entityIndex._styleIndex?.get(itemRef);
@@ -179,6 +203,7 @@ export function buildEntityGeometry(entityIndex, productExpressId) {
   const shapeRepRefs = parseRefList(repShapeParts[2]);
 
   const items = [];
+  let ctxScale = null;
   for (const shapeRepRef of shapeRepRefs) {
     const shapeRep = entityIndex.byExpressId(shapeRepRef);
     if (!shapeRep || shapeRep.type !== 'IFCSHAPEREPRESENTATION') continue;
@@ -190,10 +215,29 @@ export function buildEntityGeometry(entityIndex, productExpressId) {
     const repTypeRaw = sParts[2] || '';
     if (/'Axis'|'FootPrint'|'Box'|'Annotation'|'Profile'/.test(repIdRaw)) continue;
     if (/'BoundingBox'|'Curve2D'/.test(repTypeRaw)) continue;
+    // Mixed-unit merged files: remember which context this product draws in
+    // (first body rep wins — a product's reps share their source context).
+    if (ctxScale === null && entityIndex._ctxScaleMap) {
+      const ctxRef = parseRef(sParts[0]);
+      const s = ctxRef !== null ? entityIndex._ctxScaleMap.get(ctxRef) : undefined;
+      if (typeof s === 'number') ctxScale = s;
+    }
     const itemRefs = parseRefList(sParts[3]);
     expandItems(entityIndex, itemRefs, new THREE.Matrix4(), items);
   }
 
   const matrix = placementId ? resolvePlacement(entityIndex, placementId) : new THREE.Matrix4();
+  // Per-context unit correction (merged mm+m files): the viewer applies the
+  // global lengthScale to the whole model group, so a product whose context
+  // was authored in different units gets the outermost ratio here. Placement
+  // translation and geometry are both in source units — one uniform scale on
+  // the assembled matrix converts the entire product.
+  if (ctxScale !== null) {
+    const globalScale = entityIndex._lengthScale || 1;
+    if (globalScale > 0 && Math.abs(ctxScale - globalScale) / globalScale > 1e-9) {
+      matrix.premultiply(new THREE.Matrix4().makeScale(
+        ctxScale / globalScale, ctxScale / globalScale, ctxScale / globalScale));
+    }
+  }
   return { matrix, items };
 }

@@ -26,51 +26,19 @@ import { computeEntityStatusMap, resolveRuleLinks, STATUS_COLORS } from './sched
 import { parseLandXmlSurfaces } from './terrain/landxml-surface-parser.js';
 import { parseGeoTiff } from './terrain/geotiff-parser.js';
 import { findTerrainEntities, extractTerrainFromIfc } from './terrain/ifc-geographic-element-parser.js';
-import { PRODUCT_TYPES, PRODUCT_TYPES_INCLUDING_SPATIAL } from './constants.js';
+import { SPATIAL_CONTAINER_TYPES } from './constants.js';
 import { extractEntityName, extractEntityGuid } from './parser/entity-name.js';
 import { buildStyleIndex } from './geometry/styled-items.js';
+import { extractLengthScale, buildContextScaleMap } from './parser/units.js';
+import { detectProductTypes } from './parser/product-detect.js';
 
 let _modelCounter = 0;
 function generateModelId() {
   return `m_${Date.now().toString(36)}_${(++_modelCounter).toString(36)}`;
 }
 
-// IFC SI unit prefix → multiplier (per ISO 16739).
-const IFC_PREFIX_SCALE = {
-  '.EXA.': 1e18, '.PETA.': 1e15, '.TERA.': 1e12, '.GIGA.': 1e9, '.MEGA.': 1e6,
-  '.KILO.': 1e3, '.HECTO.': 1e2, '.DECA.': 1e1,
-  '': 1, '$': 1, '*': 1,
-  '.DECI.': 1e-1, '.CENTI.': 1e-2, '.MILLI.': 1e-3, '.MICRO.': 1e-6,
-  '.NANO.': 1e-9, '.PICO.': 1e-12, '.FEMTO.': 1e-15, '.ATTO.': 1e-18,
-};
-
-/**
- * Scan IfcUnitAssignment → linked IfcSIUnit entities to find the global
- * LENGTHUNIT and return its scale-to-metres factor. Defaults to 1 when no
- * unit is declared (most files default to metres anyway).
- */
-function extractLengthScale(index) {
-  const assignments = index.byType('IFCUNITASSIGNMENT');
-  if (!assignments || assignments.length === 0) return 1;
-  for (const ua of assignments) {
-    const parts = splitParams(ua.params);
-    const unitRefs = parseRefList(parts[0]);
-    for (const uref of unitRefs) {
-      const u = index.byExpressId(uref);
-      if (!u || u.type !== 'IFCSIUNIT') continue;
-      const uparts = splitParams(u.params);
-      // IfcSIUnit(Dimensions, UnitType, Prefix, Name)
-      const unitType = (uparts[1] || '').trim();
-      const prefix = (uparts[2] || '').trim();
-      const name = (uparts[3] || '').trim();
-      if (unitType === '.LENGTHUNIT.' && name === '.METRE.') {
-        const scale = IFC_PREFIX_SCALE[prefix];
-        return (typeof scale === 'number' && scale > 0) ? scale : 1;
-      }
-    }
-  }
-  return 1;
-}
+// Unit resolution (global + per-context for merged files) lives in
+// parser/units.js; product-type discovery in parser/product-detect.js.
 
 export class IfcEngine {
   /**
@@ -127,6 +95,14 @@ export class IfcEngine {
       // away that real elements become sub-pixel invisible.
       const lengthScale = extractLengthScale(index);
       index._lengthScale = lengthScale;
+      // Merged files (Xbim concatenations) can mix mm and m sources; the map
+      // lets geometry-core correct each representation context individually.
+      index._ctxScaleMap = buildContextScaleMap(index);
+      if (index._ctxScaleMap) {
+        console.warn(`[ifc-engine] mixed length units detected — per-context scaling active (${index._ctxScaleMap.size} contexts)`);
+      }
+      // Product-type discovery walks representations — warm before compact().
+      detectProductTypes(index);
       const t3 = performance.now();
 
       const modelId = generateModelId();
@@ -154,6 +130,9 @@ export class IfcEngine {
       const rec = this._models.get(modelId);
       if (rec) rec.layerIndex = buildLayerIndex(index);
       const dropped = index.compact();
+      // Leaf-geometry cache (mapped-item instancing) is only useful while
+      // meshes are being built — free the typed arrays now.
+      index._leafGeomCache = null;
       console.log(`[ifc-engine] loadIfc timings (ms): decode=${(t1 - t0).toFixed(0)} parse=${(t2 - t1).toFixed(0)} index=${(t3 - t2).toFixed(0)} geometry=${(t4 - t3).toFixed(0)} total=${(performance.now() - t0).toFixed(0)} | compacted ${dropped} geometry entities (${index.stats().entityCount} kept)`);
       return modelId;
     } finally {
@@ -197,7 +176,7 @@ export class IfcEngine {
       } else {
         candidates = [];
         for (const t of index.types()) {
-          if (PRODUCT_TYPES_INCLUDING_SPATIAL.has(t)) candidates.push(...index.byType(t));
+          if (detectProductTypes(index).has(t) || SPATIAL_CONTAINER_TYPES.has(t)) candidates.push(...index.byType(t));
         }
       }
 
@@ -1304,8 +1283,9 @@ export class IfcEngine {
     const m = this._models.get(modelId);
     if (!m) return {};
     const out = {};
+    const productTypes = detectProductTypes(m.index);
     for (const t of m.index.types()) {
-      if (!PRODUCT_TYPES.has(t)) continue;
+      if (!productTypes.has(t)) continue;
       const entities = m.index.byType(t);
       out[t] = {
         count: entities.length,

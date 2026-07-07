@@ -359,3 +359,14 @@ CDE workflow end-to-end: pull from cloud → edit in BIM_checker → save back �
 - Doména: checkthebim.com
 - Testy: 283 testů (Puppeteer + custom Jasmine-like framework)
 - Stack: Vanilla JS, žádné frameworky, čistě client-side
+
+## 3D viewer: kompatibilita exportérů (Revit/Tekla/merged) ✅ (2026-07-07)
+- [x] Jednotky: `parser/units.js` — IfcProject.UnitsInContext má prioritu, podpora IfcConversionBasedUnit (FOOT), per-context scale mapa pro Xbim merged soubory s mixem mm/m (D226X)
+- [x] Geometrie: cache tessellace pro IfcMappedItem instance (`_leafGeomCache`) — 197MB Revit interiér (2M entit, 69k meshů) se dřív nenačetl vůbec, teď ~7,7 min na RPi5
+- [x] Vykreslení: IfcOpeningElement + IfcSpace se nekreslí jako solidy (`HIDDEN_PRODUCT_TYPES`) — otvory dveří/oken už nejsou zakryté
+- [x] Feature edges: memo přes leafId + auto-skip nad 20k itemů
+- [x] `parser/product-detect.js` — dynamická detekce produktových typů (IfcFurniture, IfcFlowTerminal, IfcLightFixture… dřív neviditelné pro search/strom/bbox/RAG/diff)
+- [x] Diagnostika: `scripts/analyze-ifc-coverage.js`, `scripts/debug-bigload.js`, `scripts/debug-phases.js`
+- [x] +9 testů (911 celkem), SW cache v135 → v136
+
+Branch: 3d-viewer-integration

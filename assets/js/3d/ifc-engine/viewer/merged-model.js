@@ -97,6 +97,9 @@ export function buildMergedModel(accepted, computeItemMatrix, material) {
   const edgeChunks = [];
   const edgesTable = [];
   let edgeVertOfs = 0;
+  // Instanced leaves (IfcMappedItem clones share userData.leafId) have
+  // identical local vertex data — extract feature edges once per leaf.
+  const edgeCache = new Map();
 
   for (const { cand, geom, matrix, vertCount, triCount } of prepared) {
     bakeMatrix.multiplyMatrices(toAnchor, matrix);
@@ -146,7 +149,14 @@ export function buildMergedModel(accepted, computeItemMatrix, material) {
     }
 
     // Feature edges of this element, baked into the anchor frame
-    const localEdges = extractFeatureEdges(geom);
+    const leafId = geom.userData?.leafId;
+    let localEdges;
+    if (leafId !== undefined && edgeCache.has(leafId)) {
+      localEdges = edgeCache.get(leafId);
+    } else {
+      localEdges = extractFeatureEdges(geom);
+      if (leafId !== undefined) edgeCache.set(leafId, localEdges);
+    }
     if (localEdges.length > 0) {
       const baked = new Float32Array(localEdges.length);
       for (let i = 0; i < localEdges.length; i += 3) {

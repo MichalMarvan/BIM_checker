@@ -15,7 +15,7 @@ import { embed, embedBatch, cosineSim } from './rag-embedder.js';
 import { extractEntityName, extractEntityGuid } from '../parser/entity-name.js';
 import { extractPropertiesFor } from '../properties/psets.js';
 import { extractSpatialHierarchy, collectAllElementIds } from '../properties/spatial.js';
-import { PRODUCT_TYPES } from '../constants.js';
+import { detectProductTypes } from '../parser/product-detect.js';
 import { splitParams } from '../parser/step-parser.js';
 
 const DB_NAME = 'bim_ai_viewer_rag';
@@ -115,7 +115,7 @@ function buildEntityText(entityIndex, expressId, parentName) {
   if (props?.propertySets) {
     for (const ps of props.propertySets) {
       for (const p of ps.properties) {
-        if (p.value != null && propStrs.length < 8) {
+        if (p.value !== null && p.value !== undefined && propStrs.length < 8) {
           propStrs.push(`${p.name}=${p.value}`);
         }
       }
@@ -150,8 +150,9 @@ function buildStoreyText(node, entityIndex) {
 function buildModelText(modelMeta, entityIndex, allChunks) {
   // Aggregate type stats
   const typeCount = new Map();
+  const productTypes = detectProductTypes(entityIndex);
   for (const t of entityIndex.types()) {
-    if (!PRODUCT_TYPES.has(t)) continue;
+    if (!productTypes.has(t)) continue;
     const cnt = entityIndex.byType(t).length;
     if (cnt > 0) typeCount.set(t, cnt);
   }
@@ -227,8 +228,9 @@ export async function indexModel(modelId, model, progressCb = () => {}) {
   // Entity-level chunks (all PRODUCT_TYPES)
   let totalEntities = 0;
   const entityIds = [];
+  const productTypes = detectProductTypes(model.index);
   for (const t of model.index.types()) {
-    if (!PRODUCT_TYPES.has(t)) continue;
+    if (!productTypes.has(t)) continue;
     for (const e of model.index.byType(t)) {
       entityIds.push({ expressId: e.expressId, ifcType: e.type });
       totalEntities++;

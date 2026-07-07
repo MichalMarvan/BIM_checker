@@ -9,7 +9,7 @@ import { splitParams } from '../parser/step-parser.js';
 import { decodeIFCString } from '../parser/ifc-decoder.js';
 import { parseRef } from '../geometry/step-helpers.js';
 import { resolvePlacement } from '../geometry/placement.js';
-import { PRODUCT_TYPES } from '../constants.js';
+import { detectProductTypes } from '../parser/product-detect.js';
 
 /**
  * Parse a STEP compound numeric list "(50,4,33,500000)" → [50, 4, 33, 500000].
@@ -111,8 +111,9 @@ function extractProjectedCRS(entityIndex) {
  */
 function computeBboxCenter(entityIndex) {
   const positions = [];
+  const productTypes = detectProductTypes(entityIndex);
   for (const t of entityIndex.types()) {
-    if (!PRODUCT_TYPES.has(t)) continue;
+    if (!productTypes.has(t)) continue;
     for (const entity of entityIndex.byType(t)) {
       const parts = splitParams(entity.params);
       const placementId = parseRef(parts[5]);

@@ -21,7 +21,8 @@ import { extractSpatialHierarchy } from '../properties/spatial.js';
 import { splitParams } from '../parser/step-parser.js';
 import { parseRef } from '../geometry/step-helpers.js';
 import { resolvePlacement } from '../geometry/placement.js';
-import { PRODUCT_TYPES_INCLUDING_SPATIAL } from '../constants.js';
+import { SPATIAL_CONTAINER_TYPES } from '../constants.js';
+import { detectProductTypes } from '../parser/product-detect.js';
 
 const DEFAULT_BBOX_TOLERANCE_M = 0.001;     // 1mm — below = "no geometry change"
 const DEFAULT_FUZZY_DIST_M = 1.0;           // 1m — fuzzy match accepts pairs closer than this
@@ -179,8 +180,9 @@ function refOf(e) {
 
 function buildEntityMap(entityIndex) {
   const map = new Map();
+  const productTypes = detectProductTypes(entityIndex);
   for (const t of entityIndex.types()) {
-    if (!PRODUCT_TYPES_INCLUDING_SPATIAL.has(t)) continue;
+    if (!productTypes.has(t) && !SPATIAL_CONTAINER_TYPES.has(t)) continue;
     for (const entity of entityIndex.byType(t)) {
       const parts = splitParams(entity.params);
       const placementId = parseRef(parts[5]);
