@@ -72,12 +72,14 @@ export class IfcEngine {
       throw new Error('loadIfc: options.name is required');
     }
     // Rendering the existing scene competes with the parse worker for CPU
-    // cores (brutal on software-GL) — freeze frames for the parse phase ONLY.
+    // cores — but only brutally so on software-GL (measured 15 s → 220 s+ on
+    // a Pi). Freeze frames for the parse phase ONLY, and only on software-GL;
+    // HW-accelerated machines keep rendering so the viewport never stutters.
     // The geometry build that follows runs on the main thread with
     // cooperative yields (addModel), so frames must flow there: that's what
     // keeps the viewport orbitable while a big model streams in.
     let parsePauseActive = false;
-    if (this._viewer && typeof this._viewer.pauseRendering === 'function') {
+    if (this._viewer && this._viewer._softwareGL && typeof this._viewer.pauseRendering === 'function') {
       this._viewer.pauseRendering();
       parsePauseActive = true;
     }

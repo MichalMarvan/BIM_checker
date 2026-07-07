@@ -377,3 +377,8 @@ Branch: 3d-viewer-integration
 - [x] addModel async s kooperativními yieldy (~33 ms budget) — viewport žije během stavby geometrie; pauza renderingu jen přes parse worker fázi
 - [x] Detekce software WebGL (SwiftShader/llvmpipe) → SSAO off + pixelRatio 1 na slabých strojích
 - [x] +4 testy (915 celkem), import mapa three v test-runneru, SW cache v137
+
+## 3D viewer: zachování pohledu při dávkovém načítání ✅ (2026-07-07)
+- [x] fitAll jen pro první model na prázdné scéně — další loady drží uživatelský pohled (dřív 290 souborů = 290 resetů kamery)
+- [x] Pauza renderingu při parse/IO jen na software GL — HW-akcelerované stroje mají plynulý orbit i během načítání
+- [x] `window.__loadIfcFromStorage` expose pro debug harness, SW cache v138

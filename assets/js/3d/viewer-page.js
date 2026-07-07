@@ -148,7 +148,11 @@ async function loadIfcFromStorage(fileMeta) {
     // the viewport stays orbitable while a big model streams in.
     const preEngine = state.engine;
     let pagePauseActive = false;
-    if (preEngine && typeof preEngine.pauseRendering === 'function') { preEngine.pauseRendering(); pagePauseActive = true; }
+    // Only software-GL machines need the freeze (a frame there costs 100s of
+    // ms of main-thread CPU that the read/decompress path competes with).
+    // On HW-accelerated GPUs frames are cheap — keep the viewport live.
+    const needsLoadPause = !!(preEngine && preEngine._viewer && preEngine._viewer._softwareGL);
+    if (needsLoadPause && typeof preEngine.pauseRendering === 'function') { preEngine.pauseRendering(); pagePauseActive = true; }
     const releasePagePause = () => {
         if (pagePauseActive && preEngine && typeof preEngine.resumeRendering === 'function') preEngine.resumeRendering();
         pagePauseActive = false;
@@ -164,6 +168,10 @@ async function loadIfcFromStorage(fileMeta) {
         else buffer = raw;
         console.log('[3d-viewer] buffer ready, requesting engine…');
         const engine = await getEngine();
+        // Camera policy: auto-frame only when the scene was empty when this
+        // load started. Batch loads (many IFCs) and adds to an existing scene
+        // must NOT touch the view — the user is often orbiting mid-load.
+        const hadModels = (typeof engine.getModels === 'function') && engine.getModels().length > 0;
         releasePagePause();
         console.log('[3d-viewer] engine ready, calling loadIfc…');
         const modelId = await engine.loadIfc(buffer, { name: fileMeta.name });
@@ -312,9 +320,12 @@ async function loadIfcFromStorage(fileMeta) {
             }
         } catch (e) { console.warn('[3d-viewer] BVH build failed:', e); }
 
-        // Frame the camera on whatever is now in the scene
-        if (typeof engine.fitAll === 'function') {
+        // Frame the camera only for the first model on an empty scene —
+        // later loads keep whatever view the user has set.
+        if (!hadModels && typeof engine.fitAll === 'function') {
             try { engine.fitAll(); console.log('[3d-viewer] fitAll done'); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
+        } else if (hadModels) {
+            console.log('[3d-viewer] fitAll skipped — preserving user view');
         }
 
         // Diagnostic: log camera position + bounding box after fitAll
@@ -343,6 +354,8 @@ async function loadIfcFromStorage(fileMeta) {
         releasePagePause();
     }
 }
+// Debug/tooling hook (scripts/debug-3d-load.js drives the real load path).
+window.__loadIfcFromStorage = loadIfcFromStorage;
 
 async function loadSelectedFromPicker() {
     const ids = Array.from(pickerState.selected);
