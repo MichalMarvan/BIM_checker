@@ -183,16 +183,36 @@ async function loadIfcFromStorage(fileMeta) {
         let modelId = null;
         let contentHash = null;
         let fromCache = false;
+        let cacheSource = null;
         if (cacheEnabled) {
             try {
                 const digest = await crypto.subtle.digest('SHA-256', buffer);
                 contentHash = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
-                const cacheStore = await import('./ifc-engine/cache/cache-store.js');
-                const cachedBuf = await cacheStore.cacheGet(contentHash);
+                const [cacheStore, folderCache] = await Promise.all([
+                    import('./ifc-engine/cache/cache-store.js'),
+                    import('./ifc-engine/cache/folder-cache.js'),
+                ]);
+                // Local IndexedDB first (fastest), then the connected folder —
+                // that's the portable layer: on another computer IDB is empty
+                // but the synced folder has the file. Backfill IDB on a
+                // folder hit so the next open is local-fast.
+                let cachedBuf = await cacheStore.cacheGet(contentHash);
+                cacheSource = cachedBuf ? 'idb' : null;
+                if (!cachedBuf) {
+                    cachedBuf = await folderCache.folderCacheGet(contentHash);
+                    if (cachedBuf) {
+                        cacheSource = 'folder';
+                        cacheStore.cachePut(contentHash, cachedBuf, { name: fileMeta.name }).catch(() => {});
+                    }
+                }
                 if (cachedBuf) {
                     modelId = await engine.loadModelFromCache(cachedBuf, { name: fileMeta.name });
                     fromCache = !!modelId;
-                    if (!modelId) cacheStore.cacheDelete(contentHash); // stale format/version
+                    if (!modelId) { // stale format/version — drop both copies
+                        cacheStore.cacheDelete(contentHash);
+                        folderCache.folderCacheDelete(contentHash);
+                        cacheSource = null;
+                    }
                 }
             } catch (e) {
                 console.warn('[3d-viewer] cache lookup failed (falling back to full load):', e);
@@ -216,6 +236,12 @@ async function loadIfcFromStorage(fileMeta) {
                             .then(cs => cs.cachePut(contentHash, cacheBuf, { name: fileMeta.name }))
                             .then(ok => { if (ok) console.log(`[3d-viewer] cached ${fileMeta.name} (${Math.round(cacheBuf.byteLength / 1048576)} MB)`); })
                             .catch(e => console.warn('[3d-viewer] cache write failed:', e));
+                        // Portable mirror in the connected folder (no-op when
+                        // no folder / no permission / non-Chromium).
+                        import('./ifc-engine/cache/folder-cache.js')
+                            .then(fc => fc.folderCachePut(contentHash, cacheBuf))
+                            .then(ok => { if (ok) console.log(`[3d-viewer] cached ${fileMeta.name} → BIM_checker/cache/ (folder)`); })
+                            .catch(e => console.warn('[3d-viewer] folder cache write failed:', e));
                     }
                 } catch (e) {
                     console.warn('[3d-viewer] cache export failed:', e);
@@ -394,7 +420,7 @@ async function loadIfcFromStorage(fileMeta) {
         if (meshCount === 0) {
             setStatus(`⚠ ${fileMeta.name} — 0 mesh (geometrie tohoto IFC zatím není podporovaná)`, 'error');
         } else {
-            setStatus(`✓ ${fileMeta.name}${stats ? ` — ${stats.entityCount} entit, ${meshCount} mesh` : ''}${fromCache ? ' ⚡ cache' : ''}`, 'success');
+            setStatus(`✓ ${fileMeta.name}${stats ? ` — ${stats.entityCount} entit, ${meshCount} mesh` : ''}${fromCache ? (cacheSource === 'folder' ? ' ⚡ cache (složka)' : ' ⚡ cache') : ''}`, 'success');
         }
         return modelId;
     } catch (e) {

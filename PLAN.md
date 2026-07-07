@@ -398,3 +398,10 @@ Branch: 3d-viewer-integration
 - [x] Ověřeno headless: 2. načtení stejného souboru — engine část 32 ms místo ~9 s; tabulky/bbox/vlastnosti identické
 - [x] +3 testy (918 celkem), SW v140
 - [ ] v2: zápis .bimcache do připojené složky (`BIM_checker/cache/`) — přenositelnost mezi počítači; vyžaduje write permission ve folder storage
+
+## 3D viewer: .bimcache v2 — přenositelná cache v připojené složce ✅ (2026-07-07)
+- [x] `cache/folder-cache.js` — zrcadlení .bimcache do `<složka>/BIM_checker/cache/<sha256>.bimcache` přes File System Access API (handle z fs-handle-store; jen queryPermission, žádný extra prompt — connect flow už žádá readwrite)
+- [x] Lookup pořadí: IndexedDB → složka (s backfillem IDB při hitu ze složky); zápis do obou vrstev; graceful degradace (bez složky/permission/Chromium = no-op)
+- [x] Status rozlišuje „⚡ cache" vs „⚡ cache (složka)"
+- [x] Testy přes OPFS root jako reálný FileSystemDirectoryHandle (+2, celkem 920); e2e simulace přenosu: IDB wipe → hit ze složky za 6 ms + backfill
+- [x] SW v141
