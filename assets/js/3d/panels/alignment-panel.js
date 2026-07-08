@@ -302,7 +302,12 @@ export default class AlignmentPanel {
           kept.push(Math.min(hi, Math.max(lo, s)));
         }
         const uniq = Array.from(new Set(kept.map(v => Math.round(v * 1e6) / 1e6))).sort((x, y) => x - y);
-        return { stations: uniq, note: dropped > 0 ? `${dropped} mimo rozsah osy vynecháno.` : '' };
+        let note = dropped > 0 ? `${dropped} mimo rozsah osy vynecháno.` : '';
+        if (uniq.length === 0) {
+          note = (note ? note + ' ' : '') + 'Použito staničení začátku osy.';
+          return { stations: [lo], note };
+        }
+        return { stations: uniq, note };
       }
       const od = readNum('od', start);
       const doo = readNum('do', end);
@@ -314,7 +319,7 @@ export default class AlignmentPanel {
       const kFrom = Math.ceil(lo / step - 1e-9);
       const kTo = Math.floor(hi / step + 1e-9);
       for (let k = kFrom; k <= kTo; k++) out.push(Math.round(k * step * 1e6) / 1e6);
-      if (out.length === 0) out.push(lo);
+      if (out.length === 0) return { stations: [lo], note: 'Použito staničení začátku osy.' };
       return { stations: out, note: '' };
     };
 
