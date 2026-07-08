@@ -26,9 +26,14 @@ export function sampleAlignment(alignment, opts = {}) {
   const tangents = [];
   const elementIndex = [];
 
+  // Přímky dělíme na víc vzorků jen tehdy, když osa má vertikální profil
+  // (niveletu) — jinak by rovný úsek zbytečně nafukoval paměť. Bez profilu
+  // zůstává původní chování: 2 body na přímku.
+  const subdivideLines = !!alignment.verticalProfile;
+
   for (let ei = 0; ei < alignment.elements.length; ei++) {
     const el = alignment.elements[ei];
-    const samples = sampleElement(el, tol);
+    const samples = sampleElement(el, tol, subdivideLines);
     // Skip the first sample of every element after the first (avoids duplicates
     // at element boundaries).
     const startIdx = ei === 0 ? 0 : 1;
@@ -52,27 +57,28 @@ export function sampleAlignment(alignment, opts = {}) {
   return { points, stations, tangents, elementIndex };
 }
 
-function sampleElement(el, tol) {
-  if (el.type === 'line') return sampleLine(el);
+function sampleElement(el, tol, subdivideLines) {
+  if (el.type === 'line') return sampleLine(el, subdivideLines);
   if (el.type === 'curve') return sampleCurve(el, tol);
   if (el.type === 'spiral') return sampleSpiral(el, tol);
   return [];
 }
 
-function sampleLine(el) {
+function sampleLine(el, subdivideLines) {
   const dx = el.end[0] - el.start[0];
   const dy = el.end[1] - el.start[1];
   const dz = (el.end[2] || 0) - (el.start[2] || 0);
   const len = Math.max(el.length, 1e-9);
   const t = [dx / len, dy / len, dz / len];
   const sz = el.start[2] || 0;
-  // Přímku vzorkujeme na MIN_SAMPLES_PER_ELEMENT dílků (ne jen krajní body),
-  // aby ji šlo výškově „poskládat" podle nivelety (vertikální profil se
-  // aplikuje po vzorku dle staničení). Body na rovné přímce zůstávají
-  // kolineární, jen je jich víc.
+  // Bez nivelety stačí krajní body (2 vzorky) — chování se nemění.
+  // S niveletou přímku vzorkujeme na MIN_SAMPLES_PER_ELEMENT dílků, aby ji
+  // šlo výškově „poskládat" podle vertikálního profilu (aplikuje se po vzorku
+  // dle staničení). Body na rovné přímce zůstávají kolineární, jen je jich víc.
+  const steps = subdivideLines ? MIN_SAMPLES_PER_ELEMENT : 1;
   const out = [];
-  for (let i = 0; i <= MIN_SAMPLES_PER_ELEMENT; i++) {
-    const u = i / MIN_SAMPLES_PER_ELEMENT;
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps;
     out.push({
       point: [el.start[0] + dx * u, el.start[1] + dy * u, sz + dz * u],
       station: el.startStation + (el.endStation - el.startStation) * u,
