@@ -22,6 +22,76 @@ const SIGN_EPS = 1e-6;
 const STITCH_EPS = 1e-4;
 
 /**
+ * Ořízne 3D úsečku na obdélník řezu pomocí Liang–Barsky v rovině řezu.
+ *
+ * Souřadnice v rovině: `u = dot(p − origin, hAxis)` (vodorovná osa v rovině),
+ * `v = p[1] − origin[1]` (svislá — world Y je nahoru). Ořezává se proti
+ * mezím `−halfWidth ≤ u ≤ halfWidth` a `−halfHeight ≤ v ≤ halfHeight`.
+ *
+ * @param {[number,number,number]} p0 světový počáteční bod
+ * @param {[number,number,number]} p1 světový koncový bod
+ * @param {{origin:[number,number,number], hAxis:[number,number,number], halfWidth:number, halfHeight:number}} bounds
+ * @returns {[[number,number,number],[number,number,number]]|null} ořezaná úsečka nebo null (celá venku)
+ */
+export function clipSegmentToBounds(p0, p1, bounds) {
+  const { origin, hAxis, halfWidth, halfHeight } = bounds;
+
+  // Promítni oba konce do rovinných souřadnic (u, v).
+  const u0 = (p0[0] - origin[0]) * hAxis[0]
+           + (p0[1] - origin[1]) * hAxis[1]
+           + (p0[2] - origin[2]) * hAxis[2];
+  const u1 = (p1[0] - origin[0]) * hAxis[0]
+           + (p1[1] - origin[1]) * hAxis[1]
+           + (p1[2] - origin[2]) * hAxis[2];
+  const v0 = p0[1] - origin[1];
+  const v1 = p1[1] - origin[1];
+
+  const du = u1 - u0;
+  const dv = v1 - v0;
+
+  // Liang–Barsky: parametr t∈[0,1] podél úsečky, čtyři hrany obdélníku.
+  let t0 = 0;
+  let t1 = 1;
+  const edges = [
+    [-du, u0 - (-halfWidth)],  // u ≥ −halfWidth
+    [du, halfWidth - u0],      // u ≤  halfWidth
+    [-dv, v0 - (-halfHeight)], // v ≥ −halfHeight
+    [dv, halfHeight - v0],     // v ≤  halfHeight
+  ];
+  for (const [p, q] of edges) {
+    if (Math.abs(p) < 1e-12) {
+      // Úsečka rovnoběžná s hranou — pokud je mimo, celá venku.
+      if (q < 0) return null;
+      continue;
+    }
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return null;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return null;
+      if (r < t1) t1 = r;
+    }
+  }
+
+  // Degenerovaný výsledek (segment se dotkl obdélníku jen v jednom bodě) →
+  // nulová délka, žádná kreslitelná geometrie → zahodit.
+  if (t1 - t0 < 1e-12) return null;
+
+  const q0 = [
+    p0[0] + t0 * (p1[0] - p0[0]),
+    p0[1] + t0 * (p1[1] - p0[1]),
+    p0[2] + t0 * (p1[2] - p0[2]),
+  ];
+  const q1 = [
+    p0[0] + t1 * (p1[0] - p0[0]),
+    p0[1] + t1 * (p1[1] - p0[1]),
+    p0[2] + t1 * (p1[2] - p0[2]),
+  ];
+  return [q0, q1];
+}
+
+/**
  * @param {ViewerCore} viewer
  * @param {{point:[x,y,z], normal:[x,y,z], offset?:number}|object} planeSpec
  * @returns {Array<{modelId, expressId, ifcType, color, loops:Array<{points:Array<[number,number,number]>, closed:boolean}>}>}
@@ -30,6 +100,10 @@ export function computeSectionCurves(viewer, planeSpec) {
   if (!viewer || !planeSpec) return [];
   const plane = buildPlane(planeSpec);
   if (!plane) return [];
+
+  // Volitelný ořez na obdélník kolem osy: každý segment se ořízne ještě
+  // před stitchingem, aby nekonečná rovina nezasahovala vzdálené části modelu.
+  const bounds = planeSpec.bounds || null;
 
   // Group results by entity
   const byEntity = new Map(); // key → { modelId, expressId, ifcType, color, segments }
@@ -41,7 +115,7 @@ export function computeSectionCurves(viewer, planeSpec) {
       // DXF still gets per-element loops and per-IFC-type layers.
       const mesh = m.meshes[0];
       if (!mesh || mesh.visible === false) continue;
-      const tagged = computeMeshSegments(mesh, plane, true);
+      const tagged = computeMeshSegments(mesh, plane, true, bounds);
       const hideAttr = mesh.geometry.getAttribute('elemHide');
       const colorAttr = mesh.geometry.getAttribute('color');
       for (const { seg, tri } of tagged) {
@@ -69,7 +143,7 @@ export function computeSectionCurves(viewer, planeSpec) {
     }
     for (const mesh of m.meshes) {
       if (mesh.visible === false) continue;
-      const segs = computeMeshSegments(mesh, plane);
+      const segs = computeMeshSegments(mesh, plane, false, bounds);
       if (segs.length === 0) continue;
       const ud = mesh.userData;
       if (!ud?.modelId || ud.expressId === null || ud.expressId === undefined) continue;
@@ -117,8 +191,10 @@ function buildPlane(spec) {
 /**
  * @param {boolean} [tagged] when true, return [{ seg:[p0,p1], tri }] so the
  *   caller can map each segment to its merged element; otherwise [[p0,p1]].
+ * @param {object|null} [bounds] volitelný obdélník řezu; segmenty se ořežou
+ *   pomocí clipSegmentToBounds a ty zcela mimo se zahodí.
  */
-function computeMeshSegments(mesh, plane, tagged = false) {
+function computeMeshSegments(mesh, plane, tagged = false, bounds = null) {
   const geom = mesh.geometry;
   const pos = geom?.attributes?.position;
   if (!pos) return [];
@@ -171,8 +247,13 @@ function computeMeshSegments(mesh, plane, tagged = false) {
       ]);
     }
     if (crossings.length !== 2) continue;
-    if (tagged) out.push({ seg: [crossings[0], crossings[1]], tri: t });
-    else out.push([crossings[0], crossings[1]]);
+    let seg = [crossings[0], crossings[1]];
+    if (bounds) {
+      seg = clipSegmentToBounds(seg[0], seg[1], bounds);
+      if (!seg) continue; // celý mimo obdélník řezu → zahodit
+    }
+    if (tagged) out.push({ seg, tri: t });
+    else out.push(seg);
   }
   return out;
 }
