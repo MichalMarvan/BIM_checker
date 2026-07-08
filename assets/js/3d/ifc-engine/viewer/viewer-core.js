@@ -68,6 +68,7 @@ import { computeSectionCurves as _computeSectionCurves } from './section-curves.
 import { BasemapVisuals, getProviders as _getProviders } from './basemap.js';
 import { TerrainVisuals } from './terrain.js';
 import { AlignmentVisuals } from './alignment-visuals.js';
+import { StationSectionVisuals } from './station-section-visuals.js';
 import { parseLandXmlAlignments } from '../alignment/landxml-parser.js';
 import { sampleAlignment, pointAtStation } from '../alignment/discretize.js';
 import { distance, angle, polygonArea } from './measure-math.js';
@@ -373,6 +374,9 @@ export class ViewerCore {
     this._alignmentVisuals = null;
     this._alignmentIdCounter = 0;
     this._alignments = new Map(); // id → { meta, sampled }
+    // Staniční řezy — jen vizuální markery (rámeček + staničení), bez ořezu.
+    this._stationSectionVisuals = null;
+    this._stationSections = new Map(); // alignmentId → { width, height, items:[{station,point,normal,hAxis}] }
 
     // Multi-plane section state — list of arbitrary planes added via face-pick.
     // Each entry: { id, point: [x,y,z], normal: [x,y,z], offset, visible, plane: THREE.Plane }
@@ -3283,6 +3287,79 @@ export class ViewerCore {
     return this.addSectionPlane(worldPoint, normal);
   }
 
+  _ensureStationSectionVisuals() {
+    if (!this._stationSectionVisuals) {
+      this._stationSectionVisuals = new StationSectionVisuals(this._scene);
+    }
+  }
+
+  /**
+   * Vytvoří (nahradí) staniční řezy dané osy — JEN vizuální markery, žádné
+   * ořezové roviny. Pro každé staničení spočítá world point/normal/hAxis podle
+   * 'plan' matematiky z createSectionAtStation (svislá rovina kolmá na půdorysnou
+   * tečnu). Vrací pole items, nebo null, když osa není známá.
+   *
+   * @param {string} alignmentId
+   * @param {{ stations:number[], width:number, height:number }} opts
+   * @returns {Array<{station:number, point:number[], normal:number[], hAxis:number[]}>|null}
+   */
+  createStationSections(alignmentId, { stations, width, height } = {}) {
+    const a = this._alignments.get(alignmentId);
+    if (!a) return null;
+    const items = [];
+    for (const station of stations || []) {
+      const sp = pointAtStation(a.sampled, station);
+      if (!sp) continue;
+      // alignment (x, y, z) → world (x, z, -y) — shodně s createSectionAtStation
+      const [px, py, pz] = sp.point;
+      const [tx, ty, tz] = sp.tangent;
+      const worldPoint = [px, pz, -py];
+      const worldTangent = [tx, tz, -ty];
+      // 'plan' normála: půdorysná projekce tečny (zahození world Y)
+      const [ta, _tb, tc] = worldTangent;
+      const len = Math.hypot(ta, tc);
+      const normal = len > 1e-9 ? [ta / len, 0, tc / len] : [1, 0, 0];
+      // hAxis = up × n = [n[2], 0, -n[0]] — vodorovná osa v rovině řezu (jednotková)
+      const hAxis = [normal[2], 0, -normal[0]];
+      items.push({ station, point: worldPoint, normal, hAxis });
+    }
+    this._stationSections.set(alignmentId, { width, height, items });
+    this._ensureStationSectionVisuals();
+    this._stationSectionVisuals.set(alignmentId, items, { width, height });
+    return items;
+  }
+
+  /** Vrací { width, height, items } pro danou osu, nebo null. Items jsou obranně zkopírované. */
+  getStationSections(alignmentId) {
+    const entry = this._stationSections.get(alignmentId);
+    if (!entry) return null;
+    return {
+      width: entry.width,
+      height: entry.height,
+      items: entry.items.map(it => ({
+        station: it.station,
+        point: [...it.point],
+        normal: [...it.normal],
+        hAxis: [...it.hAxis],
+      })),
+    };
+  }
+
+  /** Smaže staniční řezy dané osy; bez argumentu smaže všechny. */
+  clearStationSections(alignmentId) {
+    if (alignmentId === undefined || alignmentId === null) {
+      this._stationSections.clear();
+      if (this._stationSectionVisuals) this._stationSectionVisuals.clear();
+      return;
+    }
+    this._stationSections.delete(alignmentId);
+    if (this._stationSectionVisuals) this._stationSectionVisuals.remove(alignmentId);
+  }
+
+  setStationSectionsVisible(alignmentId, visible) {
+    if (this._stationSectionVisuals) this._stationSectionVisuals.setVisible(alignmentId, visible);
+  }
+
   /** Returns {point, tangent} at a given station, or null if alignment unknown. */
   getAlignmentPointAtStation(alignmentId, station) {
     const a = this._alignments.get(alignmentId);
@@ -3300,11 +3377,13 @@ export class ViewerCore {
   removeAlignment(alignmentId) {
     this._alignments.delete(alignmentId);
     if (this._alignmentVisuals) this._alignmentVisuals.remove(alignmentId);
+    this.clearStationSections(alignmentId);
   }
 
   clearAlignments() {
     this._alignments.clear();
     if (this._alignmentVisuals) this._alignmentVisuals.clear();
+    this.clearStationSections();
   }
 
   /**

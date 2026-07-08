@@ -388,6 +388,19 @@ export class IfcEngine {
   createSectionAtStation(id, station, perpType) {
     return this._viewer ? this._viewer.createSectionAtStation(id, station, perpType) : null;
   }
+  /** Staniční řezy — vytvoří vizuální markery (rámeček + staničení), bez ořezu. */
+  createStationSections(id, opts) {
+    return this._viewer ? this._viewer.createStationSections(id, opts) : null;
+  }
+  getStationSections(id) {
+    return this._viewer ? this._viewer.getStationSections(id) : null;
+  }
+  clearStationSections(id) {
+    if (this._viewer) this._viewer.clearStationSections(id);
+  }
+  setStationSectionsVisible(id, visible) {
+    if (this._viewer) this._viewer.setStationSectionsVisible(id, visible);
+  }
   /** Phase 6.8.4 — create alignment from clicked world points (linear / catmull-rom). */
   createFreeCurveFromPoints(worldPoints, opts) {
     return this._viewer ? this._viewer.createFreeCurveFromPoints(worldPoints, opts) : null;
