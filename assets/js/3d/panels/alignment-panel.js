@@ -7,6 +7,9 @@ export default class AlignmentPanel {
     this.swapXY = true;
     this.busy = false;
     this.msg = null;          // { type: 'ok'|'warn'|'err', text }
+    this.warnings = [];       // Czech warning strings from last import
+    this._suggestSwap = null; // pending swapXY suggestion: { ids, suggested } or null
+    this._lastXmlText = null; // raw XML of last LandXML import (for re-import)
     this._hidden = new Set(); // alignment ids switched off
     titleEl.textContent = 'Osy trasy (LandXML)';
   }
@@ -31,6 +34,7 @@ export default class AlignmentPanel {
         ${this.busy ? '<div class="v3d-panel__progress" data-role="prog"><span></span></div><p class="v3d-panel__hint">Načítám trasu…</p>' : ''}
       </div>
       ${this.msg ? `<div class="v3d-panel__msg v3d-panel__msg--${this.msg.type}">${escapeHtml(this.msg.text)}</div>` : ''}
+      ${this._warningsHtml()}
       <div class="v3d-panel__section">
         <h4>Osy (${list.length})</h4>
         ${list.length === 0 ? `
@@ -41,7 +45,7 @@ export default class AlignmentPanel {
           <div class="v3d-panel__item">
             <div class="v3d-panel__item-main">
               <div class="v3d-panel__item-title">${escapeHtml(a.name || '(bez názvu)')}</div>
-              <div class="v3d-panel__item-sub">${(a.length || 0).toFixed(0)} m · ${a.elementCount ?? '?'} prvků</div>
+              <div class="v3d-panel__item-sub">${(a.length || 0).toFixed(0)} m · ${a.elementCount ?? '?'} prvků · ${a.hasProfile ? 'niveleta ✓' : 'bez nivelety'}</div>
             </div>
             <button class="v3d-panel__item-btn" data-act="vis" data-id="${a.id}" title="Zobrazit / skrýt">${this._hidden.has(a.id) ? '🙈' : '👁'}</button>
             <button class="v3d-panel__item-btn" data-act="section" data-id="${a.id}" title="Řez na staničení">✂</button>
@@ -55,11 +59,14 @@ export default class AlignmentPanel {
     this.host.querySelector('[data-act="upload"]').addEventListener('change', (e) => this._upload(e.target.files[0]));
     this.host.querySelector('[data-act="from-ifc"]').addEventListener('click', () => this._fromIfc());
     this.host.querySelector('[data-role="swap"]').addEventListener('change', (e) => { this.swapXY = e.target.checked; });
+    this.host.querySelector('[data-act="swap-reimport"]')?.addEventListener('click', () => this._reimportSwapped());
     this.host.querySelector('[data-act="clear"]')?.addEventListener('click', () => {
       if (!confirm('Smazat všechny osy?')) return;
       this.engine.clearAlignments?.();
       this._hidden.clear();
       this.msg = null;
+      this.warnings = [];
+      this._suggestSwap = null;
       this._render();
     });
     this.host.querySelectorAll('[data-act="vis"]').forEach(b => b.addEventListener('click', () => {
@@ -74,6 +81,8 @@ export default class AlignmentPanel {
       this.engine.removeAlignment?.(b.dataset.id);
       this._hidden.delete(b.dataset.id);
       this.msg = null;
+      this.warnings = [];
+      this._suggestSwap = null;
       this._render();
     }));
     this.host.querySelectorAll('[data-act="section"]').forEach(b => b.addEventListener('click', () => this._sectionControls(b.dataset.id)));
@@ -90,17 +99,51 @@ export default class AlignmentPanel {
     }
     this.busy = true;
     this.msg = null;
+    this.warnings = [];
+    this._suggestSwap = null;
     this._render();
     try {
       const xml = await file.text();
-      this.engine.loadAlignment(xml, { swapXY: this.swapXY });
-      this.msg = { type: 'ok', text: `✓ LandXML „${file.name}" importováno.` };
+      this._lastXmlText = xml;
+      this._applyImport(xml, this.swapXY, `✓ LandXML „${file.name}" importováno`);
     } catch (e) {
       console.error(e);
       this.msg = { type: 'err', text: 'Import selhal: ' + (e.message || e) };
     }
     this._stopPulse();
     this.busy = false;
+    this._render();
+  }
+
+  // Shared import path for initial upload and swapXY re-import.
+  _applyImport(xml, swapXY, okPrefix) {
+    const res = this.engine.loadAlignment(xml, { swapXY });
+    const ids = Array.isArray(res) ? res : (res?.ids || []);
+    const warnings = Array.isArray(res) ? [] : (res?.warnings || []);
+    const meta = Array.isArray(res) ? {} : (res?.meta || {});
+    this.warnings = Array.isArray(warnings) ? warnings.slice() : [];
+    this.msg = { type: 'ok', text: `${okPrefix} (${ids.length} os).` };
+    if (typeof meta.suggestSwapXY === 'boolean' && meta.suggestSwapXY !== swapXY) {
+      this._suggestSwap = { ids: ids.slice(), suggested: meta.suggestSwapXY };
+    } else {
+      this._suggestSwap = null;
+    }
+  }
+
+  _reimportSwapped() {
+    if (!this._suggestSwap || this._lastXmlText == null) return;
+    const { ids, suggested } = this._suggestSwap;
+    for (const id of ids) this.engine.removeAlignment?.(id);
+    for (const id of ids) this._hidden.delete(id);
+    this.swapXY = suggested;
+    this.warnings = [];
+    this._suggestSwap = null;
+    try {
+      this._applyImport(this._lastXmlText, this.swapXY, '✓ Přenačteno');
+    } catch (e) {
+      console.error(e);
+      this.msg = { type: 'err', text: 'Přenačtení selhalo: ' + (e.message || e) };
+    }
     this._render();
   }
 
@@ -166,6 +209,22 @@ export default class AlignmentPanel {
         msgEl.innerHTML = `<div class="v3d-panel__msg v3d-panel__msg--err">Řez se nepodařil: ${escapeHtml(e.message || String(e))}</div>`;
       }
     });
+  }
+
+  _warningsHtml() {
+    const lines = Array.isArray(this.warnings) ? this.warnings.slice() : [];
+    if (this._suggestSwap) {
+      lines.push('Souřadnice vypadají na opačné pořadí — zkuste přepnout „Prohodit X/Y".');
+    }
+    if (lines.length === 0) return '';
+    const items = lines.map(w => `<div>• ${escapeHtml(String(w))}</div>`).join('');
+    const btn = this._suggestSwap
+      ? `<button class="v3d-panel__btn v3d-panel__btn--sm" data-act="swap-reimport">Přenačíst s ${this._suggestSwap.suggested ? 'prohozeným' : 'standardním'} X/Y</button>`
+      : '';
+    const body = lines.length > 3
+      ? `<details><summary>Upozornění (${lines.length})</summary>${items}</details>${btn}`
+      : `${items}${btn}`;
+    return `<div class="v3d-panel__msg v3d-panel__msg--warn">${body}</div>`;
   }
 
   _startPulse() {
