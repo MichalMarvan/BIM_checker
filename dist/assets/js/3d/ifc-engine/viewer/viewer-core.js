@@ -68,6 +68,7 @@ import { computeSectionCurves as _computeSectionCurves } from './section-curves.
 import { BasemapVisuals, getProviders as _getProviders } from './basemap.js';
 import { TerrainVisuals } from './terrain.js';
 import { AlignmentVisuals } from './alignment-visuals.js';
+import { StationSectionVisuals } from './station-section-visuals.js';
 import { parseLandXmlAlignments } from '../alignment/landxml-parser.js';
 import { sampleAlignment, pointAtStation } from '../alignment/discretize.js';
 import { distance, angle, polygonArea } from './measure-math.js';
@@ -373,6 +374,9 @@ export class ViewerCore {
     this._alignmentVisuals = null;
     this._alignmentIdCounter = 0;
     this._alignments = new Map(); // id → { meta, sampled }
+    // Staniční řezy — jen vizuální markery (rámeček + staničení), bez ořezu.
+    this._stationSectionVisuals = null;
+    this._stationSections = new Map(); // alignmentId → { width, height, items:[{station,point,normal,hAxis}] }
 
     // Multi-plane section state — list of arbitrary planes added via face-pick.
     // Each entry: { id, point: [x,y,z], normal: [x,y,z], offset, visible, plane: THREE.Plane }
@@ -461,6 +465,8 @@ export class ViewerCore {
       this._updateFeatureEdgesFade();
       if (this._measureVisuals) this._measureVisuals.updateLabels();
       if (this._pinVisuals) this._pinVisuals.updateScale(this._camera, this._canvas);
+      // Screen-constant velikost rukojetí řezných rovin (levné, guard na null).
+      this._sectionVisuals?.updateHandleScale(this._camera, this._canvas.clientHeight);
       this._pipeline.render(this._scene, this._camera);
       this._raf = requestAnimationFrame(render);
     };
@@ -2333,14 +2339,21 @@ export class ViewerCore {
   setOrbitEnabled(on) { if (this._controls) this._controls.enabled = !!on; }
 
   /**
-   * Raycast the scissors handle discs under the cursor. The big plane quad is
+   * Raycast the invisible handle pickers under the cursor. The big plane quad is
    * intentionally not a pick target (it would hijack orbit across its whole
-   * span) — drag and click-to-reopen both grab the centre handle.
+   * span) — drag and click-to-reopen both grab the centre handle picker.
+   *
+   * SOUŘADNICE (kontrakt): parametry jsou CLIENT (viewport) souřadnice —
+   * `clientX`/`clientY` z pointer eventu. Metoda si odečítá rect canvasu SAMA.
+   * Volající proto NESMÍ rect předodečítat. (Pozn.: section-panel.js dnes
+   * canvas-relativní souřadnice předodečítá — opraví Task 11; zde neřešíme.)
    * @returns {{ id }|null} the plane whose handle was hit
    */
   pickSectionPlaneAt(clientX, clientY) {
     const vis = this._sectionVisuals;
     if (!vis || !vis._group || !vis._group.visible) return null;
+    const pickers = vis.getHandlePickers();
+    if (!pickers.length) return null;
     const rect = this._canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((clientX - rect.left) / rect.width) * 2 - 1,
@@ -2348,21 +2361,15 @@ export class ViewerCore {
     );
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this._camera);
-    const handles = vis._group.children.filter(o => o.visible && o.userData && o.userData.sectionHandle);
-    const hits = ray.intersectObjects(handles, false);
+    const hits = ray.intersectObjects(pickers, false);
     return hits.length ? { id: hits[0].object.userData.sectionPlaneId } : null;
   }
 
   /**
-   * Slide a section plane along its normal so it sits under the cursor.
-   * Closest point between the plane's normal line (origin O, dir n) and the
-   * camera ray gives the new offset. Returns the applied offset (clamped).
+   * Internal: build a THREE.Raycaster from CLIENT (viewport) coordinates.
+   * Odečítá rect canvasu sám (viz kontrakt pickSectionPlaneAt).
    */
-  dragSectionPlaneTo(id, clientX, clientY) {
-    const e = this._sectionPlanesList.find(p => p.id === id);
-    if (!e) return null;
-    const O = new THREE.Vector3(...e.point);
-    const n = new THREE.Vector3(...e.normal).normalize();
+  _rayFromClient(clientX, clientY) {
     const rect = this._canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((clientX - rect.left) / rect.width) * 2 - 1,
@@ -2370,18 +2377,91 @@ export class ViewerCore {
     );
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this._camera);
-    const ro = ray.ray.origin, rd = ray.ray.direction;  // rd is unit
-    const w0 = new THREE.Vector3().subVectors(O, ro);
-    const b = n.dot(rd);
-    const denom = 1 - b * b;                 // a*c - b² with a=c=1
-    if (Math.abs(denom) < 1e-6) return e.offset;  // ray ∥ normal — ignore
-    const d = n.dot(w0), eDot = rd.dot(w0);
-    let s = (b * eDot - d) / denom;          // offset along n from O
+    return ray;
+  }
+
+  /**
+   * Zahájit delta-tažení řezné roviny (id) od bodu uchopení pod kurzorem.
+   *
+   * Tažná rovina OBSAHUJE normálu n roviny a je „hranou ke kameře", takže pohyb
+   * kurzoru se čistě promítá do posunu podél n:
+   *  - `eyeDir = camera.getWorldDirection()` (směr pohledu),
+   *  - `inPlane = eyeDir × n` (vodorovný směr v rovině; při ‖ degeneraci
+   *    fallback `camera.up × n`),
+   *  - `dragPlaneNormal = n × inPlane` normalizované.
+   * Rovina prochází AKTUÁLNÍ pozicí rukojeti (point + n·offset), ne origin bodem.
+   * Raycast → grabPoint; uloží `{ id, grabPoint, startOffset, plane }`.
+   *
+   * SOUŘADNICE: CLIENT (viewport) — viz kontrakt pickSectionPlaneAt.
+   * @returns {boolean} true když se podařilo sestavit tažení
+   */
+  beginSectionPlaneDrag(id, clientX, clientY) {
+    const e = this._sectionPlanesList.find(p => p.id === id);
+    if (!e) return false;
+    const n = new THREE.Vector3(...e.normal).normalize();
+    // Pozice rukojeti = bod roviny posunutý o offset podél normály.
+    const handlePos = new THREE.Vector3(...e.point)
+      .add(n.clone().multiplyScalar(e.offset || 0));
+
+    const eyeDir = this._camera.getWorldDirection(new THREE.Vector3());
+    let inPlane = eyeDir.clone().cross(n);
+    if (inPlane.length() < 1e-6) {
+      inPlane = this._camera.up.clone().cross(n);
+    }
+    const dragPlaneNormal = n.clone().cross(inPlane).normalize();
+    if (dragPlaneNormal.length() < 1e-6) return false;
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(dragPlaneNormal, handlePos);
+
+    const ray = this._rayFromClient(clientX, clientY);
+    const grabPoint = new THREE.Vector3();
+    if (!ray.ray.intersectPlane(plane, grabPoint)) return false;
+
+    this._sectionDrag = { id, grabPoint, startOffset: e.offset || 0, plane };
+    return true;
+  }
+
+  /** Ukončit delta-tažení řezné roviny (úklid stavu). */
+  endSectionPlaneDrag() {
+    this._sectionDrag = null;
+  }
+
+  /**
+   * Posunout řeznou rovinu (id) tažením pod kurzor — delta od bodu uchopení.
+   *
+   * Pokud běží `beginSectionPlaneDrag` pro totéž id: raycast na uloženou tažnou
+   * rovinu → `along = (hit − grabPoint)·n` → `offset = clamp(startOffset + along,
+   * −500, 500)`. Ray ‖ rovině (intersectPlane vrátí null) → vrátit aktuální
+   * offset beze změny.
+   *
+   * ZPĚTNÁ KOMPATIBILITA: bez předchozího begin zavolá begin interně a pokračuje.
+   *
+   * SOUŘADNICE: CLIENT (viewport) — viz kontrakt pickSectionPlaneAt.
+   * @returns {number|null} aplikovaný (clampnutý) offset, nebo null když plane neexistuje
+   */
+  dragSectionPlaneTo(id, clientX, clientY) {
+    const e = this._sectionPlanesList.find(p => p.id === id);
+    if (!e) return null;
+    // Bez aktivního begin (nebo pro jiné id) — sestav tažení interně.
+    if (!this._sectionDrag || this._sectionDrag.id !== id) {
+      if (!this.beginSectionPlaneDrag(id, clientX, clientY)) return e.offset;
+    }
+    const drag = this._sectionDrag;
+    const n = new THREE.Vector3(...e.normal).normalize();
+    const ray = this._rayFromClient(clientX, clientY);
+    const hit = new THREE.Vector3();
+    if (!ray.ray.intersectPlane(drag.plane, hit)) return e.offset;  // ray ∥ rovině
+    const along = hit.clone().sub(drag.grabPoint).dot(n);
+    let s = drag.startOffset + along;
     s = Math.max(-500, Math.min(500, s));
     e.offset = s;
     e.plane = this._buildPlane(e.point, e.normal, e.offset);
     this._refreshSectionPlanes();
     return s;
+  }
+
+  /** Zvýraznit rukojeť řezné roviny (nebo null = zrušit hover). Deleguje na visuals. */
+  setSectionHandleHover(planeId) {
+    if (this._sectionVisuals) this._sectionVisuals.setHandleHover(planeId);
   }
 
   /** Internal: build THREE.Plane from point + normal + offset along normal. */
@@ -3038,25 +3118,28 @@ export class ViewerCore {
   }
 
   /**
-   * Load LandXML text → returns array of alignment ids (one per <Alignment> in file).
+   * Load LandXML text → { ids, warnings, meta }.
+   * `ids` je pole id os (jedno na každý <Alignment>); `warnings` a `meta`
+   * pochází z parseru (Task 2).
    * @param {string} xmlText
    * @param {{ swapXY?: boolean, chordTol?: number }} [opts]
+   * @returns {{ ids: string[], warnings: string[], meta: object }}
    */
   loadAlignment(xmlText, opts = {}) {
     const parsed = parseLandXmlAlignments(xmlText, opts);
     this._ensureAlignmentVisuals();
     const ids = [];
-    for (const a of parsed) {
+    for (const a of parsed.alignments) {
       const id = `align_${++this._alignmentIdCounter}`;
       const sampled = sampleAlignment(a, opts);
       this._alignments.set(id, { meta: a, sampled });
       this._alignmentVisuals.add(id, sampled);
       ids.push(id);
     }
-    return ids;
+    return { ids, warnings: parsed.warnings, meta: parsed.meta };
   }
 
-  /** @returns {Array<{id, name, length, staStart, staEnd, elementCount}>} */
+  /** @returns {Array<{id, name, length, staStart, staEnd, elementCount, hasProfile}>} */
   getAlignments() {
     const out = [];
     for (const [id, a] of this._alignments) {
@@ -3068,6 +3151,7 @@ export class ViewerCore {
         staStart: stations[0] || 0,
         staEnd: stations[stations.length - 1] || 0,
         elementCount: a.meta.elements.length,
+        hasProfile: !!a.meta.verticalProfile,
       });
     }
     return out;
@@ -3279,6 +3363,79 @@ export class ViewerCore {
     return this.addSectionPlane(worldPoint, normal);
   }
 
+  _ensureStationSectionVisuals() {
+    if (!this._stationSectionVisuals) {
+      this._stationSectionVisuals = new StationSectionVisuals(this._scene);
+    }
+  }
+
+  /**
+   * Vytvoří (nahradí) staniční řezy dané osy — JEN vizuální markery, žádné
+   * ořezové roviny. Pro každé staničení spočítá world point/normal/hAxis podle
+   * 'plan' matematiky z createSectionAtStation (svislá rovina kolmá na půdorysnou
+   * tečnu). Vrací pole items, nebo null, když osa není známá.
+   *
+   * @param {string} alignmentId
+   * @param {{ stations:number[], width:number, height:number }} opts
+   * @returns {Array<{station:number, point:number[], normal:number[], hAxis:number[]}>|null}
+   */
+  createStationSections(alignmentId, { stations, width, height } = {}) {
+    const a = this._alignments.get(alignmentId);
+    if (!a) return null;
+    const items = [];
+    for (const station of stations || []) {
+      const sp = pointAtStation(a.sampled, station);
+      if (!sp) continue;
+      // alignment (x, y, z) → world (x, z, -y) — shodně s createSectionAtStation
+      const [px, py, pz] = sp.point;
+      const [tx, ty, tz] = sp.tangent;
+      const worldPoint = [px, pz, -py];
+      const worldTangent = [tx, tz, -ty];
+      // 'plan' normála: půdorysná projekce tečny (zahození world Y)
+      const [ta, _tb, tc] = worldTangent;
+      const len = Math.hypot(ta, tc);
+      const normal = len > 1e-9 ? [ta / len, 0, tc / len] : [1, 0, 0];
+      // hAxis = up × n = [n[2], 0, -n[0]] — vodorovná osa v rovině řezu (jednotková)
+      const hAxis = [normal[2], 0, -normal[0]];
+      items.push({ station, point: worldPoint, normal, hAxis });
+    }
+    this._stationSections.set(alignmentId, { width, height, items });
+    this._ensureStationSectionVisuals();
+    this._stationSectionVisuals.set(alignmentId, items, { width, height });
+    return items;
+  }
+
+  /** Vrací { width, height, items } pro danou osu, nebo null. Items jsou obranně zkopírované. */
+  getStationSections(alignmentId) {
+    const entry = this._stationSections.get(alignmentId);
+    if (!entry) return null;
+    return {
+      width: entry.width,
+      height: entry.height,
+      items: entry.items.map(it => ({
+        station: it.station,
+        point: [...it.point],
+        normal: [...it.normal],
+        hAxis: [...it.hAxis],
+      })),
+    };
+  }
+
+  /** Smaže staniční řezy dané osy; bez argumentu smaže všechny. */
+  clearStationSections(alignmentId) {
+    if (alignmentId === undefined || alignmentId === null) {
+      this._stationSections.clear();
+      if (this._stationSectionVisuals) this._stationSectionVisuals.clear();
+      return;
+    }
+    this._stationSections.delete(alignmentId);
+    if (this._stationSectionVisuals) this._stationSectionVisuals.remove(alignmentId);
+  }
+
+  setStationSectionsVisible(alignmentId, visible) {
+    if (this._stationSectionVisuals) this._stationSectionVisuals.setVisible(alignmentId, visible);
+  }
+
   /** Returns {point, tangent} at a given station, or null if alignment unknown. */
   getAlignmentPointAtStation(alignmentId, station) {
     const a = this._alignments.get(alignmentId);
@@ -3296,11 +3453,13 @@ export class ViewerCore {
   removeAlignment(alignmentId) {
     this._alignments.delete(alignmentId);
     if (this._alignmentVisuals) this._alignmentVisuals.remove(alignmentId);
+    this.clearStationSections(alignmentId);
   }
 
   clearAlignments() {
     this._alignments.clear();
     if (this._alignmentVisuals) this._alignmentVisuals.clear();
+    this.clearStationSections();
   }
 
   /**

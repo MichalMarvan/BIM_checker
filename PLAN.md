@@ -405,3 +405,13 @@ Branch: 3d-viewer-integration
 - [x] Status rozlišuje „⚡ cache" vs „⚡ cache (složka)"
 - [x] Testy přes OPFS root jako reálný FileSystemDirectoryHandle (+2, celkem 920); e2e simulace přenosu: IDB wipe → hit ze složky za 6 ms + backfill
 - [x] SW v141
+
+## 3D viewer: niveleta (LandXML), staniční řezy + gizmo ✅ (2026-07-08)
+- [x] LandXML niveleta import zprovozněn — `alignment/vertical-profile.js` parsuje vertikální profil (PVI, kruhové i parabolické oblouky), doplňuje 3D výšku k horizontální ose; jednotky z LandXML `<Units>` (metric/imperial), detekce formátů a graceful warnings při chybějících/neúplných datech
+- [x] Řezy po staničení — `viewer/station-section-visuals.js`: markery řezů podél trasy dle staničení, hromadný DXF export všech staničních řezů přes `panels/dxf-export.js`
+- [x] Section gizmo menší a screen-constant (konstantní velikost bez ohledu na zoom) s delta dragem řezné roviny
+- [x] Napojení do `alignment-panel.js` + `section-panel.js`; `section-curves.js` / `section-visuals.js` / `viewer-core.js` / `index.js` integrace
+- [x] +testy (dxf-export, landxml-parser, landxml-vertical-profile, section-bounds-clip), celkem 945; SW v142
+- [x] Plán: `docs/superpowers/plans/2026-07-08-niveleta-stanicni-rezy-gizmo.md`
+
+Branch: 3d-viewer-integration

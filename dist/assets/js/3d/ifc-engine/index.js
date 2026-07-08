@@ -369,8 +369,11 @@ export class IfcEngine {
   }
 
   // Phase 6.8.2: alignments (LandXML)
+  // Vrací { ids, warnings, meta } (propaguje návrat vieweru beze změny).
   loadAlignment(xmlText, opts) {
-    return this._viewer ? this._viewer.loadAlignment(xmlText, opts) : [];
+    return this._viewer
+      ? this._viewer.loadAlignment(xmlText, opts)
+      : { ids: [], warnings: [], meta: {} };
   }
   getAlignments() {
     return this._viewer ? this._viewer.getAlignments() : [];
@@ -384,6 +387,19 @@ export class IfcEngine {
   /** Phase 6.8.3 — create section plane perpendicular to alignment at station. */
   createSectionAtStation(id, station, perpType) {
     return this._viewer ? this._viewer.createSectionAtStation(id, station, perpType) : null;
+  }
+  /** Staniční řezy — vytvoří vizuální markery (rámeček + staničení), bez ořezu. */
+  createStationSections(id, opts) {
+    return this._viewer ? this._viewer.createStationSections(id, opts) : null;
+  }
+  getStationSections(id) {
+    return this._viewer ? this._viewer.getStationSections(id) : null;
+  }
+  clearStationSections(id) {
+    if (this._viewer) this._viewer.clearStationSections(id);
+  }
+  setStationSectionsVisible(id, visible) {
+    if (this._viewer) this._viewer.setStationSectionsVisible(id, visible);
   }
   /** Phase 6.8.4 — create alignment from clicked world points (linear / catmull-rom). */
   createFreeCurveFromPoints(worldPoints, opts) {
@@ -837,7 +853,10 @@ export class IfcEngine {
   pickEdgeAt(x, y, opts) { return this._viewer ? this._viewer.pickEdgeAt(x, y, opts) : null; }
   setOrbitEnabled(on) { if (this._viewer) this._viewer.setOrbitEnabled(on); }
   pickSectionPlaneAt(x, y) { return this._viewer ? this._viewer.pickSectionPlaneAt(x, y) : null; }
+  beginSectionPlaneDrag(id, x, y) { return this._viewer ? this._viewer.beginSectionPlaneDrag(id, x, y) : false; }
   dragSectionPlaneTo(id, x, y) { return this._viewer ? this._viewer.dragSectionPlaneTo(id, x, y) : null; }
+  endSectionPlaneDrag() { if (this._viewer) this._viewer.endSectionPlaneDrag(); }
+  setSectionHandleHover(planeId) { if (this._viewer) this._viewer.setSectionHandleHover(planeId); }
   resize(w, h) { if (this._viewer) this._viewer.resize(w, h); }
   getProjection() { return this._viewer ? this._viewer.getProjection() : 'perspective'; }
 
