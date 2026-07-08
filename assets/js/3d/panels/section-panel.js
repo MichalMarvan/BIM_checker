@@ -37,44 +37,97 @@ export default class SectionPanel {
     const canvas = this._canvas();
     if (!canvas) return;
     let dragId = null;
-    const xy = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    let pointerId = null;
+    let hoverRaf = 0;
+    // Souřadnice se předávají engine jako CLIENT (viewport) — přepočet rectu
+    // si dělá pickSectionPlaneAt / dragSectionPlaneTo sám (kontrakt Task 10).
 
     const onDown = (e) => {
-      if (e.button !== 0 || this._mode) return;   // not while placing a new plane
-      const [x, y] = xy(e);
-      const hit = this.engine.pickSectionPlaneAt?.(x, y);
+      if (e.button !== 0 || this._mode) return;   // ne během pokládání nové roviny
+      const hit = this.engine.pickSectionPlaneAt?.(e.clientX, e.clientY);
       if (!hit) return;
       dragId = hit.id;
+      pointerId = e.pointerId;
+      try { canvas.setPointerCapture(e.pointerId); } catch { /* capture nemusí být podporováno */ }
+      this.engine.beginSectionPlaneDrag?.(dragId, e.clientX, e.clientY);
       this.engine.setOrbitEnabled?.(false);
-      canvas.style.cursor = 'ns-resize';
+      canvas.style.cursor = 'grabbing';
       e.preventDefault(); e.stopPropagation();
     };
+
     const onMove = (e) => {
-      if (dragId === null) return;
-      const [x, y] = xy(e);
-      const off = this.engine.dragSectionPlaneTo?.(dragId, x, y);
+      if (dragId === null) {
+        if (this._mode) return;                   // v režimu pokládání hover neřešíme
+        if (hoverRaf) return;                     // throttle na jeden pick za snímek
+        hoverRaf = requestAnimationFrame(() => {
+          hoverRaf = 0;
+          if (dragId !== null || this._mode) return;
+          const hit = this.engine.pickSectionPlaneAt?.(e.clientX, e.clientY);
+          canvas.style.cursor = hit ? 'grab' : '';
+          this.engine.setSectionHandleHover?.(hit?.id ?? null);
+        });
+        return;
+      }
+      const off = this.engine.dragSectionPlaneTo?.(dragId, e.clientX, e.clientY);
       if (Number.isFinite(off)) {
         const sub = this.host.querySelector(`.v3d-panel__item[data-plane="${dragId}"] .v3d-panel__item-sub`);
         if (sub) sub.textContent = `offset ${off.toFixed(2)} m`;
+        this._showDragTip(canvas, e.clientX, e.clientY, off);
       }
       e.preventDefault(); e.stopPropagation();
     };
-    const onUp = () => {
+
+    const endDrag = (e) => {
       if (dragId === null) return;
       dragId = null;
+      if (pointerId !== null) {
+        try {
+          if (canvas.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
+        } catch { /* už uvolněno */ }
+        pointerId = null;
+      }
+      this.engine.endSectionPlaneDrag?.();
       this.engine.setOrbitEnabled?.(true);
       canvas.style.cursor = this._mode ? 'crosshair' : '';
+      this._hideDragTip();
     };
 
     canvas.addEventListener('pointerdown', onDown, true);
     window.addEventListener('pointermove', onMove, true);
-    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointerup', endDrag, true);
+    window.addEventListener('pointercancel', endDrag, true);
     this._dragCleanup = () => {
       canvas.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('pointermove', onMove, true);
-      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointerup', endDrag, true);
+      window.removeEventListener('pointercancel', endDrag, true);
+      if (hoverRaf) { cancelAnimationFrame(hoverRaf); hoverRaf = 0; }
+      this.engine.endSectionPlaneDrag?.();
+      this.engine.setSectionHandleHover?.(null);
       this.engine.setOrbitEnabled?.(true);
+      this._hideDragTip();
     };
+  }
+
+  /** Overlay popisek offsetu u kurzoru během tažení (iTwin.js pattern). */
+  _showDragTip(canvas, clientX, clientY, offset) {
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    if (!this._dragTip) {
+      this._dragTip = document.createElement('div');
+      this._dragTip.className = 'v3d-drag-tip';
+      parent.appendChild(this._dragTip);
+    }
+    const sign = offset >= 0 ? '+' : '';
+    this._dragTip.textContent = `${sign}${offset.toFixed(2).replace('.', ',')} m`;
+    const r = parent.getBoundingClientRect();
+    this._dragTip.style.left = `${clientX - r.left + 14}px`;
+    this._dragTip.style.top = `${clientY - r.top - 10}px`;
+  }
+
+  /** Skrýt (odstranit) overlay popisek offsetu. */
+  _hideDragTip() {
+    if (this._dragTip) { this._dragTip.remove(); this._dragTip = null; }
   }
 
   _render() {
