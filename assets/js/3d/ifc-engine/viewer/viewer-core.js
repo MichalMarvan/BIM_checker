@@ -3038,25 +3038,28 @@ export class ViewerCore {
   }
 
   /**
-   * Load LandXML text → returns array of alignment ids (one per <Alignment> in file).
+   * Load LandXML text → { ids, warnings, meta }.
+   * `ids` je pole id os (jedno na každý <Alignment>); `warnings` a `meta`
+   * pochází z parseru (Task 2).
    * @param {string} xmlText
    * @param {{ swapXY?: boolean, chordTol?: number }} [opts]
+   * @returns {{ ids: string[], warnings: string[], meta: object }}
    */
   loadAlignment(xmlText, opts = {}) {
     const parsed = parseLandXmlAlignments(xmlText, opts);
     this._ensureAlignmentVisuals();
     const ids = [];
-    for (const a of parsed) {
+    for (const a of parsed.alignments) {
       const id = `align_${++this._alignmentIdCounter}`;
       const sampled = sampleAlignment(a, opts);
       this._alignments.set(id, { meta: a, sampled });
       this._alignmentVisuals.add(id, sampled);
       ids.push(id);
     }
-    return ids;
+    return { ids, warnings: parsed.warnings, meta: parsed.meta };
   }
 
-  /** @returns {Array<{id, name, length, staStart, staEnd, elementCount}>} */
+  /** @returns {Array<{id, name, length, staStart, staEnd, elementCount, hasProfile}>} */
   getAlignments() {
     const out = [];
     for (const [id, a] of this._alignments) {
@@ -3068,6 +3071,7 @@ export class ViewerCore {
         staStart: stations[0] || 0,
         staEnd: stations[stations.length - 1] || 0,
         elementCount: a.meta.elements.length,
+        hasProfile: !!a.meta.verticalProfile,
       });
     }
     return out;

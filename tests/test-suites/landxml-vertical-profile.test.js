@@ -61,4 +61,18 @@ describe('LandXML vertical profile (niveleta)', () => {
         expect(elevationAt(p, 25)).toBe(52.5);   // sta 25 m = raw 50 → elev raw 105 * 0.5
         expect(elevationAt(p, 999)).toBe(55);
     });
+
+    it('sampleAlignment bere Z z verticalProfile', async () => {
+        const { parseLandXmlAlignments } =
+            await import('../../assets/js/3d/ifc-engine/alignment/landxml-parser.js');
+        const { sampleAlignment } =
+            await import('../../assets/js/3d/ifc-engine/alignment/discretize.js');
+        const xml = `<?xml version="1.0"?><LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" version="1.2"><Alignments><Alignment name="A" length="100" staStart="0"><CoordGeom><Line><Start>0 0</Start><End>0 100</End></Line></CoordGeom><Profile name="p"><ProfAlign name="n"><PVI>0 200</PVI><PVI>100 220</PVI></ProfAlign></Profile></Alignment></Alignments></LandXML>`;
+        const { alignments } = parseLandXmlAlignments(xml);
+        const s = sampleAlignment(alignments[0]);
+        const iMid = s.stations.findIndex(st => Math.abs(st - 50) < 26); // aspoň jeden vzorek uvnitř
+        expect(Math.abs(s.points[0][2] - 200)).toBeLessThan(1e-9);
+        expect(Math.abs(s.points[s.points.length - 1][2] - 220)).toBeLessThan(1e-9);
+        expect(s.points[iMid][2] > 200 && s.points[iMid][2] < 220).toBe(true);
+    });
 });

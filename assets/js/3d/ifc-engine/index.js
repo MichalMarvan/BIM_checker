@@ -369,8 +369,11 @@ export class IfcEngine {
   }
 
   // Phase 6.8.2: alignments (LandXML)
+  // Vrací { ids, warnings, meta } (propaguje návrat vieweru beze změny).
   loadAlignment(xmlText, opts) {
-    return this._viewer ? this._viewer.loadAlignment(xmlText, opts) : [];
+    return this._viewer
+      ? this._viewer.loadAlignment(xmlText, opts)
+      : { ids: [], warnings: [], meta: {} };
   }
   getAlignments() {
     return this._viewer ? this._viewer.getAlignments() : [];
