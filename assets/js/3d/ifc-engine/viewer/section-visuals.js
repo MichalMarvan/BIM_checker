@@ -73,6 +73,7 @@ export class SectionVisuals {
     this._buildPlaceholder();
     this._buildHandles();
     this._ghost = null;  // ghost preview mesh, lazy
+    this._hoveredHandleId = null;  // id hoverované rukojeti (kompozice s updateHandleScale)
     this.hide();
   }
 
@@ -401,7 +402,11 @@ export class SectionVisuals {
       s = Math.min(Math.max(s, 0.05), maxSize);
       const base = s / 2;
       g.userData.baseScale = base;
-      g.scale.setScalar(base);
+      // Kompozice s hoverem: běží každý frame a přepisuje scale, proto musí sám
+      // aplikovat hover ×1.1 na uloženém id (jinak by smazal bump ze setHandleHover).
+      const hovered = this._hoveredHandleId != null
+        && g.userData.sectionPlaneId === this._hoveredHandleId;
+      g.scale.setScalar(hovered ? base * HANDLE_HOVER_SCALE : base);
     }
   }
 
@@ -411,6 +416,9 @@ export class SectionVisuals {
    * @param {string|null} planeId id hoverované roviny, nebo null = zrušit hover
    */
   setHandleHover(planeId) {
+    // Ulož id — updateHandleScale ho každý frame znovu aplikuje na scale
+    // (jinak by per-frame reset scale hover bump smazal). Barvu řešíme hned tady.
+    this._hoveredHandleId = planeId != null ? planeId : null;
     for (const g of this._handles) {
       if (!g.visible) continue;
       const base = g.userData.baseScale || 1;
