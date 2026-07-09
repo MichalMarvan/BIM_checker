@@ -2,6 +2,7 @@
 // Renders 6 semi-transparent face meshes + 12-edge wireframe inside the scene.
 
 import * as THREE from 'three';
+import { screenScale } from './screen-scale.js';
 
 const FACE_COLOR = 0x4facfe;
 const FACE_OPACITY = 0.12;
@@ -389,17 +390,10 @@ export class SectionVisuals {
     const maxSize = 0.4 * (this._lastPlaneSize || 50);
     for (const g of this._handles) {
       if (!g.visible) continue;
-      let worldPerPixel;
-      if (camera.isPerspectiveCamera) {
-        const dist = camera.position.distanceTo(g.position);
-        worldPerPixel = (2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / vh;
-      } else {
-        worldPerPixel = ((camera.top - camera.bottom) / camera.zoom) / vh;
-      }
       // s = obrazovkový průměr disku v world jednotkách; group.scale = s/2
       // (disk poloměr 1 → průměr 2 → world průměr = 2·(s/2) = s).
-      let s = HANDLE_DISC_PX * worldPerPixel;
-      s = Math.min(Math.max(s, 0.05), maxSize);
+      // Výpočet world-per-pixel + clamp řeší sdílený helper screen-scale.
+      const s = screenScale(camera, g.position, vh, HANDLE_DISC_PX, { min: 0.05, max: maxSize });
       const base = s / 2;
       g.userData.baseScale = base;
       // Kompozice s hoverem: běží každý frame a přepisuje scale, proto musí sám
