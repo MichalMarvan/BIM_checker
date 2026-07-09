@@ -14,6 +14,7 @@ console.log('[3d-viewer] module loaded — v58+ (lazy engine init)');
 
 import { initLeftRail, openRailPanel, refreshRailPanel } from './ui/left-rail.js';
 import { initStatePersistence, restoreModelState } from './viewer-state-persistence.js';
+import { initViewerLink } from './viewer-link-receiver.js';
 
 const state = {
     engine: null,
@@ -1132,6 +1133,17 @@ function boot() {
     // Keep loading discoverable: with an empty scene, open the Storage drawer
     // right away (loading lives there; Models shows only what's loaded).
     if (state.loadedModels.size === 0) openRailPanel('storage');
+
+    // Viewer-link přijímač (akce z validátoru / Multi-File tabulky → skok na prvek).
+    // Předáváme getEngine (ne hotovou instanci): engine se zhmotní až s první
+    // reálnou akcí, aby čisté otevření stránky nespouštělo render-loop zbytečně
+    // (viz lazy-init politika v hlavičce tohoto souboru).
+    initViewerLink({
+        getEngine,                                // () => Promise<IfcEngine> (cached)
+        loadFileByMeta: loadIfcFromStorage,       // (fileMeta) => Promise<modelId>
+        getLoadedModels: () => state.loadedModels,
+        setStatus,
+    });
 }
 
 if (document.readyState === 'loading') {
