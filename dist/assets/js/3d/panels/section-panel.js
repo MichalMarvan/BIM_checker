@@ -203,10 +203,8 @@ export default class SectionPanel {
     const canvas = this._canvas();
     if (!canvas) { this._setStatus('Plátno vieweru nenalezeno — načtěte model.', 'warn'); return; }
 
-    const xy = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-
     const onMove = (e) => {
-      const [x, y] = xy(e);
+      const x = e.clientX, y = e.clientY;
       if (this._mode === 'face') {
         this.engine.showSectionGhostFromClient?.(x, y);
       } else {
@@ -217,7 +215,7 @@ export default class SectionPanel {
     };
 
     const onClick = (e) => {
-      const [x, y] = xy(e);
+      const x = e.clientX, y = e.clientY;
       if (this._mode === 'face') {
         const f = this.engine.pickFace?.(x, y);
         if (!f || !f.normal) { this._setStatus('Mimo plochu — klikněte na povrch prvku.', 'warn'); this._render(); return; }
