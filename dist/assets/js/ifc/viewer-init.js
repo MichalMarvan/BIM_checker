@@ -313,6 +313,10 @@ document.getElementById('deselectAllBtn').addEventListener('click', () => {
     window.renderTable();
 });
 
+document.getElementById('view3dSelectionBtn').addEventListener('click', (e) => {
+    window.sendSelectionToViewer(e.currentTarget);
+});
+
 // =======================
 // CELL EDITING
 // =======================

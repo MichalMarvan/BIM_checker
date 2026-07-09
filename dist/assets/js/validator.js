@@ -33,6 +33,124 @@ let idsFiles = [];
 let validationResults = null;
 const allEntities = [];
 
+// ---------------------------------------------------------------------------
+// Propojení s 3D viewerem (window.ViewerLink z common/viewer-link.js).
+// Tlačítka „🧊 V modelu" / „Zobrazit ve 3D" / „Zobrazit vše ve 3D".
+// ---------------------------------------------------------------------------
+
+// Mapa jméno souboru → fileId, sestavená z vybraných souborů validačních skupin.
+// fileId ze storage pickeru je reálné storage id; u přetažených souborů je to
+// lokální id (`file_...`) — receiver na fileId nedohledá a spadne na jméno, což
+// je v pořádku. Když soubor nedohledáme, vrací se null.
+function buildFileIdMap() {
+    const map = Object.create(null);
+    if (typeof validationGroups === 'undefined' || !Array.isArray(validationGroups)) {
+        return map;
+    }
+    for (const group of validationGroups) {
+        if (!group || !Array.isArray(group.ifcFiles)) continue;
+        for (const file of group.ifcFiles) {
+            if (file && file.name && map[file.name] === undefined) {
+                map[file.name] = (file.id !== undefined && file.id !== null) ? file.id : null;
+            }
+        }
+    }
+    return map;
+}
+
+function fileIdForName(fileName, fileIdMap) {
+    if (!fileName) return null;
+    const id = fileIdMap[fileName];
+    return (id === undefined) ? null : id;
+}
+
+// Krátký přechodný feedback u tlačítka (mizí po ~2 s).
+function showViewerLinkFeedback(btn, result) {
+    if (!btn) return;
+    const wrap = btn.closest('.viewer-link-wrap') || btn.parentElement;
+    if (!wrap) return;
+    let fb = wrap.querySelector('.viewer-link-feedback');
+    if (!fb) {
+        fb = document.createElement('span');
+        fb.className = 'viewer-link-feedback';
+        wrap.appendChild(fb);
+    }
+    fb.textContent = (result === 'live') ? t('validator.viewer.live') : t('validator.viewer.opened');
+    if (fb._timer) clearTimeout(fb._timer);
+    fb._timer = setTimeout(() => {
+        fb.textContent = '';
+    }, 2000);
+}
+
+// Feedback, když specifikace nemá žádné prvky se stavem pass/fail k zobrazení.
+function showViewerLinkFeedbackNoItems(btn) {
+    if (!btn) return;
+    const wrap = btn.closest('.viewer-link-wrap') || btn.parentElement;
+    if (!wrap) return;
+    let fb = wrap.querySelector('.viewer-link-feedback');
+    if (!fb) {
+        fb = document.createElement('span');
+        fb.className = 'viewer-link-feedback';
+        wrap.appendChild(fb);
+    }
+    fb.textContent = t('validator.viewer.noItems');
+    if (fb._timer) clearTimeout(fb._timer);
+    fb._timer = setTimeout(() => {
+        fb.textContent = '';
+    }, 2000);
+}
+
+// Odeslání payloadu do vieweru + feedback. ViewerLink musí být přítomen a send()
+// se kvůli pravidlům window.open volá synchronně z click handleru.
+function sendToViewer(payload, btn) {
+    if (!window.ViewerLink || typeof window.ViewerLink.send !== 'function') {
+        console.warn('[validator] ViewerLink not available - 3D link skipped.');
+        return;
+    }
+    Promise.resolve(window.ViewerLink.send(payload))
+        .then(result => showViewerLinkFeedback(btn, result))
+        .catch(err => console.warn('[validator] Send to 3D viewer failed:', err));
+}
+
+// Posbírá validation-items pro danou specifikaci; jen statusy pass/fail.
+function collectSpecItems(specResult, fileName) {
+    const items = [];
+    if (!specResult || !Array.isArray(specResult.entityResults)) return items;
+    for (const er of specResult.entityResults) {
+        if (er.status !== 'pass' && er.status !== 'fail') continue;
+        items.push({ fileName: er.fileName || fileName, guid: er.guid, status: er.status });
+    }
+    return items;
+}
+
+// Posbírá validation-items napříč všemi specifikacemi/soubory; dedup podle
+// fileName+guid, fail v ≥1 specifikaci vyhrává nad pass.
+function collectAllValidationItems() {
+    const byKey = new Map();
+    if (!Array.isArray(validationResults)) return [];
+    for (const idsResult of validationResults) {
+        if (!idsResult || !Array.isArray(idsResult.ifcResults)) continue;
+        for (const ifcResult of idsResult.ifcResults) {
+            if (!ifcResult || !Array.isArray(ifcResult.specificationResults)) continue;
+            for (const specResult of ifcResult.specificationResults) {
+                if (!Array.isArray(specResult.entityResults)) continue;
+                for (const er of specResult.entityResults) {
+                    if (er.status !== 'pass' && er.status !== 'fail') continue;
+                    const fileName = er.fileName || ifcResult.ifcFileName;
+                    const key = fileName + '|||' + er.guid;
+                    const existing = byKey.get(key);
+                    if (!existing) {
+                        byKey.set(key, { fileName: fileName, guid: er.guid, status: er.status });
+                    } else if (er.status === 'fail') {
+                        existing.status = 'fail';
+                    }
+                }
+            }
+        }
+    }
+    return Array.from(byKey.values());
+}
+
 let _ifcParserPool = null;
 let _ifcParserPoolInitialized = false;
 
@@ -793,6 +911,38 @@ function displayResults() {
     displayStats();
     populateSpecFilter();
     displaySpecificationResults();
+    setupShowAllIn3dButton();
+}
+
+// Globální tlačítko „Zobrazit vše ve 3D" — povolí se s výsledky; handler se
+// připojí jen jednou (guard), aby se při opětovném vykreslení nezdvojoval.
+let _showAllIn3dBound = false;
+function setupShowAllIn3dButton() {
+    const btn = document.getElementById('showAllIn3dBtn');
+    if (!btn) return;
+    btn.disabled = false;
+    if (_showAllIn3dBound) return;
+    _showAllIn3dBound = true;
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const items = collectAllValidationItems();
+        if (items.length === 0) {
+            showViewerLinkFeedbackNoItems(btn);
+            return;
+        }
+        const payload = window.ViewerLink && window.ViewerLink.buildValidationPayload
+            ? window.ViewerLink.buildValidationPayload({
+                source: 'validator',
+                title: t('validator.viewer.allTitle'),
+                items: items
+            })
+            : null;
+        if (payload) {
+            sendToViewer(payload, btn);
+        } else {
+            console.warn('[validator] ViewerLink not available - 3D link skipped.');
+        }
+    });
 }
 
 function displayStats() {
@@ -1053,6 +1203,9 @@ function createSpecificationResultElement(specResult) {
             ${warningsHtml}
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
+            <div class="viewer-link-wrap">
+                <button type="button" class="btn btn-secondary viewer-link-btn small spec-viewer-btn" title="${escapeAttr(t('validator.viewer.showSpecTitle'))}">🧊 ${escapeHtml(t('validator.viewer.showSpec'))}</button>
+            </div>
             <div class="spec-stats">
                 <span>✅ ${escapeHtml(specResult.passCount)}</span>
                 <span>❌ ${escapeHtml(specResult.failCount)}</span>
@@ -1062,6 +1215,30 @@ function createSpecificationResultElement(specResult) {
             </span>
         </div>
     `;
+
+    const specViewerBtn = headerDiv.querySelector('.spec-viewer-btn');
+    if (specViewerBtn) {
+        specViewerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const items = collectSpecItems(specResult);
+            if (items.length === 0) {
+                showViewerLinkFeedbackNoItems(specViewerBtn);
+                return;
+            }
+            const payload = window.ViewerLink && window.ViewerLink.buildValidationPayload
+                ? window.ViewerLink.buildValidationPayload({
+                    source: 'validator',
+                    title: specResult.specification,
+                    items: items
+                })
+                : null;
+            if (payload) {
+                sendToViewer(payload, specViewerBtn);
+            } else {
+                console.warn('[validator] ViewerLink not available - 3D link skipped.');
+            }
+        });
+    }
 
     const detailsDiv = document.createElement('div');
     detailsDiv.className = 'spec-details';
@@ -1084,6 +1261,7 @@ function createEntityResultElement(entityResult) {
     div.dataset.name = entityResult.name;
     div.dataset.guid = entityResult.guid;
     div.dataset.status = entityResult.status;
+    div.dataset.file = entityResult.fileName || '';
 
     let validationsHTML = '';
     if (entityResult.validations && entityResult.validations.length > 0) {
@@ -1111,12 +1289,37 @@ function createEntityResultElement(entityResult) {
                 <div class="entity-guid">GUID: ${escapeHtml(entityResult.guid)}</div>
                 <div class="entity-name" style="font-size: 0.85em; color: #6c757d;">File: ${escapeHtml(entityResult.fileName)}</div>
             </div>
-            <span class="entity-status ${escapeHtml(entityResult.status)}">
-                ${entityResult.status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.ok')) : '❌ ' + escapeHtml(t('validator.status.fail'))}
-            </span>
+            <div class="viewer-link-wrap">
+                <span class="entity-status ${escapeHtml(entityResult.status)}">
+                    ${entityResult.status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.ok')) : '❌ ' + escapeHtml(t('validator.status.fail'))}
+                </span>
+                <button type="button" class="btn btn-secondary viewer-link-btn small entity-viewer-btn" title="${escapeAttr(t('validator.viewer.inModelTitle'))}">🧊 ${escapeHtml(t('validator.viewer.inModel'))}</button>
+            </div>
         </div>
         ${validationsHTML}
     `;
+
+    const viewerBtn = div.querySelector('.entity-viewer-btn');
+    if (viewerBtn) {
+        viewerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const fileName = entityResult.fileName || '';
+            const fileId = fileIdForName(fileName, buildFileIdMap());
+            const payload = window.ViewerLink && window.ViewerLink.buildElementPayload
+                ? window.ViewerLink.buildElementPayload({
+                    source: 'validator',
+                    fileName: fileName,
+                    guid: entityResult.guid,
+                    fileId: fileId
+                })
+                : null;
+            if (payload) {
+                sendToViewer(payload, viewerBtn);
+            } else {
+                console.warn('[validator] ViewerLink not available - 3D link skipped.');
+            }
+        });
+    }
 
     return div;
 }
@@ -1471,6 +1674,9 @@ function newValidation() {
 
     // Reset validation results
     validationResults = null;
+
+    const showAllBtn = document.getElementById('showAllIn3dBtn');
+    if (showAllBtn) showAllBtn.disabled = true;
 
     // Reset old variables (for compatibility, but these aren't used anymore)
     ifcFiles = [];

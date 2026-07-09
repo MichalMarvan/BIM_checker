@@ -427,3 +427,14 @@ Branch: 3d-viewer-integration
 - [x] Plán: `docs/superpowers/plans/2026-07-09-mereni-snapping-persistence-pohledy.md`
 
 Branch: 3d-viewer-integration
+
+## 3D viewer: viewer-link — propojení validátoru a Multi-File tabulky s 3D viewerem ✅ (2026-07-09)
+- [x] Živý skok do 3D vieweru přes BroadcastChannel (`common/viewer-link.js` odesílá akci, `3d/viewer-link-receiver.js` ji přijme a provede — zvýraznění/isolace prvku, načtení souboru ze storage) s ack potvrzením
+- [x] Deep-link fallback — když viewer neběží, otevře se nová záložka s payloadem v URL a boot akce se přehraje po startu
+- [x] Validace přímo v modelu — prvky obarveny zeleně (pass) / červeně (fail) dle výsledku validátoru, s legendou; tlačítka „Zobrazit ve 3D" u spec i entit
+- [x] `resolveGuids` — `3d/ifc-engine/parser/guid-resolve.js` mapuje IFC GUID na expressID prvků v načteném modelu
+- [x] Napojení: `validator.js` (tlačítka + feedback), `ifc/viewer-ui.js` + `ifc/viewer-init.js` + `3d/viewer-page.js`, `common/translations.js`, CSS (3d-viewer/ids-validator/ifc-viewer); obě stránky `ids-ifc-validator.html` a `ifc-viewer-multi-file.html`
+- [x] SW cache v143 → v144; `common/viewer-link.js` přidán do ASSETS_TO_CACHE
+- [x] Plán: `docs/superpowers/plans/2026-07-09-viewer-link-validace-tabulka.md`
+
+Branch: 3d-viewer-integration

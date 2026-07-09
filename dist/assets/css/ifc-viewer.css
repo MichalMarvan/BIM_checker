@@ -352,6 +352,44 @@
     color: #ffd700;
 }
 
+/* Uzky sloupec s tlacitkem "Zobrazit ve 3D" */
+.data-table th.view3d-col,
+.data-table td.view3d-col {
+    width: 44px;
+    min-width: 44px;
+    text-align: center;
+    padding: 6px 4px;
+}
+
+.view3d-btn {
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-size: 1.05em;
+    line-height: 1;
+    padding: 4px;
+    border-radius: 6px;
+    opacity: 0.6;
+    transition: opacity 0.2s, background 0.2s;
+}
+
+.view3d-btn:hover {
+    opacity: 1;
+    background: var(--bg-secondary);
+}
+
+.view3d-status {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    opacity: 0;
+    transition: opacity 0.2s;
+    align-self: center;
+}
+
+.view3d-status.show {
+    opacity: 1;
+}
+
 .data-table .header-row-pset {
     /* Removed sticky positioning that was causing issues */
 }

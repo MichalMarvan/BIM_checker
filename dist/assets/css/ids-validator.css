@@ -329,6 +329,36 @@
     border-color: var(--primary-color);
 }
 
+/* Viewer link (3D) buttons */
+.viewer-link-btn.small {
+    padding: 4px 10px;
+    font-size: 0.8em;
+    border-radius: 6px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.viewer-link-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.viewer-link-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.viewer-link-feedback {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.spec-viewer-btn {
+    margin-left: 10px;
+}
+
 /* Specification Results */
 .specification-result {
     background: var(--bg-primary);
