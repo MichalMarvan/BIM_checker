@@ -188,7 +188,7 @@ export default class MeasurePanel {
 
   _visuals() { return this.engine.getMeasureVisuals?.() || null; }
 
-  _modelId() { return this.engine.getModels?.()[0]?.id ?? null; }
+  _modelId() { return this.engine.getModels?.()[0]?.modelId ?? null; }
 
   _onMove(e) {
     const v = this._visuals();

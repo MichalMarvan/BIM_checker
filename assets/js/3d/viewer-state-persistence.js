@@ -57,6 +57,9 @@ class StatePersistence {
   }
 
   // Vrátí id kotevního modelu = první načtený model, nebo null.
+  // Omezení (v1 zjednodušení dle spec D3): kotva = první NAČTENÝ model, takže
+  // se může mezi sezeními lišit, pokud uživatel načte modely v jiném pořadí.
+  // Řezné roviny se proto obnoví jen když se kotevní model načte první.
   _anchorModelId() {
     const models = this._engine.getModels() || [];
     return models.length ? models[0].modelId : null;

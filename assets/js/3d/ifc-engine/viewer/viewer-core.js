@@ -2720,7 +2720,14 @@ export class ViewerCore {
    * @param {{ type:'distance'|'edge'|'angle'|'area', points:number[][], label?:string, modelId?:string }} spec
    * @returns {string}
    */
-  addMeasurement(spec) { return this._measureRegistry.add(spec); }
+  addMeasurement(spec) {
+    // B1 „Fallback první načtený model": bez modelId by orchestrátor perzistence
+    // měření zahodil, proto ho zde doplníme prvním načteným modelem (defense-in-depth).
+    if (spec && (spec.modelId === null || spec.modelId === undefined)) {
+      spec = { ...spec, modelId: this._models.keys().next().value ?? null };
+    }
+    return this._measureRegistry.add(spec);
+  }
 
   /** Vrátí seznam měření (kopie). */
   getMeasurements() { return this._measureRegistry.list(); }
