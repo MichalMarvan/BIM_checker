@@ -2,6 +2,7 @@
 // Renders 6 semi-transparent face meshes + 12-edge wireframe inside the scene.
 
 import * as THREE from 'three';
+import { screenScale } from './screen-scale.js';
 
 const FACE_COLOR = 0x4facfe;
 const FACE_OPACITY = 0.12;
@@ -29,6 +30,18 @@ const ARROW_SHAFT_R = 0.12;            // poloměr válce (dřík)
 const ARROW_CONE_R = 0.3;              // poloměr základny kužele (hrot)
 const ARROW_CONE_LEN = 0.5;            // délka kužele
 const PICKER_R = 1.75;                 // neviditelný picker = 1.75× poloměr disku (=1)
+
+// Face-pick kurzor (section-panel „Plochou") — kroužek v rovině plochy + kolmá
+// šipka podél normály. Ukazuje, kam řezná rovina dopadne a která strana zůstane.
+const FACEPICK_COLOR = 0xfacc15;       // amber — sladěno s ghost highlightem
+const FACEPICK_RENDER_ORDER = VISUAL_RENDER_ORDER + 3; // 103, nad plochami/wire/ghost
+const FACEPICK_PX = 44;                // cílová obrazovková velikost kroužku ~44 px
+const FACEPICK_RING_INNER = 0.7;       // vnitřní poloměr kroužku (lokální jed.)
+const FACEPICK_RING_OUTER = 1.0;       // vnější poloměr kroužku
+const FACEPICK_SHAFT_R = 0.08;         // poloměr dříku šipky
+const FACEPICK_SHAFT_LEN = 1.2;        // délka dříku šipky
+const FACEPICK_CONE_R = 0.22;          // poloměr základny hrotu
+const FACEPICK_CONE_LEN = 0.45;        // délka hrotu
 
 /**
  * Canvas texture: a filled disc with a scissors glyph — the drag grip drawn
@@ -73,6 +86,7 @@ export class SectionVisuals {
     this._buildPlaceholder();
     this._buildHandles();
     this._ghost = null;  // ghost preview mesh, lazy
+    this._facePick = null;  // face-pick kurzor (skupina kroužek + šipka), lazy
     this._hoveredHandleId = null;  // id hoverované rukojeti (kompozice s updateHandleScale)
     this.hide();
   }
@@ -233,6 +247,79 @@ export class SectionVisuals {
     if (this._ghost) this._ghost.visible = false;
   }
 
+  /**
+   * Lazy build face-pick kurzoru: skupina s kroužkem (RingGeometry v rovině XY,
+   * normála podél lokální Z) a šipkou podél lokální Z (dřík + hrot). Skupinu
+   * orientujeme přes lookAt tak, že lokální Z = normála plochy → kroužek leží
+   * v rovině plochy a šipka míří podél normály. Materiál sdílený (jeden dispose).
+   */
+  _ensureFacePick() {
+    if (this._facePick) return;
+    const mat = new THREE.MeshBasicMaterial({
+      color: FACEPICK_COLOR,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,   // kurzor: vždy viditelný, i za geometrií
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const group = new THREE.Group();
+    group.visible = false;
+    group.userData = { sectionFacePick: true };
+
+    // Kroužek v rovině XY — po lookAt podél normály leží v rovině plochy.
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(FACEPICK_RING_INNER, FACEPICK_RING_OUTER, 32),
+      mat,
+    );
+    ring.renderOrder = FACEPICK_RENDER_ORDER;
+    group.add(ring);
+
+    // Šipka podél lokální Z (= normála). Geometrie válce/kužele míří defaultně
+    // podél Y → rotace +90° kolem X srovná lokální Y na lokální Z (jako u gizma).
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(FACEPICK_SHAFT_R, FACEPICK_SHAFT_R, FACEPICK_SHAFT_LEN, 12),
+      mat,
+    );
+    shaft.rotation.x = Math.PI / 2;   // Y → Z
+    shaft.position.z = FACEPICK_SHAFT_LEN / 2;
+    shaft.renderOrder = FACEPICK_RENDER_ORDER;
+    group.add(shaft);
+
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(FACEPICK_CONE_R, FACEPICK_CONE_LEN, 16),
+      mat,
+    );
+    cone.rotation.x = Math.PI / 2;    // hrot na +Z
+    cone.position.z = FACEPICK_SHAFT_LEN + FACEPICK_CONE_LEN / 2;
+    cone.renderOrder = FACEPICK_RENDER_ORDER;
+    group.add(cone);
+
+    this._scene.add(group);
+    this._facePick = group;
+  }
+
+  /**
+   * Zobrazit face-pick kurzor v bodě `point` s normálou plochy `normal`
+   * (THREE.Vector3, world). Kroužek leží v rovině plochy, šipka míří podél
+   * normály DO poloprostoru, který po řezu ZŮSTANE VIDITELNÝ.
+   *
+   * Směr šipky: `_buildPlane` staví `THREE.Plane(n, -n·p)`, tj.
+   * `distanceToPoint(x) = n·x − n·p`. THREE clipping skryje fragmenty se
+   * záporným signed distance a nechá `n·(x−p) ≥ 0` — tedy poloprostor, DO
+   * kterého normála míří. Kept side = po směru normály → šipku NEotáčíme.
+   */
+  showFacePickCursor(point, normal) {
+    this._ensureFacePick();
+    this._facePick.position.copy(point);
+    this._facePick.lookAt(point.clone().add(normal));
+    this._facePick.visible = true;
+  }
+
+  hideFacePickCursor() {
+    if (this._facePick) this._facePick.visible = false;
+  }
+
   _buildPlaceholder() {
     const mat = new THREE.MeshBasicMaterial({
       color: FACE_COLOR,
@@ -389,17 +476,10 @@ export class SectionVisuals {
     const maxSize = 0.4 * (this._lastPlaneSize || 50);
     for (const g of this._handles) {
       if (!g.visible) continue;
-      let worldPerPixel;
-      if (camera.isPerspectiveCamera) {
-        const dist = camera.position.distanceTo(g.position);
-        worldPerPixel = (2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / vh;
-      } else {
-        worldPerPixel = ((camera.top - camera.bottom) / camera.zoom) / vh;
-      }
       // s = obrazovkový průměr disku v world jednotkách; group.scale = s/2
       // (disk poloměr 1 → průměr 2 → world průměr = 2·(s/2) = s).
-      let s = HANDLE_DISC_PX * worldPerPixel;
-      s = Math.min(Math.max(s, 0.05), maxSize);
+      // Výpočet world-per-pixel + clamp řeší sdílený helper screen-scale.
+      const s = screenScale(camera, g.position, vh, HANDLE_DISC_PX, { min: 0.05, max: maxSize });
       const base = s / 2;
       g.userData.baseScale = base;
       // Kompozice s hoverem: běží každý frame a přepisuje scale, proto musí sám
@@ -407,6 +487,11 @@ export class SectionVisuals {
       const hovered = this._hoveredHandleId != null
         && g.userData.sectionPlaneId === this._hoveredHandleId;
       g.scale.setScalar(hovered ? base * HANDLE_HOVER_SCALE : base);
+    }
+    // Face-pick kurzor: kroužek ~44 px, škáluj jen když je viditelný.
+    if (this._facePick && this._facePick.visible) {
+      const s = screenScale(camera, this._facePick.position, vh, FACEPICK_PX, { min: 0.05, max: 5 });
+      this._facePick.scale.setScalar(s);
     }
   }
 
@@ -461,6 +546,22 @@ export class SectionVisuals {
       });
     }
     if (this._handleTex) this._handleTex.dispose();
+    if (this._ghost) {
+      if (this._ghost.geometry) this._ghost.geometry.dispose();
+      if (this._ghost.material) this._ghost.material.dispose();
+      this._scene.remove(this._ghost);
+    }
+    // Face-pick kurzor: kroužek/dřík/hrot mají sdílený materiál → jednou.
+    if (this._facePick) {
+      let facePickMat = null;
+      this._facePick.traverse(o => {
+        if (!o.isMesh) return;
+        if (o.geometry) o.geometry.dispose();
+        facePickMat = o.material;
+      });
+      if (facePickMat) facePickMat.dispose();
+      this._scene.remove(this._facePick);
+    }
     this._wire.geometry.dispose();
     this._wire.material.dispose();
     this._scene.remove(this._group);

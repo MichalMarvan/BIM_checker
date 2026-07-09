@@ -415,3 +415,15 @@ Branch: 3d-viewer-integration
 - [x] Plán: `docs/superpowers/plans/2026-07-08-niveleta-stanicni-rezy-gizmo.md`
 
 Branch: 3d-viewer-integration
+
+## 3D viewer: měření, snapping, persistence, pohledy ✅ (2026-07-09)
+- [x] Měření zprovozněno — 4 typy (vzdálenost, ΔXYZ osové čáry, úhel, souřadnice bodu) s CAD snap glyfy (endpoint/midpoint/center/edge), rubber-band náhledem během tažení, edge highlightem a bohatšími labely; seznam měření se skrýváním jednotlivých položek
+- [x] Oprava souřadnicového bugu snapu — správná transformace mezi lokálním a světovým prostorem (`state/local-transform.js`)
+- [x] Face-pick kurzor u řezů — `pickEdgeAt` endpointy, měření registrována jako objekty engine (`viewer/measure-registry.js`, visibility)
+- [x] Screen-constant markery měření + CAD snap glyfy přes sdílený screen-scale helper (`viewer/screen-scale.js`)
+- [x] Auto-persistence měření + řezných rovin per model (klíč = content hash, IndexedDB) — `viewer-state-persistence.js`, `state/viewer-state-store.js`
+- [x] Pohledy s náhledy — ukládají řezy i měření, vazba na model; migrace z localStorage do IndexedDB (`panels/viewpoints-panel.js`)
+- [x] SW cache v142 → v143
+- [x] Plán: `docs/superpowers/plans/2026-07-09-mereni-snapping-persistence-pohledy.md`
+
+Branch: 3d-viewer-integration

@@ -72,6 +72,8 @@ import { StationSectionVisuals } from './station-section-visuals.js';
 import { parseLandXmlAlignments } from '../alignment/landxml-parser.js';
 import { sampleAlignment, pointAtStation } from '../alignment/discretize.js';
 import { distance, angle, polygonArea } from './measure-math.js';
+import { MeasureRegistry } from './measure-registry.js';
+import { transformPointByMatrix } from '../state/local-transform.js';
 
 // Per-frame scratch (no allocations in render loop).
 const _clipSize = new THREE.Vector3();
@@ -363,6 +365,14 @@ export class ViewerCore {
     };
     this._sectionVisuals = null;
     this._measureVisuals = null;
+    // Registr měření jako objektů engine — persistence a uložené pohledy k němu
+    // mají přístup. Po každé mutaci dorovná visuals a vyšle změnu stavu.
+    this._stateChangeCb = null;
+    this._measureRegistry = new MeasureRegistry({
+      onChange: () => { this._syncMeasureVisuals(); this._emitStateChange(); },
+    });
+    // Set idček měření, která už jsou v MeasureVisuals (reconcile stav).
+    this._syncedMeasureIds = new Set();
     this._pinVisuals = null;
     this._pinIdCounter = 0;
     this._pins = new Map(); // id → pin spec
@@ -467,6 +477,8 @@ export class ViewerCore {
       if (this._pinVisuals) this._pinVisuals.updateScale(this._camera, this._canvas);
       // Screen-constant velikost rukojetí řezných rovin (levné, guard na null).
       this._sectionVisuals?.updateHandleScale(this._camera, this._canvas.clientHeight);
+      // Screen-constant velikost markerů měření (levné, guard na null).
+      this._measureVisuals?.updateScreenScale(this._camera, this._canvas.clientHeight);
       this._pipeline.render(this._scene, this._camera);
       this._raf = requestAnimationFrame(render);
     };
@@ -1488,11 +1500,18 @@ export class ViewerCore {
         const d2 = dx * dx + dy * dy;
         if (d2 < thresholdPx * thresholdPx && (!best || d2 < best.d2)) {
           const dir = b.clone().sub(a).normalize();
-          best = { d2, point: [closest.x, closest.y, closest.z], tangent: [dir.x, dir.y, dir.z] };
+          best = {
+            d2,
+            point: [closest.x, closest.y, closest.z],
+            tangent: [dir.x, dir.y, dir.z],
+            // Koncové body vítězného segmentu — a/b se přepisují, uložit hodnoty.
+            a: [a.x, a.y, a.z],
+            b: [b.x, b.y, b.z],
+          };
         }
       }
     }
-    return best ? { point: best.point, tangent: best.tangent } : null;
+    return best ? { point: best.point, tangent: best.tangent, a: best.a, b: best.b } : null;
   }
 
   /** Resize renderer + camera frustum/aspect to match container. */
@@ -2292,6 +2311,7 @@ export class ViewerCore {
     };
     this._sectionPlanesList.push(entry);
     this._refreshSectionPlanes();
+    this._emitStateChange();
     return id;
   }
 
@@ -2313,18 +2333,21 @@ export class ViewerCore {
     }
     e.plane = this._buildPlane(e.point, e.normal, e.offset);
     this._refreshSectionPlanes();
+    this._emitStateChange();
   }
 
   /** Remove a single plane by id. */
   removeSectionPlane(id) {
     this._sectionPlanesList = this._sectionPlanesList.filter(p => p.id !== id);
     this._refreshSectionPlanes();
+    this._emitStateChange();
   }
 
   /** Remove all multi-plane sections. */
   clearSectionPlanes() {
     this._sectionPlanesList = [];
     this._refreshSectionPlanes();
+    this._emitStateChange();
   }
 
   /** Returns shallow copy of plane list (no THREE.Plane refs leaked). */
@@ -2499,18 +2522,34 @@ export class ViewerCore {
     this._ensureVisuals();
     if (!hit || !mesh || !mesh.geometry) {
       this._sectionVisuals.hideGhost();
+      this._sectionVisuals.hideFacePickCursor();
       return;
     }
     const triangles = this._collectCoplanarTriangles(mesh, hit);
     if (triangles.length === 0) {
       this._sectionVisuals.hideGhost();
+      this._sectionVisuals.hideFacePickCursor();
       return;
     }
     this._sectionVisuals.showFaceHighlight(triangles);
+    // Face-pick kurzor: kroužek + kolmá šipka v bodě hitu. World normála se
+    // počítá stejně jako v selection.js — transformDirection maticí meshe.
+    if (hit.face && hit.face.normal) {
+      mesh.updateMatrixWorld();
+      const worldNormal = hit.face.normal.clone()
+        .transformDirection(mesh.matrixWorld)
+        .normalize();
+      this._sectionVisuals.showFacePickCursor(hit.point.clone(), worldNormal);
+    } else {
+      this._sectionVisuals.hideFacePickCursor();
+    }
   }
 
   hideSectionGhost() {
-    if (this._sectionVisuals) this._sectionVisuals.hideGhost();
+    if (this._sectionVisuals) {
+      this._sectionVisuals.hideGhost();
+      this._sectionVisuals.hideFacePickCursor();
+    }
   }
 
   /**
@@ -2674,6 +2713,151 @@ export class ViewerCore {
   }
   hideMeasureSnapPreview() {
     if (this._measureVisuals) this._measureVisuals.hideSnapPreview();
+  }
+
+  /**
+   * Přidá měření do registru (engine ho drží jako objekt). Vrací id `ms_<n>`.
+   * @param {{ type:'distance'|'edge'|'angle'|'area', points:number[][], label?:string, modelId?:string }} spec
+   * @returns {string}
+   */
+  addMeasurement(spec) {
+    // B1 „Fallback první načtený model": bez modelId by orchestrátor perzistence
+    // měření zahodil, proto ho zde doplníme prvním načteným modelem (defense-in-depth).
+    if (spec && (spec.modelId === null || spec.modelId === undefined)) {
+      spec = { ...spec, modelId: this._models.keys().next().value ?? null };
+    }
+    return this._measureRegistry.add(spec);
+  }
+
+  /** Vrátí seznam měření (kopie). */
+  getMeasurements() { return this._measureRegistry.list(); }
+
+  /** Odebere měření dle id. */
+  removeMeasurement(id) { this._measureRegistry.remove(id); }
+
+  /** Odebere všechna měření. */
+  clearMeasurements() { this._measureRegistry.clear(); }
+
+  /** Nastaví viditelnost měření. */
+  setMeasurementVisible(id, visible) { this._measureRegistry.setVisible(id, visible); }
+
+  /** Aktualizuje měnitelné vlastnosti měření (label). */
+  updateMeasurement(id, patch) { this._measureRegistry.update(id, patch); }
+
+  /**
+   * Dorovná MeasureVisuals podle registru: přidá chybějící, odebere smazaná,
+   * nastaví viditelnost. Volá se z onChange registru.
+   */
+  _syncMeasureVisuals() {
+    const visuals = this.getMeasureVisuals();
+    const items = this._measureRegistry.list();
+    const currentIds = new Set(items.map(m => m.id));
+
+    // Odeber z visuals ta, která už v registru nejsou.
+    for (const id of [...this._syncedMeasureIds]) {
+      if (!currentIds.has(id)) {
+        visuals.removeMeasurement(id);
+        this._syncedMeasureIds.delete(id);
+      }
+    }
+
+    // Přidej chybějící a nastav viditelnost všech.
+    for (const m of items) {
+      if (!this._syncedMeasureIds.has(m.id)) {
+        visuals.addMeasurement(m.id, m.type, m.points, m.value);
+        this._syncedMeasureIds.add(m.id);
+      }
+      visuals.setMeasurementVisible(m.id, m.visible);
+    }
+  }
+
+  /** No-op-safe emise změny stavu (callback dodá pozdější task). */
+  _emitStateChange() { this._stateChangeCb?.(); }
+
+  /**
+   * Převod světového bodu do model-lokálních souřadnic modelu (inverze
+   * matrixWorld jeho skupiny). Model-lokální souřadnice jsou stabilní vůči
+   * re-federaci — když se model přesune (změna group.position / georef),
+   * uložený bod ho následuje. Persistence měření to používá k uložení bodů
+   * tak, aby přežily opětovnou federaci.
+   *
+   * @param {string} modelId
+   * @param {[number,number,number]} worldPoint
+   * @returns {[number,number,number]|null}
+   */
+  worldToModelLocal(modelId, worldPoint) {
+    const m = this._models.get(modelId);
+    if (!m || !m.group) return null;
+    // matrixWorld může být zastaralá (addModel/federace mění matrix, ale
+    // matrixWorld se aktualizuje až při renderu) — vynuť čerstvý průchod.
+    m.group.updateMatrixWorld(true);
+    const inv = m.group.matrixWorld.clone().invert();
+    return transformPointByMatrix(worldPoint, inv.elements);
+  }
+
+  /**
+   * Převod model-lokálního bodu zpět do světových souřadnic (aplikace
+   * matrixWorld skupiny modelu).
+   *
+   * @param {string} modelId
+   * @param {[number,number,number]} localPoint
+   * @returns {[number,number,number]|null}
+   */
+  modelLocalToWorld(modelId, localPoint) {
+    const m = this._models.get(modelId);
+    if (!m || !m.group) return null;
+    m.group.updateMatrixWorld(true);
+    return transformPointByMatrix(localPoint, m.group.matrixWorld.elements);
+  }
+
+  /**
+   * Směrová varianta (normály / osy) — pouze rotace, bez translace, výsledek
+   * normalizován. Použije se pro uložení normál řezných rovin model-lokálně.
+   *
+   * @param {string} modelId
+   * @param {[number,number,number]} worldDir
+   * @returns {[number,number,number]|null}
+   */
+  worldToModelLocalDir(modelId, worldDir) {
+    const m = this._models.get(modelId);
+    if (!m || !m.group) return null;
+    m.group.updateMatrixWorld(true);
+    const q = m.group.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const v = new THREE.Vector3(worldDir[0], worldDir[1], worldDir[2]).applyQuaternion(q);
+    if (v.lengthSq() > 0) v.normalize();
+    return [v.x, v.y, v.z];
+  }
+
+  /**
+   * Model-lokální směr → světový (jen rotace, normalizováno).
+   *
+   * @param {string} modelId
+   * @param {[number,number,number]} localDir
+   * @returns {[number,number,number]|null}
+   */
+  modelLocalToWorldDir(modelId, localDir) {
+    const m = this._models.get(modelId);
+    if (!m || !m.group) return null;
+    m.group.updateMatrixWorld(true);
+    const q = m.group.getWorldQuaternion(new THREE.Quaternion());
+    const v = new THREE.Vector3(localDir[0], localDir[1], localDir[2]).applyQuaternion(q);
+    if (v.lengthSq() > 0) v.normalize();
+    return [v.x, v.y, v.z];
+  }
+
+  /**
+   * Ulož obsahový hash modelu (identifikace verze geometrie/parsingu) do
+   * metadat záznamu modelu. Persistence ho páruje s uloženými měřeními.
+   */
+  setModelContentHash(modelId, hash) {
+    const m = this._models.get(modelId);
+    if (m) m.contentHash = hash;
+  }
+
+  /** @returns {string|null} obsahový hash modelu, nebo null. */
+  getModelContentHash(modelId) {
+    const m = this._models.get(modelId);
+    return (m && typeof m.contentHash === 'string') ? m.contentHash : null;
   }
 
   /**
