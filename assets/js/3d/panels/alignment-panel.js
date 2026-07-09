@@ -13,6 +13,7 @@ export default class AlignmentPanel {
     this.warnings = [];       // Czech warning strings from last import
     this._suggestSwap = null; // pending swapXY suggestion: { ids, suggested } or null
     this._lastXmlText = null; // raw XML of last LandXML import (for re-import)
+    this._batchExporting = false; // guard against concurrent batch DXF export
     this._hidden = new Set(); // alignment ids switched off
     titleEl.textContent = 'Osy trasy (LandXML)';
   }
@@ -136,6 +137,7 @@ export default class AlignmentPanel {
   _reimportSwapped() {
     if (!this._suggestSwap || this._lastXmlText == null) return;
     const { ids, suggested } = this._suggestSwap;
+    const prevSwapXY = this.swapXY;
     for (const id of ids) this.engine.removeAlignment?.(id);
     for (const id of ids) this._hidden.delete(id);
     this.swapXY = suggested;
@@ -145,6 +147,13 @@ export default class AlignmentPanel {
       this._applyImport(this._lastXmlText, this.swapXY, '✓ Přenačteno');
     } catch (e) {
       console.error(e);
+      // Rollback: obnovit původní swap a znovu naimportovat odebrané osy.
+      this.swapXY = prevSwapXY;
+      try {
+        this._applyImport(this._lastXmlText, prevSwapXY, '✓ Obnoveno');
+      } catch (e2) {
+        console.error(e2);
+      }
       this.msg = { type: 'err', text: 'Přenačtení selhalo: ' + (e.message || e) };
     }
     this._render();
@@ -430,7 +439,7 @@ export default class AlignmentPanel {
     if (lines.length === 0) return '';
     const items = lines.map(w => `<div>• ${escapeHtml(String(w))}</div>`).join('');
     const btn = this._suggestSwap
-      ? `<button class="v3d-panel__btn v3d-panel__btn--sm" data-act="swap-reimport">Přenačíst s ${this._suggestSwap.suggested ? 'prohozeným' : 'standardním'} X/Y</button>`
+      ? `<button class="v3d-panel__btn v3d-panel__btn--sm" data-act="swap-reimport">Přenačíst ${this._suggestSwap.suggested ? 's prohozeným' : 'se standardním'} X/Y</button>`
       : '';
     const body = lines.length > 3
       ? `<details><summary>Upozornění (${lines.length})</summary>${items}</details>${btn}`

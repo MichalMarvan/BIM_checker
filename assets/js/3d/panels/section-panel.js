@@ -87,6 +87,7 @@ export default class SectionPanel {
         pointerId = null;
       }
       this.engine.endSectionPlaneDrag?.();
+      this.engine.setSectionHandleHover?.(null);
       this.engine.setOrbitEnabled?.(true);
       canvas.style.cursor = this._mode ? 'crosshair' : '';
       this._hideDragTip();
