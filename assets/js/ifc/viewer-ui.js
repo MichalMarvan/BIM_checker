@@ -657,6 +657,14 @@ function buildTable() {
 
     window.currentColumns = [...lockedCols, ...unlockedCols];
 
+    // Úzký koncový sloupec s tlačítkem „Zobrazit ve 3D" (per řádek).
+    const view3dHeader = document.createElement('th');
+    view3dHeader.rowSpan = 2;
+    view3dHeader.className = 'view3d-col';
+    view3dHeader.textContent = '🧊';
+    view3dHeader.title = i18n.t('viewer.show3dRow');
+    headerPset.appendChild(view3dHeader);
+
     applyFiltersAndRender();
 }
 
@@ -1048,10 +1056,100 @@ function renderTable() {
             row.appendChild(cell);
         }
 
+        const view3dCell = document.createElement('td');
+        view3dCell.className = 'view3d-col';
+        const view3dBtn = document.createElement('button');
+        view3dBtn.type = 'button';
+        view3dBtn.className = 'view3d-btn';
+        view3dBtn.textContent = '🧊';
+        view3dBtn.title = i18n.t('viewer.show3dRow');
+        view3dBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sendRowToViewer(item, view3dBtn);
+        });
+        view3dCell.appendChild(view3dBtn);
+        row.appendChild(view3dCell);
+
         tbody.appendChild(row);
     }
 
     updatePaginationInfo();
+}
+
+// Odeslání jednoho řádku do 3D vieweru (živě přes BroadcastChannel, jinak deep link).
+function sendRowToViewer(item, anchorEl) {
+    if (!window.ViewerLink) {
+        return;
+    }
+    const payload = window.ViewerLink.buildElementPayload({
+        source: 'ifc-viewer',
+        fileName: item.fileName,
+        guid: item.guid,
+        fileId: null
+    });
+    window.ViewerLink.send(payload).then((result) => {
+        showViewerLinkFeedback(anchorEl, result);
+    });
+}
+
+// Odeslání zaškrtnutých řádků do 3D vieweru (dedup dle fileName+guid).
+function sendSelectionToViewer(anchorEl) {
+    const state = window.ViewerState;
+    if (!window.ViewerLink || state.selectedEntities.size === 0) {
+        return;
+    }
+    const seen = Object.create(null);
+    const items = [];
+    for (const row of state.allData) {
+        if (!state.selectedEntities.has(row.guid)) {
+            continue;
+        }
+        const key = `${row.fileName}|||${row.guid}`;
+        if (seen[key]) {
+            continue;
+        }
+        seen[key] = true;
+        items.push({ fileName: row.fileName, guid: row.guid, fileId: null });
+    }
+    if (items.length === 0) {
+        return;
+    }
+    const payload = window.ViewerLink.buildElementsPayload({
+        source: 'ifc-viewer',
+        items
+    });
+    window.ViewerLink.send(payload).then((result) => {
+        showViewerLinkFeedback(anchorEl, result);
+    });
+}
+
+// Krátká zpětná vazba (~2 s) po odeslání do 3D vieweru.
+let viewerLinkFeedbackTimer = null;
+function showViewerLinkFeedback(anchorEl, result) {
+    const statusEl = document.getElementById('view3dStatus');
+    if (!statusEl) {
+        return;
+    }
+    const key = result === 'live' ? 'viewer.show3dLive' : 'viewer.show3dOpened';
+    statusEl.textContent = i18n.t(key);
+    statusEl.classList.add('show');
+    if (viewerLinkFeedbackTimer) {
+        clearTimeout(viewerLinkFeedbackTimer);
+    }
+    viewerLinkFeedbackTimer = setTimeout(() => {
+        statusEl.textContent = '';
+        statusEl.classList.remove('show');
+    }, 2000);
+}
+
+// Aktivace/deaktivace toolbar tlačítka podle výběru.
+function updateView3dSelectionButton() {
+    const btn = document.getElementById('view3dSelectionBtn');
+    if (!btn) {
+        return;
+    }
+    const state = window.ViewerState;
+    btn.disabled = !state.selectedEntities || state.selectedEntities.size === 0;
 }
 
 function updatePaginationInfo() {
@@ -1177,6 +1275,8 @@ function updateSelectedCount() {
     if (exportBtn) {
         exportBtn.disabled = Object.keys(state.modifications).length === 0;
     }
+
+    updateView3dSelectionButton();
 }
 
 // Export to window
@@ -1197,3 +1297,6 @@ window.updatePaginationInfo = updatePaginationInfo;
 window.showStatistics = showStatistics;
 window.toggleEntitySelection = toggleEntitySelection;
 window.updateSelectedCount = updateSelectedCount;
+window.sendRowToViewer = sendRowToViewer;
+window.sendSelectionToViewer = sendSelectionToViewer;
+window.updateView3dSelectionButton = updateView3dSelectionButton;

@@ -203,6 +203,10 @@ const translations = {
         'viewer.selectVisible': 'Vybrat vše na stránce',
         'viewer.selectAll': 'Vybrat vše na VŠECH stránkách',
         'viewer.deselectAll': 'Zrušit výběr',
+        'viewer.show3dRow': 'Zobrazit prvek ve 3D vieweru',
+        'viewer.show3dSelection': '🧊 Zobrazit výběr ve 3D',
+        'viewer.show3dLive': 'Zobrazeno ve 3D tabu',
+        'viewer.show3dOpened': 'Otevírám 3D viewer…',
 
         'viewer.spatialTree': 'Stromová struktura',
         'viewer.search': 'Hledat... (text, /regex/, nebo Sloupec /regex/)',
@@ -1485,6 +1489,10 @@ const translations = {
         'viewer.selectVisible': 'Select All on Page',
         'viewer.selectAll': 'Select All on ALL Pages',
         'viewer.deselectAll': 'Deselect All',
+        'viewer.show3dRow': 'Show element in 3D viewer',
+        'viewer.show3dSelection': '🧊 Show selection in 3D',
+        'viewer.show3dLive': 'Shown in 3D tab',
+        'viewer.show3dOpened': 'Opening 3D viewer…',
 
         'viewer.spatialTree': 'Spatial Tree',
         'viewer.search': 'Search... (text, /regex/, or Column /regex/)',
