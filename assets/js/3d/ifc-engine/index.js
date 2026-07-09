@@ -1678,6 +1678,31 @@ export class IfcEngine {
     return this._viewer ? this._viewer.measureFaceAreaAtClient(clientX, clientY) : null;
   }
 
+  /** Přidá měření do registru engine; vrací id `ms_<n>`. */
+  addMeasurement(spec) {
+    return this._viewer ? this._viewer.addMeasurement(spec) : null;
+  }
+  /** Seznam měření (kopie). */
+  getMeasurements() {
+    return this._viewer ? this._viewer.getMeasurements() : [];
+  }
+  /** Odebere měření dle id. */
+  removeMeasurement(id) {
+    if (this._viewer) this._viewer.removeMeasurement(id);
+  }
+  /** Odebere všechna měření. */
+  clearMeasurements() {
+    if (this._viewer) this._viewer.clearMeasurements();
+  }
+  /** Nastaví viditelnost měření. */
+  setMeasurementVisible(id, visible) {
+    if (this._viewer) this._viewer.setMeasurementVisible(id, visible);
+  }
+  /** Aktualizuje měnitelné vlastnosti měření (label). */
+  updateMeasurement(id, patch) {
+    if (this._viewer) this._viewer.updateMeasurement(id, patch);
+  }
+
   /** Cleanup all state. */
   dispose() {
     if (this._viewer) this._viewer.dispose();

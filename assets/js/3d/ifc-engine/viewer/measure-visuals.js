@@ -289,7 +289,19 @@ export class MeasureVisuals {
         ? [...points[1]]
         : centroid(points);
 
-    this._measurements.set(id, { type, points, value, subgroup, labelDiv, anchor });
+    this._measurements.set(id, { type, points, value, subgroup, labelDiv, anchor, visible: true });
+  }
+
+  /**
+   * Nastaví viditelnost celého měření — skryje 3D podskupinu i HTML popisek.
+   * Skrytá měření se v updateLabels nepřepočítávají ani nezobrazují.
+   */
+  setMeasurementVisible(id, visible) {
+    const m = this._measurements.get(id);
+    if (!m) return;
+    m.visible = !!visible;
+    m.subgroup.visible = m.visible;
+    m.labelDiv.style.display = m.visible ? '' : 'none';
   }
 
   removeMeasurement(id) {
@@ -341,6 +353,8 @@ export class MeasureVisuals {
     const v = new THREE.Vector3();
 
     for (const [, m] of this._measurements) {
+      // Skrytá měření nepřepočítávat ani nezobrazovat.
+      if (m.visible === false) continue;
       v.set(m.anchor[0], m.anchor[1], m.anchor[2]);
       v.project(this._camera);
       const screenX = (v.x * 0.5 + 0.5) * w;

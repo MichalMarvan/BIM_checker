@@ -72,6 +72,7 @@ import { StationSectionVisuals } from './station-section-visuals.js';
 import { parseLandXmlAlignments } from '../alignment/landxml-parser.js';
 import { sampleAlignment, pointAtStation } from '../alignment/discretize.js';
 import { distance, angle, polygonArea } from './measure-math.js';
+import { MeasureRegistry } from './measure-registry.js';
 
 // Per-frame scratch (no allocations in render loop).
 const _clipSize = new THREE.Vector3();
@@ -363,6 +364,14 @@ export class ViewerCore {
     };
     this._sectionVisuals = null;
     this._measureVisuals = null;
+    // Registr měření jako objektů engine — persistence a uložené pohledy k němu
+    // mají přístup. Po každé mutaci dorovná visuals a vyšle změnu stavu.
+    this._stateChangeCb = null;
+    this._measureRegistry = new MeasureRegistry({
+      onChange: () => { this._syncMeasureVisuals(); this._emitStateChange(); },
+    });
+    // Set idček měření, která už jsou v MeasureVisuals (reconcile stav).
+    this._syncedMeasureIds = new Set();
     this._pinVisuals = null;
     this._pinIdCounter = 0;
     this._pins = new Map(); // id → pin spec
@@ -467,6 +476,8 @@ export class ViewerCore {
       if (this._pinVisuals) this._pinVisuals.updateScale(this._camera, this._canvas);
       // Screen-constant velikost rukojetí řezných rovin (levné, guard na null).
       this._sectionVisuals?.updateHandleScale(this._camera, this._canvas.clientHeight);
+      // Screen-constant velikost markerů měření (levné, guard na null).
+      this._measureVisuals?.updateScreenScale(this._camera, this._canvas.clientHeight);
       this._pipeline.render(this._scene, this._camera);
       this._raf = requestAnimationFrame(render);
     };
@@ -1488,11 +1499,18 @@ export class ViewerCore {
         const d2 = dx * dx + dy * dy;
         if (d2 < thresholdPx * thresholdPx && (!best || d2 < best.d2)) {
           const dir = b.clone().sub(a).normalize();
-          best = { d2, point: [closest.x, closest.y, closest.z], tangent: [dir.x, dir.y, dir.z] };
+          best = {
+            d2,
+            point: [closest.x, closest.y, closest.z],
+            tangent: [dir.x, dir.y, dir.z],
+            // Koncové body vítězného segmentu — a/b se přepisují, uložit hodnoty.
+            a: [a.x, a.y, a.z],
+            b: [b.x, b.y, b.z],
+          };
         }
       }
     }
-    return best ? { point: best.point, tangent: best.tangent } : null;
+    return best ? { point: best.point, tangent: best.tangent, a: best.a, b: best.b } : null;
   }
 
   /** Resize renderer + camera frustum/aspect to match container. */
@@ -2675,6 +2693,58 @@ export class ViewerCore {
   hideMeasureSnapPreview() {
     if (this._measureVisuals) this._measureVisuals.hideSnapPreview();
   }
+
+  /**
+   * Přidá měření do registru (engine ho drží jako objekt). Vrací id `ms_<n>`.
+   * @param {{ type:'distance'|'edge'|'angle'|'area', points:number[][], label?:string, modelId?:string }} spec
+   * @returns {string}
+   */
+  addMeasurement(spec) { return this._measureRegistry.add(spec); }
+
+  /** Vrátí seznam měření (kopie). */
+  getMeasurements() { return this._measureRegistry.list(); }
+
+  /** Odebere měření dle id. */
+  removeMeasurement(id) { this._measureRegistry.remove(id); }
+
+  /** Odebere všechna měření. */
+  clearMeasurements() { this._measureRegistry.clear(); }
+
+  /** Nastaví viditelnost měření. */
+  setMeasurementVisible(id, visible) { this._measureRegistry.setVisible(id, visible); }
+
+  /** Aktualizuje měnitelné vlastnosti měření (label). */
+  updateMeasurement(id, patch) { this._measureRegistry.update(id, patch); }
+
+  /**
+   * Dorovná MeasureVisuals podle registru: přidá chybějící, odebere smazaná,
+   * nastaví viditelnost. Volá se z onChange registru.
+   */
+  _syncMeasureVisuals() {
+    const visuals = this.getMeasureVisuals();
+    const items = this._measureRegistry.list();
+    const currentIds = new Set(items.map(m => m.id));
+
+    // Odeber z visuals ta, která už v registru nejsou.
+    for (const id of [...this._syncedMeasureIds]) {
+      if (!currentIds.has(id)) {
+        visuals.removeMeasurement(id);
+        this._syncedMeasureIds.delete(id);
+      }
+    }
+
+    // Přidej chybějící a nastav viditelnost všech.
+    for (const m of items) {
+      if (!this._syncedMeasureIds.has(m.id)) {
+        visuals.addMeasurement(m.id, m.type, m.points, m.value);
+        this._syncedMeasureIds.add(m.id);
+      }
+      visuals.setMeasurementVisible(m.id, m.visible);
+    }
+  }
+
+  /** No-op-safe emise změny stavu (callback dodá pozdější task). */
+  _emitStateChange() { this._stateChangeCb?.(); }
 
   /**
    * Find the nearest vertex (in screen space) of the hovered mesh within
