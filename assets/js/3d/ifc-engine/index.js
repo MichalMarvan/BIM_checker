@@ -32,6 +32,7 @@ import { buildStyleIndex } from './geometry/styled-items.js';
 import { extractLengthScale, buildContextScaleMap } from './parser/units.js';
 import { detectProductTypes } from './parser/product-detect.js';
 import { serializeModelCache, deserializeModelCache } from './cache/model-cache.js';
+import { resolveGuidsInIndex } from './parser/guid-resolve.js';
 
 let _modelCounter = 0;
 function generateModelId() {
@@ -234,6 +235,22 @@ export class IfcEngine {
       }
     }
     return out;
+  }
+
+  /**
+   * Přeloží IFC GlobalId na expressId v rámci jednoho modelu.
+   * Používá se pro deep-linky do vieweru (výběr / zvýraznění z výsledků
+   * validace nebo řádků tabulky). Neznámý model → prázdná Map;
+   * nenalezené GUIDy se do mapy nezanesou.
+   *
+   * @param {string} modelId
+   * @param {Iterable<string>} guids — hledané IFC GlobalId
+   * @returns {Map<string, number>} Map<guid, expressId>
+   */
+  resolveGuids(modelId, guids) {
+    const rec = this._models.get(modelId);
+    if (!rec) return new Map();
+    return resolveGuidsInIndex(rec.index, guids);
   }
 
   /** @returns {ModelMeta[]} */
