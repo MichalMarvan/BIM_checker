@@ -255,7 +255,25 @@ export default class MeasurePanel {
   }
 
   _onDbl() {
-    if (this._mode === 'area' && this._points.length >= 3) this._finish();
+    if (this._mode !== 'area') return;
+    // Dvojklik vyvolá dva `click` eventy → poslední bod je téměř koincidenční
+    // s předchozím. Zahodíme ho, aby nekazil obrys (CSV/JSON body).
+    this._dropCoincidentLast();
+    if (this._points.length >= 3) this._finish();
+  }
+
+  /** Zahodí poslední bod, je-li do 1 mm (< 0.001) od předchozího. */
+  _dropCoincidentLast() {
+    const n = this._points.length;
+    if (n < 2) return;
+    const a = this._points[n - 1], b = this._points[n - 2];
+    const dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+    if (Math.hypot(dx, dy, dz) < 0.001) {
+      this._points.pop();
+      const v = this._visuals();
+      v?.clearInProgressPoints?.();
+      for (const p of this._points) v?.addInProgressPoint?.(p);
+    }
   }
 
   _onContextMenu(e) {

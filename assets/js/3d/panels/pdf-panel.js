@@ -1,5 +1,9 @@
 // PDF report builder — basic multi-section, with progress feedback.
 
+import { viewsAll } from '../ifc-engine/state/viewer-state-store.js';
+
+const MEAS_TYPE_CZ = { distance: 'Vzdálenost', edge: 'Hrana', angle: 'Úhel', area: 'Plocha' };
+
 export default class PdfPanel {
   constructor({ engine, host, titleEl }) {
     this.engine = engine;
@@ -116,7 +120,8 @@ export default class PdfPanel {
       }
       if (sec('viewpoints')) {
         this._progress(80, 'Uložené pohledy…');
-        const vps = safeLoad('bim_checker_viewpoints_v1', 'Pohledy');
+        let vps = [];
+        try { vps = await viewsAll(); } catch { warnings.push('Sekci „Pohledy“ se nepodařilo načíst z úložiště.'); }
         doc.setFontSize(12); doc.text(`Pohledy (${vps.length})`, 20, y); y += 6;
         doc.setFontSize(9);
         for (const v of vps) { doc.text(`• ${v.name}`, 22, y); y += 5; if (y > 280) { doc.addPage(); y = 20; } }
@@ -124,10 +129,14 @@ export default class PdfPanel {
       }
       if (sec('measurements')) {
         this._progress(90, 'Měření…');
-        const meas = safeLoad('bim_checker_measurements_v1', 'Měření');
+        const meas = this.engine.getMeasurements?.() || [];
         doc.setFontSize(12); doc.text(`Měření (${meas.length})`, 20, y); y += 6;
         doc.setFontSize(9);
-        for (const m of meas) { doc.text(`${m.kind}: ${m.value} ${m.unit || ''} ${m.label || ''}`, 22, y); y += 5; if (y > 280) { doc.addPage(); y = 20; } }
+        for (const m of meas) {
+          const kind = MEAS_TYPE_CZ[m.type] || m.type;
+          doc.text(`${kind}: ${m.value} ${m.unit || ''} ${m.label || ''}`.trim(), 22, y);
+          y += 5; if (y > 280) { doc.addPage(); y = 20; }
+        }
       }
       this._progress(100, 'Ukládám PDF…');
       doc.save(`${title.replace(/[^a-z0-9-_]+/gi, '_')}-${Date.now()}.pdf`);
