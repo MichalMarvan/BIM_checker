@@ -1065,6 +1065,53 @@ body[data-page="viewer3d"] {
 .v3d-panel__item-btn:hover { background: rgba(102,126,234,0.1); color: var(--primary-color); }
 .v3d-panel__item-btn--danger:hover { background: rgba(220,38,38,0.1); color: #dc2626; }
 
+/* Karty uložených pohledů — grid 2 sloupce s náhledem */
+.v3d-view-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.v3d-view-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+.v3d-view-card__thumb {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    background: var(--bg-secondary);
+}
+.v3d-view-card__thumb--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--text-tertiary);
+}
+.v3d-view-card__body { padding: 6px 8px 2px; min-width: 0; }
+.v3d-view-card__title {
+    font-size: 11.5px; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.v3d-view-card__date { font-size: 10px; color: var(--text-tertiary); }
+.v3d-view-card__actions {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px 8px;
+}
+.v3d-view-card__actions .v3d-pill { flex: 1; text-align: center; }
+.v3d-view-msg {
+    margin-top: 8px; padding: 6px 9px; border-radius: 8px;
+    font-size: 11px; line-height: 1.35;
+}
+.v3d-view-msg--warn { background: rgba(234,179,8,0.14); color: #a16207; }
+.v3d-view-msg--err { background: rgba(220,38,38,0.12); color: #dc2626; }
+.v3d-view-msg--ok { background: rgba(34,197,94,0.14); color: #15803d; }
+
 .v3d-panel__badge {
     display: inline-block;
     padding: 1px 7px;
