@@ -1095,6 +1095,34 @@ body[data-page="viewer3d"] {
 .v3d-pill.active { background: rgba(102, 126, 234, 0.16); color: var(--primary-color); border-color: rgba(102,126,234,0.4); }
 .v3d-pill:hover { border-color: var(--primary-color); }
 
+/* ===== Popisky měření (ΔXYZ dvouřádkové labely) ===== */
+.measure-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+.measure-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: rgba(17, 24, 39, 0.82);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    text-align: center;
+    pointer-events: none;
+}
+.measure-label__sub {
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.72;
+}
+
 /* ===== Mobile ===== */
 @media (max-width: 768px) {
     .v3d-navbar { padding: 0 10px; gap: 8px; }
