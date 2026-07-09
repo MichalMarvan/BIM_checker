@@ -2517,18 +2517,34 @@ export class ViewerCore {
     this._ensureVisuals();
     if (!hit || !mesh || !mesh.geometry) {
       this._sectionVisuals.hideGhost();
+      this._sectionVisuals.hideFacePickCursor();
       return;
     }
     const triangles = this._collectCoplanarTriangles(mesh, hit);
     if (triangles.length === 0) {
       this._sectionVisuals.hideGhost();
+      this._sectionVisuals.hideFacePickCursor();
       return;
     }
     this._sectionVisuals.showFaceHighlight(triangles);
+    // Face-pick kurzor: kroužek + kolmá šipka v bodě hitu. World normála se
+    // počítá stejně jako v selection.js — transformDirection maticí meshe.
+    if (hit.face && hit.face.normal) {
+      mesh.updateMatrixWorld();
+      const worldNormal = hit.face.normal.clone()
+        .transformDirection(mesh.matrixWorld)
+        .normalize();
+      this._sectionVisuals.showFacePickCursor(hit.point.clone(), worldNormal);
+    } else {
+      this._sectionVisuals.hideFacePickCursor();
+    }
   }
 
   hideSectionGhost() {
-    if (this._sectionVisuals) this._sectionVisuals.hideGhost();
+    if (this._sectionVisuals) {
+      this._sectionVisuals.hideGhost();
+      this._sectionVisuals.hideFacePickCursor();
+    }
   }
 
   /**
