@@ -43,19 +43,30 @@ export class MeasureRegistry {
 
   /**
    * Přidá měření, spočítá hodnotu/jednotku, vrátí id `ms_<n>`.
-   * @param {{ type:'distance'|'edge'|'angle'|'area', points:number[][], label?:string, modelId?:string }} spec
+   * Volitelný `id` zachová stabilní identitu (restore z persistence, pohledy) —
+   * čítač se posune za jeho číselný sufix, aby další auto-id nekolidovalo.
+   * @param {{ type:'distance'|'edge'|'angle'|'area', points:number[][], label?:string, modelId?:string, id?:string }} spec
    * @returns {string} id
    */
-  add({ type, points, label = '', modelId = null }) {
-    const id = `ms_${++this._counter}`;
+  add({ type, points, label = '', modelId = null, id = null }) {
+    let useId = id;
+    if (useId) {
+      const m = /^ms_(\d+)$/.exec(useId);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > this._counter) this._counter = n;
+      }
+    } else {
+      useId = `ms_${++this._counter}`;
+    }
     const stored = clonePoints(points);
     const { value, unit } = computeValueUnit(type, stored);
-    this._items.set(id, {
-      id, type, points: stored, value, unit,
+    this._items.set(useId, {
+      id: useId, type, points: stored, value, unit,
       label, visible: true, modelId,
     });
     this._emit();
-    return id;
+    return useId;
   }
 
   /**

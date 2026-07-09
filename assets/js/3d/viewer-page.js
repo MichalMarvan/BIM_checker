@@ -13,6 +13,7 @@
 console.log('[3d-viewer] module loaded — v58+ (lazy engine init)');
 
 import { initLeftRail, openRailPanel, refreshRailPanel } from './ui/left-rail.js';
+import { initStatePersistence, restoreModelState } from './viewer-state-persistence.js';
 
 const state = {
     engine: null,
@@ -121,6 +122,9 @@ function getEngine() {
 
         state.engine = engine;
         window.__engine = engine;
+        // Auto-persistence měření a řezných rovin per model (obsahový hash).
+        // Registruje change-callback s debounce; restore běží po každém loadu.
+        try { initStatePersistence(engine); } catch (e) { console.warn('[3d-viewer] initStatePersistence failed:', e); }
         wireSelectionInteractions(engine, canvas);
         engine.on?.('selectionChanged', renderEntityBar);
         return engine;
@@ -184,10 +188,19 @@ async function loadIfcFromStorage(fileMeta) {
         let contentHash = null;
         let fromCache = false;
         let cacheSource = null;
-        if (cacheEnabled) {
+        // Obsahový hash počítáme jednou a nezávisle na cache — potřebuje ho i
+        // persistence stavu (měření + řezné roviny) na OBOU cestách načtení
+        // (cache-hit i čerstvý parse). Cache si ho pak jen převezme.
+        if (window.crypto && crypto.subtle) {
             try {
                 const digest = await crypto.subtle.digest('SHA-256', buffer);
                 contentHash = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+            } catch (e) {
+                console.warn('[3d-viewer] content hash failed:', e);
+            }
+        }
+        if (cacheEnabled && contentHash) {
+            try {
                 const [cacheStore, folderCache] = await Promise.all([
                     import('./ifc-engine/cache/cache-store.js'),
                     import('./ifc-engine/cache/folder-cache.js'),
@@ -392,6 +405,17 @@ async function loadIfcFromStorage(fileMeta) {
                 engine._viewer.rebuildBVH(modelId).catch(e => console.warn('[3d-viewer] BVH build failed:', e));
             }
         } catch (e) { console.warn('[3d-viewer] BVH build failed:', e); }
+
+        // Persistence: předej hash enginu a obnov uložený stav (měření + řezné
+        // roviny) PO federation bake — model-lokální transformace musí sedět na
+        // finální matici skupiny. Restore běží ještě před předáním řízení
+        // uživateli (load promise se stále awaituje), takže žádný race s klikáním.
+        if (contentHash) {
+            try {
+                if (typeof engine.setModelContentHash === 'function') engine.setModelContentHash(modelId, contentHash);
+                await restoreModelState(engine, modelId, contentHash);
+            } catch (e) { console.warn('[3d-viewer] state restore failed:', e); }
+        }
 
         // Frame the camera only for the first model on an empty scene —
         // later loads keep whatever view the user has set. Race-safe for
