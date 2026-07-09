@@ -52,6 +52,12 @@ export class IfcEngine {
     this._viewer = options.canvas
       ? new ViewerCore(options.canvas, { mergedGeometry: !!options.mergedGeometry })
       : null;
+    // Callback změny stavu vieweru (měření + řezné roviny). Pokud viewer ještě
+    // neexistuje, drž ho zde a nasaď při jeho vzniku (viz onViewerStateChange).
+    this._pendingStateChangeCb = null;
+    if (this._viewer && this._pendingStateChangeCb) {
+      this._viewer._stateChangeCb = this._pendingStateChangeCb;
+    }
     this._coordsCache = new Map();        // modelId → CoordsData
     this._federationMode = 'auto';
     this._manualOffsets = new Map();      // modelId → [x,y,z]
@@ -339,6 +345,38 @@ export class IfcEngine {
   }
   getSectionPlanes() {
     return this._viewer ? this._viewer.getSectionPlanes() : [];
+  }
+
+  // Task 8 — model-lokální transformace, obsahový hash, hook změny stavu.
+  // Persistence (další task) ukládá body měření model-lokálně, aby přežily
+  // re-federaci; hash páruje uložený stav s verzí geometrie modelu.
+  worldToModelLocal(modelId, point) {
+    return this._viewer ? this._viewer.worldToModelLocal(modelId, point) : null;
+  }
+  modelLocalToWorld(modelId, point) {
+    return this._viewer ? this._viewer.modelLocalToWorld(modelId, point) : null;
+  }
+  worldToModelLocalDir(modelId, dir) {
+    return this._viewer ? this._viewer.worldToModelLocalDir(modelId, dir) : null;
+  }
+  modelLocalToWorldDir(modelId, dir) {
+    return this._viewer ? this._viewer.modelLocalToWorldDir(modelId, dir) : null;
+  }
+  setModelContentHash(modelId, hash) {
+    if (this._viewer) this._viewer.setModelContentHash(modelId, hash);
+  }
+  getModelContentHash(modelId) {
+    return this._viewer ? this._viewer.getModelContentHash(modelId) : null;
+  }
+
+  /**
+   * Registruj callback, který se volá po každé mutaci stavu vieweru
+   * (měření i řezné roviny). Když viewer ještě neexistuje, callback se
+   * zapamatuje a nasadí se, jakmile viewer vznikne.
+   */
+  onViewerStateChange(cb) {
+    this._pendingStateChangeCb = cb;
+    if (this._viewer) this._viewer._stateChangeCb = cb;
   }
   // Phase 6.2.1: display modes
   setDisplayMode(mode) { if (this._viewer) this._viewer.setDisplayMode(mode); }

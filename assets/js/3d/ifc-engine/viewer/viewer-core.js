@@ -73,6 +73,7 @@ import { parseLandXmlAlignments } from '../alignment/landxml-parser.js';
 import { sampleAlignment, pointAtStation } from '../alignment/discretize.js';
 import { distance, angle, polygonArea } from './measure-math.js';
 import { MeasureRegistry } from './measure-registry.js';
+import { transformPointByMatrix } from '../state/local-transform.js';
 
 // Per-frame scratch (no allocations in render loop).
 const _clipSize = new THREE.Vector3();
@@ -2310,6 +2311,7 @@ export class ViewerCore {
     };
     this._sectionPlanesList.push(entry);
     this._refreshSectionPlanes();
+    this._emitStateChange();
     return id;
   }
 
@@ -2331,18 +2333,21 @@ export class ViewerCore {
     }
     e.plane = this._buildPlane(e.point, e.normal, e.offset);
     this._refreshSectionPlanes();
+    this._emitStateChange();
   }
 
   /** Remove a single plane by id. */
   removeSectionPlane(id) {
     this._sectionPlanesList = this._sectionPlanesList.filter(p => p.id !== id);
     this._refreshSectionPlanes();
+    this._emitStateChange();
   }
 
   /** Remove all multi-plane sections. */
   clearSectionPlanes() {
     this._sectionPlanesList = [];
     this._refreshSectionPlanes();
+    this._emitStateChange();
   }
 
   /** Returns shallow copy of plane list (no THREE.Plane refs leaked). */
@@ -2761,6 +2766,92 @@ export class ViewerCore {
 
   /** No-op-safe emise změny stavu (callback dodá pozdější task). */
   _emitStateChange() { this._stateChangeCb?.(); }
+
+  /**
+   * Převod světového bodu do model-lokálních souřadnic modelu (inverze
+   * matrixWorld jeho skupiny). Model-lokální souřadnice jsou stabilní vůči
+   * re-federaci — když se model přesune (změna group.position / georef),
+   * uložený bod ho následuje. Persistence měření to používá k uložení bodů
+   * tak, aby přežily opětovnou federaci.
+   *
+   * @param {string} modelId
+   * @param {[number,number,number]} worldPoint
+   * @returns {[number,number,number]|null}
+   */
+  worldToModelLocal(modelId, worldPoint) {
+    const m = this._models.get(modelId);
+    if (!m || !m.group) return null;
+    // matrixWorld může být zastaralá (addModel/federace mění matrix, ale
+    // matrixWorld se aktualizuje až při renderu) — vynuť čerstvý průchod.
+    m.group.updateMatrixWorld(true);
+    const inv = m.group.matrixWorld.clone().invert();
+    return transformPointByMatrix(worldPoint, inv.elements);
+  }
+
+  /**
+   * Převod model-lokálního bodu zpět do světových souřadnic (aplikace
+   * matrixWorld skupiny modelu).
+   *
+   * @param {string} modelId
+   * @param {[number,number,number]} localPoint
+   * @returns {[number,number,number]|null}
+   */
+  modelLocalToWorld(modelId, localPoint) {
+    const m = this._models.get(modelId);
+    if (!m || !m.group) return null;
+    m.group.updateMatrixWorld(true);
+    return transformPointByMatrix(localPoint, m.group.matrixWorld.elements);
+  }
+
+  /**
+   * Směrová varianta (normály / osy) — pouze rotace, bez translace, výsledek
+   * normalizován. Použije se pro uložení normál řezných rovin model-lokálně.
+   *
+   * @param {string} modelId
+   * @param {[number,number,number]} worldDir
+   * @returns {[number,number,number]|null}
+   */
+  worldToModelLocalDir(modelId, worldDir) {
+    const m = this._models.get(modelId);
+    if (!m || !m.group) return null;
+    m.group.updateMatrixWorld(true);
+    const q = m.group.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const v = new THREE.Vector3(worldDir[0], worldDir[1], worldDir[2]).applyQuaternion(q);
+    if (v.lengthSq() > 0) v.normalize();
+    return [v.x, v.y, v.z];
+  }
+
+  /**
+   * Model-lokální směr → světový (jen rotace, normalizováno).
+   *
+   * @param {string} modelId
+   * @param {[number,number,number]} localDir
+   * @returns {[number,number,number]|null}
+   */
+  modelLocalToWorldDir(modelId, localDir) {
+    const m = this._models.get(modelId);
+    if (!m || !m.group) return null;
+    m.group.updateMatrixWorld(true);
+    const q = m.group.getWorldQuaternion(new THREE.Quaternion());
+    const v = new THREE.Vector3(localDir[0], localDir[1], localDir[2]).applyQuaternion(q);
+    if (v.lengthSq() > 0) v.normalize();
+    return [v.x, v.y, v.z];
+  }
+
+  /**
+   * Ulož obsahový hash modelu (identifikace verze geometrie/parsingu) do
+   * metadat záznamu modelu. Persistence ho páruje s uloženými měřeními.
+   */
+  setModelContentHash(modelId, hash) {
+    const m = this._models.get(modelId);
+    if (m) m.contentHash = hash;
+  }
+
+  /** @returns {string|null} obsahový hash modelu, nebo null. */
+  getModelContentHash(modelId) {
+    const m = this._models.get(modelId);
+    return (m && typeof m.contentHash === 'string') ? m.contentHash : null;
+  }
 
   /**
    * Find the nearest vertex (in screen space) of the hovered mesh within
