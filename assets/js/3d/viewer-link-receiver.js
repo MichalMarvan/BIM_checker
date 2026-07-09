@@ -23,6 +23,17 @@ const CHANNEL = 'bim-3d-viewer-link';           // BroadcastChannel jméno
 const WINDOW_NAME = 'bim-3d-viewer';            // jméno okna 3D vieweru
 const HANDOFF_PARAM = 'handoff';                // URL parametr s klíčem handoffu
 
+// Barvy validace (spec §C1.4): prošlé zeleně, neprošlé červeně.
+const COLOR_PASS = '#22c55e';
+const COLOR_FAIL = '#ef4444';
+const DIM_ALPHA = 0.15;                          // ztlumení nevalidovaných prvků
+const DIM_GUARD = 60000;                         // nad tento počet ztlumení přeskočíme
+
+// Stav aktuálně zobrazené validace — jen jedna může být aktivní naráz.
+// Drží chip (DOM overlay) a přesný seznam ztlumených prvků, aby úklid uměl
+// vrátit opacity právě těm prvkům, které ztlumil (žádné jiné).
+let activeValidation = null; // { chip: HTMLElement|null, dimmed: Array<{modelId, expressId}> }
+
 /**
  * Inicializuje přijímací stranu viewer-linku.
  *
@@ -141,9 +152,7 @@ async function runAction(payload, ctx) {
     }
 
     if (payload.mode === 'validation') {
-        // Validation mód přichází v T4 — zatím jen upozornění, žádná akce.
-        console.warn('[viewer-link-receiver] validation mód zatím není implementován (T4)');
-        status('⚠ Zobrazení validace v 3D bude brzy dostupné', 'info');
+        await applyValidationMode(payload, modelsByFile, ctx);
         return;
     }
 
@@ -302,4 +311,188 @@ async function applyElementMode(payload, modelsByFile, ctx) {
 
     const fromValidator = payload.source === 'validator';
     status(fromValidator ? 'Prvek zvýrazněn z validátoru' : 'Prvek zvýrazněn z tabulky', 'success');
+}
+
+/**
+ * mode validation: obarví prošlé zeleně / neprošlé červeně, ztlumí ostatní a
+ * ukáže plovoucí legendu (chip) nad canvasem s tlačítkem Zrušit.
+ *
+ * Postup (spec §C1.4 + §C2):
+ *   1) úklid případné předchozí validace (chip + highlighty + opacity),
+ *   2) seskupení GUIDů per model + resolveGuids → expressId,
+ *   3) clearHighlights → highlight(items) s barvami pass/fail,
+ *   4) ztlumení ostatních prvků zapojených modelů (search minus validovaní),
+ *      s výkonnostní pojistkou DIM_GUARD,
+ *   5) chip s počty ROZLIŠENÝCH prvků + „(K nenalezeno)" + status pill.
+ */
+async function applyValidationMode(payload, modelsByFile, ctx) {
+    const { engine, status } = ctx;
+    const validation = payload.validation || {};
+    const rawItems = Array.isArray(validation.items) ? validation.items : [];
+
+    // 1) Úklid předchozí validace — highlighty, opacity i chip. Idempotentní.
+    clearValidationDisplay(engine);
+
+    // 2) Seskup GUIDy per model (jeden resolveGuids na model), zapamatuj status.
+    // guidStatusByModel: modelId → Map<guid, 'pass'|'fail'> (poslední status vyhrává;
+    // fail má přednost, aby prvek failnutý v ≥1 spec zůstal červený).
+    const guidStatusByModel = new Map();
+    for (const it of rawItems) {
+        if (!it || !it.guid) continue;
+        const st = it.status === 'fail' ? 'fail' : (it.status === 'pass' ? 'pass' : null);
+        if (!st) continue; // jen pass/fail, ostatní statusy ignoruj
+        const modelId = modelIdForElement(it, modelsByFile);
+        if (!modelId) {
+            console.warn('[viewer-link-receiver] pro validovaný prvek nenalezen model:', it.fileName || it.fileId);
+            continue;
+        }
+        if (!guidStatusByModel.has(modelId)) guidStatusByModel.set(modelId, new Map());
+        const perModel = guidStatusByModel.get(modelId);
+        const guid = String(it.guid);
+        // fail přebíjí pass; pass nenahradí už zapsaný fail.
+        if (st === 'fail' || !perModel.has(guid)) perModel.set(guid, st);
+    }
+
+    // 3) Rozliš GUIDy → expressId, poskládej highlight položky a validovanou množinu.
+    const highlightItems = [];              // {modelId, expressId, color}
+    const validatedByModel = new Map();     // modelId → Set<expressId> (pass i fail)
+    let passCount = 0, failCount = 0, notFoundCount = 0;
+
+    for (const [modelId, perModel] of guidStatusByModel) {
+        let resolved = new Map();
+        try {
+            resolved = engine.resolveGuids(modelId, [...perModel.keys()]) || new Map();
+        } catch (e) {
+            console.warn('[viewer-link-receiver] resolveGuids (validace) selhal:', e);
+        }
+        const set = new Set();
+        for (const [guid, st] of perModel) {
+            const expressId = resolved.get(guid);
+            if (expressId === undefined) { notFoundCount++; continue; }
+            set.add(expressId);
+            highlightItems.push({ modelId, expressId, color: st === 'fail' ? COLOR_FAIL : COLOR_PASS });
+            if (st === 'fail') failCount++; else passCount++;
+        }
+        validatedByModel.set(modelId, set);
+    }
+
+    if (highlightItems.length === 0) {
+        status('Validované prvky se v modelu nenašly', 'error');
+        return;
+    }
+
+    // 4) Obarvení. clearHighlights kvůli jistotě (předchozí úklid už proběhl).
+    try {
+        engine.clearHighlights?.();
+        engine.highlight(highlightItems);
+    } catch (e) {
+        console.warn('[viewer-link-receiver] highlight (validace) selhal:', e);
+    }
+
+    // 5) Ztlumení ostatních prvků zapojených modelů (všechny entity minus validované).
+    // Escape hatch: engine nemá setEntityOpacity → degraduj (jen obarvení, bez ztlumení).
+    let dimSkipped = false;
+    const dimmed = [];
+    if (typeof engine.setEntityOpacity === 'function') {
+        const others = [];
+        for (const modelId of validatedByModel.keys()) {
+            const set = validatedByModel.get(modelId);
+            let hits = [];
+            try {
+                // Vysoký limit — search() má default limit 5000; pro ztlumení
+                // potřebujeme VŠECHNY prvky modelu, jinak by část zůstala nesehnaná.
+                hits = engine.search({ modelId, limit: 1e9 }) || [];
+            } catch (e) {
+                console.warn('[viewer-link-receiver] search (ztlumení) selhal:', e);
+            }
+            for (const h of hits) {
+                if (set.has(h.expressId)) continue; // nevaliduj přes validované (pass i fail)
+                others.push({ modelId, expressId: h.expressId });
+            }
+        }
+        if (others.length > DIM_GUARD) {
+            dimSkipped = true; // pojistka pro velké modely — obarvíme, neztlumíme
+        } else if (others.length > 0) {
+            try {
+                engine.setEntityOpacity(others, DIM_ALPHA);
+                dimmed.push(...others);
+            } catch (e) {
+                console.warn('[viewer-link-receiver] setEntityOpacity (ztlumení) selhal:', e);
+            }
+        }
+    }
+
+    // 6) Legenda (chip) + status pill. Počty = ROZLIŠENÉ prvky.
+    activeValidation = { chip: null, dimmed };
+    activeValidation.chip = buildValidationChip({
+        title: validation.title || '',
+        passCount, failCount, notFoundCount, dimSkipped,
+        onCancel: () => clearValidationDisplay(engine),
+    });
+
+    status(`Validace: ${passCount} ✓ / ${failCount} ✗`, 'success');
+}
+
+/**
+ * Úklid zobrazené validace: odstraní chip, zruší highlighty a vrátí opacity
+ * PRÁVĚ těm prvkům, které jsme ztlumili (uložený seznam). Idempotentní —
+ * volání bez aktivní validace je no-op.
+ */
+function clearValidationDisplay(engine) {
+    if (activeValidation) {
+        if (activeValidation.chip) {
+            try { activeValidation.chip.remove(); } catch { /* chip už mohl zmizet */ }
+        }
+        if (activeValidation.dimmed && activeValidation.dimmed.length
+            && typeof engine?.setEntityOpacity === 'function') {
+            try { engine.setEntityOpacity(activeValidation.dimmed, 1); } catch (e) {
+                console.warn('[viewer-link-receiver] obnova opacity selhala:', e);
+            }
+        }
+        activeValidation = null;
+    }
+    try { engine?.clearHighlights?.(); } catch (e) {
+        console.warn('[viewer-link-receiver] clearHighlights (úklid) selhal:', e);
+    }
+}
+
+/**
+ * Postaví plovoucí legendu (chip) nad canvasem. Dynamické texty přes textContent
+ * (title z payloadu je nedůvěryhodný → žádné innerHTML). Vrací DOM element, nebo
+ * null když canvas host není v DOM (chip se pak neukáže, ale validace platí).
+ */
+function buildValidationChip({ title, passCount, failCount, notFoundCount, dimSkipped, onCancel }) {
+    const host = document.querySelector('.v3d-canvas-host');
+    if (!host) {
+        console.warn('[viewer-link-receiver] canvas host nenalezen — legenda se nezobrazí');
+        return null;
+    }
+
+    const chip = document.createElement('div');
+    chip.className = 'v3d-validation-chip';
+
+    if (title) {
+        const titleEl = document.createElement('span');
+        titleEl.className = 'v3d-validation-chip__title';
+        titleEl.textContent = title;
+        chip.appendChild(titleEl);
+    }
+
+    const counts = document.createElement('span');
+    counts.className = 'v3d-validation-chip__counts';
+    let text = `Validace: ${passCount} ✓ · ${failCount} ✗`;
+    if (notFoundCount > 0) text += ` (${notFoundCount} nenalezeno)`;
+    if (dimSkipped) text += ' (ztlumení vynecháno — velký model)';
+    counts.textContent = text;
+    chip.appendChild(counts);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'v3d-validation-chip__close';
+    btn.textContent = '✕ Zrušit';
+    btn.addEventListener('click', () => { onCancel?.(); });
+    chip.appendChild(btn);
+
+    host.appendChild(chip);
+    return chip;
 }
