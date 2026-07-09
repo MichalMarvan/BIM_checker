@@ -20,7 +20,7 @@
     const WINDOW_NAME = 'bim-3d-viewer';            // jméno okna 3D vieweru (window.open target)
     const KEY_PREFIX = 'bim-3d-viewer-handoff:';    // prefix sessionStorage klíčů pro handoff
 
-    const ACK_TIMEOUT_MS = 400;                     // dle spec §B: čekání na ack
+    const ACK_TIMEOUT_MS = 1200;                    // dle spec §B: čekání na ack (delší kvůli pomalým/backgroundovaným tabům)
 
     // ---------------------------------------
     // Payload buildery (čisté funkce, bez DOM)

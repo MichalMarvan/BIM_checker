@@ -450,9 +450,9 @@ function clearValidationDisplay(engine) {
             }
         }
         activeValidation = null;
-    }
-    try { engine?.clearHighlights?.(); } catch (e) {
-        console.warn('[viewer-link-receiver] clearHighlights (úklid) selhal:', e);
+        try { engine?.clearHighlights?.(); } catch (e) {
+            console.warn('[viewer-link-receiver] clearHighlights (úklid) selhal:', e);
+        }
     }
 }
 

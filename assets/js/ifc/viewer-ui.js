@@ -1089,7 +1089,7 @@ function sendRowToViewer(item, anchorEl) {
     });
     window.ViewerLink.send(payload).then((result) => {
         showViewerLinkFeedback(anchorEl, result);
-    });
+    }).catch(err => { console.warn('[viewer-ui] ViewerLink.send selhalo:', err); });
 }
 
 // Odeslání zaškrtnutých řádků do 3D vieweru (dedup dle fileName+guid).
@@ -1120,7 +1120,7 @@ function sendSelectionToViewer(anchorEl) {
     });
     window.ViewerLink.send(payload).then((result) => {
         showViewerLinkFeedback(anchorEl, result);
-    });
+    }).catch(err => { console.warn('[viewer-ui] ViewerLink.send selhalo:', err); });
 }
 
 // Krátká zpětná vazba (~2 s) po odeslání do 3D vieweru.
