@@ -22,6 +22,14 @@ describe('ViewerLink — payload buildery a klíče', () => {
             { fileName: 'a.ifc', guid: 'G3', status: 'skipped' }] });
         expect(p.validation.items.length).toBe(2);
         expect(p.validation.title).toBe('Spec 1');
+        expect(Array.isArray(p.files)).toBe(true);
+    });
+    it('validation payload přebere explicitní files', () => {
+        const p = window.ViewerLink.buildValidationPayload({ source: 'validator', title: 'Model', files: [{ fileId: 'f1', fileName: 'a.ifc' }], items: [
+            { fileName: 'a.ifc', guid: 'G1', status: 'pass' }] });
+        expect(Array.isArray(p.files)).toBe(true);
+        expect(p.files.length).toBe(1);
+        expect(p.files[0].fileId).toBe('f1');
     });
     it('makeHandoffKey má prefix a unikátnost', () => {
         const k1 = window.ViewerLink.makeHandoffKey();

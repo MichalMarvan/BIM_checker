@@ -60,11 +60,15 @@
     }
 
     // Payload z výsledků validace; ponechá jen statusy 'pass' / 'fail'.
+    // Volitelný opts.files (tvar [{fileId, fileName}]) přebije odvozený seznam
+    // souborů — použij pro per-soubor tlačítko, které chce načíst celý model.
+    // Chybí-li, spadne zpět na dedup dle items (zpětná kompatibilita).
     function buildValidationPayload(opts) {
         opts = opts || {};
         const items = (opts.items || []).filter(function (it) {
             return it.status === 'pass' || it.status === 'fail';
         });
+        const files = Array.isArray(opts.files) ? opts.files : dedupFiles(items);
         return {
             version: 1,
             mode: 'validation',
@@ -75,7 +79,7 @@
                     return { fileName: it.fileName, guid: it.guid, status: it.status };
                 })
             },
-            files: dedupFiles(items)
+            files: files
         };
     }
 
