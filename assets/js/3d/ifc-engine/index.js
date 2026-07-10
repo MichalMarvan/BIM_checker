@@ -304,6 +304,11 @@ export class IfcEngine {
     if (this._viewer) this._viewer.fitAll();
   }
 
+  /** Přiblíží kameru na osu (alignment). No-op bez canvasu. */
+  focusAlignment(alignmentId) {
+    if (this._viewer) this._viewer.focusAlignment(alignmentId);
+  }
+
   /** Zoom camera toward/away from target. No-op without canvas. */
   zoomBy(factor) {
     if (this._viewer) this._viewer.zoomBy(factor);
