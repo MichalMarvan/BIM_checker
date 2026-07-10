@@ -51,6 +51,7 @@ export default class AlignmentPanel {
               <div class="v3d-panel__item-title">${escapeHtml(a.name || '(bez názvu)')}</div>
               <div class="v3d-panel__item-sub">${(a.length || 0).toFixed(0)} m · ${a.elementCount ?? '?'} prvků · ${a.hasProfile ? 'niveleta ✓' : 'bez nivelety'}</div>
             </div>
+            <button class="v3d-panel__item-btn" data-act="zoom" data-id="${a.id}" title="Přiblížit na osu">🔍</button>
             <button class="v3d-panel__item-btn" data-act="vis" data-id="${a.id}" title="Zobrazit / skrýt">${this._hidden.has(a.id) ? '🙈' : '👁'}</button>
             <button class="v3d-panel__item-btn" data-act="section" data-id="${a.id}" title="Řez na staničení">✂</button>
             <button class="v3d-panel__item-btn v3d-panel__item-btn--danger" data-act="rm" data-id="${a.id}" title="Odebrat">✕</button>
@@ -73,6 +74,7 @@ export default class AlignmentPanel {
       this._suggestSwap = null;
       this._render();
     });
+    this.host.querySelectorAll('[data-act="zoom"]').forEach(b => b.addEventListener('click', () => this.engine.focusAlignment?.(b.dataset.id)));
     this.host.querySelectorAll('[data-act="vis"]').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.id;
       const show = this._hidden.has(id);
@@ -106,10 +108,11 @@ export default class AlignmentPanel {
     this.warnings = [];
     this._suggestSwap = null;
     this._render();
+    let newIds = [];
     try {
       const xml = await file.text();
       this._lastXmlText = xml;
-      this._applyImport(xml, this.swapXY, `✓ LandXML „${file.name}" importováno`);
+      newIds = this._applyImport(xml, this.swapXY, `✓ LandXML „${file.name}" importováno`);
     } catch (e) {
       console.error(e);
       this.msg = { type: 'err', text: 'Import selhal: ' + (e.message || e) };
@@ -117,6 +120,7 @@ export default class AlignmentPanel {
     this._stopPulse();
     this.busy = false;
     this._render();
+    if (newIds.length > 0) this.engine.focusAlignment?.(newIds[0]);
   }
 
   // Shared import path for initial upload and swapXY re-import.
@@ -132,6 +136,7 @@ export default class AlignmentPanel {
     } else {
       this._suggestSwap = null;
     }
+    return ids;
   }
 
   _reimportSwapped() {
@@ -167,14 +172,20 @@ export default class AlignmentPanel {
       return;
     }
     let ok = 0, failed = 0;
+    let firstId = null;
     for (const a of found) {
-      try { this.engine.loadAlignmentFromIfc?.(a.modelId, a.expressId); ok++; }
+      try {
+        const id = this.engine.loadAlignmentFromIfc?.(a.modelId, a.expressId);
+        if (id) { if (firstId == null) firstId = id; ok++; }
+        else failed++;
+      }
       catch (e) { console.warn(e); failed++; }
     }
     this.msg = failed === 0
       ? { type: 'ok', text: `✓ Načteno ${ok} os z IFC.` }
       : { type: 'warn', text: `Načteno ${ok} os, ${failed} se nepodařilo (viz konzole).` };
     this._render();
+    if (firstId != null) this.engine.focusAlignment?.(firstId);
   }
 
   _sectionControls(alignmentId) {
