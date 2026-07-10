@@ -151,6 +151,25 @@ function collectAllValidationItems() {
     return Array.from(byKey.values());
 }
 
+// Posbírá validation-items pro jeden IFC soubor napříč jeho specifikacemi;
+// dedup podle guid, fail vyhrává, jen statusy pass/fail.
+function collectFileValidationItems(ifcResult) {
+    const byGuid = new Map();
+    if (!ifcResult || !Array.isArray(ifcResult.specificationResults)) return [];
+    const fileName = ifcResult.ifcFileName;
+    for (const specResult of ifcResult.specificationResults) {
+        if (!Array.isArray(specResult.entityResults)) continue;
+        for (const er of specResult.entityResults) {
+            if (er.status !== 'pass' && er.status !== 'fail') continue;
+            const prev = byGuid.get(er.guid);
+            if (!prev || er.status === 'fail') {
+                byGuid.set(er.guid, { fileName: er.fileName || fileName, guid: er.guid, status: er.status });
+            }
+        }
+    }
+    return Array.from(byGuid.values());
+}
+
 let _ifcParserPool = null;
 let _ifcParserPoolInitialized = false;
 
@@ -1142,7 +1161,33 @@ function createIFCResultElement(ifcResult) {
         <span style="margin-left: 15px; font-size: 0.9em; color: #6c757d;">
             ✅ ${escapeHtml(totalPass)} | ❌ ${escapeHtml(totalFail)}
         </span>
+        <span class="viewer-link-wrap" style="margin-left: 15px;">
+            <button type="button" class="btn btn-secondary viewer-link-btn small file-viewer-btn" title="${escapeAttr(t('validator.viewer.openModelTitle'))}">🧊 ${escapeHtml(t('validator.viewer.openModel'))}</button>
+        </span>
     `;
+
+    const fileViewerBtn = header.querySelector('.file-viewer-btn');
+    if (fileViewerBtn) {
+        fileViewerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const fileName = ifcResult.ifcFileName;
+            const items = collectFileValidationItems(ifcResult);
+            const files = [{ fileId: fileIdForName(fileName, buildFileIdMap()), fileName: fileName }];
+            const payload = window.ViewerLink && window.ViewerLink.buildValidationPayload
+                ? window.ViewerLink.buildValidationPayload({
+                    source: 'validator',
+                    title: fileName,
+                    items: items,
+                    files: files
+                })
+                : null;
+            if (payload) {
+                sendToViewer(payload, fileViewerBtn);
+            } else {
+                console.warn('[validator] ViewerLink not available - 3D link skipped.');
+            }
+        });
+    }
 
     const content = document.createElement('div');
     content.style.paddingLeft = '20px';

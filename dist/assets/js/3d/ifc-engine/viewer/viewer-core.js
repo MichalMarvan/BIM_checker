@@ -12,6 +12,7 @@ import { extractFeatureEdges } from '../geometry/mesh-types.js';
 import { HIDDEN_PRODUCT_TYPES } from '../constants.js';
 import { selectAt, isPickable, isClippedOut } from './selection.js';
 import { buildMergedModel, mergedElementBox, extractElementGeometry, resolveMergedFace } from './merged-model.js';
+import { bboxFromPoints } from './points-bbox.js';
 
 /**
  * BVH acceleration for raycasting (three-mesh-bvh). Loaded lazily and
@@ -1256,6 +1257,28 @@ export class ViewerCore {
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    const distance = this._fitDistance(maxDim, 1.5);
+    let direction = this._camera.position.clone().sub(this._controls.target);
+    if (direction.lengthSq() < 1e-12) direction.set(1, 1, 1);
+    direction.normalize();
+    this._camera.position.copy(center).add(direction.multiplyScalar(distance));
+    this._camera.lookAt(center);
+    this._controls.target.copy(center);
+    this._controls.update();
+  }
+
+  /**
+   * Přiblíží kameru na osu (alignment) — zaměří bbox jejích bodů. Drží
+   * současný směr pohledu (stejný kontrakt jako fitModel), pouze re-targetuje
+   * a najede na vzdálenost. Prázdná/neznámá osa → bez efektu.
+   */
+  focusAlignment(alignmentId) {
+    const points = this.getAlignmentPolyline(alignmentId);
+    const box = bboxFromPoints(points);
+    if (!box) return;
+    const center = new THREE.Vector3(box.center[0], box.center[1], box.center[2]);
+    // Rovná/krátká osa má maxDim blízko 0 — podlaha zabrání nulové vzdálenosti.
+    const maxDim = Math.max(box.maxDim, 0.001);
     const distance = this._fitDistance(maxDim, 1.5);
     let direction = this._camera.position.clone().sub(this._controls.target);
     if (direction.lengthSq() < 1e-12) direction.set(1, 1, 1);

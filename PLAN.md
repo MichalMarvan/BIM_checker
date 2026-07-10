@@ -438,3 +438,11 @@ Branch: 3d-viewer-integration
 - [x] Plán: `docs/superpowers/plans/2026-07-09-viewer-link-validace-tabulka.md`
 
 Branch: 3d-viewer-integration
+
+## 3D viewer: přiblížení kamery na osu + validace „Otevřít model ve 3D" per soubor ✅ (2026-07-10)
+- [x] Přiblížení kamery na osu — automaticky po importu LandXML a přes 🔍 tlačítko; `focusAlignment` v `ifc-engine/viewer/viewer-core.js` + `bboxFromPoints` v novém `ifc-engine/viewer/points-bbox.js` (bounding box z bodů osy); napojení v `panels/alignment-panel.js` a `ifc-engine/index.js`
+- [x] Validace „Otevřít model ve 3D" per soubor — načte celý model do vieweru a obarví prvky zeleně (pass) / červeně (fail) dle výsledku validátoru; `validator.js` předává soubory ve validation payloadu, `common/viewer-link.js` zprostředkuje skok do vieweru
+- [x] SW cache v144 → v145 (žádné `assets/js/3d/` moduly nejsou v ASSETS_TO_CACHE — `points-bbox.js` proto nepřidán)
+- [x] Plán: `docs/superpowers/plans/2026-07-10-osa-zoom-validace-model.md`
+
+Branch: 3d-viewer-integration
