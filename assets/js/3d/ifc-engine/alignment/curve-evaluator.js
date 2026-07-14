@@ -264,7 +264,11 @@ export function evaluateCurve(entityIndex, curveExpressId) {
 /**
  * Niveleta: seznam vertikálních IfcCurveSegment → funkce d → z.
  * Souřadný prostor segmentů je (staničení po BaseCurve = vodorovný průmět,
- * výška); kotvení translační: t = t0 + (d − loc.x), z = loc.y + (Y(t) − Y(t0)).
+ * výška). Kotvení je plné 2D (posun + rotace) jako u horizontály: tečna
+ * segmentu v t=SegmentStart míří ve směru Placement.RefDirection — sklon
+ * tedy určuje PLACEMENT, ne parent šablona (reálné exportéry používají
+ * horizontální IfcLine šablonu a sklon nesou jen v RefDirection).
+ * SegmentLength je délka po skloněné křivce; vodorovný rozsah ≈ ·cos(sklon).
  */
 function buildVerticalEval(entityIndex, segIds) {
   const entries = [];
@@ -281,21 +285,39 @@ function buildVerticalEval(entityIndex, segIds) {
     const pp = splitParams(parent.params);
     let zAt = null;
     if (parent.type === 'IFCLINE') {
-      // konstantní sklon: g = dz/dx z Orientation vektoru
-      const vec = entityIndex.byExpressId(parseRef(pp[1]));
-      let ori = [1, 0];
-      if (vec && vec.type === 'IFCVECTOR') ori = readVec2(entityIndex, parseRef(splitParams(vec.params)[0])) || [1, 0];
-      const g = ori[0] !== 0 ? ori[1] / ori[0] : 0;
+      // Konstantní sklon: po ukotvení je směr segmentu = placement.angle,
+      // parent šablona přispívá jen tvarem (přímka) — sklon z placementu.
+      const g = Math.tan(placement.angle);
       zAt = d => placement.loc[1] + g * (d - placement.loc[0]);
     } else if (parent.type === 'IFCPOLYNOMIALCURVE') {
-      // parabolický výškový oblouk: z(x) = Σ cy_i·xⁱ, x od začátku segmentu
+      // Parabola: lokálně x(t)=Σcx·tⁱ (typicky t), y(t)=Σcy·tⁱ. Ukotvení
+      // rotací rot = placement.angle − sklon lokální tečny v t0; z(d) řešíme
+      // Newtonem přes x_world(t) = d (rot je v praxi ~0, 2 iterace stačí).
+      const cx = readNumList(pp[1]);
       const cy = readNumList(pp[2]);
-      const polyY = t => cy.reduce((acc, c, i) => acc + c * Math.pow(t, i), 0);
+      const polyX = cx.length ? (t => cx.reduce((a, c, i) => a + c * Math.pow(t, i), 0)) : (t => t);
+      const polyY = t => cy.reduce((a, c, i) => a + c * Math.pow(t, i), 0);
+      const polyDx = cx.length ? (t => cx.reduce((a, c, i) => i ? a + i * c * Math.pow(t, i - 1) : a, 0)) : (() => 1);
+      const polyDy = t => cy.reduce((a, c, i) => i ? a + i * c * Math.pow(t, i - 1) : a, 0);
       const t0 = startW.value;
-      const y0 = polyY(t0);
-      zAt = d => placement.loc[1] + (polyY(t0 + (d - placement.loc[0])) - y0);
+      const x0 = polyX(t0), y0 = polyY(t0);
+      const rot = placement.angle - Math.atan2(polyDy(t0), polyDx(t0));
+      const cr = Math.cos(rot), sr = Math.sin(rot);
+      zAt = d => {
+        let t = t0 + (d - placement.loc[0]);
+        for (let i = 0; i < 3; i++) {
+          const xw = placement.loc[0] + (polyX(t) - x0) * cr - (polyY(t) - y0) * sr;
+          const dxdt = polyDx(t) * cr - polyDy(t) * sr;
+          if (Math.abs(dxdt) < 1e-12) break;
+          t += (d - xw) / dxdt;
+        }
+        return placement.loc[1] + (polyX(t) - x0) * sr + (polyY(t) - y0) * cr;
+      };
     }
-    if (zAt) entries.push({ from: placement.loc[0], to: placement.loc[0] + Math.abs(lenW.value), zAt });
+    if (zAt) {
+      const hLen = Math.abs(lenW.value) * Math.abs(Math.cos(placement.angle));
+      entries.push({ from: placement.loc[0], to: placement.loc[0] + hLen, zAt });
+    }
   }
   entries.sort((a, b) => a.from - b.from);
   if (entries.length === 0) return null;

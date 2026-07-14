@@ -208,7 +208,8 @@ describe('ifc-curve-evaluator — gradient curve (niveleta)', () => {
 #14=IFCLINE(#10,#13);
 #15=IFCCURVESEGMENT(.CONTSAMEGRADIENT.,#12,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(100.),#14);
 #20=IFCCARTESIANPOINT((100.,12.));
-#21=IFCAXIS2PLACEMENT2D(#20,#2);
+#24=IFCDIRECTION((0.9998000599800071,0.019996001199600138));
+#21=IFCAXIS2PLACEMENT2D(#20,#24);
 #22=IFCPOLYNOMIALCURVE(#21,(0.,1.),(12.,0.02,-0.0001),$);
 #23=IFCCURVESEGMENT(.CONTSAMEGRADIENT.,#21,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(100.),#22);
 #30=IFCGRADIENTCURVE((#15,#23),.F.,#7,$);
@@ -246,5 +247,30 @@ describe('ifc-curve-evaluator — gradient curve (niveleta)', () => {
         const s = ce.sample(1.0);
         const mid = s.points[Math.floor(s.points.length / 2)];
         expect(mid[2] > 10).toBe(true);
+    });
+    // Styl reálného exportéru: parent IfcLine je HORIZONTÁLNÍ šablona (dir (1,0)),
+    // sklon nese výhradně RefDirection placementu (kotvení!). Délka segmentu je
+    // 3D délka po sklonu (200·√(1+0.02²)), vodorovný rozsah je 200 m.
+    it('sklon z RefDirection placementu (horizontální parent šablona)', async () => {
+        await mods();
+        const len3d = 200 * Math.sqrt(1 + 0.02 * 0.02);
+        const stepText = `
+#1=IFCCARTESIANPOINT((0.,0.));
+#2=IFCDIRECTION((1.,0.));
+#3=IFCAXIS2PLACEMENT2D(#1,#2);
+#5=IFCVECTOR(#2,1.);
+#4=IFCLINE(#1,#5);
+#6=IFCCURVESEGMENT(.CONTINUOUS.,#3,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(200.),#4);
+#7=IFCCOMPOSITECURVE((#6),.F.);
+#10=IFCCARTESIANPOINT((0.,10.));
+#11=IFCDIRECTION((0.9998000599800071,0.019996001199600138));
+#12=IFCAXIS2PLACEMENT2D(#10,#11);
+#15=IFCCURVESEGMENT(.CONTSAMEGRADIENT.,#12,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(${len3d}),#4);
+#30=IFCGRADIENTCURVE((#15),.F.,#7,$);
+`;
+        const ce = evaluateCurve(idx(stepText), 30);
+        expect(Math.abs(ce.evalAt(0).point[2] - 10) < 1e-9).toBe(true);
+        expect(Math.abs(ce.evalAt(100).point[2] - 12) < 1e-6).toBe(true);
+        expect(Math.abs(ce.evalAt(200).point[2] - 14) < 1e-6).toBe(true);
     });
 });
