@@ -20,8 +20,9 @@
 //   PredefinedType (.LINE. | .CIRCULARARC. | .CLOTHOID. | ...)
 
 import { splitParams } from '../parser/step-parser.js';
-import { parseRef, parseRefList } from '../geometry/step-helpers.js';
+import { parseRef, parseRefList, parseWrappedNum } from '../geometry/step-helpers.js';
 import { extractEntityName } from '../parser/entity-name.js';
+import { getCurveEval } from './curve-evaluator.js';
 
 function unquoteString(raw) {
   if (!raw || raw === '$' || raw === '*') return null;
@@ -66,7 +67,7 @@ function buildNestsIndex(entityIndex) {
     // IfcRelNests: GlobalId, OwnerHistory, Name, Description, RelatingObject, RelatedObjects
     const parent = parseRef(parts[4]);
     const children = parseRefList(parts[5]);
-    if (parent == null) continue;
+    if (parent === null || parent === undefined) continue;
     let arr = map.get(parent);
     if (!arr) { arr = []; map.set(parent, arr); }
     arr.push(...children);
@@ -90,7 +91,7 @@ function parseHorizontalSegment(entityIndex, hsId, station) {
   const length = parseNum(parts[6]);
   const predType = parseEnum(parts[8]);
 
-  if (!startPoint || startDir == null || length == null || length <= 0) return null;
+  if (!startPoint || startDir === null || startDir === undefined || length === null || length === undefined || length <= 0) return null;
 
   if (predType === 'LINE' || (r0 === 0 && r1 === 0)) {
     const end = [
@@ -147,8 +148,8 @@ function parseHorizontalSegment(entityIndex, hsId, station) {
 
   if (predType === 'CLOTHOID' || r0 !== r1) {
     // Clothoid (Euler spiral) — varying curvature linearly with arc length
-    const radiusStart = (r0 == null || r0 === 0) ? Infinity : Math.abs(r0);
-    const radiusEnd = (r1 == null || r1 === 0) ? Infinity : Math.abs(r1);
+    const radiusStart = (r0 === null || r0 === undefined || r0 === 0) ? Infinity : Math.abs(r0);
+    const radiusEnd = (r1 === null || r1 === undefined || r1 === 0) ? Infinity : Math.abs(r1);
     // Determine end point + heading by integrating (handled in discretize.js)
     // For now provide what discretize expects: start, end (approximate),
     // dirStart, radiusStart/End, length, rotation.
@@ -221,25 +222,43 @@ export function parseIfcAlignment(entityIndex, alignmentExpressId) {
       break;
     }
   }
-  if (!horizontalId) return { name, length: 0, staStart: 0, elements: [] };
 
-  // Segments nested under horizontal
-  const segChildren = nests.get(horizontalId) || [];
+  // Business vrstva — od zavedení geometrické vrstvy slouží hlavně jako
+  // metadata (elementCount, poloměry v UI) a fallback pro soubory bez
+  // Representation.
   const elements = [];
   let cumStation = 0;
-  for (const segId of segChildren) {
-    const seg = entityIndex.byExpressId(segId);
-    if (!seg || seg.type !== 'IFCALIGNMENTSEGMENT') continue;
-    // IfcAlignmentSegment params: GlobalId, OwnerHistory, Name, Description,
-    // ObjectType, ObjectPlacement, Representation, PredefinedType, DesignParameters
-    const parts = splitParams(seg.params);
-    const designParamsId = parseRef(parts[8]);
-    if (!designParamsId) continue;
-    const el = parseHorizontalSegment(entityIndex, designParamsId, cumStation);
-    if (el) {
-      elements.push(el);
-      cumStation = el.endStation;
+  if (horizontalId) {
+    const segChildren = nests.get(horizontalId) || [];
+    for (const segId of segChildren) {
+      const seg = entityIndex.byExpressId(segId);
+      if (!seg || seg.type !== 'IFCALIGNMENTSEGMENT') continue;
+      // IfcAlignmentSegment params: GlobalId, OwnerHistory, Name, Description,
+      // ObjectType, ObjectPlacement, Representation, PredefinedType, DesignParameters
+      const parts = splitParams(seg.params);
+      const designParamsId = parseRef(parts[8]);
+      if (!designParamsId) continue;
+      const el = parseHorizontalSegment(entityIndex, designParamsId, cumStation);
+      if (el) {
+        elements.push(el);
+        cumStation = el.endStation;
+      }
     }
+  }
+
+  // Geometrická vrstva (IFC 4.3): Representation → 'Axis'/IfcGradientCurve
+  // (fallback 'FootPrint'/IfcCompositeCurve) — preferovaná pro vykreslení,
+  // nese i niveletu. Zkouší se i bez business horizontály.
+  const geo = evaluateGeometricAxis(entityIndex, align, nests, alignmentExpressId);
+  if (geo) {
+    return {
+      name,
+      length: geo.length,
+      staStart: geo.staStart,
+      elements,
+      presampled: geo.presampled,
+      verticalProfile: geo.is3D ? { source: 'ifc-gradient-curve', entries: [] } : null,
+    };
   }
 
   return {
@@ -248,4 +267,89 @@ export function parseIfcAlignment(entityIndex, alignmentExpressId) {
     staStart: 0,
     elements,
   };
+}
+
+/** Najde IfcGradientCurve/IfcCompositeCurve v Representation alignmentu. */
+function findAxisCurveId(entityIndex, alignEntity) {
+  const parts = splitParams(alignEntity.params);
+  const pdsId = parseRef(parts[6]);
+  const pds = pdsId && entityIndex.byExpressId(pdsId);
+  if (!pds || pds.type !== 'IFCPRODUCTDEFINITIONSHAPE') return null;
+  const repIds = parseRefList(splitParams(pds.params)[2]);
+  let fallback = null;
+  for (const rid of repIds) {
+    const rep = entityIndex.byExpressId(rid);
+    if (!rep || rep.type !== 'IFCSHAPEREPRESENTATION') continue;
+    const rp = splitParams(rep.params);
+    const ident = unquoteString(rp[1]);
+    const items = parseRefList(rp[3]);
+    if (items.length === 0) continue;
+    if (ident === 'Axis') return items[0];
+    if (ident === 'FootPrint' && fallback === null) fallback = items[0];
+  }
+  return fallback;
+}
+
+/**
+ * Staničení z referentu: Pset_Stationing.Station − DistanceAlong placementu.
+ * Staniční rovnice (víc STATION referentů) zatím nepodporujeme — warn.
+ */
+function findStationOffset(entityIndex, nests, alignmentExpressId) {
+  const children = nests.get(alignmentExpressId) || [];
+  const stations = [];
+  for (const cid of children) {
+    const ref = entityIndex.byExpressId(cid);
+    if (!ref || ref.type !== 'IFCREFERENT') continue;
+    const rp = splitParams(ref.params);
+    if (parseEnum(rp[7]) !== 'STATION') continue;
+    // DistanceAlong z IfcLinearPlacement → IfcAxis2PlacementLinear → PBDE
+    let distAlong = 0;
+    const lp = entityIndex.byExpressId(parseRef(rp[5]));
+    if (lp && lp.type === 'IFCLINEARPLACEMENT') {
+      const rel = entityIndex.byExpressId(parseRef(splitParams(lp.params)[1]));
+      if (rel && rel.type === 'IFCAXIS2PLACEMENTLINEAR') {
+        const pbde = entityIndex.byExpressId(parseRef(splitParams(rel.params)[0]));
+        if (pbde && pbde.type === 'IFCPOINTBYDISTANCEEXPRESSION') {
+          const d = parseWrappedNum(splitParams(pbde.params)[0]);
+          if (d) distAlong = d.value;
+        }
+      }
+    }
+    // Station z Pset_Stationing
+    for (const rel of entityIndex.byType('IfcRelDefinesByProperties')) {
+      const relParts = splitParams(rel.params);
+      if (!parseRefList(relParts[4]).includes(cid)) continue;
+      const pset = entityIndex.byExpressId(parseRef(relParts[5]));
+      if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
+      const psetParts = splitParams(pset.params);
+      if (unquoteString(psetParts[2]) !== 'Pset_Stationing') continue;
+      for (const pid of parseRefList(psetParts[4])) {
+        const prop = entityIndex.byExpressId(pid);
+        if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+        const propParts = splitParams(prop.params);
+        if (unquoteString(propParts[0]) !== 'Station') continue;
+        const v = parseWrappedNum(propParts[2]);
+        if (v) stations.push(v.value - distAlong);
+      }
+    }
+  }
+  if (stations.length > 1) {
+    console.warn(`[ifc-alignment] ${stations.length} STATION referentů — staniční rovnice zatím nepodporovány, používám první`);
+  }
+  return stations.length > 0 ? stations[0] : 0;
+}
+
+function evaluateGeometricAxis(entityIndex, alignEntity, nests, alignmentExpressId) {
+  const curveId = findAxisCurveId(entityIndex, alignEntity);
+  if (!curveId) return null;
+  const ce = getCurveEval(entityIndex, curveId);
+  if (!ce) return null;
+  const scale = entityIndex._lengthScale || 1;
+  const staStart = findStationOffset(entityIndex, nests, alignmentExpressId);
+  const presampled = ce.sample(1.0);
+  for (const p of presampled.points) { p[0] *= scale; p[1] *= scale; p[2] *= scale; }
+  for (let i = 0; i < presampled.stations.length; i++) {
+    presampled.stations[i] = presampled.stations[i] * scale + staStart;
+  }
+  return { presampled, length: ce.length * scale, staStart, is3D: ce.is3D };
 }

@@ -1,7 +1,7 @@
 // Web Worker wrapper around parseStepText.
 // Protocol:
 //   inbound:  { cmd: 'parse', text: string }
-//   outbound: { ok: true, entities: RawEntity[], schema: string }
+//   outbound: { ok: true, entities: RawEntity[], schema: string, viewDefinitions: string[] }
 //          or { ok: false, error: string }
 //
 // Entities are sent as Array (Map is not structured-cloneable to/from worker).
@@ -18,10 +18,10 @@ self.onmessage = (event) => {
   }
 
   try {
-    const { entities, schema } = parseStepText(msg.text);
+    const { entities, schema, viewDefinitions } = parseStepText(msg.text);
     // Convert Map → Array for postMessage transfer
     const entitiesArr = [...entities.values()];
-    self.postMessage({ ok: true, entities: entitiesArr, schema });
+    self.postMessage({ ok: true, entities: entitiesArr, schema, viewDefinitions });
   } catch (err) {
     self.postMessage({ ok: false, error: err.message || String(err) });
   }

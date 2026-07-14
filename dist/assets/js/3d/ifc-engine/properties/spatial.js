@@ -40,7 +40,7 @@ export function extractSpatialHierarchy(entityIndex) {
     const parts = splitParams(rel.params);
     const parent = parseRef(parts[4]);
     const children = parseRefList(parts[5]);
-    if (parent == null) continue;
+    if (parent === null || parent === undefined) continue;
     let arr = aggregates.get(parent);
     if (!arr) { arr = []; aggregates.set(parent, arr); }
     arr.push(...children);
@@ -52,7 +52,7 @@ export function extractSpatialHierarchy(entityIndex) {
     const parts = splitParams(rel.params);
     const elements = parseRefList(parts[4]);
     const structure = parseRef(parts[5]);
-    if (structure == null) continue;
+    if (structure === null || structure === undefined) continue;
     let arr = contained.get(structure);
     if (!arr) { arr = []; contained.set(structure, arr); }
     arr.push(...elements);

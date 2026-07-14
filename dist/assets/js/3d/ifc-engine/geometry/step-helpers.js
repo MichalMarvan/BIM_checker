@@ -35,3 +35,20 @@ export function parsePointList(raw) {
   if (!matches) return [];
   return matches.map(m => m.slice(1, -1).split(',').map(s => parseFloat(s.trim())));
 }
+
+/**
+ * Parse a STEP numeric value that may be wrapped in a typed measure:
+ *   "IFCLENGTHMEASURE(1133.04)" → { value: 1133.04, type: 'IFCLENGTHMEASURE' }
+ *   "5.49"                      → { value: 5.49, type: null }
+ *   "$" / "*" / non-numeric     → null
+ * IFC4.3 wraps IfcCurveSegment.SegmentStart/SegmentLength and
+ * IfcPointByDistanceExpression.DistanceAlong this way.
+ */
+export function parseWrappedNum(raw) {
+  if (!raw || raw === '$' || raw === '*') return null;
+  const m = raw.match(/^([A-Z][A-Z0-9_]*)\((.*)\)$/s);
+  const inner = m ? m[2] : raw;
+  const n = parseFloat(inner);
+  if (!Number.isFinite(n)) return null;
+  return { value: n, type: m ? m[1] : null };
+}

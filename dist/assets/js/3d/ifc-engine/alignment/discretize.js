@@ -20,6 +20,10 @@ const MIN_SAMPLES_PER_ELEMENT = 8;  // even short elements get >=8 samples
 const MAX_SAMPLES_PER_ELEMENT = 1000;
 
 export function sampleAlignment(alignment, opts = {}) {
+  // IFC 4.3 geometrická vrstva: parser dodává hotové vzorky (gradient curve
+  // s niveletou) — business elementy pak slouží jen jako metadata.
+  if (alignment.presampled?.points?.length) return alignment.presampled;
+
   const tol = opts.chordTol || DEFAULT_CHORD_TOL;
   const points = [];
   const stations = [];
@@ -151,7 +155,10 @@ function sampleSpiral(el, tol) {
   // Determine starting heading. dirStart is given as bearing in some files;
   // fallback: use start→PI direction or start→end direction.
   let theta0;
-  if (el.dirStart !== null && el.dirStart !== undefined) {
+  if (el._useRawDir && el.dirStart !== null && el.dirStart !== undefined) {
+    // IFC: StartDirection už je v radiánech od +X CCW — žádná konverze.
+    theta0 = el.dirStart;
+  } else if (el.dirStart !== null && el.dirStart !== undefined) {
     // LandXML dirStart: angle in radians from +Y (north), clockwise (per spec)
     // Convert to math convention (from +X, counter-clockwise)
     theta0 = Math.PI / 2 - el.dirStart;

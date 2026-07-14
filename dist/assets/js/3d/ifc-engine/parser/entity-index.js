@@ -94,9 +94,11 @@ export class EntityIndex {
     const keep = new Set(this._byGuid.values());
 
     // Reference closure from alignment entities (params hold #id refs).
+    // IFCLINEARPLACEMENT seeds keep IfcAxis2PlacementLinear /
+    // IfcPointByDistanceExpression / basis curve alive for post-compact reads.
     const stack = [];
     for (const [id, e] of this._byId) {
-      if (e.type.startsWith('IFCALIGNMENT')) stack.push(id);
+      if (e.type.startsWith('IFCALIGNMENT') || e.type === 'IFCLINEARPLACEMENT') stack.push(id);
     }
     while (stack.length) {
       const id = stack.pop();

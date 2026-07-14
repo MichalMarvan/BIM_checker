@@ -446,3 +446,15 @@ Branch: 3d-viewer-integration
 - [x] Plán: `docs/superpowers/plans/2026-07-10-osa-zoom-validace-model.md`
 
 Branch: 3d-viewer-integration
+
+## 3D viewer: IFC 4.3 Alignment-basedView (MVD) ✅ (2026-07-14)
+- [x] `IfcLinearPlacement` — `resolvePlacement` dispatch + `alignment/linear-placement.js`: spec-sankcionovaný `CartesianPosition` fallback s prioritou, jinak plná evaluace `IfcPointByDistanceExpression` (DistanceAlong + OffsetLateral kladně vlevo + OffsetVertical; default orientace = tečný rámec, explicitní osy respektovány, PlacementRelTo chain)
+- [x] Evaluátor geometrické vrstvy osy — `alignment/curve-evaluator.js` (THREE-free): `IfcCompositeCurve`/`IfcGradientCurve` přes `IfcCurveSegment` s kotvením na Placement (směr jízdy — CW oblouky se zápornou SegmentLength), klotoida κ(t)=t/(A·|A|) (Fresnel/Simpson, všech 6 kombinací testováno), niveleta line+polynom s kotvením na RefDirection placementu (Newton), parametrizace = vodorovný průmět
+- [x] Osa ve vieweru z geometrické vrstvy (presampled, včetně nivelety) + staničení z referentu (`Pset_Stationing.Station − DistanceAlong`; staniční rovnice zatím ne — warn); oprava `_useRawDir` v `discretize.js` (IFC radiány vs LandXML bearing)
+- [x] `parseWrappedNum` pro `IFCLENGTHMEASURE(...)`/`IFCPARAMETERVALUE(...)`; `compact()` drží closure IFCLINEARPLACEMENT
+- [x] MVD detekce — `ViewDefinition [...]` z FILE_DESCRIPTION → `meta.viewDefinitions` → řádek MVD v panelu modelů
+- [x] Validace: `scripts/validate-linear-placement.js` proti CartesianPosition ground truth — (28): max 0.001 mm/962 placementů, (26): max 0.000 mm/1071; testovací soubory mají dokumentovanou vadu exportu (past č. 3: SegmentStart=A²·κ₁ u exit-spirál z levých oblouků, A<0 & start>0) — detekováno signaturou, render imunní díky CartesianPosition
+- [x] GEOMETRY_PIPELINE_VERSION 1 → 2 (.bimcache invalidace), SW cache v145 → v146, dist mirror
+- [x] Plán: `docs/superpowers/plans/2026-07-14-ifc43-alignment-based-view.md`
+
+Branch: 3d-viewer-integration

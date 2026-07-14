@@ -86,7 +86,7 @@ export class AlignmentVisuals {
   setActiveStation(alignmentId, station) {
     const entry = this._byId.get(alignmentId);
     if (!entry) return;
-    if (station == null) {
+    if (station === null || station === undefined) {
       entry.activeMarker.visible = false;
       return;
     }

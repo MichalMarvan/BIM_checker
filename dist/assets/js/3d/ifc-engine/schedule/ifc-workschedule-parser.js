@@ -36,7 +36,7 @@ function buildNestsIndex(entityIndex) {
     const parts = splitParams(rel.params);
     const parent = parseRef(parts[4]);
     const children = parseRefList(parts[5]);
-    if (parent == null) continue;
+    if (parent === null || parent === undefined) continue;
     let arr = map.get(parent);
     if (!arr) { arr = []; map.set(parent, arr); }
     arr.push(...children);
@@ -52,7 +52,7 @@ function buildAssignsToControlIndex(entityIndex) {
     // RelatedObjects (parts[4]), RelatingControl (parts[6])
     const relatedObjs = parseRefList(parts[4]);
     const control = parseRef(parts[6]);
-    if (control == null) continue;
+    if (control === null || control === undefined) continue;
     let arr = map.get(control);
     if (!arr) { arr = []; map.set(control, arr); }
     arr.push(...relatedObjs);

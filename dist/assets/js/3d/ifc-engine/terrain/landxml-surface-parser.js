@@ -72,7 +72,7 @@ export function parseLandXmlSurfaces(xmlText) {
       // Skip <F i="1"> (i=1 = invisible boundary face per LandXML spec)
       if (f.getAttribute('i') === '1') continue;
       const idx = ids.map(id => idToIdx.get(id));
-      if (idx.some(i => i == null)) continue;
+      if (idx.some(i => i === null || i === undefined)) continue;
       if (idx.length === 3) {
         triangles.push([idx[0], idx[1], idx[2]]);
       } else if (idx.length === 4) {
