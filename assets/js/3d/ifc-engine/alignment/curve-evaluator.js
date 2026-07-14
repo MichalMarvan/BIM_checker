@@ -1,0 +1,228 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Michal Marvan */
+// IFC 4.3 geometric-layer alignment curve evaluator (THREE-free).
+//
+// Vyhodnocuje IfcCompositeCurve (2D půdorys) a IfcGradientCurve (3D osa =
+// půdorys + niveleta) přes IfcCurveSegment:
+//   IfcCurveSegment(Transition, Placement, SegmentStart, SegmentLength, ParentCurve)
+// ParentCurve je šablona tvaru v LOKÁLNÍM parametrickém prostoru; úsek
+// parametru [SegmentStart, SegmentStart+SegmentLength] se kotví tak, aby bod
+// t=SegmentStart ležel v Placement.Location a tečna mířila v RefDirection.
+//
+// Pasti (viz docs/superpowers/plans/2026-07-14-ifc43-alignment-based-view.md):
+//   - poslední segment je nulové délky s .DISCONTINUOUS. → přeskočit
+//   - CW oblouk = záporná SegmentLength; poloměr IfcCircle vždy kladný
+//   - klotoida: κ(t) = t/(A·|A|) — A i SegmentStart mohou být záporné
+//   - parametrizace gradient curve = VODOROVNÝ průmět
+
+import { splitParams } from '../parser/step-parser.js';
+import { parseRef, parseRefList, parseWrappedNum } from '../geometry/step-helpers.js';
+
+const EPS_LEN = 1e-9;
+
+function readVec2(entityIndex, id) {
+  const e = entityIndex.byExpressId(id);
+  if (!e) return null;
+  const m = e.params.match(/\(([^)]*)\)/);
+  if (!m) return null;
+  const nums = m[1].split(',').map(s => parseFloat(s.trim()));
+  return Number.isFinite(nums[0]) && Number.isFinite(nums[1]) ? [nums[0], nums[1]] : null;
+}
+
+/** IfcAxis2Placement2D → { loc:[x,y], angle } (default (0,0)/0). */
+function readPlacement2D(entityIndex, id) {
+  const e = entityIndex.byExpressId(id);
+  if (!e || e.type !== 'IFCAXIS2PLACEMENT2D') return { loc: [0, 0], angle: 0 };
+  const parts = splitParams(e.params);
+  const loc = readVec2(entityIndex, parseRef(parts[0])) || [0, 0];
+  const refDirId = parseRef(parts[1]);
+  const rd = refDirId ? readVec2(entityIndex, refDirId) : null;
+  return { loc, angle: rd ? Math.atan2(rd[1], rd[0]) : 0 };
+}
+
+/** Číselný seznam "(a,b,c)" → [a,b,c]. */
+function readNumList(raw) {
+  if (!raw || raw === '$') return [];
+  const inner = raw.replace(/^\(/, '').replace(/\)$/, '');
+  return inner.split(',').map(s => parseFloat(s.trim())).filter(Number.isFinite);
+}
+
+/**
+ * Lokální evaluátor parent curve. Vrací:
+ *   pointAt(t) → [x,y] v lokálním prostoru parent curve
+ *   dirAt(t)   → úhel tečny (rad)
+ *   toParam(wrapped) → převod SegmentStart/SegmentLength ({value,type}) na
+ *                      nativní parametr křivky (zachovává znaménko)
+ *   paramToLength(tSpan) → oblouková délka úseku parametru
+ */
+function localEvaluator(entityIndex, parentId) {
+  const e = entityIndex.byExpressId(parentId);
+  if (!e) return null;
+  const parts = splitParams(e.params);
+
+  if (e.type === 'IFCLINE') {
+    const pnt = readVec2(entityIndex, parseRef(parts[0])) || [0, 0];
+    const vec = entityIndex.byExpressId(parseRef(parts[1]));
+    let ori = [1, 0], mag = 1;
+    if (vec && vec.type === 'IFCVECTOR') {
+      const vp = splitParams(vec.params);
+      ori = readVec2(entityIndex, parseRef(vp[0])) || [1, 0];
+      const m = parseWrappedNum(vp[1]);
+      if (m && m.value !== 0) mag = m.value;
+    }
+    const n = Math.hypot(ori[0], ori[1]) || 1;
+    const ux = ori[0] / n, uy = ori[1] / n;
+    return {
+      pointAt: t => [pnt[0] + t * mag * ux, pnt[1] + t * mag * uy],
+      dirAt: () => Math.atan2(uy, ux),
+      toParam: w => (w.type === 'IFCPARAMETERVALUE') ? w.value : w.value / mag,
+      paramToLength: tSpan => Math.abs(tSpan) * mag,
+    };
+  }
+
+  if (e.type === 'IFCCIRCLE') {
+    const pos = readPlacement2D(entityIndex, parseRef(parts[0]));
+    const R = parseFloat(parts[1]);
+    if (!Number.isFinite(R) || R <= 0) return null;
+    const cos = Math.cos(pos.angle), sin = Math.sin(pos.angle);
+    return {
+      pointAt: th => {
+        const lx = R * Math.cos(th), ly = R * Math.sin(th);
+        return [pos.loc[0] + lx * cos - ly * sin, pos.loc[1] + lx * sin + ly * cos];
+      },
+      dirAt: th => pos.angle + th + Math.PI / 2,
+      toParam: w => (w.type === 'IFCPARAMETERVALUE') ? w.value : w.value / R,
+      paramToLength: thSpan => Math.abs(thSpan) * R,
+    };
+  }
+
+  return null; // IFCCLOTHOID (Task 3), IFCPOLYNOMIALCURVE — jen niveleta (buildVerticalEval)
+}
+
+/**
+ * Předpočítá kotvení segmentu na jeho Placement: bod t=SegmentStart sedí
+ * v Placement.Location, tečna v t=SegmentStart míří v RefDirection.
+ * @returns {{ length, at(s) } | null} — s ∈ [0, length] po obloukové délce.
+ */
+function buildSegmentEval(entityIndex, segId) {
+  const e = entityIndex.byExpressId(segId);
+  if (!e || e.type !== 'IFCCURVESEGMENT') return null;
+  const parts = splitParams(e.params);
+  const placement = readPlacement2D(entityIndex, parseRef(parts[1]));
+  const startW = parseWrappedNum(parts[2]);
+  const lenW = parseWrappedNum(parts[3]);
+  const parent = localEvaluator(entityIndex, parseRef(parts[4]));
+  if (!startW || !lenW || !parent) return null;
+
+  const t0 = parent.toParam(startW);
+  const tSpan = parent.toParam(lenW);
+  const length = parent.paramToLength(tSpan);
+  if (length < EPS_LEN) return { length: 0, at: null }; // terminátor — přeskočit
+
+  // Záporná SegmentLength = traverz proti směru parametru: tečna JÍZDY je
+  // otočená o π oproti parametrické tečně — kotví se směr jízdy.
+  const sign = tSpan < 0 ? -1 : 1;
+  const rev = sign < 0 ? Math.PI : 0;
+  const p0 = parent.pointAt(t0);
+  const d0 = parent.dirAt(t0) + rev;
+  const rot = placement.angle - d0;
+  const cr = Math.cos(rot), sr = Math.sin(rot);
+  const paramPerLen = Math.abs(tSpan) / length;
+
+  return {
+    length,
+    at: s => {
+      const t = t0 + sign * s * paramPerLen;
+      const p = parent.pointAt(t);
+      const dx = p[0] - p0[0], dy = p[1] - p0[1];
+      return {
+        point2: [placement.loc[0] + dx * cr - dy * sr, placement.loc[1] + dx * sr + dy * cr],
+        azimuth: parent.dirAt(t) + rev + rot,
+      };
+    },
+  };
+}
+
+/** Sestaví seznam segment evaluátorů + kumulativní staničení. */
+function buildSegments(entityIndex, segIds) {
+  const segs = [];
+  let cum = 0;
+  for (const id of segIds) {
+    const se = buildSegmentEval(entityIndex, id);
+    if (!se || se.length < EPS_LEN) continue;
+    segs.push({ start: cum, length: se.length, at: se.at });
+    cum += se.length;
+  }
+  return { segs, total: cum };
+}
+
+function evalOnSegments(segs, total, d) {
+  if (segs.length === 0) return null;
+  const dd = Math.max(0, Math.min(d, total));
+  let lo = 0, hi = segs.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (segs[mid].start <= dd) lo = mid; else hi = mid - 1;
+  }
+  const seg = segs[lo];
+  return seg.at(Math.min(dd - seg.start, seg.length));
+}
+
+function makeCurveEval(segs, total, verticalEval) {
+  const evalAt = d => {
+    const r = evalOnSegments(segs, total, d);
+    if (!r) return null;
+    const z = verticalEval ? verticalEval(Math.max(0, Math.min(d, total))) : 0;
+    return { point: [r.point2[0], r.point2[1], z], azimuth: r.azimuth };
+  };
+  return {
+    length: total,
+    is3D: !!verticalEval,
+    evalAt,
+    sample(step = 1.0) {
+      const points = [], stations = [], tangents = [], elementIndex = [];
+      for (let si = 0; si < segs.length; si++) {
+        const seg = segs[si];
+        const n = Math.max(2, Math.min(4000, Math.ceil(seg.length / step) + 1));
+        for (let i = (si === 0 ? 0 : 1); i < n; i++) {
+          const s = seg.start + (seg.length * i) / (n - 1);
+          const r = evalAt(s);
+          points.push(r.point);
+          stations.push(s);
+          tangents.push([Math.cos(r.azimuth), Math.sin(r.azimuth), 0]);
+          elementIndex.push(si);
+        }
+      }
+      return { points, stations, tangents, elementIndex };
+    },
+  };
+}
+
+/**
+ * Vyhodnotí IfcCompositeCurve nebo IfcGradientCurve.
+ * @param {EntityIndex} entityIndex
+ * @param {number} curveExpressId
+ * @returns {CurveEval|null} — { length, is3D, evalAt(d), sample(step) };
+ *   evalAt vrací { point:[x,y,z], azimuth } PŘESNĚ (analyticky, bez interpolace).
+ */
+export function evaluateCurve(entityIndex, curveExpressId) {
+  const e = entityIndex.byExpressId(curveExpressId);
+  if (!e) return null;
+  if (e.type === 'IFCCOMPOSITECURVE') {
+    const parts = splitParams(e.params);
+    const { segs, total } = buildSegments(entityIndex, parseRefList(parts[0]));
+    if (segs.length === 0) return null;
+    return makeCurveEval(segs, total, null);
+  }
+  return null; // IFCGRADIENTCURVE — Task 4
+}
+
+/** Memoizovaná varianta — cache na entityIndex (zaniká s indexem). */
+export function getCurveEval(entityIndex, id) {
+  let cache = entityIndex._curveEvalCache;
+  if (!cache) cache = entityIndex._curveEvalCache = new Map();
+  if (cache.has(id)) return cache.get(id);
+  const ce = evaluateCurve(entityIndex, id);
+  cache.set(id, ce);
+  return ce;
+}
