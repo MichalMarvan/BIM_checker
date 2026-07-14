@@ -3376,7 +3376,7 @@ export class ViewerCore {
    * the parsed alignment object here.
    */
   addParsedAlignment(parsedAlignment, opts = {}) {
-    if (!parsedAlignment || !parsedAlignment.elements?.length) return null;
+    if (!parsedAlignment || (!parsedAlignment.elements?.length && !parsedAlignment.presampled?.points?.length)) return null;
     const sampled = sampleAlignment(parsedAlignment, opts);
     this._ensureAlignmentVisuals();
     const id = `align_ifc_${++this._alignmentIdCounter}`;
