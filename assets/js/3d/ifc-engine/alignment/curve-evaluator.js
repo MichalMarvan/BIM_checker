@@ -246,7 +246,66 @@ export function evaluateCurve(entityIndex, curveExpressId) {
     if (segs.length === 0) return null;
     return makeCurveEval(segs, total, null);
   }
-  return null; // IFCGRADIENTCURVE — Task 4
+  if (e.type === 'IFCGRADIENTCURVE') {
+    // (Segments, SelfIntersect, BaseCurve, EndPoint) — BaseCurve = 2D půdorys,
+    // Segments = vertikální průběh v rovině (staničení, výška).
+    const parts = splitParams(e.params);
+    const base = entityIndex.byExpressId(parseRef(parts[2]));
+    if (!base || base.type !== 'IFCCOMPOSITECURVE') return null;
+    const bp = splitParams(base.params);
+    const { segs, total } = buildSegments(entityIndex, parseRefList(bp[0]));
+    if (segs.length === 0) return null;
+    const verticalEval = buildVerticalEval(entityIndex, parseRefList(parts[0]));
+    return makeCurveEval(segs, total, verticalEval);
+  }
+  return null;
+}
+
+/**
+ * Niveleta: seznam vertikálních IfcCurveSegment → funkce d → z.
+ * Souřadný prostor segmentů je (staničení po BaseCurve = vodorovný průmět,
+ * výška); kotvení translační: t = t0 + (d − loc.x), z = loc.y + (Y(t) − Y(t0)).
+ */
+function buildVerticalEval(entityIndex, segIds) {
+  const entries = [];
+  for (const id of segIds) {
+    const e = entityIndex.byExpressId(id);
+    if (!e || e.type !== 'IFCCURVESEGMENT') continue;
+    const parts = splitParams(e.params);
+    const placement = readPlacement2D(entityIndex, parseRef(parts[1]));
+    const startW = parseWrappedNum(parts[2]);
+    const lenW = parseWrappedNum(parts[3]);
+    if (!startW || !lenW || Math.abs(lenW.value) < EPS_LEN) continue; // terminátor
+    const parent = entityIndex.byExpressId(parseRef(parts[4]));
+    if (!parent) continue;
+    const pp = splitParams(parent.params);
+    let zAt = null;
+    if (parent.type === 'IFCLINE') {
+      // konstantní sklon: g = dz/dx z Orientation vektoru
+      const vec = entityIndex.byExpressId(parseRef(pp[1]));
+      let ori = [1, 0];
+      if (vec && vec.type === 'IFCVECTOR') ori = readVec2(entityIndex, parseRef(splitParams(vec.params)[0])) || [1, 0];
+      const g = ori[0] !== 0 ? ori[1] / ori[0] : 0;
+      zAt = d => placement.loc[1] + g * (d - placement.loc[0]);
+    } else if (parent.type === 'IFCPOLYNOMIALCURVE') {
+      // parabolický výškový oblouk: z(x) = Σ cy_i·xⁱ, x od začátku segmentu
+      const cy = readNumList(pp[2]);
+      const polyY = t => cy.reduce((acc, c, i) => acc + c * Math.pow(t, i), 0);
+      const t0 = startW.value;
+      const y0 = polyY(t0);
+      zAt = d => placement.loc[1] + (polyY(t0 + (d - placement.loc[0])) - y0);
+    }
+    if (zAt) entries.push({ from: placement.loc[0], to: placement.loc[0] + Math.abs(lenW.value), zAt });
+  }
+  entries.sort((a, b) => a.from - b.from);
+  if (entries.length === 0) return null;
+  return d => {
+    if (d <= entries[0].from) return entries[0].zAt(entries[0].from);
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (d >= entries[i].from) return entries[i].zAt(Math.min(d, entries[i].to));
+    }
+    return entries[0].zAt(entries[0].from);
+  };
 }
 
 /** Memoizovaná varianta — cache na entityIndex (zaniká s indexem). */

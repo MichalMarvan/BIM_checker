@@ -180,3 +180,71 @@ describe('ifc-curve-evaluator — klotoida', () => {
         expect(Math.abs(curvatureAt(ce, 59) - (-119 / 18000)) < 1e-4).toBe(true);
     });
 });
+
+describe('ifc-curve-evaluator — gradient curve (niveleta)', () => {
+    let evaluateCurve, parseStepText, EntityIndex;
+    async function mods() {
+        if (!evaluateCurve) {
+            ({ evaluateCurve } = await import('../../assets/js/3d/ifc-engine/alignment/curve-evaluator.js'));
+            ({ parseStepText } = await import('../../assets/js/3d/ifc-engine/parser/step-parser.js'));
+            ({ EntityIndex } = await import('../../assets/js/3d/ifc-engine/parser/entity-index.js'));
+        }
+    }
+    function idx(step) { return new EntityIndex(parseStepText(step).entities); }
+    // Base: přímka 200 m +X. Niveleta: 0–100 m konstantní 2% od z=10;
+    // 100–200 m parabola z=12+0.02x−0.0001x² (x od začátku segmentu) → z(200)=13, sklon na konci 0.
+    const FIXTURE = `
+#1=IFCCARTESIANPOINT((0.,0.));
+#2=IFCDIRECTION((1.,0.));
+#3=IFCAXIS2PLACEMENT2D(#1,#2);
+#5=IFCVECTOR(#2,1.);
+#4=IFCLINE(#1,#5);
+#6=IFCCURVESEGMENT(.CONTINUOUS.,#3,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(200.),#4);
+#7=IFCCOMPOSITECURVE((#6),.F.);
+#10=IFCCARTESIANPOINT((0.,10.));
+#11=IFCDIRECTION((1.,0.02));
+#12=IFCAXIS2PLACEMENT2D(#10,#11);
+#13=IFCVECTOR(#11,1.);
+#14=IFCLINE(#10,#13);
+#15=IFCCURVESEGMENT(.CONTSAMEGRADIENT.,#12,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(100.),#14);
+#20=IFCCARTESIANPOINT((100.,12.));
+#21=IFCAXIS2PLACEMENT2D(#20,#2);
+#22=IFCPOLYNOMIALCURVE(#21,(0.,1.),(12.,0.02,-0.0001),$);
+#23=IFCCURVESEGMENT(.CONTSAMEGRADIENT.,#21,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(100.),#22);
+#30=IFCGRADIENTCURVE((#15,#23),.F.,#7,$);
+`;
+    it('is3D a délka po vodorovném průmětu', async () => {
+        await mods();
+        const ce = evaluateCurve(idx(FIXTURE), 30);
+        expect(ce.is3D).toBe(true);
+        expect(Math.abs(ce.length - 200) < 1e-9).toBe(true);
+    });
+    it('z na konstantním sklonu: z(0)=10, z(50)=11, z(100)=12', async () => {
+        await mods();
+        const ce = evaluateCurve(idx(FIXTURE), 30);
+        expect(Math.abs(ce.evalAt(0).point[2] - 10) < 1e-9).toBe(true);
+        expect(Math.abs(ce.evalAt(50).point[2] - 11) < 1e-6).toBe(true);
+        expect(Math.abs(ce.evalAt(100).point[2] - 12) < 1e-6).toBe(true);
+    });
+    it('z na parabole: z(150)=12.75, z(200)=13', async () => {
+        await mods();
+        const ce = evaluateCurve(idx(FIXTURE), 30);
+        // z(150) = 12 + 0.02·50 − 0.0001·2500 = 12.75
+        expect(Math.abs(ce.evalAt(150).point[2] - 12.75) < 1e-6).toBe(true);
+        expect(Math.abs(ce.evalAt(200).point[2] - 13) < 1e-6).toBe(true);
+    });
+    it('x,y z base curve zůstávají', async () => {
+        await mods();
+        const ce = evaluateCurve(idx(FIXTURE), 30);
+        const r = ce.evalAt(150);
+        expect(Math.abs(r.point[0] - 150) < 1e-9).toBe(true);
+        expect(Math.abs(r.point[1]) < 1e-9).toBe(true);
+    });
+    it('sample dává 3D body s výškou', async () => {
+        await mods();
+        const ce = evaluateCurve(idx(FIXTURE), 30);
+        const s = ce.sample(1.0);
+        const mid = s.points[Math.floor(s.points.length / 2)];
+        expect(mid[2] > 10).toBe(true);
+    });
+});
