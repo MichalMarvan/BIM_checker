@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { splitParams } from '../parser/step-parser.js';
 import { parseRef } from './step-helpers.js';
+import { resolveLinearPlacement } from '../alignment/linear-placement.js';
 
 const _v3 = new THREE.Vector3();  // scratch for math
 
@@ -38,7 +39,7 @@ function resolveVec3(entityIndex, expressId) {
 /**
  * Build a Matrix4 from an IfcAxis2Placement3D entity.
  */
-function placement3DToMatrix(entityIndex, placement3DId) {
+export function placement3DToMatrix(entityIndex, placement3DId) {
   const entity = entityIndex.byExpressId(placement3DId);
   if (!entity || entity.type !== 'IFCAXIS2PLACEMENT3D') {
     return new THREE.Matrix4();
@@ -75,6 +76,14 @@ function placement3DToMatrix(entityIndex, placement3DId) {
  */
 export function resolvePlacement(entityIndex, localPlacementId) {
   const entity = entityIndex.byExpressId(localPlacementId);
+  // IFC 4.3: prvky umístěné na ose. Vrací hotovou world matici
+  // (CartesianPosition fallback, jinak evaluace křivky; řeší si vlastní chain).
+  if (entity && entity.type === 'IFCLINEARPLACEMENT') {
+    const m = resolveLinearPlacement(entityIndex, localPlacementId);
+    if (m) return m;
+    console.warn(`[placement] IfcLinearPlacement #${localPlacementId} se nepodařilo vyhodnotit — identita`);
+    return new THREE.Matrix4();
+  }
   if (!entity || entity.type !== 'IFCLOCALPLACEMENT') {
     return new THREE.Matrix4();
   }
