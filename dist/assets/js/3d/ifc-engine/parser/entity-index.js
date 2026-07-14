@@ -96,13 +96,18 @@ export class EntityIndex {
     // Reference closure from alignment entities (params hold #id refs).
     // IFCLINEARPLACEMENT seeds keep IfcAxis2PlacementLinear /
     // IfcPointByDistanceExpression / basis curve alive for post-compact reads.
+    // `visited` je oddělené od `keep`: root seedy (IfcAlignment má GUID, je
+    // v keep od začátku) by jinak walk přeskočil a jejich Representation
+    // řetěz (PDS → ShapeRep → GradientCurve) by kompakce zahodila.
     const stack = [];
     for (const [id, e] of this._byId) {
       if (e.type.startsWith('IFCALIGNMENT') || e.type === 'IFCLINEARPLACEMENT') stack.push(id);
     }
+    const visited = new Set();
     while (stack.length) {
       const id = stack.pop();
-      if (keep.has(id)) continue;
+      if (visited.has(id)) continue;
+      visited.add(id);
       keep.add(id);
       const e = this._byId.get(id);
       if (!e) continue;
@@ -110,7 +115,7 @@ export class EntityIndex {
       if (refs) {
         for (const r of refs) {
           const rid = parseInt(r.slice(1), 10);
-          if (!keep.has(rid)) stack.push(rid);
+          if (!visited.has(rid)) stack.push(rid);
         }
       }
     }

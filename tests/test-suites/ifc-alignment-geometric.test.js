@@ -76,6 +76,18 @@ describe('ifc-alignment-geometric — osa z geometrické vrstvy', () => {
         expect(a.presampled === undefined || a.presampled === null).toBe(true);
         expect(a.elements.length).toBe(0);
     });
+    it('presampled funguje i PO index.compact() (viewer parsuje osu až po loadu)', async () => {
+        await mods();
+        const index = idx(FIXTURE);
+        index.compact();
+        // Representation chain (PDS → ShapeRep → GradientCurve) musí kompakci přežít
+        const a = parseIfcAlignment(index, 110);
+        expect(!!a.presampled).toBe(true);
+        expect(a.presampled.points.length > 2).toBe(true);
+        const last = a.presampled.points[a.presampled.points.length - 1];
+        expect(Math.abs(last[2] - 14) < 0.01).toBe(true);
+        expect(Math.abs(a.staStart - 633.6605) < 1e-6).toBe(true);
+    });
     it('_useRawDir: IFC spirála bez bearing konverze', async () => {
         await mods();
         const spiral = {
