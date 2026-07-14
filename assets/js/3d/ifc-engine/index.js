@@ -102,7 +102,7 @@ export class IfcEngine {
       let text = typeof input === 'string' ? input : new TextDecoder('utf-8').decode(input);
       const t1 = performance.now();
 
-      const { entities, schema } = await this._parseInWorker(text);
+      const { entities, schema, viewDefinitions } = await this._parseInWorker(text);
       // The raw file text (and the caller's buffer) would otherwise stay
       // referenced through the whole geometry build — that's file-size × 2 of
       // dead weight per in-flight model. Release both now; everything below
@@ -139,6 +139,7 @@ export class IfcEngine {
         modelId,
         name: options.name,
         schema,
+        viewDefinitions: viewDefinitions || [],
         entityCount: stats.entityCount,
         typeCount: stats.typeCount,
         lengthScale,

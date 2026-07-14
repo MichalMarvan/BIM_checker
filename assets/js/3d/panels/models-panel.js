@@ -56,6 +56,7 @@ export default class ModelsPanel {
         const meta = this._modelMeta(modelId) || {};
         const rows = [
           ['Schéma', meta.schema || '—'],
+          ['MVD', (meta.viewDefinitions && meta.viewDefinitions.length) ? meta.viewDefinitions.join(', ') : null],
           ['Entit', (meta.entityCount || (stats && stats.entityCount) || 0).toLocaleString('cs-CZ')],
           ['Typů', meta.typeCount ? meta.typeCount.toLocaleString('cs-CZ') : null],
         ].filter(([, v]) => v !== null && v !== undefined);

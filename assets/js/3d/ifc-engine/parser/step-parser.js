@@ -56,6 +56,9 @@ const ENTITY_LINE_RE = /^#(\d+)\s*=\s*([A-Z][A-Z0-9_]*)\((.*)\)\s*;\s*$/;
 // Schema detection: FILE_SCHEMA(('IFC4'));
 const SCHEMA_RE = /FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'\s*\)\s*\)/;
 
+// MVD detection: FILE_DESCRIPTION(('ViewDefinition [ReferenceView]'), '2;1');
+const VIEWDEF_RE = /ViewDefinition\s*\[([^\]]*)\]/;
+
 /**
  * Parse a STEP-encoded IFC text into Map<expressId, RawEntity>.
  *
@@ -77,6 +80,14 @@ export function parseStepText(text) {
   // Detect schema from HEADER (search whole text — HEADER is at top, fast)
   const schemaMatch = text.match(SCHEMA_RE);
   if (schemaMatch) schema = schemaMatch[1];
+
+  // MVD z FILE_DESCRIPTION — HEADER je vždy na začátku, prohledávat celý
+  // soubor by bylo zbytečně drahé.
+  let viewDefinitions = [];
+  const vdMatch = text.slice(0, 8000).match(VIEWDEF_RE);
+  if (vdMatch) {
+    viewDefinitions = vdMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+  }
 
   // Walk lines. Some entities span multiple lines — join until ');' is found.
   const lines = text.split('\n');
@@ -111,5 +122,5 @@ export function parseStepText(text) {
     entities.set(expressId, { expressId, type, params, line: bufStartLine });
   }
 
-  return { entities, schema };
+  return { entities, schema, viewDefinitions };
 }
