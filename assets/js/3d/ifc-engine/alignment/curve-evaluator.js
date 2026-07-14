@@ -96,7 +96,39 @@ function localEvaluator(entityIndex, parentId) {
     };
   }
 
-  return null; // IFCCLOTHOID (Task 3), IFCPOLYNOMIALCURVE — jen niveleta (buildVerticalEval)
+  if (e.type === 'IFCCLOTHOID') {
+    const pos = readPlacement2D(entityIndex, parseRef(parts[0]));
+    const A = parseFloat(parts[1]);
+    if (!Number.isFinite(A) || A === 0) return null;
+    const AA = A * Math.abs(A); // zachovává znaménko — NIKDY A²!
+    const cos = Math.cos(pos.angle), sin = Math.sin(pos.angle);
+    // Fresnel: ∫₀ᵗ cos/sin(s²/(2·AA)) ds — kompozitní Simpson, sub-krok ≤ 0.25 m.
+    const fresnel = t => {
+      if (t === 0) return [0, 0];
+      const n = Math.max(2, 2 * Math.ceil(Math.abs(t) / 0.5));
+      const h = t / n;
+      let sx = 1, sy = 0; // f(0): cos(0)=1, sin(0)=0
+      for (let i = 1; i < n; i++) {
+        const s = i * h, w = (i % 2 === 1) ? 4 : 2, a = (s * s) / (2 * AA);
+        sx += w * Math.cos(a); sy += w * Math.sin(a);
+      }
+      const aT = (t * t) / (2 * AA);
+      sx += Math.cos(aT); sy += Math.sin(aT);
+      return [(h / 3) * sx, (h / 3) * sy];
+    };
+    return {
+      pointAt: t => {
+        const [lx, ly] = fresnel(t);
+        return [pos.loc[0] + lx * cos - ly * sin, pos.loc[1] + lx * sin + ly * cos];
+      },
+      // θ(t) = ∫₀ᵗ κ = t²/(2·AA) — sudá funkce; zrcadlení větví nese liché y(t).
+      dirAt: t => pos.angle + (t * t) / (2 * AA),
+      toParam: w => w.value, // parametr klotoidy = oblouková délka
+      paramToLength: tSpan => Math.abs(tSpan),
+    };
+  }
+
+  return null; // IFCPOLYNOMIALCURVE — jen niveleta (buildVerticalEval)
 }
 
 /**
