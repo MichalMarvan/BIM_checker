@@ -3362,6 +3362,21 @@ export class ViewerCore {
     return { ids, warnings: parsed.warnings, meta: parsed.meta };
   }
 
+  /**
+   * Posune osu o [dx,dy,dz] v alignment framu (IFC souřadnice) a překreslí
+   * vizuály. Používá engine při usazování LandXML v mapových souřadnicích
+   * do lokálního framu georeferencovaného modelu.
+   */
+  shiftAlignment(alignmentId, delta) {
+    const a = this._alignments.get(alignmentId);
+    if (!a || !Array.isArray(delta)) return false;
+    const [dx, dy, dz] = delta;
+    for (const p of a.sampled.points) { p[0] += dx; p[1] += dy; p[2] += dz; }
+    this._ensureAlignmentVisuals();
+    this._alignmentVisuals.add(alignmentId, a.sampled);
+    return true;
+  }
+
   /** @returns {Array<{id, name, length, staStart, staEnd, elementCount, hasProfile}>} */
   getAlignments() {
     const out = [];

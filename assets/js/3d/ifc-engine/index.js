@@ -12,7 +12,7 @@ import { extractRelatedData } from './properties/related-data.js';
 import { extractSpatialHierarchy, collectAllElementIds } from './properties/spatial.js';
 import { extractIfcQuantities } from './properties/quantities.js';
 import { extractCoords } from './coords/geo-coords.js';
-import { computeOffsets } from './coords/federation.js';
+import { computeOffsets, mapToLocalShift, MAP_SHIFT_MAX_RESIDUAL_M } from './coords/federation.js';
 import { reprojectPoint, parseEpsgCode, toLatLon } from './coords/crs-reproject.js';
 import { findIfcAlignments as _findIfcAlignments, parseIfcAlignment } from './alignment/ifc-alignment-parser.js';
 import { computeDiff as _computeDiff } from './diff/diff-engine.js';
@@ -431,10 +431,61 @@ export class IfcEngine {
 
   // Phase 6.8.2: alignments (LandXML)
   // Vrací { ids, warnings, meta } (propaguje návrat vieweru beze změny).
-  loadAlignment(xmlText, opts) {
-    return this._viewer
-      ? this._viewer.loadAlignment(xmlText, opts)
-      : { ids: [], warnings: [], meta: {} };
+  loadAlignment(xmlText, opts = {}) {
+    if (!this._viewer) return { ids: [], warnings: [], meta: {} };
+    let result = this._viewer.loadAlignment(xmlText, opts);
+    let settled = this._settleAlignmentsToModelFrame(result.ids);
+    // Když osy neleží u žádného načteného modelu a parser doporučuje opačné
+    // čtení souřadnic (N,E vs E,N), zkus to automaticky — default „prohodit
+    // X/Y" nesedí na standardní LandXML a uživatel by osu vůbec neviděl.
+    if (!settled.anyNear && this._models.size > 0
+        && typeof result.meta?.suggestSwapXY === 'boolean'
+        && result.meta.suggestSwapXY !== !!opts.swapXY) {
+      const retry = this._viewer.loadAlignment(xmlText, { ...opts, swapXY: result.meta.suggestSwapXY });
+      const settled2 = this._settleAlignmentsToModelFrame(retry.ids);
+      if (settled2.anyNear) {
+        for (const id of result.ids || []) this._viewer.removeAlignment(id);
+        retry.warnings = [...(retry.warnings || []),
+          `Souřadnice X/Y čteny ${retry.meta.suggestSwapXY ? 's prohozením' : 'bez prohození'} — automaticky podle polohy modelu.`];
+        retry.meta.autoSwappedXY = true;
+        console.log('[ifc-engine] LandXML: automaticky použito opačné čtení X/Y (osy jinak neležely u modelu)');
+        return retry;
+      }
+      for (const id of retry.ids || []) this._viewer.removeAlignment(id);
+    }
+    return result;
+  }
+
+  /**
+   * LandXML bývá v mapových souřadnicích (S-JTSK), model může mít geometrii
+   * lokálně + MapConversion — osy posune inverzí konverze do framu modelu
+   * (rozhoduje mapToLocalShift). Vrací { anyNear } — zda aspoň jedna osa
+   * skončila v dosahu některého modelu.
+   */
+  _settleAlignmentsToModelFrame(ids) {
+    let anyNear = false;
+    for (const aid of ids || []) {
+      const entry = this._viewer._alignments.get(aid);
+      const pts = entry?.sampled?.points;
+      if (!pts || pts.length === 0) continue;
+      // KOPIE, ne reference — shiftAlignment mutuje sampled.points in-place
+      // a přičtení posunu k živé referenci by ho započítalo dvakrát.
+      const mid = pts[Math.floor(pts.length / 2)];
+      let axisCenter = [mid[0], mid[1], mid[2]];
+      for (const modelId of this._models.keys()) {
+        const c = this.getCoords(modelId);
+        if (!c?.bboxCenter) continue;
+        const shift = mapToLocalShift(axisCenter, c.bboxCenter, c.mapConversion);
+        if (shift) {
+          this._viewer.shiftAlignment(aid, shift);
+          axisCenter = [axisCenter[0] + shift[0], axisCenter[1] + shift[1], axisCenter[2] + shift[2]];
+          console.log(`[ifc-engine] osa ${aid} posunuta do lokálního framu modelu ${modelId} (inverze MapConversion)`);
+        }
+        const d = Math.hypot(axisCenter[0] - c.bboxCenter[0], axisCenter[1] - c.bboxCenter[1]);
+        if (d <= MAP_SHIFT_MAX_RESIDUAL_M) { anyNear = true; break; }
+      }
+    }
+    return { anyNear };
   }
   getAlignments() {
     return this._viewer ? this._viewer.getAlignments() : [];
