@@ -88,6 +88,51 @@ describe('ifc-alignment-geometric — osa z geometrické vrstvy', () => {
         expect(Math.abs(last[2] - 14) < 0.01).toBe(true);
         expect(Math.abs(a.staStart - 633.6605) < 1e-6).toBe(true);
     });
+    // Business-only soubor (bez Representation): 8-atributové IfcAlignmentSegment
+    // (DesignParameters POSLEDNÍ, žádný PredefinedType) + business niveleta.
+    const BUSINESS_FIXTURE = `
+#1=IFCCARTESIANPOINT((10.,20.));
+#27=IFCALIGNMENTHORIZONTALSEGMENT($,$,#1,0.,0.,0.,150.,$,.LINE.);
+#28=IFCALIGNMENTSEGMENT('3YvcpaVtcGClbe0DaJxd62',$,'Segment 1',$,$,$,$,#27);
+#98=IFCALIGNMENTHORIZONTAL('34J09cRzxXuCqXhasTu_CA',$,'Horizontal',$,$,$,$);
+#99=IFCRELNESTS('13IHU_CaLQjnx8VnojY1_I',$,$,$,#98,(#28));
+#100=IFCALIGNMENTVERTICALSEGMENT($,$,0.,100.,50.,0.02,0.02,$,.CONSTANTGRADIENT.);
+#101=IFCALIGNMENTSEGMENT('1BSoTLfMG3hJDX_j$dLXWi',$,'V1',$,$,$,$,#100);
+#102=IFCALIGNMENTVERTICALSEGMENT($,$,100.,50.,52.,0.02,-0.02,$,.PARABOLICARC.);
+#103=IFCALIGNMENTSEGMENT('0TqjSeSxl8WWp0DlQ_Vyx9',$,'V2',$,$,$,$,#102);
+#144=IFCALIGNMENTVERTICAL('2NEbpnlbtsp0bjwvnPDtIf',$,'Vertical',$,$,$,$);
+#145=IFCRELNESTS('3jxyruuZj67Svd9jwMEg18',$,$,$,#144,(#101,#103));
+#524=IFCALIGNMENT('0W92lwwpyrDvTaewXDE7ns',$,'BusinessOsa',$,$,$,$,.NOTDEFINED.);
+#525=IFCRELNESTS('0hXRpY0LaBu3x6EHuUMex4',$,$,$,#524,(#98,#144));
+`;
+    it('business fallback: 8-atributový IfcAlignmentSegment (DesignParameters poslední)', async () => {
+        await mods();
+        const a = parseIfcAlignment(idx(BUSINESS_FIXTURE), 524);
+        expect(a.elements.length).toBe(1);
+        expect(a.elements[0].type).toBe('line');
+        expect(Math.abs(a.elements[0].length - 150) < 1e-9).toBe(true);
+    });
+    it('business niveleta: CONSTANTGRADIENT + PARABOLICARC', async () => {
+        await mods();
+        const a = parseIfcAlignment(idx(BUSINESS_FIXTURE), 524);
+        expect(!!a.verticalProfile).toBe(true);
+        const s = sampleAlignment(a);
+        // z(0)=50, z(50)=51, z(100)=52; parabola: z(125)=52+0.02·25+((−0.02−0.02)/(2·50))·625=52.25
+        function zAt(sta) {
+            let best = null, bd = Infinity;
+            for (let i = 0; i < s.stations.length; i++) {
+                const d = Math.abs(s.stations[i] - sta);
+                if (d < bd) { bd = d; best = s.points[i][2]; }
+            }
+            return best;
+        }
+        expect(Math.abs(zAt(0) - 50) < 0.01).toBe(true);
+        expect(Math.abs(zAt(50) - 51) < 0.01).toBe(true);
+        expect(Math.abs(zAt(100) - 52) < 0.01).toBe(true);
+        expect(Math.abs(zAt(125) - 52.25) < 0.01).toBe(true);
+        // konec paraboly: z(150) = 52 + 0.02·50 + ((−0.02−0.02)/(2·50))·50² = 52 + 1 − 1 = 52.0
+        expect(Math.abs(zAt(150) - 52.0) < 0.01).toBe(true);
+    });
     it('_useRawDir: IFC spirála bez bearing konverze', async () => {
         await mods();
         const spiral = {

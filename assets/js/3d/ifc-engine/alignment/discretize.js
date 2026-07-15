@@ -35,9 +35,10 @@ export function sampleAlignment(alignment, opts = {}) {
   // zůstává původní chování: 2 body na přímku.
   const subdivideLines = !!alignment.verticalProfile;
 
+  let prevHeading = null; // tečný azimut konce předchozího elementu (spojitost)
   for (let ei = 0; ei < alignment.elements.length; ei++) {
     const el = alignment.elements[ei];
-    const samples = sampleElement(el, tol, subdivideLines);
+    const samples = sampleElement(el, tol, subdivideLines, prevHeading);
     // Skip the first sample of every element after the first (avoids duplicates
     // at element boundaries).
     const startIdx = ei === 0 ? 0 : 1;
@@ -46,6 +47,10 @@ export function sampleAlignment(alignment, opts = {}) {
       stations.push(samples[i].station);
       tangents.push(samples[i].tangent);
       elementIndex.push(ei);
+    }
+    if (samples.length) {
+      const t = samples[samples.length - 1].tangent;
+      prevHeading = Math.atan2(t[1], t[0]);
     }
   }
 
@@ -61,10 +66,10 @@ export function sampleAlignment(alignment, opts = {}) {
   return { points, stations, tangents, elementIndex };
 }
 
-function sampleElement(el, tol, subdivideLines) {
+function sampleElement(el, tol, subdivideLines, prevHeading) {
   if (el.type === 'line') return sampleLine(el, subdivideLines);
   if (el.type === 'curve') return sampleCurve(el, tol);
-  if (el.type === 'spiral') return sampleSpiral(el, tol);
+  if (el.type === 'spiral') return sampleSpiral(el, tol, prevHeading);
   return [];
 }
 
@@ -76,10 +81,12 @@ function sampleLine(el, subdivideLines) {
   const t = [dx / len, dy / len, dz / len];
   const sz = el.start[2] || 0;
   // Bez nivelety stačí krajní body (2 vzorky) — chování se nemění.
-  // S niveletou přímku vzorkujeme na MIN_SAMPLES_PER_ELEMENT dílků, aby ji
-  // šlo výškově „poskládat" podle vertikálního profilu (aplikuje se po vzorku
-  // dle staničení). Body na rovné přímce zůstávají kolineární, jen je jich víc.
-  const steps = subdivideLines ? MIN_SAMPLES_PER_ELEMENT : 1;
+  // S niveletou přímku vzorkujeme po ≤5 m, aby výškové oblouky nivelety
+  // (aplikují se po vzorku dle staničení) nebyly fasetované — 8 dílků na
+  // 851m přímce znamenalo 106m tětivy přes parabolické zaoblení.
+  const steps = subdivideLines
+    ? Math.max(MIN_SAMPLES_PER_ELEMENT, Math.min(MAX_SAMPLES_PER_ELEMENT, Math.ceil(len / 5)))
+    : 1;
   const out = [];
   for (let i = 0; i <= steps; i++) {
     const u = i / steps;
@@ -145,27 +152,44 @@ function sampleCurve(el, tol) {
  * Then place into world coords using the element's start point + initial
  * heading derived from the local frame.
  */
-function sampleSpiral(el, tol) {
+function sampleSpiral(el, tol, prevHeading = null) {
   const L = el.length;
   if (L <= 0) return [];
   const k0 = el.radiusStart === Infinity ? 0 : (1 / el.radiusStart);
   const k1 = el.radiusEnd === Infinity ? 0 : (1 / el.radiusEnd);
   const sign = el.rotation === 'cw' ? -1 : 1;
 
-  // Determine starting heading. dirStart is given as bearing in some files;
-  // fallback: use start→PI direction or start→end direction.
+  // Počáteční azimut — GEOMETRIE MÁ PŘEDNOST PŘED ATRIBUTY (dir konvence se
+  // mezi exportéry liší: LandXML spec = bearing od severu CW, ale např. ProVI
+  // píše úhel, kde skutečný azimut = π/2 + dir — klasické S-JTSK osy).
+  // PI je průsečík tečen ⇒ Start→PI je přesná tečna začátku, bez konvencí.
   let theta0;
   if (el._useRawDir && el.dirStart !== null && el.dirStart !== undefined) {
     // IFC: StartDirection už je v radiánech od +X CCW — žádná konverze.
     theta0 = el.dirStart;
+  } else if (el.pi) {
+    theta0 = Math.atan2(el.pi[1] - el.start[1], el.pi[0] - el.start[0]);
   } else if (el.dirStart !== null && el.dirStart !== undefined) {
     // LandXML dirStart: angle in radians from +Y (north), clockwise (per spec)
     // Convert to math convention (from +X, counter-clockwise)
     theta0 = Math.PI / 2 - el.dirStart;
-  } else if (el.pi) {
-    theta0 = Math.atan2(el.pi[1] - el.start[1], el.pi[0] - el.start[0]);
+  } else if (prevHeading !== null && prevHeading !== undefined) {
+    theta0 = prevHeading;
   } else {
     theta0 = Math.atan2(el.end[1] - el.start[1], el.end[0] - el.start[0]);
+  }
+
+  // Pojistka tečné spojitosti: osy jsou tečně spojité z definice — když se
+  // odvozený azimut liší od konce předchozího elementu o >25°, jde o chybnou
+  // dir konvenci exportéru → věř spojitosti. (Neplatí pro IFC _useRawDir.)
+  if (!el._useRawDir && prevHeading !== null && prevHeading !== undefined) {
+    let dd = theta0 - prevHeading;
+    while (dd > Math.PI) dd -= 2 * Math.PI;
+    while (dd < -Math.PI) dd += 2 * Math.PI;
+    if (Math.abs(dd) > (25 * Math.PI / 180)) {
+      console.warn(`[discretize] spirála na staničení ${el.startStation?.toFixed?.(1)}: azimut z atributů (${(theta0 * 180 / Math.PI).toFixed(1)}°) odporuje tečné spojitosti (${(prevHeading * 180 / Math.PI).toFixed(1)}°) — použita spojitost`);
+      theta0 = prevHeading;
+    }
   }
 
   // Sample density: clothoid heading change is sigma·s²/2; pick steps small

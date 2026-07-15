@@ -248,6 +248,55 @@ describe('ifc-curve-evaluator — gradient curve (niveleta)', () => {
         const mid = s.points[Math.floor(s.points.length / 2)];
         expect(mid[2] > 10).toBe(true);
     });
+    // Vertikální KRUHOVÉ zaoblení (IfcCircle parent — německá praxe „Ausrundung",
+    // exportují OpenRoads/KorFin/ProVI): sag oblouk R=1000 mezi sklony −2 % a +2 %.
+    // Tečný bod BVC v (0, 10): střed kruhu kolmo na sklon −2 % → úhel tečny
+    // atan(−0.02); parametrický úhel BVC na kružnici θ₀ = atan(−0.02) − π/2… test
+    // stačí přes hodnoty: z(0)=10, minimum v x=20 (kde sklon 0): z = 10 − 0.02·20 + Δ,
+    // pro kružnici z_min ≈ 10 + R·(cos θ… — použijeme přesná čísla níže.
+    it('vertikální IfcCircle (kruhové zaoblení nivelety)', async () => {
+        await mods();
+        const R = 1000;
+        const g = 0.02;
+        // lokální kružnice: Position identita; BVC na kružnici zvolíme v úhlu
+        // θ₀ = −π/2 + atan(−g) (bod, kde tečna má sklon −g, spodní polovina);
+        // placement: Location = (0, 10), RefDirection = (1, −0.02) normalizovaný.
+        const th0 = -Math.PI / 2 + Math.atan(-g);
+        // SegmentStart jako PARAMETERVALUE (úhel), délka po oblouku mezi sklony ±g:
+        // Δθ = atan(g) − atan(−g); LENGTHMEASURE délka = R·Δθ
+        const arcLen = R * (Math.atan(g) - Math.atan(-g));
+        const stepText = `
+#1=IFCCARTESIANPOINT((0.,0.));
+#2=IFCDIRECTION((1.,0.));
+#3=IFCAXIS2PLACEMENT2D(#1,#2);
+#5=IFCVECTOR(#2,1.);
+#4=IFCLINE(#1,#5);
+#6=IFCCURVESEGMENT(.CONTINUOUS.,#3,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(100.),#4);
+#7=IFCCOMPOSITECURVE((#6),.F.);
+#10=IFCCARTESIANPOINT((0.,10.));
+#11=IFCDIRECTION((0.9998000599800071,-0.019996001199600138));
+#12=IFCAXIS2PLACEMENT2D(#10,#11);
+#13=IFCCIRCLE(#3,${R});
+#15=IFCCURVESEGMENT(.CONTSAMEGRADIENT.,#12,IFCPARAMETERVALUE(${th0}),IFCLENGTHMEASURE(${arcLen}),#13);
+#30=IFCGRADIENTCURVE((#15),.F.,#7,$);
+`;
+        const ce = evaluateCurve(idx(stepText), 30);
+        expect(ce.is3D).toBe(true);
+        // z(0) = 10 (BVC)
+        expect(Math.abs(ce.evalAt(0).point[2] - 10) < 1e-6).toBe(true);
+        // minimum sag oblouku: vodorovná vzdálenost od BVC po bod se sklonem 0
+        // je R·sin(atan(g)) ≈ 19.996; z_min = 10 + R·(cos(atan(g)) − 1)·(−1)…
+        // přesně: střed C = BVC + R·normála; z_min = C_z − R
+        const nx = g / Math.sqrt(1 + g * g), ny = 1 / Math.sqrt(1 + g * g); // normála ke sklonu −g (nahoru)
+        const cz = 10 + R * ny;
+        const cx = 0 + R * nx;
+        const zmin = cz - R;
+        const r = ce.evalAt(cx);
+        expect(Math.abs(r.point[2] - zmin) < 1e-4).toBe(true);
+        // za obloukem drž konec (sklon +2 % dál nepokračuje — hold)
+        const zEnd = ce.evalAt(2 * cx);
+        expect(zEnd.point[2] > zmin).toBe(true);
+    });
     // Styl reálného exportéru: parent IfcLine je HORIZONTÁLNÍ šablona (dir (1,0)),
     // sklon nese výhradně RefDirection placementu (kotvení!). Délka segmentu je
     // 3D délka po sklonu (200·√(1+0.02²)), vodorovný rozsah je 200 m.
