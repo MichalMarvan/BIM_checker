@@ -999,14 +999,20 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
 
 .tools-grid-modern {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: var(--spacing-2xl);
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-lg);
+}
+
+@media (max-width: 1100px) {
+    .tools-grid-modern {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .tool-card-modern {
     background: var(--bg-primary);
     border-radius: var(--radius-2xl);
-    padding: var(--spacing-xl);
+    padding: var(--spacing-lg);
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border-primary);
     transition: all var(--transition-slow);
@@ -1044,13 +1050,13 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
 }
 
 .tool-card-icon {
-    width: 3.5rem;
-    height: 3.5rem;
-    border-radius: var(--radius-xl);
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1058,8 +1064,8 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
 }
 
 .tool-card-icon svg {
-    width: 2rem;
-    height: 2rem;
+    width: 1.5rem;
+    height: 1.5rem;
 }
 
 .viewer-icon {
@@ -1094,42 +1100,23 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
 }
 
 .tool-card-title {
-    font-size: 1.5rem;
+    font-size: 1.125rem;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
 }
 
 .tool-card-description {
     color: var(--text-secondary);
-    line-height: 1.7;
-    margin-bottom: var(--spacing-lg);
-}
-
-.tool-card-features {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    margin-bottom: var(--spacing-md);
+    /* tlačí patičku k dolní hraně, aby byly patičky karet v lince */
     flex: 1;
 }
 
-.feature-tag {
-    padding: var(--spacing-xs) var(--spacing-md);
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-md);
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-    transition: all var(--transition-base);
-}
-
-.tool-card-modern:hover .feature-tag {
-    background: var(--bg-secondary);
-}
-
 .tool-card-footer {
-    padding-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
     border-top: 1px solid var(--border-primary);
 }
 
@@ -1479,9 +1466,13 @@ html[data-lang="cs"] .file-tree-modern:empty::before {
     }
 
     .storage-grid,
-    .tools-grid-modern,
     .about-grid {
         grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* Nástroje drží 2×2 na tabletu (viz @media 1100px); 1 sloupec až od 768px */
+    .tools-grid-modern {
         gap: 12px;
     }
 
