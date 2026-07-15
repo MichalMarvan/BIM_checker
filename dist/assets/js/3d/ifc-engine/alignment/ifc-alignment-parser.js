@@ -233,10 +233,12 @@ export function parseIfcAlignment(entityIndex, alignmentExpressId) {
     for (const segId of segChildren) {
       const seg = entityIndex.byExpressId(segId);
       if (!seg || seg.type !== 'IFCALIGNMENTSEGMENT') continue;
-      // IfcAlignmentSegment params: GlobalId, OwnerHistory, Name, Description,
-      // ObjectType, ObjectPlacement, Representation, PredefinedType, DesignParameters
+      // IfcAlignmentSegment (IFC 4.3): GlobalId, OwnerHistory, Name, Description,
+      // ObjectType, ObjectPlacement, Representation, DesignParameters — tj.
+      // 8 atributů, DesignParameters POSLEDNÍ (žádný PredefinedType!). Čteme
+      // poslední pole, aby prošly i starší exporty s aritou 9.
       const parts = splitParams(seg.params);
-      const designParamsId = parseRef(parts[8]);
+      const designParamsId = parseRef(parts[parts.length - 1]);
       if (!designParamsId) continue;
       const el = parseHorizontalSegment(entityIndex, designParamsId, cumStation);
       if (el) {
@@ -246,10 +248,20 @@ export function parseIfcAlignment(entityIndex, alignmentExpressId) {
     }
   }
 
+  // Business niveleta (IfcAlignmentVertical) — pro soubory bez geometrické
+  // reprezentace. Vrací funkci zAt(station) přes hook v elevationAt.
+  let verticalId = null;
+  for (const childId of directChildren) {
+    const child = entityIndex.byExpressId(childId);
+    if (child?.type === 'IFCALIGNMENTVERTICAL') { verticalId = childId; break; }
+  }
+  const businessVertical = verticalId ? buildBusinessVertical(entityIndex, nests.get(verticalId) || []) : null;
+
   // Geometrická vrstva (IFC 4.3): Representation → 'Axis'/IfcGradientCurve
   // (fallback 'FootPrint'/IfcCompositeCurve) — preferovaná pro vykreslení,
-  // nese i niveletu. Zkouší se i bez business horizontály.
-  const geo = evaluateGeometricAxis(entityIndex, align, nests, alignmentExpressId);
+  // nese i niveletu. Zkouší se i bez business horizontály. Když je geometrie
+  // jen 2D (FootPrint bez gradient curve), výšky dodá business niveleta.
+  const geo = evaluateGeometricAxis(entityIndex, align, nests, alignmentExpressId, businessVertical);
   if (geo) {
     return {
       name,
@@ -257,7 +269,9 @@ export function parseIfcAlignment(entityIndex, alignmentExpressId) {
       staStart: geo.staStart,
       elements,
       presampled: geo.presampled,
-      verticalProfile: geo.is3D ? { source: 'ifc-gradient-curve', entries: [] } : null,
+      verticalProfile: (geo.is3D || geo.usedBusinessVertical)
+        ? { source: geo.is3D ? 'ifc-gradient-curve' : 'ifc-business', entries: [] }
+        : null,
     };
   }
 
@@ -266,6 +280,67 @@ export function parseIfcAlignment(entityIndex, alignmentExpressId) {
     length: cumStation,
     staStart: 0,
     elements,
+    verticalProfile: businessVertical ? { source: 'ifc-business', entries: [], zAt: businessVertical } : null,
+  };
+}
+
+/**
+ * Business niveleta: IfcAlignmentVerticalSegment (StartTag, EndTag,
+ * StartDistAlong, HorizontalLength, StartHeight, StartGradient, EndGradient,
+ * RadiusOfCurvature, PredefinedType) → funkce zAt(station).
+ * CONSTANTGRADIENT/PARABOLICARC přesně, CIRCULARARC přesnou kružnicí,
+ * CLOTHOID aproximován parabolou (warn).
+ */
+function buildBusinessVertical(entityIndex, segIds) {
+  const entries = [];
+  for (const segId of segIds) {
+    const seg = entityIndex.byExpressId(segId);
+    if (!seg || seg.type !== 'IFCALIGNMENTSEGMENT') continue;
+    const dp = entityIndex.byExpressId(parseRef(splitParams(seg.params).slice(-1)[0]));
+    if (!dp || dp.type !== 'IFCALIGNMENTVERTICALSEGMENT') continue;
+    const p = splitParams(dp.params);
+    const d0 = parseWrappedNum(p[2])?.value;
+    const hLen = parseWrappedNum(p[3])?.value;
+    const h0 = parseWrappedNum(p[4])?.value;
+    const g0 = parseWrappedNum(p[5])?.value;
+    const g1 = parseWrappedNum(p[6])?.value;
+    const R = parseWrappedNum(p[7])?.value;
+    const type = (p[8] || '').replace(/\./g, '');
+    if (![d0, hLen, h0, g0].every(Number.isFinite) || hLen <= 0) continue;
+    let zAt;
+    if (type === 'PARABOLICARC' || type === 'CLOTHOID') {
+      if (type === 'CLOTHOID') console.warn('[ifc-alignment] vertikální CLOTHOID aproximován parabolou');
+      const c2 = Number.isFinite(g1) ? (g1 - g0) / (2 * hLen) : 0;
+      zAt = d => h0 + g0 * (d - d0) + c2 * (d - d0) * (d - d0);
+    } else if (type === 'CIRCULARARC') {
+      // kružnice tečná na sklon g0 v (d0, h0); strana dle znaménka R,
+      // fallback dle Δg. z = Cy − s·√(R² − (x−Cx)²)
+      const s = Number.isFinite(R) && R !== 0 ? Math.sign(R)
+        : Math.sign((Number.isFinite(g1) ? g1 : g0) - g0) || 1;
+      const rAbs = Number.isFinite(R) && R !== 0 ? Math.abs(R) : 1e9;
+      const th = Math.atan(g0);
+      const cx = d0 - s * rAbs * Math.sin(th);
+      const cy = h0 + s * rAbs * Math.cos(th);
+      zAt = d => {
+        const dx = d - cx;
+        const disc = rAbs * rAbs - dx * dx;
+        if (disc <= 0) return h0 + g0 * (d - d0);
+        return cy - s * Math.sqrt(disc);
+      };
+    } else {
+      // CONSTANTGRADIENT (i default)
+      zAt = d => h0 + g0 * (d - d0);
+    }
+    entries.push({ from: d0, to: d0 + hLen, zAt });
+  }
+  entries.sort((a, b) => a.from - b.from);
+  if (entries.length === 0) return null;
+  return d => {
+    if (d <= entries[0].from) return entries[0].zAt(entries[0].from);
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (d >= entries[i].from) return entries[i].zAt(Math.min(d, entries[i].to));
+    }
+    return entries[0].zAt(entries[0].from);
   };
 }
 
@@ -339,7 +414,7 @@ function findStationOffset(entityIndex, nests, alignmentExpressId) {
   return stations.length > 0 ? stations[0] : 0;
 }
 
-function evaluateGeometricAxis(entityIndex, alignEntity, nests, alignmentExpressId) {
+function evaluateGeometricAxis(entityIndex, alignEntity, nests, alignmentExpressId, businessVertical = null) {
   const curveId = findAxisCurveId(entityIndex, alignEntity);
   if (!curveId) return null;
   const ce = getCurveEval(entityIndex, curveId);
@@ -347,9 +422,17 @@ function evaluateGeometricAxis(entityIndex, alignEntity, nests, alignmentExpress
   const scale = entityIndex._lengthScale || 1;
   const staStart = findStationOffset(entityIndex, nests, alignmentExpressId);
   const presampled = ce.sample(1.0);
+  // 2D půdorys (FootPrint bez gradient curve) + business niveleta → výšky
+  // z business vrstvy (staničení = raw distAlong před scale/staStart posunem).
+  const usedBusinessVertical = !ce.is3D && !!businessVertical;
+  if (usedBusinessVertical) {
+    for (let i = 0; i < presampled.points.length; i++) {
+      presampled.points[i][2] = businessVertical(presampled.stations[i]);
+    }
+  }
   for (const p of presampled.points) { p[0] *= scale; p[1] *= scale; p[2] *= scale; }
   for (let i = 0; i < presampled.stations.length; i++) {
     presampled.stations[i] = presampled.stations[i] * scale + staStart;
   }
-  return { presampled, length: ce.length * scale, staStart, is3D: ce.is3D };
+  return { presampled, length: ce.length * scale, staStart, is3D: ce.is3D, usedBusinessVertical };
 }

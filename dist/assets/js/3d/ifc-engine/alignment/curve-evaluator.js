@@ -289,6 +289,36 @@ function buildVerticalEval(entityIndex, segIds) {
       // parent šablona přispívá jen tvarem (přímka) — sklon z placementu.
       const g = Math.tan(placement.angle);
       zAt = d => placement.loc[1] + g * (d - placement.loc[0]);
+    } else if (parent.type === 'IFCCIRCLE') {
+      // Kruhové zaoblení nivelety („Ausrundung" — OpenRoads/ProVI/KorFin).
+      // Kotvení jako u paraboly: rotace = placement.angle − lokální tečna v t0,
+      // z(d) Newtonem přes x_world(θ) = d.
+      const posP = readPlacement2D(entityIndex, parseRef(pp[0]));
+      const R = parseFloat(pp[1]);
+      if (Number.isFinite(R) && R > 0) {
+        const cosP = Math.cos(posP.angle), sinP = Math.sin(posP.angle);
+        const px = th => posP.loc[0] + (R * Math.cos(th)) * cosP - (R * Math.sin(th)) * sinP;
+        const py = th => posP.loc[1] + (R * Math.cos(th)) * sinP + (R * Math.sin(th)) * cosP;
+        const t0 = (startW.type === 'IFCPARAMETERVALUE') ? startW.value : startW.value / R;
+        const spanRaw = (lenW.type === 'IFCPARAMETERVALUE') ? lenW.value : lenW.value / R;
+        const rev = spanRaw < 0 ? Math.PI : 0;
+        const x0 = px(t0), y0 = py(t0);
+        const rot = placement.angle - (posP.angle + t0 + Math.PI / 2 + rev);
+        const cr = Math.cos(rot), sr = Math.sin(rot);
+        const dir = Math.sign(spanRaw || 1);
+        zAt = d => {
+          let th = t0 + dir * (d - placement.loc[0]) / R;
+          for (let i = 0; i < 4; i++) {
+            const xw = placement.loc[0] + (px(th) - x0) * cr - (py(th) - y0) * sr;
+            const dpx = -R * Math.sin(th) * cosP - R * Math.cos(th) * sinP;
+            const dpy = -R * Math.sin(th) * sinP + R * Math.cos(th) * cosP;
+            const dxdth = dpx * cr - dpy * sr;
+            if (Math.abs(dxdth) < 1e-12) break;
+            th += (d - xw) / dxdth;
+          }
+          return placement.loc[1] + (px(th) - x0) * sr + (py(th) - y0) * cr;
+        };
+      }
     } else if (parent.type === 'IFCPOLYNOMIALCURVE') {
       // Parabola: lokálně x(t)=Σcx·tⁱ (typicky t), y(t)=Σcy·tⁱ. Ukotvení
       // rotací rot = placement.angle − sklon lokální tečny v t0; z(d) řešíme
@@ -317,6 +347,8 @@ function buildVerticalEval(entityIndex, segIds) {
     if (zAt) {
       const hLen = Math.abs(lenW.value) * Math.abs(Math.cos(placement.angle));
       entries.push({ from: placement.loc[0], to: placement.loc[0] + hLen, zAt });
+    } else {
+      console.warn(`[curve-evaluator] nepodporovaný parent vertikálního segmentu: ${parent.type} — segment přeskočen (niveleta může být v tomto úseku nepřesná)`);
     }
   }
   entries.sort((a, b) => a.from - b.from);

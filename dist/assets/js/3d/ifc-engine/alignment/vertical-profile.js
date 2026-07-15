@@ -83,7 +83,10 @@ export function buildVerticalProfile(profAlignEl, unitScale = 1) {
  * @returns {number}
  */
 export function elevationAt(profile, station) {
-  if (!profile || !profile.entries || profile.entries.length === 0) return 0;
+  if (!profile) return 0;
+  // Přímá výšková funkce (IFC business niveleta) — obchází PVI entries.
+  if (typeof profile.zAt === 'function') return profile.zAt(station);
+  if (!profile.entries || profile.entries.length === 0) return 0;
   const e = profile.entries;
 
   // Mimo rozsah → krajní výška (bez extrapolace tangentou).
