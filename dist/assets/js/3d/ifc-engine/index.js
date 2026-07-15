@@ -1433,6 +1433,15 @@ export class IfcEngine {
     if (m) m.elevationOffset = dz;
   }
 
+  /**
+   * Federation anchor z viewer-page bake — osy a staniční nástroje ho musí
+   * znát, jinak leží na surových IFC souřadnicích mimo bake-nuté modely.
+   * @param {[number,number,number]|null} anchor
+   */
+  setFederationAnchor(anchor) {
+    if (this._viewer) this._viewer.setFederationAnchor(anchor);
+  }
+
   getElevationOffset(modelId) {
     const m = this._models.get(modelId);
     return (m && Number.isFinite(m.elevationOffset)) ? m.elevationOffset : 0;

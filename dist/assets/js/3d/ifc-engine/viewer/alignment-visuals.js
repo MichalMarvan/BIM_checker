@@ -29,6 +29,11 @@ export class AlignmentVisuals {
     const group = new THREE.Group();
     // Match IFC group rotation so alignment shares world space with model
     group.rotation.x = -Math.PI / 2;
+    // Federation bake posouvá geometrii modelů o −anchor do scene-local framu
+    // (viewer-page.js) — osa musí dostat stejný posun, jinak leží na surových
+    // IFC souřadnicích stovky metrů od modelu.
+    const a = this._viewer._federationAnchor;
+    if (a) group.position.set(-a[0], -a[1], -a[2]);
     group.userData = { alignmentId };
 
     // Polyline
@@ -81,6 +86,16 @@ export class AlignmentVisuals {
 
     this._viewer._scene.add(group);
     this._byId.set(alignmentId, { group, sampled, line, ticks, activeMarker: active });
+  }
+
+  /** Přepolohuje všechny osy podle aktuální kotvy (po jejím nastavení/zrušení). */
+  applyAnchor() {
+    const a = this._viewer._federationAnchor;
+    for (const { group } of this._byId.values()) {
+      if (a) group.position.set(-a[0], -a[1], -a[2]);
+      else group.position.set(0, 0, 0);
+      group.updateMatrixWorld(true);
+    }
   }
 
   setActiveStation(alignmentId, station) {

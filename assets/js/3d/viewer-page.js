@@ -335,6 +335,10 @@ async function loadIfcFromStorage(fileMeta) {
                     console.log('[3d-viewer] model world bbox center (robust):', cx, cy, cz, 'extent:', box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z);
                     if (!state.federationAnchor) {
                         state.federationAnchor = [cx, cy, cz];
+                        // Osy (alignment) + staniční řezy potřebují tentýž posun jako bake
+                        if (typeof engine.setFederationAnchor === 'function') {
+                            engine.setFederationAnchor(state.federationAnchor);
+                        }
                         console.log('[3d-viewer] federation anchor set:', state.federationAnchor);
                     }
                     const [ax, ay, az] = state.federationAnchor;
@@ -498,6 +502,9 @@ function removeModel(modelId) {
     // model starts a fresh federation at its own origin.
     if (state.loadedModels.size === 0) {
         state.federationAnchor = null;
+        if (typeof eng?.setFederationAnchor === 'function') {
+            eng.setFederationAnchor(null);
+        }
         setStatus(t('viewer3d.empty') || 'Žádný model');
     }
     renderLoadedList();

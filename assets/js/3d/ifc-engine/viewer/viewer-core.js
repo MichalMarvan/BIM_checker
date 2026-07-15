@@ -3325,6 +3325,22 @@ export class ViewerCore {
   }
 
   /**
+   * Federation anchor (viewer-page bake): modely jsou po bake v scene-local
+   * framu (world = Rot(-π/2)·ifc − anchor). Osy a staniční nástroje musí
+   * aplikovat tentýž posun, jinak leží na surových IFC souřadnicích mimo model.
+   * @param {[number,number,number]|null} anchor — world souřadnice kotvy, null = bez posunu
+   */
+  setFederationAnchor(anchor) {
+    this._federationAnchor = (Array.isArray(anchor) && anchor.length === 3) ? [...anchor] : null;
+    if (this._alignmentVisuals) this._alignmentVisuals.applyAnchor();
+  }
+
+  /** [ax, ay, az] kotvy nebo nuly. */
+  _anchorOrZero() {
+    return this._federationAnchor || [0, 0, 0];
+  }
+
+  /**
    * Load LandXML text → { ids, warnings, meta }.
    * `ids` je pole id os (jedno na každý <Alignment>); `warnings` a `meta`
    * pochází z parseru (Task 2).
@@ -3452,10 +3468,11 @@ export class ViewerCore {
   createFreeCurveFromPoints(worldPoints, opts = {}) {
     if (!Array.isArray(worldPoints) || worldPoints.length < 2) return null;
 
-    // World (Three.js Y-up) → alignment frame (IFC Z-up): (x, y, z) → (x, -z, y)
-    // After alignment-visuals applies group rotation -π/2 around X:
-    //   (x, -z, y) → (x, y, z) — back to world. Stations preserved (rotation rigid).
-    const alignFrame = worldPoints.map(p => [p[0], -p[2], p[1]]);
+    // World (Three.js Y-up) → alignment frame (IFC Z-up): p_align = R⁻¹·(p + anchor)
+    // → (x, y, z) → (x+ax, -(z+az), y+ay). Alignment-visuals pak aplikuje
+    // rotaci -π/2 + posun o -anchor → zpět na world. Stations zachované.
+    const [ax, ay, az] = this._anchorOrZero();
+    const alignFrame = worldPoints.map(p => [p[0] + ax, -(p[2] + az), p[1] + ay]);
 
     const interpolation = opts.interpolation || 'linear';
     let positions;
@@ -3541,11 +3558,12 @@ export class ViewerCore {
     if (!sp) return null;
 
     // Alignment frame (X=East, Y=North, Z=Elev) → world frame after the
-    // -π/2 X rotation applied by alignment-visuals (matches IFC model group):
-    //   alignment (x, y, z) → world (x, z, -y)
+    // -π/2 X rotation applied by alignment-visuals (matches IFC model group)
+    // + federation anchor (bake): alignment (x, y, z) → world (x, z, -y) − anchor
+    const [ax, ay, az] = this._anchorOrZero();
     const [px, py, pz] = sp.point;
     const [tx, ty, tz] = sp.tangent;
-    const worldPoint = [px, pz, -py];
+    const worldPoint = [px - ax, pz - ay, -py - az];
     const worldTangent = [tx, tz, -ty];
 
     let normal;
@@ -3590,13 +3608,14 @@ export class ViewerCore {
     const a = this._alignments.get(alignmentId);
     if (!a) return null;
     const items = [];
+    const [ax, ay, az] = this._anchorOrZero();
     for (const station of stations || []) {
       const sp = pointAtStation(a.sampled, station);
       if (!sp) continue;
-      // alignment (x, y, z) → world (x, z, -y) — shodně s createSectionAtStation
+      // alignment (x, y, z) → world (x, z, -y) − anchor — shodně s createSectionAtStation
       const [px, py, pz] = sp.point;
       const [tx, ty, tz] = sp.tangent;
-      const worldPoint = [px, pz, -py];
+      const worldPoint = [px - ax, pz - ay, -py - az];
       const worldTangent = [tx, tz, -ty];
       // 'plan' normála: půdorysná projekce tečny (zahození world Y)
       const [ta, _tb, tc] = worldTangent;
