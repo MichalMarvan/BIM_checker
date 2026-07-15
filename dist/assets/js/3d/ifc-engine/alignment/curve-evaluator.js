@@ -319,6 +319,32 @@ function buildVerticalEval(entityIndex, segIds) {
           return placement.loc[1] + (px(th) - x0) * sr + (py(th) - y0) * cr;
         };
       }
+    } else if (parent.type === 'IFCCLOTHOID') {
+      // Vertikální přechodnice (železniční vyhlazení, bSI Rail testset).
+      // Reuse horizontálního evaluátoru: parametr = oblouková délka,
+      // kotvení rotací, z(d) Newtonem přes x_world(t) = d.
+      const le = localEvaluator(entityIndex, parseRef(parts[4]));
+      if (le) {
+        const t0 = le.toParam(startW);
+        const spanT = le.toParam(lenW);
+        const dirSign = spanT < 0 ? -1 : 1;
+        const rev = spanT < 0 ? Math.PI : 0;
+        const p0 = le.pointAt(t0);
+        const rot = placement.angle - (le.dirAt(t0) + rev);
+        const cr = Math.cos(rot), sr = Math.sin(rot);
+        zAt = d => {
+          let t = t0 + dirSign * (d - placement.loc[0]);
+          for (let i = 0; i < 4; i++) {
+            const p = le.pointAt(t);
+            const xw = placement.loc[0] + (p[0] - p0[0]) * cr - (p[1] - p0[1]) * sr;
+            const dxdt = Math.cos(le.dirAt(t) + rot); // jednotková rychlost (oblouková délka)
+            if (Math.abs(dxdt) < 1e-9) break;
+            t += (d - xw) / dxdt;
+          }
+          const p = le.pointAt(t);
+          return placement.loc[1] + (p[0] - p0[0]) * sr + (p[1] - p0[1]) * cr;
+        };
+      }
     } else if (parent.type === 'IFCPOLYNOMIALCURVE') {
       // Parabola: lokálně x(t)=Σcx·tⁱ (typicky t), y(t)=Σcy·tⁱ. Ukotvení
       // rotací rot = placement.angle − sklon lokální tečny v t0; z(d) řešíme

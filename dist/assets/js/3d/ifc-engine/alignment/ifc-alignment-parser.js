@@ -313,11 +313,21 @@ function buildBusinessVertical(entityIndex, segIds) {
       const c2 = Number.isFinite(g1) ? (g1 - g0) / (2 * hLen) : 0;
       zAt = d => h0 + g0 * (d - d0) + c2 * (d - d0) * (d - d0);
     } else if (type === 'CIRCULARARC') {
-      // kružnice tečná na sklon g0 v (d0, h0); strana dle znaménka R,
-      // fallback dle Δg. z = Cy − s·√(R² − (x−Cx)²)
-      const s = Number.isFinite(R) && R !== 0 ? Math.sign(R)
-        : Math.sign((Number.isFinite(g1) ? g1 : g0) - g0) || 1;
-      const rAbs = Number.isFinite(R) && R !== 0 ? Math.abs(R) : 1e9;
+      // Kružnice tečná na sklon g0 v (d0, h0). Poloměr POČÍTÁME ZE SKLONŮ
+      // (RadiusOfCurvature bývá chybějící/nekonzistentní — Brice checklist 3.9);
+      // atribut je jen fallback. z = Cy − s·√(R² − (x−Cx)²)
+      const dTheta = Number.isFinite(g1) ? (Math.atan(g1) - Math.atan(g0)) : 0;
+      let s, rAbs;
+      if (Math.abs(dTheta) > 1e-12) {
+        s = Math.sign(dTheta);
+        rAbs = Math.abs(hLen / dTheta);
+      } else if (Number.isFinite(R) && R !== 0) {
+        s = Math.sign(R);
+        rAbs = Math.abs(R);
+      } else {
+        s = 1;
+        rAbs = 1e9;
+      }
       const th = Math.atan(g0);
       const cx = d0 - s * rAbs * Math.sin(th);
       const cy = h0 + s * rAbs * Math.cos(th);

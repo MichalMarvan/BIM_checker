@@ -297,6 +297,38 @@ describe('ifc-curve-evaluator — gradient curve (niveleta)', () => {
         const zEnd = ce.evalAt(2 * cx);
         expect(zEnd.point[2] > zmin).toBe(true);
     });
+    // Vertikální KLOTOIDA (železniční vyhlazení nivelety, bSI Rail testset):
+    // κ: 0 → 1/2000 na L=100 m, A=√(100·2000); start sklon 0 ve výšce 10.
+    // Očekávané z(d) ≈ 10 + d³/(6·A²) (malé úhly): z(100) ≈ 10.8333.
+    it('vertikální IfcClothoid (přechodnice nivelety)', async () => {
+        await mods();
+        const A = Math.sqrt(100 * 2000);
+        const stepText = `
+#1=IFCCARTESIANPOINT((0.,0.));
+#2=IFCDIRECTION((1.,0.));
+#3=IFCAXIS2PLACEMENT2D(#1,#2);
+#5=IFCVECTOR(#2,1.);
+#4=IFCLINE(#1,#5);
+#6=IFCCURVESEGMENT(.CONTINUOUS.,#3,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(100.),#4);
+#7=IFCCOMPOSITECURVE((#6),.F.);
+#10=IFCCARTESIANPOINT((0.,10.));
+#12=IFCAXIS2PLACEMENT2D(#10,#2);
+#13=IFCCLOTHOID(#3,${A});
+#15=IFCCURVESEGMENT(.CONTSAMEGRADIENT.,#12,IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(100.),#13);
+#30=IFCGRADIENTCURVE((#15),.F.,#7,$);
+`;
+        const ce = evaluateCurve(idx(stepText), 30);
+        expect(ce.is3D).toBe(true);
+        expect(Math.abs(ce.evalAt(0).point[2] - 10) < 1e-9).toBe(true);
+        // sklon na začátku ≈ 0
+        const g0 = (ce.evalAt(1).point[2] - ce.evalAt(0).point[2]) / 1;
+        expect(Math.abs(g0) < 1e-3).toBe(true);
+        // z(100) ≈ 10 + 100³/(6·200000) = 10.8333
+        expect(Math.abs(ce.evalAt(100).point[2] - 10.8333) < 2e-3).toBe(true);
+        // sklon na konci ≈ 0.025 (= 100/(A·|A|) integrováno → θ(100)=0.025)
+        const g1 = (ce.evalAt(100).point[2] - ce.evalAt(99).point[2]) / 1;
+        expect(Math.abs(g1 - 0.0248) < 1e-3).toBe(true);
+    });
     // Styl reálného exportéru: parent IfcLine je HORIZONTÁLNÍ šablona (dir (1,0)),
     // sklon nese výhradně RefDirection placementu (kotvení!). Délka segmentu je
     // 3D délka po sklonu (200·√(1+0.02²)), vodorovný rozsah je 200 m.

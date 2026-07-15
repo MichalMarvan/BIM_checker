@@ -133,6 +133,39 @@ describe('ifc-alignment-geometric — osa z geometrické vrstvy', () => {
         // konec paraboly: z(150) = 52 + 0.02·50 + ((−0.02−0.02)/(2·50))·50² = 52 + 1 − 1 = 52.0
         expect(Math.abs(zAt(150) - 52.0) < 0.01).toBe(true);
     });
+    // Business CIRCULARARC: poloměr se počítá ZE SKLONŮ (atribut je dle praxe
+    // nespolehlivý — Brice checklist 3.9). Sag: g −1 % → +1 % na 40 m ⇒ R≈2000;
+    // z(0)=10, minimum z(20) = 10 + R·cos(atan(0.01)) − R ≈ 9.90005, z(40)≈10.
+    it('business niveleta: CIRCULARARC s poloměrem ze sklonů', async () => {
+        await mods();
+        const fixture = `
+#1=IFCCARTESIANPOINT((0.,0.));
+#27=IFCALIGNMENTHORIZONTALSEGMENT($,$,#1,0.,0.,0.,40.,$,.LINE.);
+#28=IFCALIGNMENTSEGMENT('3YvcpaVtcGClbe0DaJxd62',$,'S1',$,$,$,$,#27);
+#98=IFCALIGNMENTHORIZONTAL('34J09cRzxXuCqXhasTu_CA',$,'H',$,$,$,$);
+#99=IFCRELNESTS('13IHU_CaLQjnx8VnojY1_I',$,$,$,#98,(#28));
+#100=IFCALIGNMENTVERTICALSEGMENT($,$,0.,40.,10.,-0.01,0.01,999999.,.CIRCULARARC.);
+#101=IFCALIGNMENTSEGMENT('1BSoTLfMG3hJDX_j$dLXWi',$,'V1',$,$,$,$,#100);
+#144=IFCALIGNMENTVERTICAL('2NEbpnlbtsp0bjwvnPDtIf',$,'V',$,$,$,$);
+#145=IFCRELNESTS('3jxyruuZj67Svd9jwMEg18',$,$,$,#144,(#101));
+#524=IFCALIGNMENT('0W92lwwpyrDvTaewXDE7ns',$,'O',$,$,$,$,.NOTDEFINED.);
+#525=IFCRELNESTS('0hXRpY0LaBu3x6EHuUMex4',$,$,$,#524,(#98,#144));
+`;
+        const a = parseIfcAlignment(idx(fixture), 524);
+        const s = sampleAlignment(a);
+        function zAt(sta) {
+            let best = null, bd = Infinity;
+            for (let i = 0; i < s.stations.length; i++) {
+                const d = Math.abs(s.stations[i] - sta);
+                if (d < bd) { bd = d; best = s.points[i][2]; }
+            }
+            return best;
+        }
+        // vadný atribut R=999999 se musí ignorovat — poloměr ze sklonů (≈2000)
+        expect(Math.abs(zAt(0) - 10) < 0.001).toBe(true);
+        expect(Math.abs(zAt(20) - 9.90005) < 0.002).toBe(true);
+        expect(Math.abs(zAt(40) - 10) < 0.002).toBe(true);
+    });
     it('_useRawDir: IFC spirála bez bearing konverze', async () => {
         await mods();
         const spiral = {
