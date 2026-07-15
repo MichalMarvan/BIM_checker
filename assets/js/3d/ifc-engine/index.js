@@ -476,12 +476,19 @@ export class IfcEngine {
     }
     return out;
   }
-  /** Phase 6.11 — load an IfcAlignment by (modelId, expressId) into alignment registry. */
+  /** Phase 6.11 — load an IfcAlignment by (modelId, expressId) into alignment registry.
+   *  Dedup: opakovaný import téže osy (auto-import + ruční klik v panelu)
+   *  vrací existující id místo duplicitní polylinie. */
   loadAlignmentFromIfc(modelId, expressId, opts) {
     const m = this._models.get(modelId);
     if (!m || !this._viewer) return null;
+    if (!m._ifcAxes) m._ifcAxes = new Map();
+    const existing = m._ifcAxes.get(expressId);
+    if (existing && this._viewer._alignments?.has(existing)) return existing;
     const parsed = parseIfcAlignment(m.index, expressId);
-    return this._viewer.addParsedAlignment(parsed, opts);
+    const id = this._viewer.addParsedAlignment(parsed, opts);
+    if (id) m._ifcAxes.set(expressId, id);
+    return id;
   }
 
   /**

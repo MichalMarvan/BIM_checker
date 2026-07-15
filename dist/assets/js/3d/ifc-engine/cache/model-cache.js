@@ -20,7 +20,7 @@
 // regenerate silently.
 
 export const CACHE_FORMAT_VERSION = 1;
-export const GEOMETRY_PIPELINE_VERSION = 2;
+export const GEOMETRY_PIPELINE_VERSION = 3;
 
 const MAGIC = 0x434d4942; // 'BIMC' as LE u32
 

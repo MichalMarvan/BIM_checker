@@ -422,6 +422,22 @@ async function loadIfcFromStorage(fileMeta) {
             } catch (e) { console.warn('[3d-viewer] state restore failed:', e); }
         }
 
+        // IFC 4.3 Alignment-basedView: osy z IfcAlignment se importují
+        // automaticky — uživatel čekající na niveletu by je pod ručním
+        // tlačítkem v panelu Osy nemusel najít. Dedup řeší engine
+        // (loadAlignmentFromIfc vrací existující id).
+        try {
+            if (typeof engine.findIfcAlignments === 'function' && typeof engine.loadAlignmentFromIfc === 'function') {
+                const axes = engine.findIfcAlignments(modelId);
+                let ok = 0;
+                for (const a of axes) {
+                    try { if (engine.loadAlignmentFromIfc(a.modelId, a.expressId)) ok++; }
+                    catch (err) { console.warn('[3d-viewer] auto-import osy selhal:', a.name, err); }
+                }
+                if (ok > 0) console.log(`[3d-viewer] auto-import ${ok} os(y) z IfcAlignment`);
+            }
+        } catch (e) { console.warn('[3d-viewer] auto-import os selhal:', e); }
+
         // Frame the camera only for the first model on an empty scene —
         // later loads keep whatever view the user has set. Race-safe for
         // concurrent batch lanes: the page-level flag makes sure exactly one
