@@ -2740,7 +2740,7 @@ export class ViewerCore {
 
   /**
    * Přidá měření do registru (engine ho drží jako objekt). Vrací id `ms_<n>`.
-   * @param {{ type:'distance'|'edge'|'angle'|'area', points:number[][], label?:string, modelId?:string }} spec
+   * @param {{ type:'distance'|'edge'|'angle'|'area'|'point', points:number[][], label?:string, modelId?:string }} spec
    * @returns {string}
    */
   addMeasurement(spec) {
@@ -2748,6 +2748,12 @@ export class ViewerCore {
     // měření zahodil, proto ho zde doplníme prvním načteným modelem (defense-in-depth).
     if (spec && (spec.modelId === null || spec.modelId === undefined)) {
       spec = { ...spec, modelId: this._models.keys().next().value ?? null };
+    }
+    // Bod: IFC model-lokální souřadnice se počítají jednou zde — popisek,
+    // seznam v panelu i export pak čtou stejnou hodnotu stabilní vůči federaci.
+    if (spec && spec.type === 'point' && Array.isArray(spec.points) && spec.points[0]) {
+      const local = spec.modelId ? this.worldToModelLocal(spec.modelId, spec.points[0]) : null;
+      spec = { ...spec, coords: local || [...spec.points[0]] };
     }
     return this._measureRegistry.add(spec);
   }
@@ -2787,7 +2793,7 @@ export class ViewerCore {
     // Přidej chybějící a nastav viditelnost všech.
     for (const m of items) {
       if (!this._syncedMeasureIds.has(m.id)) {
-        visuals.addMeasurement(m.id, m.type, m.points, m.value);
+        visuals.addMeasurement(m.id, m.type, m.points, m.value, m.coords);
         this._syncedMeasureIds.add(m.id);
       }
       visuals.setMeasurementVisible(m.id, m.visible);
