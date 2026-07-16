@@ -40,7 +40,13 @@ function perimeter(points) {
 
 // Sestaví innerHTML dvouřádkového popisku. Do innerHTML jdou POUZE číselné
 // toFixed hodnoty a statické řetězce — žádný uživatelský vstup (XSS bezpečné).
-function buildLabelHTML(type, points, value) {
+function buildLabelHTML(type, points, value, coords) {
+  if (type === 'point' && points.length >= 1) {
+    const c = (Array.isArray(coords) && coords.length >= 3) ? coords : points[0];
+    return `<div>X ${c[0].toFixed(3)}</div>`
+      + `<div class="measure-label__sub">Y ${c[1].toFixed(3)}</div>`
+      + `<div class="measure-label__sub">Z ${c[2].toFixed(3)}</div>`;
+  }
   if ((type === 'distance' || type === 'edge') && points.length >= 2) {
     const p0 = points[0];
     const p1 = points[1];
@@ -326,7 +332,7 @@ export class MeasureVisuals {
     if (this._edgeHighlight) this._edgeHighlight.visible = false;
   }
 
-  addMeasurement(id, type, points, value) {
+  addMeasurement(id, type, points, value, coords) {
     const subgroup = new THREE.Group();
     subgroup.userData = { measureSubgroup: true, id };
 
@@ -416,7 +422,7 @@ export class MeasureVisuals {
     labelDiv.className = 'measure-label';
     // Dvouřádkový popisek pro distance/edge/area; jinak prostý text.
     // innerHTML obsahuje jen číselné toFixed hodnoty (XSS bezpečné).
-    const html = buildLabelHTML(type, points, value);
+    const html = buildLabelHTML(type, points, value, coords);
     if (html !== null) {
       labelDiv.innerHTML = html;
     } else {
