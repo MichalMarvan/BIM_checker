@@ -38,7 +38,7 @@ function perimeter(points) {
   return sum;
 }
 
-// Sestaví innerHTML dvouřádkového popisku. Do innerHTML jdou POUZE číselné
+// Sestaví innerHTML víceřádkového popisku (2 řádky distance/edge/area, 3 řádky point). Do innerHTML jdou POUZE číselné
 // toFixed hodnoty a statické řetězce — žádný uživatelský vstup (XSS bezpečné).
 function buildLabelHTML(type, points, value, coords) {
   if (type === 'point' && points.length >= 1) {
@@ -420,7 +420,7 @@ export class MeasureVisuals {
 
     const labelDiv = document.createElement('div');
     labelDiv.className = 'measure-label';
-    // Dvouřádkový popisek pro distance/edge/area; jinak prostý text.
+    // Víceřádkový popisek pro distance/edge/area/point; jinak prostý text.
     // innerHTML obsahuje jen číselné toFixed hodnoty (XSS bezpečné).
     const html = buildLabelHTML(type, points, value, coords);
     if (html !== null) {

@@ -267,6 +267,7 @@ export default class MeasurePanel {
     const p = Array.isArray(raw) ? raw : [raw.x, raw.y, raw.z];
     if (this._mode === 'point') {
       this.engine.addMeasurement?.({ type: 'point', points: [p], modelId: this._modelId() });
+      this._hideSnapTip();
       this._renderPanel();
       return;
     }
@@ -379,7 +380,9 @@ function fmtCoords(c) {
 function exportCsv(items) {
   const safe = (s) => {
     const v = String(s === null || s === undefined ? '' : s);
-    return /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+    // Čistě numerická buňka nemůže být formula payload — apostrof by jen
+    // rozbil záporné souřadnice (S-JTSK) v Excelu.
+    return /^[=+\-@\t\r]/.test(v) && !Number.isFinite(Number(v)) ? `'${v}` : v;
   };
   const head = 'type,label,value,unit,points,x,y,z\n';
   const body = items.map(m => {
