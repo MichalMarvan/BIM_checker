@@ -208,7 +208,7 @@ export default class MeasurePanel {
       return;
     }
     const snap = this.engine.snapAt?.(e.clientX, e.clientY, {
-      enabled: this._snaps, thresholdPx: 12, lastPoint: this._points[this._points.length - 1],
+      enabled: this._snaps, thresholdPx: 18, lastPoint: this._points[this._points.length - 1],
     });
     if (this._mode === 'point') {
       const raw = snap?.point || this.engine.raycastPoint?.(e.clientX, e.clientY);
@@ -260,7 +260,7 @@ export default class MeasurePanel {
       return;
     }
     const snap = this.engine.snapAt?.(e.clientX, e.clientY, {
-      enabled: this._snaps, thresholdPx: 12, lastPoint: this._points[this._points.length - 1],
+      enabled: this._snaps, thresholdPx: 18, lastPoint: this._points[this._points.length - 1],
     });
     const raw = snap?.point || this.engine.raycastPoint?.(e.clientX, e.clientY);
     if (!raw) { this._setStatus('Mimo geometrii — klikněte na model.', 'warn'); return; }

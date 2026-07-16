@@ -336,15 +336,23 @@ export class MeasureVisuals {
     const subgroup = new THREE.Group();
     subgroup.userData = { measureSubgroup: true, id };
 
+    // Bod: marker je jediný ukazatel polohy — kreslí se přes geometrii
+    // (depthTest off + renderOrder jako in-progress body) a o chlup větší,
+    // aby se neutopil v ploše, na které leží.
+    const isPoint = (type === 'point');
     for (const p of points) {
       // Jednotková koule — screen-constant velikost řeší updateScreenScale (~8 px).
       const geom = new THREE.SphereGeometry(1, 16, 16);
-      const mat = new THREE.MeshBasicMaterial({ color: MARKER_COLOR });
+      const mat = new THREE.MeshBasicMaterial({
+        color: MARKER_COLOR,
+        ...(isPoint ? { depthTest: false } : {}),
+      });
       const mesh = new THREE.Mesh(geom, mat);
       mesh.position.set(p[0], p[1], p[2]);
       mesh.userData = { measureMarker: true };
+      if (isPoint) mesh.renderOrder = 998;
       subgroup.add(mesh);
-      this._scalables.add({ obj: mesh, px: 8 });
+      this._scalables.add({ obj: mesh, px: isPoint ? 10 : 8 });
     }
 
     if (points.length >= 2) {
@@ -510,7 +518,13 @@ export class MeasureVisuals {
         m.labelDiv.style.display = 'none';
       } else {
         m.labelDiv.style.display = '';
-        m.labelDiv.style.transform = `translate(${screenX}px, ${screenY}px) translate(-50%, -50%)`;
+        // Bod: popisek nad značku (mezera 12 px), ať marker nezakrývá —
+        // jediný vizuální ukazatel polohy bodu. Ostatní typy centrovaně
+        // (kotva leží mezi markery, nic nepřekrývá).
+        const align = m.type === 'point'
+          ? 'translate(-50%, -100%) translate(0, -12px)'
+          : 'translate(-50%, -50%)';
+        m.labelDiv.style.transform = `translate(${screenX}px, ${screenY}px) ${align}`;
       }
     }
   }
