@@ -458,3 +458,14 @@ Branch: 3d-viewer-integration
 - [x] Plán: `docs/superpowers/plans/2026-07-14-ifc43-alignment-based-view.md`
 
 Branch: 3d-viewer-integration
+
+## 3D viewer: měření — režim Bod (souřadnice na ploše) ✅ (2026-07-16)
+- [x] Nový typ měření `point`: klik na plochu vytvoří měření se souřadnicemi bodu v IFC rámu modelu (u S-JTSK modelů rovnou reálné hodnoty) — marker + třířádkový popisek X/Y/Z, položka v seznamu panelu, živý tooltip souřadnic při hoveru, snapy fungují
+- [x] `worldToIfcFrame` (`ifc-engine/coords/federation.js`, čistá funkce + testy) — inverze viewer-page federation bake přes kotvu; `worldToIfcCoords` ve viewer-core (fallback `worldToModelLocal` pro nebakovaný režim); `worldToModelLocal` záměrně nezměněn (persistence round-trip)
+- [x] Registr: `coords` pole (klonování, `value: null`), exporty CSV (`x,y,z` sloupce) + JSON (`coords`); CSV injection guard už neničí záporné numerické buňky (apostrof jen pro nenumerické)
+- [x] Persistence beze změn schématu — coords se přepočítají při restore (starší uložená měření se automaticky povýší)
+- [x] Vizuální ověření Chrome MCP na D214_SO112201.ifc (2 kola — 1. kolo odhalilo scene-local coords, opraveno; 2. kolo vše PASS vč. CSV a persistence); testy 1024/1024
+- [x] SW cache v150 → v151, dist mirror
+- [x] Spec: `docs/superpowers/specs/2026-07-16-measure-point-mode-design.md`, plán: `docs/superpowers/plans/2026-07-16-measure-point-mode.md`
+
+Branch: 3d-viewer-integration
