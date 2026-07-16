@@ -381,16 +381,23 @@ function exportCsv(items) {
     const v = String(s === null || s === undefined ? '' : s);
     return /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
   };
-  const head = 'type,label,value,unit,points\n';
-  const body = items.map(m => [
-    safe(m.type), safe(m.label), safe(m.value), safe(m.unit), safe(JSON.stringify(m.points)),
-  ].map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+  const head = 'type,label,value,unit,points,x,y,z\n';
+  const body = items.map(m => {
+    const c = m.type === 'point' ? (m.coords || m.points[0] || []) : [];
+    return [
+      safe(m.type), safe(m.label), safe(m.value), safe(m.unit), safe(JSON.stringify(m.points)),
+      safe(c[0] ?? ''), safe(c[1] ?? ''), safe(c[2] ?? ''),
+    ].map(cell => `"${cell.replace(/"/g, '""')}"`).join(',');
+  }).join('\n');
   const blob = new Blob(['﻿', head, body], { type: 'text/csv;charset=utf-8' });
   download(blob, `measurements-${Date.now()}.csv`);
 }
 
 function exportJson(items) {
-  const rows = items.map(m => ({ type: m.type, label: m.label, value: m.value, unit: m.unit, points: m.points }));
+  const rows = items.map(m => ({
+    type: m.type, label: m.label, value: m.value, unit: m.unit, points: m.points,
+    ...(m.type === 'point' ? { coords: m.coords || m.points[0] || null } : {}),
+  }));
   download(new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' }), `measurements-${Date.now()}.json`);
 }
 
