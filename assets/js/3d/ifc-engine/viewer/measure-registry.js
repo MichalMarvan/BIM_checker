@@ -11,6 +11,11 @@ function clonePoints(points) {
   return points.map(p => [p[0], p[1], p[2]]);
 }
 
+// Kopie coords [x,y,z] nebo null — stejná ochrana proti mutaci jako u points.
+function cloneCoords(coords) {
+  return Array.isArray(coords) ? [coords[0], coords[1], coords[2]] : null;
+}
+
 // Spočítá hodnotu a jednotku podle typu měření.
 // edge se počítá jako vzdálenost dvou bodů (jednotka m).
 function computeValueUnit(type, points) {
@@ -22,6 +27,9 @@ function computeValueUnit(type, points) {
   }
   if (type === 'area') {
     return { value: polygonArea(points), unit: 'm²' };
+  }
+  if (type === 'point') {
+    return { value: null, unit: '' };
   }
   return { value: 0, unit: '' };
 }
@@ -45,10 +53,10 @@ export class MeasureRegistry {
    * Přidá měření, spočítá hodnotu/jednotku, vrátí id `ms_<n>`.
    * Volitelný `id` zachová stabilní identitu (restore z persistence, pohledy) —
    * čítač se posune za jeho číselný sufix, aby další auto-id nekolidovalo.
-   * @param {{ type:'distance'|'edge'|'angle'|'area', points:number[][], label?:string, modelId?:string, id?:string }} spec
+   * @param {{ type:'distance'|'edge'|'angle'|'area'|'point', points:number[][], label?:string, modelId?:string, id?:string, coords?:number[] }} spec
    * @returns {string} id
    */
-  add({ type, points, label = '', modelId = null, id = null }) {
+  add({ type, points, label = '', modelId = null, id = null, coords = null }) {
     let useId = id;
     if (useId) {
       const m = /^ms_(\d+)$/.exec(useId);
@@ -63,7 +71,7 @@ export class MeasureRegistry {
     const { value, unit } = computeValueUnit(type, stored);
     this._items.set(useId, {
       id: useId, type, points: stored, value, unit,
-      label, visible: true, modelId,
+      label, visible: true, modelId, coords: cloneCoords(coords),
     });
     this._emit();
     return useId;
@@ -72,7 +80,7 @@ export class MeasureRegistry {
   /**
    * Vrátí seznam měření jako kopie (body i celé objekty), aby vnější mutace
    * neovlivnila interní stav.
-   * @returns {Array<{ id, type, points, value, unit, label, visible, modelId }>}
+   * @returns {Array<{ id, type, points, value, unit, label, visible, modelId, coords }>}
    */
   list() {
     const out = [];
@@ -80,7 +88,7 @@ export class MeasureRegistry {
       out.push({
         id: m.id, type: m.type, points: clonePoints(m.points),
         value: m.value, unit: m.unit, label: m.label,
-        visible: m.visible, modelId: m.modelId,
+        visible: m.visible, modelId: m.modelId, coords: cloneCoords(m.coords),
       });
     }
     return out;
@@ -93,7 +101,7 @@ export class MeasureRegistry {
     return {
       id: m.id, type: m.type, points: clonePoints(m.points),
       value: m.value, unit: m.unit, label: m.label,
-      visible: m.visible, modelId: m.modelId,
+      visible: m.visible, modelId: m.modelId, coords: cloneCoords(m.coords),
     };
   }
 

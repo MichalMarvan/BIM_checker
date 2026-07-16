@@ -35,4 +35,24 @@ describe('Measure registry — engine stav měření', () => {
         expect(r.list().length).toBe(0);
         expect(events.length >= 6).toBe(true);
     });
+    it('point: value null, unit prázdný, coords se ukládají a klonují', async () => {
+        const { r } = await make();
+        const id = r.add({ type: 'point', points: [[1, 2, 3]], coords: [745123.456, 1045321.789, 250.123] });
+        const m = r.get(id);
+        expect(m.value).toBe(null);
+        expect(m.unit).toBe('');
+        expect(m.coords[0]).toBe(745123.456);
+        expect(m.coords[1]).toBe(1045321.789);
+        expect(m.coords[2]).toBe(250.123);
+        m.coords[0] = 999;                                  // mutace kopie
+        expect(r.get(id).coords[0]).toBe(745123.456);       // originál nedotčen
+        expect(r.list()[0].coords[2]).toBe(250.123);        // list nese coords také
+    });
+    it('point bez coords → null; ostatní typy mají coords null', async () => {
+        const { r } = await make();
+        const p = r.add({ type: 'point', points: [[0, 0, 0]] });
+        expect(r.get(p).coords).toBe(null);
+        const d = r.add({ type: 'distance', points: [[0, 0, 0], [1, 0, 0]] });
+        expect(r.get(d).coords).toBe(null);
+    });
 });
