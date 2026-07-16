@@ -376,6 +376,10 @@ export class IfcEngine {
   worldToModelLocal(modelId, point) {
     return this._viewer ? this._viewer.worldToModelLocal(modelId, point) : null;
   }
+  /** Světový bod → IFC souřadnice modelu (viz viewer-core.worldToIfcCoords). */
+  worldToIfcCoords(modelId, point) {
+    return this._viewer ? this._viewer.worldToIfcCoords(modelId, point) : null;
+  }
   modelLocalToWorld(modelId, point) {
     return this._viewer ? this._viewer.modelLocalToWorld(modelId, point) : null;
   }

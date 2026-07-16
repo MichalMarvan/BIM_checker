@@ -13,6 +13,7 @@ import { HIDDEN_PRODUCT_TYPES } from '../constants.js';
 import { selectAt, isPickable, isClippedOut } from './selection.js';
 import { buildMergedModel, mergedElementBox, extractElementGeometry, resolveMergedFace } from './merged-model.js';
 import { bboxFromPoints } from './points-bbox.js';
+import { worldToIfcFrame } from '../coords/federation.js';
 
 /**
  * BVH acceleration for raycasting (three-mesh-bvh). Loaded lazily and
@@ -2752,7 +2753,7 @@ export class ViewerCore {
     // Bod: IFC model-lokální souřadnice se počítají jednou zde — popisek,
     // seznam v panelu i export pak čtou stejnou hodnotu stabilní vůči federaci.
     if (spec && spec.type === 'point' && Array.isArray(spec.points) && spec.points[0]) {
-      const local = spec.modelId ? this.worldToModelLocal(spec.modelId, spec.points[0]) : null;
+      const local = this.worldToIfcCoords(spec.modelId, spec.points[0]);
       spec = { ...spec, coords: local || [...spec.points[0]] };
     }
     return this._measureRegistry.add(spec);
@@ -2822,6 +2823,22 @@ export class ViewerCore {
     m.group.updateMatrixWorld(true);
     const inv = m.group.matrixWorld.clone().invert();
     return transformPointByMatrix(worldPoint, inv.elements);
+  }
+
+  /**
+   * Světový bod → IFC souřadnice modelu (metry, rám IFC souboru).
+   * Po viewer-page bake (world = Rot(−π/2)·ifc − anchor) jsou grupy identity
+   * a worldToModelLocal vrací scene-local hodnoty — skutečné IFC souřadnice
+   * dává inverze bake s kotvou. Bez kotvy (nebakovaný režim) padá na
+   * worldToModelLocal (grupa nese rotaci/scale/posun sama).
+   * @param {string} modelId
+   * @param {[number,number,number]} worldPoint
+   * @returns {[number,number,number]|null}
+   */
+  worldToIfcCoords(modelId, worldPoint) {
+    const viaAnchor = worldToIfcFrame(worldPoint, this._federationAnchor);
+    if (viaAnchor) return viaAnchor;
+    return this.worldToModelLocal(modelId, worldPoint);
   }
 
   /**

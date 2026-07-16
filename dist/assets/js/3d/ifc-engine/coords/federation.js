@@ -89,3 +89,21 @@ export function mapToLocalShift(axisCenter, modelCenter, mapConversion) {
   }
   return [-E, -N, -H];
 }
+
+/**
+ * Světový (scene) bod → souřadnice v IFC rámu modelu po viewer-page bake.
+ * Bake přepisuje vertexy: world = Rot_x(−π/2)·ifc − anchor (anchor ve world
+ * metrech). Inverze: ifc = [wx+ax, −(wz+az), wy+ay]. Bez platné kotvy vrací
+ * null (nebakovaný režim řeší volající fallbackem).
+ * @param {[number,number,number]} worldPoint
+ * @param {[number,number,number]|null|undefined} anchor
+ * @returns {[number,number,number]|null}
+ */
+export function worldToIfcFrame(worldPoint, anchor) {
+  if (!Array.isArray(worldPoint) || worldPoint.length < 3) return null;
+  if (!Array.isArray(anchor) || anchor.length < 3) return null;
+  const wx = worldPoint[0] + anchor[0];
+  const wy = worldPoint[1] + anchor[1];
+  const wz = worldPoint[2] + anchor[2];
+  return [wx, -wz, wy];
+}

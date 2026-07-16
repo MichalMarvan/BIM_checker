@@ -244,7 +244,7 @@ export default class MeasurePanel {
 
   /** Souřadnice bodu v IFC rámu modelu pro tooltip (fallback world). */
   _coordsTip(worldPoint) {
-    const local = this.engine.worldToModelLocal?.(this._modelId(), worldPoint) || worldPoint;
+    const local = this.engine.worldToIfcCoords?.(this._modelId(), worldPoint) || worldPoint;
     return `X ${local[0].toFixed(3)}  Y ${local[1].toFixed(3)}  Z ${local[2].toFixed(3)}`;
   }
 
