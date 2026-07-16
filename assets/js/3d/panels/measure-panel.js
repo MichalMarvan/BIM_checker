@@ -7,8 +7,9 @@ const MODES = [
   { id: 'edge', label: '⟍ Hrana', need: 1 },
   { id: 'angle', label: '∠ Úhel', need: 3 },
   { id: 'area', label: '▱ Plocha', need: 3 },
+  { id: 'point', label: '📍 Bod', need: 1 },
 ];
-const MODE_CZ = { distance: 'Vzdálenost', edge: 'Hrana', angle: 'Úhel', area: 'Plocha' };
+const MODE_CZ = { distance: 'Vzdálenost', edge: 'Hrana', angle: 'Úhel', area: 'Plocha', point: 'Bod' };
 const SNAPS = [
   { id: 'vertex', label: 'Vrchol' },
   { id: 'midpoint', label: 'Střed hrany' },
@@ -86,7 +87,7 @@ export default class MeasurePanel {
           ${items.slice().reverse().map(m => `
             <div class="v3d-panel__item" data-id="${escapeHtml(m.id)}">
               <div class="v3d-panel__item-main">
-                <div class="v3d-panel__item-title">${escapeHtml(fmt(m.value, m.unit))}</div>
+                <div class="v3d-panel__item-title">${escapeHtml(m.type === 'point' ? fmtCoords(m.coords || m.points[0]) : fmt(m.value, m.unit))}</div>
                 <div class="v3d-panel__item-sub">${escapeHtml(m.label || MODE_CZ[m.type] || m.type)}${m.visible ? '' : ' · skryto'}</div>
               </div>
               <button class="v3d-panel__item-btn" data-act="vis" data-id="${escapeHtml(m.id)}" title="${m.visible ? 'Skrýt' : 'Zobrazit'}">${m.visible ? '👁' : '◌'}</button>
@@ -112,6 +113,7 @@ export default class MeasurePanel {
       edge: 'Najeďte na hranu a klikněte — změří se rovnou.',
       angle: 'Klikněte 3 body — vrchol úhlu jako druhý.',
       area: 'Klikejte body obrysu (min. 3), dokončete dvojklikem nebo Enter.',
+      point: 'Klikněte na plochu — bod se souřadnicemi se přidá rovnou.',
     }[this._mode] || 'Aktivní přichytávání se použijí při klikání do modelu.';
   }
 
@@ -208,6 +210,19 @@ export default class MeasurePanel {
     const snap = this.engine.snapAt?.(e.clientX, e.clientY, {
       enabled: this._snaps, thresholdPx: 12, lastPoint: this._points[this._points.length - 1],
     });
+    if (this._mode === 'point') {
+      const raw = snap?.point || this.engine.raycastPoint?.(e.clientX, e.clientY);
+      if (snap?.point) v?.showSnapPreview?.(snap.point, snap.type);
+      else v?.hideSnapPreview?.();
+      v?.hideRubberBand?.();
+      if (raw) {
+        const p = Array.isArray(raw) ? raw : [raw.x, raw.y, raw.z];
+        this._showSnapTip(e, SNAP_CZ[snap?.type] || SNAP_CZ.surface, this._coordsTip(p));
+      } else {
+        this._hideSnapTip();
+      }
+      return;
+    }
     const last = this._points[this._points.length - 1];
     if (snap?.point) {
       v?.showSnapPreview?.(snap.point, snap.type);
@@ -227,6 +242,12 @@ export default class MeasurePanel {
     return Number.isFinite(d) ? fmt(d, 'm') : null;
   }
 
+  /** Souřadnice bodu v IFC rámu modelu pro tooltip (fallback world). */
+  _coordsTip(worldPoint) {
+    const local = this.engine.worldToModelLocal?.(this._modelId(), worldPoint) || worldPoint;
+    return `X ${local[0].toFixed(3)}  Y ${local[1].toFixed(3)}  Z ${local[2].toFixed(3)}`;
+  }
+
   _onClick(e) {
     const v = this._visuals();
     if (this._mode === 'edge') {
@@ -244,6 +265,11 @@ export default class MeasurePanel {
     const raw = snap?.point || this.engine.raycastPoint?.(e.clientX, e.clientY);
     if (!raw) { this._setStatus('Mimo geometrii — klikněte na model.', 'warn'); return; }
     const p = Array.isArray(raw) ? raw : [raw.x, raw.y, raw.z];
+    if (this._mode === 'point') {
+      this.engine.addMeasurement?.({ type: 'point', points: [p], modelId: this._modelId() });
+      this._renderPanel();
+      return;
+    }
     this._points.push(p);
     v?.addInProgressPoint?.(p);
     v?.hideRubberBand?.();
@@ -345,6 +371,10 @@ export default class MeasurePanel {
 
 function fmt(v, u) { const n = Number(v); return Number.isFinite(n) ? `${n.toFixed(3)} ${u || ''}`.trim() : String(v); }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function fmtCoords(c) {
+  if (!Array.isArray(c) || c.length < 3) return '—';
+  return c.map(v => Number(v).toFixed(3)).join(', ');
+}
 
 function exportCsv(items) {
   const safe = (s) => {
