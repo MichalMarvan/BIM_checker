@@ -50,10 +50,10 @@ const IDSExcelTemplate = (function() {
                     name: 'Wall Requirements',
                     description: 'All walls must have basic properties defined',
                     ifcVersion: 'IFC4',
-                    applicability: [{ type: 'entity', name: { value: 'IFCWALL' } }],
+                    applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
                     requirements: [
-                        { type: 'property', propertySet: { value: 'Pset_WallCommon' }, baseName: { value: 'IsExternal' } },
-                        { type: 'property', propertySet: { value: 'Pset_WallCommon' }, baseName: { value: 'LoadBearing' } }
+                        { type: 'property', propertySet: { type: 'simpleValue', value: 'Pset_WallCommon' }, baseName: { type: 'simpleValue', value: 'IsExternal' } },
+                        { type: 'property', propertySet: { type: 'simpleValue', value: 'Pset_WallCommon' }, baseName: { type: 'simpleValue', value: 'LoadBearing' } }
                     ]
                 },
                 {
@@ -61,9 +61,9 @@ const IDSExcelTemplate = (function() {
                     name: 'Door Requirements',
                     description: 'All doors must have fire rating',
                     ifcVersion: 'IFC4',
-                    applicability: [{ type: 'entity', name: { value: 'IFCDOOR' } }],
+                    applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCDOOR' } }],
                     requirements: [
-                        { type: 'property', propertySet: { value: 'Pset_DoorCommon' }, baseName: { value: 'FireRating' } }
+                        { type: 'property', propertySet: { type: 'simpleValue', value: 'Pset_DoorCommon' }, baseName: { type: 'simpleValue', value: 'FireRating' } }
                     ]
                 },
                 {
@@ -71,9 +71,9 @@ const IDSExcelTemplate = (function() {
                     name: 'Window Requirements',
                     description: 'All windows must have thermal properties',
                     ifcVersion: 'IFC4',
-                    applicability: [{ type: 'entity', name: { value: 'IFCWINDOW' } }],
+                    applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWINDOW' } }],
                     requirements: [
-                        { type: 'property', propertySet: { value: 'Pset_WindowCommon' }, baseName: { value: 'ThermalTransmittance' } }
+                        { type: 'property', propertySet: { type: 'simpleValue', value: 'Pset_WindowCommon' }, baseName: { type: 'simpleValue', value: 'ThermalTransmittance' } }
                     ]
                 }
             ]
@@ -151,11 +151,10 @@ const IDSExcelTemplate = (function() {
         const psetsData = generatePsetsLookup();
         XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(psetsData), 'psets_lookup');
 
-        // Element psets
+        // Legacy bulk mapping is intentionally left empty. Requirements above are
+        // authoritative; filling this sheet would import every catalog property.
         const elementPsetsData = [
-            { spec_id: 'SPEC_walls', pset_name: 'Pset_WallCommon', cardinality: 'required', value_override: '' },
-            { spec_id: 'SPEC_doors', pset_name: 'Pset_DoorCommon', cardinality: 'required', value_override: '' },
-            { spec_id: 'SPEC_windows', pset_name: 'Pset_WindowCommon', cardinality: 'required', value_override: '' }
+            { spec_id: '', pset_name: '', cardinality: '', value_override: '' }
         ];
         XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(elementPsetsData), 'element_psets');
 

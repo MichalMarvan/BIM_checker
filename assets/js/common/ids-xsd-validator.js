@@ -8,18 +8,16 @@
  *   errors: [{ rawMessage, message, loc: { fileName, lineNumber } | null }]
  *
  * The module uses dynamic import() to load the ES module bundle.
- * The ids-1.0.xsd shipped here is a patched version of the official IDS 1.0 schema:
- *   - External xs:import schemaLocation references removed (xmllint-wasm cannot fetch URLs)
- *   - xs:element ref="xs:restriction" replaced with xs:any (lax validation, same coverage)
- *   - xs:attributeGroup ref="xs:occurs" inlined as minOccurs/maxOccurs attributes
- * These patches preserve validation behavior for all IDS 1.0 documents.
+ * The official IDS 1.0 schema and its W3C dependencies are shipped locally so
+ * validation stays strict and works offline. Only schemaLocation URLs are made
+ * relative and the unused XSI import is omitted for libxml2 compatibility.
  */
 window.IDSXSDValidator = (function() {
     'use strict';
 
     let initPromise = null;
     let validateXMLFn = null;
-    let xsdText = null;
+    let xsdFiles = null;
     let initialized = false;
 
     // Capture the base path of this script so we can resolve sibling paths.
@@ -41,11 +39,18 @@ window.IDSXSDValidator = (function() {
             const base = getScriptBase();
             // base ends in 'common/', so vendor is ../vendor/ and data is ../../data/
             const vendorUrl = base + '../vendor/xmllint-wasm.js';
-            const xsdUrl    = base + '../../data/ids-1.0.xsd';
+            const dataBase = base + '../../data/';
+            const fileNames = [
+                'ids-1.0.xsd',
+                'xml.xsd',
+                'XMLSchema.xsd',
+                'XMLSchema.dtd',
+                'datatypes.dtd'
+            ];
 
-            const [mod, xsdResp] = await Promise.all([
+            const [mod, ...responses] = await Promise.all([
                 import(/* webpackIgnore: true */ vendorUrl),
-                fetch(xsdUrl)
+                ...fileNames.map(fileName => fetch(dataBase + fileName))
             ]);
 
             validateXMLFn = mod.validateXML;
@@ -55,10 +60,13 @@ window.IDSXSDValidator = (function() {
                 );
             }
 
-            if (!xsdResp.ok) {
-                throw new Error('Failed to fetch IDS XSD: ' + xsdResp.status + ' ' + xsdUrl);
+            const failedIndex = responses.findIndex(response => !response.ok);
+            if (failedIndex !== -1) {
+                const response = responses[failedIndex];
+                throw new Error(`Failed to fetch XSD dependency ${fileNames[failedIndex]}: ${response.status}`);
             }
-            xsdText = await xsdResp.text();
+            const contents = await Promise.all(responses.map(response => response.text()));
+            xsdFiles = fileNames.map((fileName, index) => ({ fileName, contents: contents[index] }));
             initialized = true;
         })();
         return initPromise;
@@ -73,7 +81,8 @@ window.IDSXSDValidator = (function() {
         await init();
         const out = await validateXMLFn({
             xml:    [{ fileName: 'doc.ids',     contents: xmlString }],
-            schema: [{ fileName: 'ids-1.0.xsd', contents: xsdText   }]
+            schema: [xsdFiles[0]],
+            preload: xsdFiles.slice(1)
         });
 
         // xmllint-wasm 4.x errors: [{ rawMessage, message, loc: { fileName, lineNumber } | null }]

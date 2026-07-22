@@ -139,36 +139,25 @@ async function runTests() {
             },
             { timeout: 300000 }
         );
+        // The progress callback reaches 100% just before the final DOM render.
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // Get results
         const results = await page.evaluate(() => {
-            const suites = [];
-            const suiteElements = document.querySelectorAll('.test-suite');
-
-            suiteElements.forEach(suite => {
-                const name = suite.querySelector('.suite-name')?.textContent || 'Unknown';
-                const tests = [];
-
-                suite.querySelectorAll('.test-case').forEach(test => {
-                    const testName = test.querySelector('.test-name')?.textContent || '';
-                    const passed = test.classList.contains('passed');
-                    const error = test.querySelector('.test-error')?.textContent || null;
-                    tests.push({ name: testName, passed, error });
-                });
-
-                suites.push({ name, tests });
-            });
-
-            // Get summary from stat cards
-            const total = parseInt(document.getElementById('totalTests')?.textContent || '0');
-            const passed = parseInt(document.getElementById('passedTests')?.textContent || '0');
-            const failed = parseInt(document.getElementById('failedTests')?.textContent || '0');
-
+            const source = window.testRunner.results;
             return {
-                suites,
-                total,
-                passed,
-                failed
+                suites: source.suites.map(suite => ({
+                    name: suite.name,
+                    tests: suite.tests.map(test => ({
+                        name: test.description,
+                        passed: test.passed,
+                        error: test.error,
+                        stack: test.stack
+                    }))
+                })),
+                total: source.total,
+                passed: source.passed,
+                failed: source.failed
             };
         });
 
@@ -178,14 +167,21 @@ async function runTests() {
         console.log('='.repeat(60));
 
         for (const suite of results.suites) {
+            if (process.env.TEST_REPORT === 'failures' && suite.tests.every(test => test.passed)) {
+                continue;
+            }
             console.log(`\n${suite.name}`);
             console.log('-'.repeat(40));
 
             for (const test of suite.tests) {
+                if (process.env.TEST_REPORT === 'failures' && test.passed) continue;
                 const status = test.passed ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m';
                 console.log(`  [${status}] ${test.name}`);
                 if (test.error) {
                     console.log(`         \x1b[31m${test.error}\x1b[0m`);
+                    if (process.env.TEST_REPORT === 'failures' && test.stack) {
+                        console.log(test.stack.split('\n').slice(0, 3).join('\n'));
+                    }
                 }
             }
         }

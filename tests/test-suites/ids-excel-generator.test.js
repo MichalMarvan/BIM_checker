@@ -85,7 +85,7 @@ describe('IDS Excel Generator', () => {
         expect(result[0].pset_name).toBe('Pset_WallCommon');
     });
 
-    it('should deduplicate psets_lookup entries', () => {
+    it('should scope psets_lookup entries to their specification', () => {
         const specsWithDuplicates = [
             {
                 identifier: 'SPEC_01',
@@ -105,7 +105,9 @@ describe('IDS Excel Generator', () => {
 
         const result = IDSExcelGenerator._generatePsetsLookupSheet(specsWithDuplicates);
 
-        expect(result.length).toBe(1); // Deduplicated
+        expect(result.length).toBe(2);
+        expect(result[0].spec_id).toBe('SPEC_01');
+        expect(result[1].spec_id).toBe('SPEC_02');
     });
 
 });

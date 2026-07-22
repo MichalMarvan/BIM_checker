@@ -4,11 +4,11 @@ describe('tools/tool-ids', () => {
     let idsTools, executor;
 
     const sampleIds = `<?xml version="1.0" encoding="UTF-8"?>
-<ids xmlns="http://standards.buildingsmart.org/IDS/1.0/ids.xsd"
+<ids xmlns="http://standards.buildingsmart.org/IDS"
      xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <info><title>Test</title></info>
   <specifications>
-    <specification name="Walls have FireRating" identifier="SPEC-1" minOccurs="1" maxOccurs="1" ifcVersion="IFC4">
+    <specification name="Walls have FireRating" identifier="SPEC-1" ifcVersion="IFC4">
       <applicability minOccurs="1">
         <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
       </applicability>
@@ -147,11 +147,11 @@ describe('tools/tool-ids (localFolder backend)', () => {
     let idsTools;
 
     const sampleIds = `<?xml version="1.0" encoding="UTF-8"?>
-<ids xmlns="http://standards.buildingsmart.org/IDS/1.0/ids.xsd"
+<ids xmlns="http://standards.buildingsmart.org/IDS"
      xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <info><title>Test</title></info>
   <specifications>
-    <specification name="Walls have FireRating" identifier="SPEC-1" minOccurs="1" maxOccurs="1" ifcVersion="IFC4">
+    <specification name="Walls have FireRating" identifier="SPEC-1" ifcVersion="IFC4">
       <applicability minOccurs="1">
         <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
       </applicability>

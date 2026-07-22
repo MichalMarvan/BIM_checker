@@ -12,12 +12,13 @@ export async function list_ids_specifications(args) {
     if (!meta) return { error: 'not_found' };
     const content = helpers.contentToText(await window.BIMStorage.getFileContent('ids', meta.id));
     const parsed = window.IDSParser.parse(content);
+    if (parsed.error) return { error: 'parse_error', message: parsed.error.message };
     const specs = (parsed && parsed.specifications) || [];
     return specs.map(s => ({
         name: s.name,
         identifier: s.identifier || null,
-        applicability: ((s.applicability && s.applicability.facets) || []).map(f => f.type),
-        requirementsCount: ((s.requirements && s.requirements.facets) || []).length
+        applicability: (s.applicability || []).map(f => f.type),
+        requirementsCount: (s.requirements || []).length
     }));
 }
 
@@ -114,7 +115,7 @@ export async function generate_ids_skeleton(args) {
             identifier: '',
             description: '',
             instructions: '',
-            applicability: [{ type: 'entity', name: { simpleValue: 'IFCWALL' } }],
+            applicability: [{ type: 'entity', name: { type: 'simpleValue', value: 'IFCWALL' } }],
             requirements: []
         }]
     };

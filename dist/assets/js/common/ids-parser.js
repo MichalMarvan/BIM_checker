@@ -7,6 +7,13 @@
 window.IDSParser = (function() {
     'use strict';
 
+    const IDS_NAMESPACE = 'http://standards.buildingsmart.org/IDS';
+    const XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema';
+
+    function errorResult(message) {
+        return { info: {}, specifications: [], error: { message } };
+    }
+
     function parseIfcVersionList(str) {
         if (!str || typeof str !== 'string') return [];
         // .filter(Boolean) drops empty tokens from leading/trailing/multiple whitespace
@@ -17,12 +24,19 @@ window.IDSParser = (function() {
         const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
         const errEl = doc.querySelector('parsererror');
         if (errEl) {
-            return { info: {}, specifications: [], error: { message: errEl.textContent } };
+            return errorResult(errEl.textContent);
         }
         return parseDocument(doc);
     }
 
     function parseDocument(xmlDoc) {
+        const root = xmlDoc?.documentElement;
+        if (!root || root.localName !== 'ids') {
+            return errorResult('The document root must be an <ids> element.');
+        }
+        if (root.namespaceURI !== IDS_NAMESPACE) {
+            return errorResult(`The <ids> element must use the IDS 1.0 namespace ${IDS_NAMESPACE}.`);
+        }
         return {
             info: extractInfo(xmlDoc),
             specifications: extractSpecifications(xmlDoc),
@@ -57,6 +71,7 @@ window.IDSParser = (function() {
                 instructions: spec.getAttribute('instructions') || '',
                 minOccurs: applicabilityEl?.getAttribute('minOccurs') ?? undefined,
                 maxOccurs: applicabilityEl?.getAttribute('maxOccurs') ?? undefined,
+                requirementsDescription: requirementsEl?.getAttribute('description') ?? '',
                 applicability: extractFacets(applicabilityEl),
                 requirements: extractFacets(requirementsEl)
             });
@@ -65,22 +80,27 @@ window.IDSParser = (function() {
     }
     function extractFacets(facetsElement) {
         if (!facetsElement) return [];
-        const facets = [];
         const types = ['entity', 'partOf', 'classification', 'attribute', 'property', 'material'];
-        for (const type of types) {
-            const elements = facetsElement.querySelectorAll(type);
-            for (const el of elements) {
-                if (el.parentNode !== facetsElement) continue;  // direct children only
-                facets.push(extractFacet(el, type));
-            }
-        }
-        return facets;
+        return Array.from(facetsElement.children)
+            .filter(element => types.includes(element.localName))
+            .map(element => extractFacet(element, element.localName));
     }
 
     function extractFacet(element, type) {
         const facet = { type };
 
-        if (type === 'property') {
+        if (type === 'partOf') {
+            const entityElem = element.querySelector(':scope > entity');
+            if (entityElem) {
+                facet.entity = { type: 'entity' };
+                const nameElem = entityElem.querySelector(':scope > name');
+                if (nameElem) facet.entity.name = extractValue(nameElem);
+                const predefinedTypeElem = entityElem.querySelector(':scope > predefinedType');
+                if (predefinedTypeElem) facet.entity.predefinedType = extractValue(predefinedTypeElem);
+            }
+            const relation = element.getAttribute('relation');
+            if (relation) facet.relation = relation;
+        } else if (type === 'property') {
             const baseNameElem = element.querySelector(':scope > baseName');
             if (baseNameElem) facet.baseName = extractValue(baseNameElem);
         } else {
@@ -96,11 +116,6 @@ window.IDSParser = (function() {
             if (psetElem) facet.propertySet = extractValue(psetElem);
         }
 
-        if (type === 'partOf') {
-            const relElem = element.querySelector(':scope > relation');
-            if (relElem) facet.relation = extractValue(relElem);
-        }
-
         if (type === 'classification') {
             const sysElem = element.querySelector(':scope > system');
             if (sysElem) facet.system = extractValue(sysElem);
@@ -109,18 +124,24 @@ window.IDSParser = (function() {
         const predefElem = element.querySelector(':scope > predefinedType');
         if (predefElem) facet.predefinedType = extractValue(predefElem);
 
-        facet.cardinality = element.getAttribute('cardinality') || 'required';
+        const cardinality = element.getAttribute('cardinality');
+        if (cardinality) facet.cardinality = cardinality;
+        else if (element.parentElement?.localName === 'requirements' && type !== 'entity') facet.cardinality = 'required';
 
         const uri = element.getAttribute('uri');
         if (uri) facet.uri = uri;
+        const dataType = element.getAttribute('dataType');
+        if (dataType) facet.dataType = dataType;
+        const instructions = element.getAttribute('instructions');
+        if (instructions) facet.instructions = instructions;
 
         return facet;
     }
     function extractValue(element) {
-        const simple = element.querySelector('simpleValue');
+        const simple = Array.from(element.children).find(child => child.localName === 'simpleValue');
         if (simple) return { type: 'simple', value: simple.textContent.trim() };
 
-        let restriction = element.querySelector('restriction');
+        let restriction = Array.from(element.children).find(child => child.localName === 'restriction');
         if (!restriction) {
             restriction = element.getElementsByTagNameNS('http://www.w3.org/2001/XMLSchema', 'restriction')[0];
         }
@@ -130,8 +151,11 @@ window.IDSParser = (function() {
     }
 
     function extractRestriction(restriction) {
-        const result = { type: 'restriction' };
-        const ns = 'http://www.w3.org/2001/XMLSchema';
+        const result = {
+            type: 'restriction',
+            base: restriction.getAttribute('base') || 'xs:string',
+            facets: []
+        };
         const findChildren = (name) => {
             // Direct-child match against any namespace
             const direct = Array.from(restriction.children).filter(el => {
@@ -141,18 +165,25 @@ window.IDSParser = (function() {
                 return tag === name || tag.endsWith(':' + name);
             });
             if (direct.length) return direct;
-            return Array.from(restriction.getElementsByTagNameNS(ns, name));
+            return Array.from(restriction.getElementsByTagNameNS(XSD_NAMESPACE, name));
         };
+
+        for (const child of Array.from(restriction.children)) {
+            if (child.namespaceURI && child.namespaceURI !== XSD_NAMESPACE) continue;
+            const value = child.getAttribute('value') ?? child.textContent.trim();
+            result.facets.push({ type: child.localName, value });
+        }
 
         const patterns = findChildren('pattern');
         if (patterns.length) {
             result.pattern = patterns[0].getAttribute('value') || patterns[0].textContent.trim();
+            result.patterns = patterns.map(pattern => pattern.getAttribute('value') ?? pattern.textContent.trim());
             result.isRegex = true;
         }
 
         const enums = findChildren('enumeration');
         if (enums.length) {
-            result.type = 'enumeration';
+            if (result.facets.every(facet => facet.type === 'enumeration')) result.type = 'enumeration';
             result.values = enums.map(e => e.getAttribute('value'));
         }
 

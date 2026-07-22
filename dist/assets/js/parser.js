@@ -68,11 +68,15 @@ function parseIDS(xmlString) {
     // Check for parsing errors
     if (xmlDoc.querySelector('parsererror')) {
         showError(t('parser.error.invalidXml'));
-        return;
+        return false;
     }
 
     // Process IDS data using IDSParser
     const parsed = IDSParser.parseDocument(xmlDoc);
+    if (parsed.error) {
+        showError(parsed.error.message || t('parser.error.invalidXml'));
+        return false;
+    }
     currentIDSData = {
         xml: xmlString,
         doc: xmlDoc,
@@ -90,6 +94,7 @@ function parseIDS(xmlString) {
 
     // Async XSD validation (non-blocking)
     runXSDValidation(xmlString);
+    return true;
 }
 
 let _idsAutoFixSkip = false;
@@ -1037,6 +1042,9 @@ const originalParseIDS = parseIDS;
 parseIDS = function(xmlText) {
     console.log('parseIDS called');
     const result = originalParseIDS(xmlText);
+    if (!result) {
+        return false;
+    }
 
     // Load into editor if available
     if (typeof idsEditorCore !== 'undefined' && typeof currentIDSData !== 'undefined') {

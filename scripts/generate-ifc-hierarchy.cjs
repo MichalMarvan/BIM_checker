@@ -20,7 +20,7 @@ const SCHEMA_URLS = {
 
 function fetchUrl(url) {
     return new Promise((resolve, reject) => {
-        https.get(url, (res) => {
+        https.get(url, { headers: { 'User-Agent': 'BIM-checker-schema-generator/1.0' } }, (res) => {
             if (res.statusCode === 301 || res.statusCode === 302) return fetchUrl(res.headers.location).then(resolve, reject);
             if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
             let data = '';
@@ -44,7 +44,7 @@ function parseExpress(text) {
         };
 
         // Extract attribute list (lines like "AttrName : OPTIONAL Type;" before WHERE/UNIQUE/INVERSE)
-        const attrSection = body.split(/\b(?:WHERE|UNIQUE|INVERSE|DERIVE)\b/i)[0];
+        const attrSection = body.split(/^\s*(?:WHERE|UNIQUE|INVERSE|DERIVE)\b/im)[0];
         const attrRe = /(\w+)\s*:\s*(?:OPTIONAL\s+)?[^;]+;/g;
         const attrs = [];
         let ar;
@@ -59,17 +59,19 @@ function parseExpress(text) {
     }
 
     // Build a map of own-attr lists per class (name → string[])
-    function getOwnAttrs(className) {
+    function getOwnAttrDefs(className) {
         const re = new RegExp(`ENTITY\\s+${className}\\b[\\s\\S]*?END_ENTITY`, 'i');
         const m = text.match(re);
         if (!m) return [];
-        const body = m[0].split(/\b(?:WHERE|UNIQUE|INVERSE|DERIVE)\b/i)[0];
+        const body = m[0].split(/^\s*(?:WHERE|UNIQUE|INVERSE|DERIVE)\b/im)[0];
         // Remove SUPERTYPE/SUBTYPE preamble before the first ';' (the entity header ends with ';')
         const afterHeader = body.split(';').slice(1).join(';');
-        const attrRe2 = /(\w+)\s*:\s*(?:OPTIONAL\s+)?[^;]+;/g;
+        const attrRe2 = /(\w+)\s*:\s*(?:OPTIONAL\s+)?([^;]+);/g;
         const attrs = [];
         let ar2;
-        while ((ar2 = attrRe2.exec(afterHeader)) !== null) attrs.push(ar2[1].toLowerCase());
+        while ((ar2 = attrRe2.exec(afterHeader)) !== null) {
+            attrs.push({ name: ar2[1], type: ar2[2].trim().toUpperCase() });
+        }
         return attrs;
     }
 
@@ -80,16 +82,23 @@ function parseExpress(text) {
         const cls = classes[name];
         if (!cls) return [];
         const parentAttrs = cls.parent ? getFullAttrList(cls.parent, visited) : [];
-        return parentAttrs.concat(getOwnAttrs(name));
+        return parentAttrs.concat(getOwnAttrDefs(name));
     }
 
     // Recompute predefinedTypeIndex and objectTypeIndex using full attr list
     for (const [name, entry] of Object.entries(classes)) {
         const full = getFullAttrList(name);
-        const pdIdx = full.findIndex(a => a === 'predefinedtype');
+        // Keep the complete explicit attribute order as well. IDS attribute
+        // facets address IFC attributes by name, while STEP stores only
+        // positional arguments. Shipping the order lets the browser resolve
+        // every direct/inherited attribute without embedding the EXPRESS
+        // schemas in the application.
+        entry.attributes = full.map(attribute => attribute.name);
+        entry.attributeTypes = full.map(attribute => attribute.type);
+        const pdIdx = full.findIndex(attribute => attribute.name.toLowerCase() === 'predefinedtype');
         entry.predefinedTypeIndex = pdIdx >= 0 ? pdIdx : null;
         if (entry.predefinedTypeIndex !== null) {
-            const otIdx = full.findIndex(a => a === 'objecttype');
+            const otIdx = full.findIndex(attribute => attribute.name.toLowerCase() === 'objecttype');
             entry.objectTypeIndex = otIdx >= 0 ? otIdx : null;
         } else {
             entry.objectTypeIndex = null;
@@ -103,6 +112,7 @@ async function main() {
     const args = process.argv.slice(2);
     const versionIdx = args.indexOf('--version');
     const outputIdx = args.indexOf('--output');
+    const sourceIdx = args.indexOf('--source');
     if (versionIdx < 0 || outputIdx < 0) {
         console.error('Usage: node generate-ifc-hierarchy.cjs --version IFC4 --output assets/data/');
         process.exit(1);
@@ -112,8 +122,15 @@ async function main() {
     const url = SCHEMA_URLS[version];
     if (!url) { console.error(`Unknown version: ${version}`); process.exit(1); }
 
-    console.log(`Fetching ${url}...`);
-    const text = await fetchUrl(url);
+    const sourcePath = sourceIdx >= 0 ? args[sourceIdx + 1] : null;
+    let text;
+    if (sourcePath) {
+        console.log(`Reading ${sourcePath}...`);
+        text = fs.readFileSync(sourcePath, 'utf8');
+    } else {
+        console.log(`Fetching ${url}...`);
+        text = await fetchUrl(url);
+    }
     console.log(`Parsing ${text.length} bytes...`);
     const classes = parseExpress(text);
     console.log(`Found ${Object.keys(classes).length} classes`);

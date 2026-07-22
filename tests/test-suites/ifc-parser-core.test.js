@@ -82,7 +82,7 @@ END-ISO-10303-21;`;
         expect(entities).toEqual([]);
     });
 
-    it('skips REL and PROPERTY entity types from output', () => {
+    it('keeps non-rooted IFC entities so IDS attribute facets can address them', () => {
         const ifc = `ISO-10303-21;
 DATA;
 #1=IFCWALL('guid-1',$,'Wall',$,$,$,$,$,$);
@@ -92,9 +92,9 @@ DATA;
 ENDSEC;
 END-ISO-10303-21;`;
         const entities = IFCParserCore.parseIFCContent(ifc, 't.ifc');
-        // Only IFCWALL should be in output (IFCPROPERTYSET, IFCPROPERTYSINGLEVALUE, IFCRELDEFINESBYPROPERTIES filtered)
-        expect(entities.length).toBe(1);
-        expect(entities[0].entity).toBe('IFCWALL');
+        expect(entities.length).toBe(4);
+        expect(entities.some(entity => entity.entity === 'IFCWALL')).toBe(true);
+        expect(entities.some(entity => entity.entity === 'IFCPROPERTYSINGLEVALUE')).toBe(true);
     });
 
     it('links property set to entity via rel', () => {
@@ -107,9 +107,9 @@ DATA;
 ENDSEC;
 END-ISO-10303-21;`;
         const entities = IFCParserCore.parseIFCContent(ifc, 't.ifc');
-        expect(entities.length).toBe(1);
-        expect(entities[0].propertySets['Pset_WallCommon']).toBeDefined();
-        expect(entities[0].propertySets['Pset_WallCommon']['FireRating']).toBe('EI60');
+        const wall = entities.find(entity => entity.entity === 'IFCWALL');
+        expect(wall.propertySets['Pset_WallCommon']).toBeDefined();
+        expect(wall.propertySets['Pset_WallCommon']['FireRating']).toBe('EI60');
     });
 
     it('parses non-single property value types into table text', () => {
@@ -126,22 +126,22 @@ DATA;
 ENDSEC;
 END-ISO-10303-21;`;
         const entities = IFCParserCore.parseIFCContent(ifc, 't.ifc');
-        const pset = entities[0].propertySets.Pset_Test;
+        const pset = entities.find(entity => entity.entity === 'IFCWALL').propertySets.Pset_Test;
         expect(pset.EnumProp).toBe('A, B');
         expect(pset.ListProp).toBe('1.5, 2.5');
         expect(pset.BoundedProp).toBe('min 2., max 10., set 5.');
         expect(pset.ComplexProp).toBe('ChildProp: Nested');
     });
 
-    it('skips entities without GUID', () => {
+    it('keeps entities without GlobalId using a stable STEP fallback identifier', () => {
         const ifc = `ISO-10303-21;
 DATA;
 #1=IFCCARTESIANPOINT((0.,0.,0.));
 ENDSEC;
 END-ISO-10303-21;`;
         const entities = IFCParserCore.parseIFCContent(ifc, 't.ifc');
-        // No quoted strings, no GUID → filtered out
-        expect(entities.length).toBe(0);
+        expect(entities.length).toBe(1);
+        expect(entities[0].guid).toBe('#1');
     });
 
     it('handles multiple entity types', () => {

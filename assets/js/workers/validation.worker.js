@@ -22,7 +22,7 @@ self.onmessage = function(e) {
                 break;
 
             case 'VALIDATE_SPEC':
-                handleValidateSpec(taskId, data);
+                await handleValidateSpec(taskId, data);
                 break;
 
             case 'PING':
@@ -70,99 +70,9 @@ async function handleValidateBatch(taskId, data) {
  * Validate entities against a single specification
  * Reports progress during validation
  */
-function handleValidateSpec(taskId, data) {
-    const { entities, spec, chunkSize = 100, ifcSchema } = data;
-
-    // Apply schema-aware gate — mirrors the 3-branch logic in validateBatch
-    const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
-    const declared = Array.isArray(spec.ifcVersions)
-        ? spec.ifcVersions
-        : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : []);
-    const supported = declared.filter(v => SUPPORTED.includes(v));
-    const unsupported = declared.filter(v => !SUPPORTED.includes(v));
-
-    // Branch 1: all-unsupported — FIRST, INDEPENDENT of schema match
-    if (declared.length > 0 && supported.length === 0) {
-        self.postMessage({ taskId, type: 'SPEC_RESULT', data: {
-            specification: spec.name,
-            status: 'error',
-            errorMessage: `No supported IFC version in spec.ifcVersions (declared: ${declared.join(', ')}). Allowed: ${SUPPORTED.join(', ')}.`,
-            passCount: 0,
-            failCount: 0,
-            entityResults: [],
-            warnings: []
-        }});
-        return;
-    }
-
-    // Branch 2: spec doesn't apply to this schema — SECOND, INDEPENDENT
-    if (declared.length > 0 && !declared.includes(ifcSchema)) {
-        self.postMessage({ taskId, type: 'SPEC_RESULT', data: {
-            specification: spec.name,
-            status: 'skipped',
-            skipReason: 'ifc-version-mismatch',
-            ifcSchema,
-            declaredVersions: declared,
-            passCount: 0,
-            failCount: 0,
-            entityResults: [],
-            warnings: []
-        }});
-        return;
-    }
-
-    // Branch 3: proceed — pick ifcVersion for hierarchy load
-    const ifcVersion = (ifcSchema !== 'UNKNOWN' && supported.includes(ifcSchema))
-        ? ifcSchema
-        : (supported[0] || 'IFC4');
-
-    const applicableEntities = ValidationEngine.filterByApplicability(
-        entities,
-        spec.applicability
-    );
-
-    const result = {
-        specification: spec.name,
-        status: 'pass',
-        passCount: 0,
-        failCount: 0,
-        entityResults: [],
-        warnings: unsupported.length > 0
-            ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
-            : []
-    };
-
-    // Process in chunks and report progress
-    for (let i = 0; i < applicableEntities.length; i += chunkSize) {
-        const chunk = applicableEntities.slice(i, i + chunkSize);
-
-        for (const entity of chunk) {
-            const entityResult = ValidationEngine.validateEntity(
-                entity,
-                spec.requirements || [],
-                spec.name
-            );
-            result.entityResults.push(entityResult);
-
-            if (entityResult.status === 'pass') {
-                result.passCount++;
-            } else {
-                result.failCount++;
-                result.status = 'fail';
-            }
-        }
-
-        // Report progress
-        self.postMessage({
-            taskId,
-            type: 'PROGRESS',
-            data: {
-                processed: Math.min(i + chunkSize, applicableEntities.length),
-                total: applicableEntities.length,
-                specification: spec.name
-            }
-        });
-    }
+async function handleValidateSpec(taskId, data) {
+    const { entities, spec, ifcSchema } = data;
+    const result = await ValidationEngine.validateBatch(entities, spec, { ifcSchema });
 
     self.postMessage({
         taskId,

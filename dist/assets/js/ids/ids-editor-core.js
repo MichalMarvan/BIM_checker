@@ -149,6 +149,7 @@ class IDSEditorCore {
                     instructions: spec.instructions || '',
                     minOccurs: spec.minOccurs,
                     maxOccurs: spec.maxOccurs,
+                    requirementsDescription: spec.requirementsDescription || '',
                     applicability: this.convertFacets(spec.applicability),
                     requirements: this.convertFacets(spec.requirements)
                 };
@@ -166,52 +167,18 @@ class IDSEditorCore {
             return [];
         }
 
+        const convertValue = value => {
+            if (Array.isArray(value)) return value.map(convertValue);
+            if (!value || typeof value !== 'object') return value;
+            const converted = {};
+            for (const [key, child] of Object.entries(value)) converted[key] = convertValue(child);
+            if (converted.type === 'simple') converted.type = 'simpleValue';
+            return converted;
+        };
+
         return facets.map(facet => {
-            // Convert parser format to editor format
-            const converted = {
-                type: facet.type || this.detectFacetType(facet)
-            };
-
-            // Convert all properties that might be value objects
-            Object.keys(facet).forEach(key => {
-                if (key === 'type') {
-                    return;
-                }
-
-                const value = facet[key];
-
-                if (value && typeof value === 'object') {
-                    // Handle different parser formats
-                    if (value.type === 'simple') {
-                        // Convert {type: 'simple', value: 'x'} to {type: 'simpleValue', value: 'x'}
-                        converted[key] = { type: 'simpleValue', value: value.value };
-                    } else if (value.type === 'restriction' && value.pattern) {
-                        // Convert {type: 'restriction', pattern: 'x', isRegex: true} to {type: 'pattern', value: 'x'}
-                        converted[key] = { type: 'pattern', value: value.pattern };
-                    } else if (value.type === 'restriction' && value.enumeration) {
-                        // Convert enumeration format
-                        converted[key] = { type: 'enumeration', values: value.enumeration };
-                    } else if (value.type === 'restriction' && (value.minInclusive !== undefined || value.maxInclusive !== undefined)) {
-                        // Convert bounds format
-                        converted[key] = {
-                            type: 'bounds',
-                            minInclusive: value.minInclusive,
-                            maxInclusive: value.maxInclusive,
-                            base: value.base || 'xs:decimal'
-                        };
-                    } else if (value.type) {
-                        // Keep other restriction types as is
-                        converted[key] = value;
-                    } else {
-                        // Object without type field
-                        converted[key] = value;
-                    }
-                } else {
-                    // Simple string or other value
-                    converted[key] = value;
-                }
-            });
-
+            const converted = convertValue(facet);
+            converted.type = facet.type || this.detectFacetType(facet);
             return converted;
         });
     }
@@ -581,7 +548,7 @@ class IDSEditorCore {
             return this.escapeHtml(String(restriction.value));
         }
 
-        return JSON.stringify(restriction);
+        return this.escapeHtml(JSON.stringify(restriction));
     }
 
     /**
@@ -772,6 +739,9 @@ class IDSEditorCore {
         idsEditorModals.currentIfcVersion = ifcVersion; // Set IFC version for modal
         idsEditorModals.currentSection = section; // Store section for cardinality
         idsEditorModals.currentCallback = (updatedFacet) => {
+            if (facet.instructions && updatedFacet.instructions === undefined) {
+                updatedFacet.instructions = facet.instructions;
+            }
             this.idsData.specifications[specIndex][section][facetIndex] = updatedFacet;
             this.hasUnsavedChanges = true;
             this.renderIDS();
@@ -1146,7 +1116,14 @@ class IDSEditorCore {
      * Load Excel data into editor
      */
     loadExcelData(data) {
-        this.idsData = data;
+        this.idsData = {
+            ...data,
+            specifications: (data.specifications || []).map(spec => ({
+                ...spec,
+                applicability: this.convertFacets(spec.applicability),
+                requirements: this.convertFacets(spec.requirements)
+            }))
+        };
         this.hasUnsavedChanges = true;
         this.renderIDS();
         this.enableEditMode();

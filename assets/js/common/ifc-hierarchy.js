@@ -98,5 +98,40 @@ window.IFCHierarchy = (function() {
         return data.classes[cls]?.objectTypeIndex ?? null;
     }
 
-    return { load, isSubtypeOf, getSubtypes, getPredefinedTypeIndex, getObjectTypeIndex };
+    function getAttributeIndex(version, cls, attributeName) {
+        const data = cache.get(version);
+        if (!data || !attributeName) return null;
+        const attributes = data.classes[cls]?.attributes;
+        if (!Array.isArray(attributes)) return null;
+        const needle = String(attributeName).toLowerCase();
+        const index = attributes.findIndex(name => String(name).toLowerCase() === needle);
+        return index >= 0 ? index : null;
+    }
+
+    function getAttributes(version, cls) {
+        const data = cache.get(version);
+        const attributes = data?.classes?.[cls]?.attributes;
+        return Array.isArray(attributes) ? attributes.slice() : [];
+    }
+
+    function getAttributeType(version, cls, attributeName) {
+        const data = cache.get(version);
+        if (!data || !attributeName) return null;
+        const entry = data.classes[cls];
+        if (!entry || !Array.isArray(entry.attributes) || !Array.isArray(entry.attributeTypes)) return null;
+        const needle = String(attributeName).toLowerCase();
+        const index = entry.attributes.findIndex(name => String(name).toLowerCase() === needle);
+        return index >= 0 ? (entry.attributeTypes[index] || null) : null;
+    }
+
+    return {
+        load,
+        isSubtypeOf,
+        getSubtypes,
+        getPredefinedTypeIndex,
+        getObjectTypeIndex,
+        getAttributeIndex,
+        getAttributes,
+        getAttributeType
+    };
 })();

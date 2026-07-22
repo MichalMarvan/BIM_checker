@@ -507,8 +507,8 @@ async function parseCompleteIFC(content) {
     };
 }
 
-describe('Integration: subtype matching against real IFC', () => {
-    it('IDS with simpleValue IFCWALL should match IFCWALLSTANDARDCASE entities', async () => {
+describe('Integration: exact IDS entity matching against real IFC', () => {
+    it('IDS with simpleValue IFCWALL should not match IFCWALLSTANDARDCASE', async () => {
         await IFCHierarchy.load('IFC4');
         const facet = { type: 'entity', name: { type: 'simple', value: 'IFCWALL' } };
         const ctx = {
@@ -516,10 +516,10 @@ describe('Integration: subtype matching against real IFC', () => {
             isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf('IFC4', c, a)
         };
         const entity = { entity: 'IFCWALLSTANDARDCASE' };
-        expect(ValidationEngine.checkEntityFacet(entity, facet, ctx)).toBe(true);
+        expect(ValidationEngine.checkEntityFacet(entity, facet, ctx)).toBe(false);
     });
 
-    it('IDS with abstract IFCBUILDINGELEMENT should match all subtypes', async () => {
+    it('IDS with abstract IFCBUILDINGELEMENT should not match concrete subtypes', async () => {
         await IFCHierarchy.load('IFC4');
         // IFC4 ADD2 uses IFCBUILDINGELEMENT (not IFCBUILTELEMENT) as the parent class
         const facet = { type: 'entity', name: { type: 'simple', value: 'IFCBUILDINGELEMENT' } };
@@ -528,7 +528,7 @@ describe('Integration: subtype matching against real IFC', () => {
             isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf('IFC4', c, a)
         };
         for (const cls of ['IFCWALL', 'IFCSLAB', 'IFCDOOR', 'IFCWINDOW', 'IFCBEAM']) {
-            expect(ValidationEngine.checkEntityFacet({ entity: cls }, facet, ctx)).toBe(true);
+            expect(ValidationEngine.checkEntityFacet({ entity: cls }, facet, ctx)).toBe(false);
         }
     });
 });

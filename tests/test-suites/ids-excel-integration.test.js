@@ -121,4 +121,112 @@ describe('IDS Excel Integration', () => {
         expect(result.data.specifications[0].requirements.length).toBe(2);
     });
 
+    it('should preserve IDS 1.0 occurrences, metadata, partOf and exact restrictions', () => {
+        const originalData = {
+            title: 'Lossless',
+            version: '1.0',
+            date: '2026-07-22',
+            specifications: [{
+                identifier: 'LOSSLESS',
+                name: 'Lossless spec',
+                ifcVersion: 'IFC4 IFC4X3_ADD2',
+                minOccurs: '0',
+                maxOccurs: '1',
+                requirementsDescription: 'Keep this description',
+                applicability: [{
+                    type: 'partOf',
+                    relation: 'IFCRELAGGREGATES',
+                    entity: {
+                        type: 'entity',
+                        name: { type: 'simple', value: 'IFCBUILDING' },
+                        predefinedType: { type: 'simple', value: 'ELEMENT' }
+                    }
+                }],
+                requirements: [{
+                    type: 'property',
+                    propertySet: { type: 'simple', value: 'Pset_WallCommon' },
+                    baseName: { type: 'simple', value: 'Reference' },
+                    value: {
+                        type: 'restriction',
+                        base: 'xs:string',
+                        facets: [
+                            { type: 'minLength', value: '2' },
+                            { type: 'pattern', value: '[A-Z]+' }
+                        ]
+                    },
+                    dataType: 'IFCLABEL',
+                    cardinality: 'optional',
+                    instructions: 'Provide a code',
+                    uri: 'https://example.test/property'
+                }]
+            }]
+        };
+
+        const result = IDSExcelParser.parse(IDSExcelGenerator.generate(originalData));
+        const spec = result.data.specifications[0];
+        const partOf = spec.applicability[0];
+        const property = spec.requirements[0];
+        expect(spec.minOccurs).toBe('0');
+        expect(spec.maxOccurs).toBe('1');
+        expect(spec.requirementsDescription).toBe('Keep this description');
+        expect(partOf.entity.name.value).toBe('IFCBUILDING');
+        expect(partOf.entity.predefinedType.value).toBe('ELEMENT');
+        expect(partOf.relation).toBe('IFCRELAGGREGATES');
+        expect(property.value.base).toBe('xs:string');
+        expect(property.value.facets).toEqual(originalData.specifications[0].requirements[0].value.facets);
+        expect(property.dataType).toBe('IFCLABEL');
+        expect(property.cardinality).toBe('optional');
+        expect(property.instructions).toBe('Provide a code');
+    });
+
+    it('should not cross-contaminate properties between specifications', () => {
+        const data = {
+            title: 'Scoped properties',
+            specifications: [
+                {
+                    identifier: 'A', name: 'A', ifcVersion: 'IFC4', applicability: [],
+                    requirements: [{
+                        type: 'property',
+                        propertySet: { type: 'simple', value: 'Pset_Common' },
+                        baseName: { type: 'simple', value: 'OnlyA' },
+                        cardinality: 'required'
+                    }]
+                },
+                {
+                    identifier: 'B', name: 'B', ifcVersion: 'IFC4', applicability: [],
+                    requirements: [{
+                        type: 'property',
+                        propertySet: { type: 'simple', value: 'Pset_Common' },
+                        baseName: { type: 'simple', value: 'OnlyB' },
+                        cardinality: 'prohibited'
+                    }]
+                }
+            ]
+        };
+        const specs = IDSExcelParser.parse(IDSExcelGenerator.generate(data)).data.specifications;
+        expect(specs[0].requirements.length).toBe(1);
+        expect(specs[0].requirements[0].baseName.value).toBe('OnlyA');
+        expect(specs[0].requirements[0].cardinality).toBe('required');
+        expect(specs[1].requirements.length).toBe(1);
+        expect(specs[1].requirements[0].baseName.value).toBe('OnlyB');
+        expect(specs[1].requirements[0].cardinality).toBe('prohibited');
+    });
+
+    it('should import only the four explicit template requirements', () => {
+        const template = IDSExcelTemplate.generateTemplateData();
+        const specs = IDSExcelParser.parse(IDSExcelGenerator.generate(template)).data.specifications;
+        expect(specs[0].requirements.length).toBe(2);
+        expect(specs[1].requirements.length).toBe(1);
+        expect(specs[2].requirements.length).toBe(1);
+    });
+
+    it('should produce XSD-valid IDS after an Excel roundtrip', async () => {
+        const originalData = IDSExcelTemplate.generateTemplateData();
+        const excelData = IDSExcelParser.parse(IDSExcelGenerator.generate(originalData)).data;
+        const xml = new IDSXMLGenerator().generateIDS(excelData);
+        const validation = await IDSXSDValidator.validate(xml);
+        expect(validation.valid).toBe(true);
+        expect(validation.errors).toEqual([]);
+    }, 10000);
+
 });

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-const CACHE_VERSION = 'bim-checker-v151';
+const CACHE_VERSION = 'bim-checker-v153';
 const ASSETS_TO_CACHE = [
     './index.html',
     './assets/og-image-v2.png',
@@ -79,6 +79,10 @@ const ASSETS_TO_CACHE = [
     './assets/js/vendor/xmllint-browser.js',
     './assets/js/vendor/xmllint.wasm',
     './assets/data/ids-1.0.xsd',
+    './assets/data/xml.xsd',
+    './assets/data/XMLSchema.xsd',
+    './assets/data/XMLSchema.dtd',
+    './assets/data/datatypes.dtd',
     './assets/data/ifc-hierarchy-IFC2X3.json',
     './assets/data/ifc-hierarchy-IFC4.json',
     './assets/data/ifc-hierarchy-IFC4X3_ADD2.json',

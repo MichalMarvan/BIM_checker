@@ -72,9 +72,61 @@ const IDSExcelGenerator = (function() {
             spec_id: spec.identifier || `SPEC_${String(index + 1).padStart(2, '0')}`,
             name: spec.name || '',
             description: spec.description || '',
-            ifcVersion: spec.ifcVersion || 'IFC4',
-            instructions: spec.instructions || ''
+            ifcVersion: Array.isArray(spec.ifcVersion)
+                ? spec.ifcVersion.join(' ')
+                : (spec.ifcVersion || (spec.ifcVersions || []).join(' ') || 'IFC4'),
+            instructions: spec.instructions || '',
+            minOccurs: spec.minOccurs ?? '',
+            maxOccurs: spec.maxOccurs ?? '',
+            requirements_description: spec.requirementsDescription || ''
         }));
+    }
+
+    function _json(value) {
+        if (value === undefined || value === null) return '';
+        if (typeof value !== 'object' || value.type === 'simple' || value.type === 'simpleValue') return '';
+        return JSON.stringify(value);
+    }
+
+    function _displayValue(value) {
+        if (value === undefined || value === null) return '';
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+        if (value.type === 'simple' || value.type === 'simpleValue') return value.value ?? '';
+        return _extractValueInfo(value).value;
+    }
+
+    function _facetToRow(facet, specId, isRequirement) {
+        const entity = facet.entity && typeof facet.entity === 'object' ? facet.entity : null;
+        const row = {
+            spec_id: specId,
+            facet_type: facet.type || '',
+            entity_name: facet.type === 'partOf'
+                ? _displayValue(entity?.name || facet.entity)
+                : _displayValue(facet.name),
+            predefinedType: _displayValue(facet.type === 'partOf' ? entity?.predefinedType : facet.predefinedType),
+            pset_name: _displayValue(facet.propertySet),
+            property_name: _displayValue(facet.baseName || (facet.type === 'property' ? facet.name : null)),
+            property_value: facet.type === 'property' ? _displayValue(facet.value) : '',
+            attribute_name: facet.type === 'attribute' ? _displayValue(facet.name) : '',
+            attribute_value: facet.type === 'attribute' ? _displayValue(facet.value) : '',
+            classification_system: facet.type === 'classification' ? _displayValue(facet.system) : '',
+            classification_value: facet.type === 'classification' ? _displayValue(facet.value) : '',
+            material_value: facet.type === 'material' ? _displayValue(facet.value) : '',
+            value_type: _extractValueInfo(facet.value).type,
+            relation: facet.relation || '',
+            dataType: facet.dataType || '',
+            uri: isRequirement ? (facet.uri || '') : '',
+            instructions: isRequirement ? (facet.instructions || '') : '',
+            name_json: _json(facet.type === 'partOf' ? entity?.name : facet.name),
+            predefined_type_json: _json(facet.type === 'partOf' ? entity?.predefinedType : facet.predefinedType),
+            property_set_json: _json(facet.propertySet),
+            base_name_json: _json(facet.baseName),
+            value_json: _json(facet.value),
+            system_json: _json(facet.system),
+            entity_json: ''
+        };
+        if (isRequirement) row.cardinality = facet.type === 'entity' ? '' : (facet.cardinality || 'required');
+        return row;
     }
 
     /**
@@ -89,52 +141,13 @@ const IDSExcelGenerator = (function() {
             const specId = spec.identifier || `SPEC_${String(index + 1).padStart(2, '0')}`;
 
             for (const facet of (spec.applicability || [])) {
-                const row = {
-                    spec_id: specId,
-                    facet_type: facet.type || 'entity'
-                };
-
-                if (facet.type === 'entity') {
-                    row.entity_name = facet.name?.value || '';
-                    row.predefinedType = facet.predefinedType?.value || '';
-                } else if (facet.type === 'property') {
-                    row.pset_name = facet.propertySet?.value || '';
-                    row.property_name = facet.baseName?.value || facet.name?.value || '';
-                    row.property_value = facet.value?.value || '';
-                } else if (facet.type === 'attribute') {
-                    row.attribute_name = facet.name?.value || '';
-                    row.attribute_value = facet.value?.value || '';
-                } else if (facet.type === 'classification') {
-                    row.classification_system = facet.system?.value || facet.system || '';
-                    row.classification_value = facet.value?.value || '';
-                } else if (facet.type === 'material') {
-                    row.material_value = facet.value?.value || '';
-                }
-
-                // bSDD URI (for classification, property, material)
-                row.uri = facet.uri || '';
-
-                rows.push(row);
+                rows.push(_facetToRow(facet, specId, false));
             }
         }
 
         // Ensure at least headers exist
         if (rows.length === 0) {
-            rows.push({
-                spec_id: '',
-                facet_type: '',
-                entity_name: '',
-                predefinedType: '',
-                pset_name: '',
-                property_name: '',
-                property_value: '',
-                attribute_name: '',
-                attribute_value: '',
-                classification_system: '',
-                classification_value: '',
-                material_value: '',
-                uri: ''
-            });
+            rows.push(_facetToRow({}, '', false));
         }
 
         return rows;
@@ -152,45 +165,12 @@ const IDSExcelGenerator = (function() {
             const specId = spec.identifier || `SPEC_${String(index + 1).padStart(2, '0')}`;
 
             for (const facet of (spec.requirements || [])) {
-                // Property requirements go to psets_lookup + element_psets sheets
-                if (facet.type === 'property') {
-                    continue;
-                }
-
-                const row = {
-                    spec_id: specId,
-                    facet_type: facet.type || '',
-                    cardinality: facet.cardinality || 'required'
-                };
-
-                if (facet.type === 'classification') {
-                    row.classification_system = facet.system?.value || facet.system || '';
-                    row.classification_value = facet.value?.value || '';
-                } else if (facet.type === 'material') {
-                    row.material_value = facet.value?.value || '';
-                } else if (facet.type === 'attribute') {
-                    row.attribute_name = facet.name?.value || facet.name || '';
-                    row.attribute_value = facet.value?.value || '';
-                }
-
-                row.uri = facet.uri || '';
-
-                rows.push(row);
+                rows.push(_facetToRow(facet, specId, true));
             }
         }
 
         if (rows.length === 0) {
-            rows.push({
-                spec_id: '',
-                facet_type: '',
-                cardinality: '',
-                classification_system: '',
-                classification_value: '',
-                material_value: '',
-                attribute_name: '',
-                attribute_value: '',
-                uri: ''
-            });
+            rows.push(_facetToRow({}, '', true));
         }
 
         return rows;
@@ -204,13 +184,15 @@ const IDSExcelGenerator = (function() {
         const seen = new Set();
         const rows = [];
 
-        for (const spec of specifications) {
+        for (let index = 0; index < specifications.length; index++) {
+            const spec = specifications[index];
+            const specId = spec.identifier || `SPEC_${String(index + 1).padStart(2, '0')}`;
             for (const req of (spec.requirements || [])) {
                 if (req.type !== 'property') continue;
 
                 const psetName = req.propertySet?.value || '';
                 const propName = req.baseName?.value || req.name?.value || '';
-                const key = `${psetName}|${propName}`;
+                const key = `${specId}|${psetName}|${propName}`;
 
                 if (!psetName || !propName || seen.has(key)) continue;
 
@@ -220,6 +202,7 @@ const IDSExcelGenerator = (function() {
                 const valueInfo = _extractValueInfo(req.value);
 
                 rows.push({
+                    spec_id: specId,
                     pset_name: psetName,
                     property_name: propName,
                     dataType: req.dataType || '',
@@ -232,7 +215,7 @@ const IDSExcelGenerator = (function() {
 
         // Ensure at least headers exist
         if (rows.length === 0) {
-            rows.push({ pset_name: '', property_name: '', dataType: '', value_type: '', value: '', uri: '' });
+            rows.push({ spec_id: '', pset_name: '', property_name: '', dataType: '', value_type: '', value: '', uri: '' });
         }
 
         return rows;

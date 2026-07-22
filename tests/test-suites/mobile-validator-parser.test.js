@@ -58,7 +58,7 @@ describe('mobile-parser (Phase 12e CSS at < 1024px)', () => {
     });
 });
 
-describe('ValidationEngine.validateBatch — schema-aware applicability', () => {
+describe('ValidationEngine.validateBatch — IFC version metadata', () => {
     const sample = [{ id: '1', guid: 'g1', entity: 'IFCWALL', name: 'W', propertySets: {}, fileName: 'a.ifc', attributes: {} }];
     const baseSpec = {
         name: 'S1',
@@ -66,18 +66,17 @@ describe('ValidationEngine.validateBatch — schema-aware applicability', () => 
         requirements: []
     };
 
-    it('skips when ifcVersions excludes the IFC schema', async () => {
+    it('validates when ifcVersions excludes the IFC schema', async () => {
         const spec = { ...baseSpec, ifcVersion: 'IFC2X3', ifcVersions: ['IFC2X3'] };
         const result = await window.ValidationEngine.validateBatch(sample, spec, { ifcSchema: 'IFC4' });
-        expect(result.status).toBe('skipped');
-        expect(result.skipReason).toBe('ifc-version-mismatch');
+        expect(result.status).toBe('pass');
     });
 
-    it('errors when all declared versions are unsupported', async () => {
+    it('validates and warns when all declared versions are unknown metadata', async () => {
         const spec = { ...baseSpec, ifcVersion: 'IFC4X3 IFC4X3_TC1', ifcVersions: ['IFC4X3', 'IFC4X3_TC1'] };
         const result = await window.ValidationEngine.validateBatch(sample, spec, { ifcSchema: 'IFC4' });
-        expect(result.status).toBe('error');
-        expect(String(result.errorMessage || '').includes('IFC4X3')).toBe(true);
+        expect(result.status).toBe('pass');
+        expect(String(result.warnings[0] || '').includes('IFC4X3')).toBe(true);
     });
 
     it('validates and warns on partial mismatch', async () => {
@@ -88,21 +87,16 @@ describe('ValidationEngine.validateBatch — schema-aware applicability', () => 
         expect(result.warnings.length > 0).toBe(true);
     });
 
-    it('treats absent ifcSchema as UNKNOWN and skips versioned specs', async () => {
+    it('validates a versioned spec when ifcSchema is absent', async () => {
         const spec = { ...baseSpec, ifcVersion: 'IFC4', ifcVersions: ['IFC4'] };
         const result = await window.ValidationEngine.validateBatch(sample, spec); // no options
-        // No declared IFC schema → treated as UNKNOWN → mismatch with declared IFC4 → skipped
-        expect(result.status).toBe('skipped');
-        expect(result.skipReason).toBe('ifc-version-mismatch');
+        expect(result.status).toBe('pass');
     });
 
-    it('worker handleValidateSpec: all-unsupported errors even when ifcSchema equals an unsupported declared version', async () => {
-        // This guards the worker's inline gate behavior.
-        // Worker direct invocation is impractical in this test env; verify via the validateBatch parallel path instead.
-        // (validateBatch is the canonical implementation that handleValidateSpec mirrors.)
+    it('worker canonical path treats unknown versions as metadata', async () => {
         const spec = { ...baseSpec, ifcVersion: 'IFC4X3_TC1', ifcVersions: ['IFC4X3_TC1'] };
         const result = await window.ValidationEngine.validateBatch(sample, spec, { ifcSchema: 'IFC4X3_TC1' });
-        expect(result.status).toBe('error');
-        expect(String(result.errorMessage || '').includes('IFC4X3_TC1')).toBe(true);
+        expect(result.status).toBe('pass');
+        expect(String(result.warnings[0] || '').includes('IFC4X3_TC1')).toBe(true);
     });
 });

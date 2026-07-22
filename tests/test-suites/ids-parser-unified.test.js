@@ -82,6 +82,11 @@ describe('IDSParser.extractValue', () => {
         expect(v.type).toBe('restriction');
         expect(v.minInclusive).toBe('0');
         expect(v.maxInclusive).toBe('100');
+        expect(v.base).toBe('xs:double');
+        expect(v.facets).toEqual([
+            { type: 'minInclusive', value: '0' },
+            { type: 'maxInclusive', value: '100' }
+        ]);
     });
 });
 
@@ -96,7 +101,7 @@ describe('IDSParser.extractFacet', () => {
         expect(facet.type).toBe('entity');
         expect(facet.name.type).toBe('simple');
         expect(facet.name.value).toBe('IFCWALL');
-        expect(facet.cardinality).toBe('required');
+        expect(facet.cardinality).toBeUndefined();
     });
 
     it('should extract entity facet with predefinedType', () => {
@@ -222,6 +227,45 @@ describe('IDSParser.parse', () => {
         expect(result.error.message).toBeDefined();
         expect(result.specifications).toEqual([]);
     });
+
+    it('should reject a non-IDS root element', () => {
+        const result = IDSParser.parse('<root xmlns="http://standards.buildingsmart.org/IDS"/>');
+        expect(result.error).toBeDefined();
+        expect(result.specifications).toEqual([]);
+    });
+
+    it('should reject a wrong IDS namespace', () => {
+        const result = IDSParser.parse('<ids xmlns="http://standards.buildingsmart.org/IDS/1.0/ids.xsd"/>');
+        expect(result.error).toBeDefined();
+        expect(result.specifications).toEqual([]);
+    });
+});
+
+describe('IDSParser IDS 1.0 metadata', () => {
+    it('preserves requirements description and requirement facet attributes', () => {
+        const xml = `<?xml version="1.0"?>
+            <ids xmlns="http://standards.buildingsmart.org/IDS">
+                <info><title>T</title></info>
+                <specifications>
+                    <specification name="S" ifcVersion="IFC4">
+                        <applicability><entity><name><simpleValue>IFCWALL</simpleValue></name></entity></applicability>
+                        <requirements description="Author note">
+                            <property dataType="IFCLABEL" cardinality="optional" instructions="Fill this value" uri="https://example.test/p">
+                                <propertySet><simpleValue>Pset_WallCommon</simpleValue></propertySet>
+                                <baseName><simpleValue>Reference</simpleValue></baseName>
+                            </property>
+                        </requirements>
+                    </specification>
+                </specifications>
+            </ids>`;
+        const result = IDSParser.parse(xml);
+        const spec = result.specifications[0];
+        expect(spec.requirementsDescription).toBe('Author note');
+        expect(spec.requirements[0].dataType).toBe('IFCLABEL');
+        expect(spec.requirements[0].instructions).toBe('Fill this value');
+        expect(spec.requirements[0].uri).toBe('https://example.test/p');
+        expect(spec.requirements[0].cardinality).toBe('optional');
+    });
 });
 
 describe('IDSParser.extractFacet other types', () => {
@@ -250,34 +294,37 @@ describe('IDSParser.extractFacet other types', () => {
 
     it('should extract partOf facet with relation', () => {
         const doc = parseDoc(`<applicability xmlns="x">
-            <partOf relation="IFCRELAGGREGATES"><name><simpleValue>IFCBUILDING</simpleValue></name></partOf>
+            <partOf relation="IFCRELAGGREGATES"><entity><name><simpleValue>IFCBUILDING</simpleValue></name></entity></partOf>
         </applicability>`);
         const facet = IDSParser.extractFacet(doc.querySelector('partOf'), 'partOf');
         expect(facet.type).toBe('partOf');
-        expect(facet.name.value).toBe('IFCBUILDING');
+        expect(facet.entity.name.value).toBe('IFCBUILDING');
+        expect(facet.relation).toBe('IFCRELAGGREGATES');
     });
 
-    it('should extract partOf facet with relation child element', () => {
+    it('should extract partOf entity predefinedType', () => {
         const doc = parseDoc(`<applicability xmlns="x">
             <partOf>
-                <name><simpleValue>IFCBUILDING</simpleValue></name>
-                <relation><simpleValue>IFCRELAGGREGATES</simpleValue></relation>
+                <entity>
+                    <name><simpleValue>IFCBUILDING</simpleValue></name>
+                    <predefinedType><simpleValue>ELEMENT</simpleValue></predefinedType>
+                </entity>
             </partOf>
         </applicability>`);
         const facet = IDSParser.extractFacet(doc.querySelector('partOf'), 'partOf');
-        expect(facet.relation.value).toBe('IFCRELAGGREGATES');
+        expect(facet.entity.predefinedType.value).toBe('ELEMENT');
     });
 
     it('should extract classification facet with system', () => {
         const doc = parseDoc(`<requirements xmlns="x">
             <classification>
-                <name><simpleValue>OmniClass-23-13-22</simpleValue></name>
+                <value><simpleValue>OmniClass-23-13-22</simpleValue></value>
                 <system><simpleValue>OmniClass</simpleValue></system>
             </classification>
         </requirements>`);
         const facet = IDSParser.extractFacet(doc.querySelector('classification'), 'classification');
         expect(facet.type).toBe('classification');
-        expect(facet.name.value).toBe('OmniClass-23-13-22');
+        expect(facet.value.value).toBe('OmniClass-23-13-22');
         expect(facet.system.value).toBe('OmniClass');
     });
 });

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-describe('Validation: subtype matching', () => {
+describe('Validation: exact IDS entity matching', () => {
     beforeEach(async () => {
         await IFCHierarchy.load('IFC4');
     });
@@ -19,9 +19,9 @@ describe('Validation: subtype matching', () => {
         expect(ValidationEngine.checkEntityFacet({ entity: 'IFCWALL' }, facet, ctx())).toBe(true);
     });
 
-    it('should match subtype via inheritance', () => {
+    it('should not match a subtype when another entity name is requested', () => {
         const facet = { type: 'entity', name: { type: 'simple', value: 'IFCWALL' } };
-        expect(ValidationEngine.checkEntityFacet({ entity: 'IFCWALLSTANDARDCASE' }, facet, ctx())).toBe(true);
+        expect(ValidationEngine.checkEntityFacet({ entity: 'IFCWALLSTANDARDCASE' }, facet, ctx())).toBe(false);
     });
 
     it('should NOT match unrelated entity', () => {
@@ -29,15 +29,15 @@ describe('Validation: subtype matching', () => {
         expect(ValidationEngine.checkEntityFacet({ entity: 'IFCDOOR' }, facet, ctx())).toBe(false);
     });
 
-    it('should match enumeration value with subtype', () => {
+    it('should apply exact matching to every enumeration value', () => {
         const facet = { type: 'entity', name: { type: 'enumeration', values: ['IFCWALL', 'IFCDOOR'] } };
-        expect(ValidationEngine.checkEntityFacet({ entity: 'IFCWALLSTANDARDCASE' }, facet, ctx())).toBe(true);
+        expect(ValidationEngine.checkEntityFacet({ entity: 'IFCWALLSTANDARDCASE' }, facet, ctx())).toBe(false);
     });
 
-    it('should match abstract parent class', () => {
+    it('should not match an abstract parent class', () => {
         // IFC4 ADD2 uses IFCBUILDINGELEMENT (not IFCBUILTELEMENT)
         const facet = { type: 'entity', name: { type: 'simple', value: 'IFCBUILDINGELEMENT' } };
-        expect(ValidationEngine.checkEntityFacet({ entity: 'IFCWALL' }, facet, ctx())).toBe(true);
+        expect(ValidationEngine.checkEntityFacet({ entity: 'IFCWALL' }, facet, ctx())).toBe(false);
     });
 
     it('should match regex pattern without inheritance', () => {

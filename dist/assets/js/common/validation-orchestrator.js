@@ -275,55 +275,23 @@ class ValidationOrchestrator {
         const results = [];
         const totalSpecs = specifications.length;
 
-        // If worker pool available and large dataset, use parallel validation
-        if (this.workerPool && entities.length > 1000) {
-            const specPromises = specifications.map((spec, index) => {
-                return this.workerPool.submit('VALIDATE_SPEC', {
-                    entities,
-                    spec,
-                    ifcSchema
-                }).then(result => {
-                    // Update progress
-                    this._updateProgress(fileId, {
-                        phase: 'validating',
-                        percent: 30 + ((index + 1) / totalSpecs) * 70,
-                        currentSpec: spec.name
-                    });
-                    return result;
-                });
+        // Keep validation on the main thread so every file size uses the schema-aware
+        // hierarchy and exactly the same IDS semantics. IFC parsing may still use workers.
+        for (let i = 0; i < specifications.length; i++) {
+            if (this.aborted) break;
+
+            const spec = specifications[i];
+            const result = await ValidationEngine.validateBatch(entities, spec, { ifcSchema });
+            results.push(result);
+
+            this._updateProgress(fileId, {
+                phase: 'validating',
+                percent: 30 + ((i + 1) / totalSpecs) * 70,
+                currentSpec: spec.name
             });
 
-            const specResults = await Promise.all(specPromises);
-            results.push(...specResults.filter(r =>
-                r.entityResults.length > 0
-                || (r.warnings && r.warnings.length > 0)
-                || r.status === 'skipped'
-                || r.status === 'error'
-            ));
-        } else {
-            // Use main thread with ValidationEngine
-            for (let i = 0; i < specifications.length; i++) {
-                if (this.aborted) break;
-
-                const spec = specifications[i];
-                const result = await ValidationEngine.validateBatch(entities, spec, { ifcSchema });
-
-                if (result.entityResults.length > 0
-                    || (result.warnings && result.warnings.length > 0)
-                    || result.status === 'skipped'
-                    || result.status === 'error') {
-                    results.push(result);
-                }
-
-                this._updateProgress(fileId, {
-                    phase: 'validating',
-                    percent: 30 + ((i + 1) / totalSpecs) * 70,
-                    currentSpec: spec.name
-                });
-
-                // Yield to UI
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
+            // Yield to UI
+            await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         return results;

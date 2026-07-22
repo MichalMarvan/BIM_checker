@@ -248,6 +248,92 @@ describe('IDS XML Generator', () => {
         });
         expect(xml).toContain('uri="https://identifier.buildingsmart.org/uri/example/mat/1"');
     });
+
+    it('should omit applicability occurrences when source uses IDS defaults', () => {
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Spec', ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: 'IFCWALL' }],
+                requirements: []
+            }]
+        });
+        const tag = xml.match(/<applicability[^>]*>/)[0];
+        expect(tag.includes('minOccurs')).toBe(false);
+        expect(tag.includes('maxOccurs')).toBe(false);
+    });
+
+    it('should serialize official classification and partOf structures', () => {
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Spec', ifcVersion: 'IFC4',
+                applicability: [{
+                    type: 'partOf', relation: 'IFCRELAGGREGATES',
+                    entity: { name: 'IFCBUILDING', predefinedType: 'ELEMENT' }
+                }],
+                requirements: [{
+                    type: 'classification',
+                    value: 'Ss_25',
+                    system: 'Uniclass',
+                    cardinality: 'required'
+                }]
+            }]
+        });
+        expect(xml).toContain('<partOf relation="IFCRELAGGREGATES">');
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        expect(doc.querySelector('partOf > entity > name > simpleValue').textContent).toBe('IFCBUILDING');
+        const classificationChildren = Array.from(doc.querySelector('classification').children).map(child => child.localName);
+        expect(classificationChildren).toEqual(['value', 'system']);
+    });
+
+    it('should preserve generic XSD restriction base and facet order', () => {
+        const xml = generator.generateIDS({
+            title: 'Test',
+            specifications: [{
+                name: 'Spec', ifcVersion: 'IFC4',
+                applicability: [{ type: 'entity', name: 'IFCWALL' }],
+                requirements: [{
+                    type: 'property',
+                    propertySet: 'Pset_WallCommon',
+                    baseName: 'Reference',
+                    dataType: 'IFCLABEL',
+                    instructions: 'Fill it',
+                    cardinality: 'optional',
+                    value: {
+                        type: 'restriction',
+                        base: 'xs:string',
+                        facets: [
+                            { type: 'minLength', value: '2' },
+                            { type: 'pattern', value: '[A-Z]+' }
+                        ]
+                    }
+                }],
+                requirementsDescription: 'Property rules'
+            }]
+        });
+        expect(xml).toContain('<requirements description="Property rules">');
+        expect(xml).toContain('dataType="IFCLABEL"');
+        expect(xml).toContain('instructions="Fill it"');
+        expect(xml).toContain('<xs:restriction base="xs:string">');
+        expect(xml.indexOf('<xs:minLength')).toBeLessThan(xml.indexOf('<xs:pattern'));
+    });
+
+    it('should reject invalid applicability occurrences', () => {
+        let message = '';
+        try {
+            generator.generateIDS({
+                title: 'Test',
+                specifications: [{
+                    name: 'Spec', ifcVersion: 'IFC4', maxOccurs: 'banana',
+                    applicability: [], requirements: []
+                }]
+            });
+        } catch (error) {
+            message = error.message;
+        }
+        expect(message).toContain('maxOccurs');
+    });
 });
 
 describe('IDSXMLGenerator — ifcVersion serialization', () => {

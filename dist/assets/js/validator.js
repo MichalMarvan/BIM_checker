@@ -300,12 +300,25 @@ function handleIDSFiles(files) {
 
     idsFiles_filtered.forEach(file => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
+            let xsdResult = null;
+            if (typeof IDSXSDValidator !== 'undefined') {
+                try {
+                    xsdResult = await IDSXSDValidator.validate(e.target.result);
+                } catch (error) {
+                    xsdResult = {
+                        valid: false,
+                        errors: [{ line: null, message: `IDS XSD validation could not be completed: ${error.message}` }]
+                    };
+                }
+            }
             const idsData = _parseIDSValidator(e.target.result, file.name);
             if (idsData) {
                 newIdsFiles.push({
                     fileName: file.name,
-                    data: idsData
+                    data: idsData,
+                    content: e.target.result,
+                    xsdResult
                 });
             }
             if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
@@ -471,6 +484,27 @@ async function performValidation() {
 
         for (const idsFile of idsFiles) {
             idsCount++;
+            if (idsFile.xsdResult && !idsFile.xsdResult.valid) {
+                const message = (idsFile.xsdResult.errors || []).map(error => error.message).join('; ')
+                    || 'IDS document does not conform to the IDS 1.0 XSD.';
+                validationResults.push({
+                    idsFileName: idsFile.fileName,
+                    idsTitle: idsFile.fileName,
+                    ifcResults: parsedIfcFiles.map(ifcFile => ({
+                        ifcFileName: ifcFile.fileName,
+                        specificationResults: [{
+                            specification: 'IDS 1.0 XSD',
+                            status: 'error',
+                            errorMessage: message,
+                            passCount: 0,
+                            failCount: 1,
+                            entityResults: [],
+                            warnings: []
+                        }]
+                    }))
+                });
+                continue;
+            }
             const idsResult = {
                 idsFileName: idsFile.fileName,
                 idsTitle: resolveIdsTitle(idsFile.data.info, idsFile.fileName),
@@ -486,7 +520,7 @@ async function performValidation() {
 
                 const ifcResult = {
                     ifcFileName: ifcFile.fileName,
-                    specificationResults: validateEntitiesAgainstIDS(ifcFile.entities, idsFile.data.specifications, { ifcSchema: ifcFile.schema })
+                    specificationResults: await validateEntitiesAgainstIDS(ifcFile.entities, idsFile.data.specifications, { ifcSchema: ifcFile.schema })
                 };
                 idsResult.ifcResults.push(ifcResult);
             }
@@ -538,391 +572,17 @@ function parseIFCFile(content, fileName) {
 }
 
 // Validation Logic
-function validateEntitiesAgainstIDS(entities, specifications, options) {
-    options = options || {};
-    const ifcSchema = options.ifcSchema || 'UNKNOWN';
-    const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
+async function validateEntitiesAgainstIDS(entities, specifications, options) {
     const results = [];
-
     for (const spec of specifications) {
-        const declared = Array.isArray(spec.ifcVersions)
-            ? spec.ifcVersions
-            : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : []);
-        const supported = declared.filter(v => SUPPORTED.includes(v));
-        const unsupported = declared.filter(v => !SUPPORTED.includes(v));
-
-        // All-unsupported → spec error
-        if (declared.length > 0 && supported.length === 0) {
-            results.push({
-                specification: spec.name,
-                status: 'error',
-                errorMessage: `No supported IFC version in spec.ifcVersions (declared: ${declared.join(', ')}). Allowed: ${SUPPORTED.join(', ')}.`,
-                passCount: 0,
-                failCount: 0,
-                entityResults: []
-            });
-            continue;
-        }
-
-        // Spec doesn't apply to this IFC file
-        if (declared.length > 0 && !declared.includes(ifcSchema)) {
-            results.push({
-                specification: spec.name,
-                status: 'skipped',
-                skipReason: 'ifc-version-mismatch',
-                ifcSchema,
-                declaredVersions: declared,
-                passCount: 0,
-                failCount: 0,
-                entityResults: []
-            });
-            continue;
-        }
-
-        // Pick the version to drive hierarchy load
-        const ifcVersion = (supported.includes(ifcSchema))
-            ? ifcSchema
-            : (supported[0] || 'IFC4');
-
-        const ctx = (typeof IFCHierarchy !== 'undefined' && typeof IfcParams !== 'undefined') ? {
-            ifcVersion,
-            isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
-            getPredefinedTypeIndex: (cls) => IFCHierarchy.getPredefinedTypeIndex(ifcVersion, cls),
-            getObjectTypeIndex: (cls) => IFCHierarchy.getObjectTypeIndex(ifcVersion, cls),
-            splitParams: IfcParams.splitIfcParams,
-            unwrapEnumValue: IfcParams.unwrapEnumValue,
-            unwrapString: IfcParams.unwrapString
-        } : null;
-
-        const specResult = {
-            specification: spec.name,
-            status: 'pass',
-            passCount: 0,
-            failCount: 0,
-            entityResults: []
-        };
-
-        // Find applicable entities
-        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability, ctx);
-
-        // Validate each applicable entity against requirements
-        for (const entity of applicableEntities) {
-            const entityResult = validateEntityAgainstRequirements(entity, spec.requirements, spec.name);
-            specResult.entityResults.push(entityResult);
-
-            if (entityResult.status === 'pass') {
-                specResult.passCount++;
-            } else {
-                specResult.failCount++;
-                specResult.status = 'fail';
-            }
-        }
-
-        // Attach warnings for partially unsupported version lists
-        specResult.warnings = unsupported.length > 0
-            ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
-            : [];
-
-        // Add specification if it has entities or warnings (warnings must not be silently dropped)
-        if (specResult.entityResults.length > 0 || (specResult.warnings && specResult.warnings.length > 0)) {
-            results.push(specResult);
-        }
+        results.push(await ValidationEngine.validateBatch(entities, spec, options || {}));
     }
-
     return results;
 }
 
-// Async version with chunking to prevent browser freezing
+// Compatibility alias. Both public entry points use the same IDS 1.0 engine.
 async function validateEntitiesAgainstIDSAsync(entities, specifications, options) {
-    options = options || {};
-    const ifcSchema = options.ifcSchema || 'UNKNOWN';
-    const SUPPORTED = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
-    const results = [];
-    const CHUNK_SIZE = 50; // Process 50 entities at a time
-
-    for (const spec of specifications) {
-        const declared = Array.isArray(spec.ifcVersions)
-            ? spec.ifcVersions
-            : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : []);
-        const supported = declared.filter(v => SUPPORTED.includes(v));
-        const unsupported = declared.filter(v => !SUPPORTED.includes(v));
-
-        // All-unsupported → spec error
-        if (declared.length > 0 && supported.length === 0) {
-            results.push({
-                specification: spec.name,
-                status: 'error',
-                errorMessage: `No supported IFC version in spec.ifcVersions (declared: ${declared.join(', ')}). Allowed: ${SUPPORTED.join(', ')}.`,
-                passCount: 0,
-                failCount: 0,
-                entityResults: []
-            });
-            continue;
-        }
-
-        // Spec doesn't apply to this IFC file
-        if (declared.length > 0 && !declared.includes(ifcSchema)) {
-            results.push({
-                specification: spec.name,
-                status: 'skipped',
-                skipReason: 'ifc-version-mismatch',
-                ifcSchema,
-                declaredVersions: declared,
-                passCount: 0,
-                failCount: 0,
-                entityResults: []
-            });
-            continue;
-        }
-
-        // Pick the version to drive hierarchy load
-        const ifcVersion = (supported.includes(ifcSchema))
-            ? ifcSchema
-            : (supported[0] || 'IFC4');
-
-        if (typeof IFCHierarchy !== 'undefined') {
-            await IFCHierarchy.load(ifcVersion);
-        }
-        const ctx = (typeof IFCHierarchy !== 'undefined' && typeof IfcParams !== 'undefined') ? {
-            ifcVersion,
-            isSubtypeOf: (c, a) => IFCHierarchy.isSubtypeOf(ifcVersion, c, a),
-            getPredefinedTypeIndex: (cls) => IFCHierarchy.getPredefinedTypeIndex(ifcVersion, cls),
-            getObjectTypeIndex: (cls) => IFCHierarchy.getObjectTypeIndex(ifcVersion, cls),
-            splitParams: IfcParams.splitIfcParams,
-            unwrapEnumValue: IfcParams.unwrapEnumValue,
-            unwrapString: IfcParams.unwrapString
-        } : null;
-
-        const specResult = {
-            specification: spec.name,
-            status: 'pass',
-            passCount: 0,
-            failCount: 0,
-            entityResults: []
-        };
-
-        // Find applicable entities
-        const applicableEntities = filterEntitiesByApplicability(entities, spec.applicability, ctx);
-
-        // Validate entities in chunks
-        for (let i = 0; i < applicableEntities.length; i += CHUNK_SIZE) {
-            const chunk = applicableEntities.slice(i, i + CHUNK_SIZE);
-
-            for (const entity of chunk) {
-                const entityResult = validateEntityAgainstRequirements(entity, spec.requirements, spec.name);
-                specResult.entityResults.push(entityResult);
-
-                if (entityResult.status === 'pass') {
-                    specResult.passCount++;
-                } else {
-                    specResult.failCount++;
-                    specResult.status = 'fail';
-                }
-            }
-
-            // Yield to browser after each chunk
-            if (i + CHUNK_SIZE < applicableEntities.length) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
-        }
-
-        // Attach warnings for partially unsupported version lists
-        specResult.warnings = unsupported.length > 0
-            ? [`Unsupported ifcVersion entries ignored: ${unsupported.join(', ')}`]
-            : [];
-
-        // Add specification if it has entities or warnings (warnings must not be silently dropped)
-        if (specResult.entityResults.length > 0 || (specResult.warnings && specResult.warnings.length > 0)) {
-            results.push(specResult);
-        }
-    }
-
-    return results;
-}
-
-function filterEntitiesByApplicability(entities, applicability, ctx) {
-    if (!applicability || applicability.length === 0) {
-        return entities;
-    }
-
-    return entities.filter(entity => {
-        for (const facet of applicability) {
-            if (!checkFacetMatch(entity, facet, ctx)) {
-                return false;
-            }
-        }
-        return true;
-    });
-}
-
-function validateEntityAgainstRequirements(entity, requirements, specName) {
-    const result = {
-        entity: entity.entity,
-        name: entity.name,
-        guid: entity.guid,
-        fileName: entity.fileName,
-        specification: specName,
-        status: 'pass',
-        validations: []
-    };
-
-    for (const facet of requirements) {
-        const validation = checkRequirementFacet(entity, facet);
-        result.validations.push(validation);
-
-        if (validation.status === 'fail') {
-            result.status = 'fail';
-        }
-    }
-
-    return result;
-}
-
-function checkFacetMatch(entity, facet, ctx) {
-    if (facet.type === 'entity') {
-        return ValidationEngine.checkEntityFacet(entity, facet, ctx);
-    } else if (facet.type === 'property') {
-        return checkPropertyFacet(entity, facet, true);
-    } else if (facet.type === 'attribute') {
-        return checkAttributeFacet(entity, facet, true);
-    }
-    return true;
-}
-
-function checkRequirementFacet(entity, facet) {
-    const validation = {
-        type: facet.type,
-        status: 'fail',
-        message: '',
-        details: ''
-    };
-
-    if (facet.type === 'property') {
-        return checkPropertyFacet(entity, facet, false);
-    } else if (facet.type === 'attribute') {
-        return checkAttributeFacet(entity, facet, false);
-    } else if (facet.type === 'material') {
-        validation.message = 'Material facet';
-        validation.details = 'Material validation not fully implemented';
-        validation.status = 'pass'; // Simplified
-    } else if (facet.type === 'classification') {
-        validation.message = 'Classification facet';
-        validation.details = 'Classification validation not fully implemented';
-        validation.status = 'pass'; // Simplified
-    }
-
-    return validation;
-}
-
-function checkEntityFacet(entity, facet, ctx) {
-    return ValidationEngine.checkEntityFacet(entity, facet, ctx);
-}
-
-function checkPropertyFacet(entity, facet, isApplicability) {
-    const validation = {
-        type: 'property',
-        status: 'fail',
-        message: '',
-        details: ''
-    };
-
-    const psetName = facet.propertySet?.value || facet.propertySet?.type === 'simple' && facet.propertySet.value;
-    const propName = facet.baseName?.value || (facet.baseName?.type === 'simple' && facet.baseName.value)
-        || facet.name?.value || facet.name?.type === 'simple' && facet.name.value;
-
-    if (!psetName || !propName) {
-        validation.message = i18n.t('validator.specIncomplete');
-        return isApplicability ? false : validation;
-    }
-
-    validation.message = `${psetName}.${propName}`;
-
-    const pset = entity.propertySets[psetName];
-    if (!pset) {
-        validation.details = i18n.t('validator.psetNotFound', { psetName });
-        return isApplicability ? false : validation;
-    }
-
-    const propValue = pset[propName];
-    if (propValue === undefined) {
-        validation.details = i18n.t('validator.propNotFound', { propName, psetName });
-        return isApplicability ? false : validation;
-    }
-
-    // Check value if specified
-    if (facet.value) {
-        if (facet.value.type === 'simple') {
-            if (String(propValue) !== String(facet.value.value)) {
-                validation.details = i18n.t('validator.expectedValue', { expected: facet.value.value, actual: propValue });
-                return isApplicability ? false : validation;
-            }
-        } else if (facet.value.type === 'enumeration' && Array.isArray(facet.value.values)) {
-            if (!facet.value.values.includes(String(propValue))) {
-                validation.details = i18n.t('validator.valueNotInOptions', { value: propValue, options: facet.value.values.join(', ') });
-                return isApplicability ? false : validation;
-            }
-        } else if (facet.value.type === 'restriction') {
-            if (facet.value.isRegex) {
-                const regex = RegexCache.get(facet.value.pattern);
-                if (!regex.test(String(propValue))) {
-                    validation.details = i18n.t('validator.valueNoMatch', { value: propValue, pattern: facet.value.pattern });
-                    return isApplicability ? false : validation;
-                }
-            }
-        }
-    }
-
-    validation.status = 'pass';
-    validation.details = `${i18n.t('parser.facet.value')} "${propValue}"`;
-    return isApplicability ? true : validation;
-}
-
-function checkAttributeFacet(entity, facet, isApplicability) {
-    const validation = {
-        type: 'attribute',
-        status: 'fail',
-        message: '',
-        details: ''
-    };
-
-    const attrName = facet.name?.value || facet.name?.type === 'simple' && facet.name.value;
-    if (!attrName) {
-        validation.message = i18n.t('validator.specIncomplete');
-        return isApplicability ? false : validation;
-    }
-
-    validation.message = `${i18n.t('parser.facetType.attribute')}: ${attrName}`;
-
-    const attrValue = entity.attributes[attrName];
-    if (attrValue === undefined) {
-        validation.details = i18n.t('validator.attrNotFound', { attrName });
-        return isApplicability ? false : validation;
-    }
-
-    // Check value if specified
-    if (facet.value) {
-        if (facet.value.type === 'simple') {
-            if (String(attrValue) !== String(facet.value.value)) {
-                validation.details = i18n.t('validator.expectedValue', { expected: facet.value.value, actual: attrValue });
-                return isApplicability ? false : validation;
-            }
-        } else if (facet.value.type === 'enumeration' && Array.isArray(facet.value.values)) {
-            if (!facet.value.values.includes(String(attrValue))) {
-                validation.details = i18n.t('validator.valueNotInOptions', { value: attrValue, options: facet.value.values.join(', ') });
-                return isApplicability ? false : validation;
-            }
-        } else if (facet.value.type === 'restriction' && facet.value.isRegex) {
-            const regex = RegexCache.get(facet.value.pattern);
-            if (!regex.test(String(attrValue))) {
-                validation.details = i18n.t('validator.valueNoMatch', { value: attrValue, pattern: facet.value.pattern });
-                return isApplicability ? false : validation;
-            }
-        }
-    }
-
-    validation.status = 'pass';
-    validation.details = `${i18n.t('parser.facet.value')} "${attrValue}"`;
-    return isApplicability ? true : validation;
+    return validateEntitiesAgainstIDS(entities, specifications, options);
 }
 
 // Display Results
@@ -1239,12 +899,19 @@ function createSpecificationResultElement(specResult) {
     const warningsHtml = (Array.isArray(specResult.warnings) && specResult.warnings.length > 0)
         ? `<div class="spec-warnings">${specResult.warnings.map(w => escapeHtml(w)).join('<br>')}</div>`
         : '';
+    const occurrenceHtml = specResult.occurrence
+        ? `<div class="spec-skip-reason">${escapeHtml(t('validator.spec.occurrence')
+            .replace('{actual}', specResult.occurrence.actual)
+            .replace('{min}', specResult.occurrence.minOccurs)
+            .replace('{max}', specResult.occurrence.maxOccurs))}</div>`
+        : '';
 
     headerDiv.innerHTML = `
         <div class="spec-title">
             <span class="expand-icon">▼</span>
             <span class="spec-name">${escapeHtml(specResult.specification)}</span>
             ${detailHtml}
+            ${occurrenceHtml}
             ${warningsHtml}
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
@@ -3100,6 +2767,42 @@ async function validateAll() {
             document.getElementById('currentFile').textContent = `${t('validator.loading.parsing')} ${group.idsFile.name}`;
             await new Promise(resolve => setTimeout(resolve, 100)); // Yield
 
+            let xsdResult = group.idsFile.xsdResult;
+            if (!xsdResult && typeof IDSXSDValidator !== 'undefined') {
+                try {
+                    xsdResult = await IDSXSDValidator.validate(group.idsFile.content);
+                } catch (error) {
+                    xsdResult = {
+                        valid: false,
+                        errors: [{ line: null, message: `IDS XSD validation could not be completed: ${error.message}` }]
+                    };
+                }
+                group.idsFile.xsdResult = xsdResult;
+            }
+            if (xsdResult && !xsdResult.valid) {
+                const message = (xsdResult.errors || []).map(error => error.message).join('; ')
+                    || 'IDS document does not conform to the IDS 1.0 XSD.';
+                validationResults.push({
+                    idsFileName: group.idsFile.name,
+                    idsTitle: group.idsFile.name,
+                    ifcResults: group.ifcFiles.map(ifcFile => ({
+                        ifcFileName: ifcFile.name,
+                        specificationResults: [{
+                            specification: 'IDS 1.0 XSD',
+                            status: 'error',
+                            errorMessage: message,
+                            passCount: 0,
+                            failCount: 1,
+                            entityResults: [],
+                            warnings: []
+                        }]
+                    }))
+                });
+                completedFiles += group.ifcFiles.length;
+                updateOverallProgress();
+                continue;
+            }
+
             const idsData = _parseIDSValidator(group.idsFile.content, group.idsFile.name);
             if (!idsData) {
                 console.error('Error parsing IDS:', group.idsFile.name);
@@ -3151,15 +2854,13 @@ async function validateAll() {
                     });
                 }
 
-                // Validate - use ValidationEngine for parallel spec validation
-                let specificationResults;
-                if (typeof ValidationEngine !== 'undefined' && entities.length > 100) {
-                    // Use ValidationEngine for better performance with large datasets
-                    specificationResults = await validateWithEngine(entities, idsData.specifications, ifcFile.name, ifcSchema);
-                } else {
-                    // Fallback to original method
-                    specificationResults = await validateEntitiesAgainstIDSAsync(entities, idsData.specifications, { ifcSchema });
-                }
+                // Every file size uses the same IDS 1.0 semantic engine.
+                const specificationResults = await validateWithEngine(
+                    entities,
+                    idsData.specifications,
+                    ifcFile.name,
+                    ifcSchema
+                );
 
                 // Update UI - complete
                 completedFiles++;
@@ -3211,15 +2912,10 @@ async function validateAll() {
 
                 const specResults = await Promise.all(specPromises);
 
-                // Keep results with entities, warnings, or skipped/error status
+                // Zero-applicability is itself a meaningful IDS occurrence result.
                 for (const result of specResults) {
                     if (!result) continue;
-                    if ((result.entityResults && result.entityResults.length > 0)
-                        || (result.warnings && result.warnings.length > 0)
-                        || result.status === 'skipped'
-                        || result.status === 'error') {
-                        results.push(result);
-                    }
+                    results.push(result);
                 }
 
                 return results;

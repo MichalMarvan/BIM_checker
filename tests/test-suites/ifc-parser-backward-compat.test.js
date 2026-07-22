@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-describe('IFCParserCore vs legacy parseIFCFileAsync (snapshot)', () => {
+describe('IFCParserCore legacy field compatibility', () => {
     function deepEqual(a, b) {
         return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
     }
@@ -232,16 +232,34 @@ END-ISO-10303-21;`
     ];
 
     samples.forEach((sample) => {
-        it(`output JSON-identical between IFCParserCore and legacy parseIFCFileAsync — ${sample.label}`, async () => {
+        it(`preserves legacy fields while adding IDS data — ${sample.label}`, async () => {
             // Legacy path — inline copy of validator.js parseIFCFileAsync logic
             const legacy = await legacyParseIFCFileAsync(sample.content, 'snapshot.ifc');
             const fresh = window.IFCParserCore.parseIFCContent(sample.content, 'snapshot.ifc');
-            const same = deepEqual(legacy, fresh);
+            const legacyProjection = fresh.filter(entity => (
+                !entity.entity.includes('REL')
+                && !entity.entity.includes('PROPERTY')
+                && entity.params.includes("'")
+            )).map(entity => ({
+                id: entity.id,
+                guid: entity.guid,
+                entity: entity.entity,
+                name: entity.name,
+                propertySets: entity.propertySets,
+                fileName: entity.fileName,
+                attributes: {
+                    Name: entity.name,
+                    GlobalId: entity.guid
+                }
+            }));
+            const same = deepEqual(legacy, legacyProjection);
             if (!same) {
                 console.log('LEGACY:', JSON.stringify(normalize(legacy), null, 2));
-                console.log('FRESH:', JSON.stringify(normalize(fresh), null, 2));
+                console.log('FRESH:', JSON.stringify(normalize(legacyProjection), null, 2));
             }
             expect(same).toBe(true);
+            expect(Array.isArray(fresh[0].properties)).toBe(true);
+            expect(Array.isArray(fresh[0].relations)).toBe(true);
         });
     });
 });

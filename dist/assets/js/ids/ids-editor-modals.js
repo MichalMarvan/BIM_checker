@@ -594,14 +594,23 @@ class IDSEditorModals {
      * Show PartOf form
      */
     showPartOfForm(data = {}) {
+        const entity = data.entity && typeof data.entity === 'object' ? data.entity : { name: data.entity };
+        const entityName = this.extractSimpleValue(entity.name);
+        const predefinedType = this.extractSimpleValue(entity.predefinedType);
         document.getElementById('modalTitle').textContent = t('editor.partOfFacet');
         document.getElementById('modalBody').innerHTML = `
-            ${this.getFacetCardinalityField(data.cardinality || 'required')}
+            ${this.getFacetCardinalityField(data.cardinality || 'required', false)}
 
             <div class="form-group">
                 <label>${t('editor.parentEntityLabel')}</label>
-                <input type="text" id="partOfEntity" value="${data.entity || ''}" placeholder="${t('editor.example')} IFCBUILDING">
+                <input type="text" id="partOfEntity" value="${this.escapeHtml(entityName)}" placeholder="${t('editor.example')} IFCBUILDING">
                 <small>${t('editor.parentEntity')}</small>
+            </div>
+
+            <div class="form-group">
+                <label>${t('editor.predefinedType')}</label>
+                <input type="text" id="partOfPredefinedType" value="${this.escapeHtml(predefinedType)}" placeholder="${t('editor.example')} ELEMENT">
+                <small>${t('editor.predefinedTypeDesc')}</small>
             </div>
 
             <div class="form-group">
@@ -956,8 +965,16 @@ class IDSEditorModals {
 
         const facet = {
             type: 'partOf',
-            entity
+            entity: {
+                type: 'entity',
+                name: { type: 'simpleValue', value: entity }
+            }
         };
+
+        const predefinedType = document.getElementById('partOfPredefinedType').value.trim();
+        if (predefinedType) {
+            facet.entity.predefinedType = { type: 'simpleValue', value: predefinedType };
+        }
 
         const relation = document.getElementById('partOfRelation').value;
         if (relation) {
@@ -1127,7 +1144,7 @@ class IDSEditorModals {
     /**
      * Get facet cardinality field HTML (only for requirements section)
      */
-    getFacetCardinalityField(currentCardinality = 'required') {
+    getFacetCardinalityField(currentCardinality = 'required', allowOptional = true) {
         // Only show cardinality for requirements section, not applicability
         if (this.currentSection !== 'requirements') {
             return '';
@@ -1138,7 +1155,7 @@ class IDSEditorModals {
                 <label>${t('cardinality.facetLabel')}</label>
                 <select id="facetCardinality" onchange="idsEditorModals.updateFacetCardinalityDescription()">
                     <option value="required" ${currentCardinality === 'required' ? 'selected' : ''}>${t('cardinality.required')}</option>
-                    <option value="optional" ${currentCardinality === 'optional' ? 'selected' : ''}>${t('cardinality.optional')}</option>
+                    ${allowOptional ? `<option value="optional" ${currentCardinality === 'optional' ? 'selected' : ''}>${t('cardinality.optional')}</option>` : ''}
                     <option value="prohibited" ${currentCardinality === 'prohibited' ? 'selected' : ''}>${t('cardinality.prohibited')}</option>
                 </select>
                 <small id="facetCardinalityDesc">${this.getFacetCardinalityDescription(currentCardinality)}</small>

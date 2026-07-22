@@ -276,7 +276,7 @@ describe('tools/tool-validator (failures)', () => {
     });
 });
 
-describe('validateEntitiesAgainstIDS — schema-aware applicability', () => {
+describe('validateEntitiesAgainstIDS — IFC version metadata', () => {
     const sampleEntities = [
         { id: '1', guid: 'guid-1', entity: 'IFCWALL', name: 'W1', propertySets: {}, fileName: 'a.ifc', attributes: {} }
     ];
@@ -298,12 +298,11 @@ describe('validateEntitiesAgainstIDS — schema-aware applicability', () => {
         expect(results[0].status === 'pass' || results[0].status === 'fail').toBe(true);
     });
 
-    it('skips spec when IFC schema is NOT in spec.ifcVersions', async () => {
+    it('validates when IFC schema is not in metadata ifcVersions', async () => {
         const spec = specWithVersions(['IFC2X3']);
         const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
         expect(results.length).toBe(1);
-        expect(results[0].status).toBe('skipped');
-        expect(results[0].skipReason).toBe('ifc-version-mismatch');
+        expect(results[0].status).toBe('pass');
     });
 
     it('uses the IFC file schema (not first list item) for hierarchy load', async () => {
@@ -313,12 +312,12 @@ describe('validateEntitiesAgainstIDS — schema-aware applicability', () => {
         expect(results[0].status === 'pass' || results[0].status === 'fail').toBe(true);
     });
 
-    it('marks spec as error when no declared version is supported (all unknown)', async () => {
+    it('validates and warns when declared metadata versions are unknown', async () => {
         const spec = specWithVersions(['IFC4X3', 'IFC4X3_TC1']);
         const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec], { ifcSchema: 'IFC4' });
         expect(results.length).toBe(1);
-        expect(results[0].status).toBe('error');
-        expect(String(results[0].errorMessage || '').includes('IFC4X3')).toBe(true);
+        expect(results[0].status).toBe('pass');
+        expect(String(results[0].warnings[0] || '').includes('IFC4X3')).toBe(true);
     });
 
     it('warns about unsupported entries when at least one supported (hybrid)', async () => {
@@ -331,13 +330,11 @@ describe('validateEntitiesAgainstIDS — schema-aware applicability', () => {
         expect(String(s1.warnings[0] || '').includes('IFC4X3')).toBe(true);
     });
 
-    it('skips spec when ifcSchema option is absent (treated as UNKNOWN)', async () => {
+    it('validates when ifcSchema option is absent', async () => {
         const spec = specWithVersions(['IFC4']);
         const results = await window.validateEntitiesAgainstIDSAsync(sampleEntities, [spec]); // no options
         expect(results.length).toBe(1);
-        expect(results[0].status).toBe('skipped');
-        expect(results[0].skipReason).toBe('ifc-version-mismatch');
-        expect(results[0].ifcSchema).toBe('UNKNOWN');
+        expect(results[0].status).toBe('pass');
     });
 
     it('surfaces warnings even when no entities match the spec applicability', async () => {

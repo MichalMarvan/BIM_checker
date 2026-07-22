@@ -81,4 +81,35 @@ describe('IDSXSDValidator', () => {
         const withLines = result.errors.filter(e => e.line !== null);
         expect(withLines.length > 0).toBe(true);
     }, TIMEOUT);
+
+    it('should strictly reject invalid xs:occurs and non-restriction XSD content', async () => {
+        const invalidStrictIDS = `<?xml version="1.0"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <info><title>Strict probe</title></info>
+  <specifications>
+    <specification name="S" ifcVersion="IFC4">
+      <applicability minOccurs="0" maxOccurs="banana">
+        <entity><name><xs:annotation/></name></entity>
+      </applicability>
+    </specification>
+  </specifications>
+</ids>`;
+        const result = await IDSXSDValidator.validate(invalidStrictIDS);
+        expect(result.valid).toBe(false);
+        expect(result.errors.length).toBeGreaterThan(0);
+    }, TIMEOUT);
+
+    it('should keep the project sample valid after parse and regeneration', async () => {
+        const response = await fetch('../test-data/sample.ids');
+        const source = await response.text();
+        const parsed = IDSParser.parse(source);
+        expect(parsed.error).toBeNull();
+        const xml = new IDSXMLGenerator().generateIDS({
+            ...parsed.info,
+            specifications: parsed.specifications
+        });
+        const result = await IDSXSDValidator.validate(xml);
+        expect(result.valid).toBe(true);
+        expect(result.errors).toEqual([]);
+    }, TIMEOUT);
 });
