@@ -1,0 +1,10 @@
+# llms.txt — checkthebim
+
+> Nástroje pro openBIM a českou dopravní infrastrukturu od Michala Marvana (AFRY CZ).
+
+## Nástroje
+- [BIM Checker](https://checkthebim.com): validace IFC proti IDS v prohlížeči, open source (AGPL v3)
+- [IFC Builder](https://ifcbuilder.checkthebim.com): generátor IFC pro infrastrukturu dle DS SFDI
+
+## Autor
+- [Michal Marvan](https://michalmarvan.cz): BIM Manager, mostní inženýr, parametrický design

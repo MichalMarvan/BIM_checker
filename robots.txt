@@ -1,0 +1,30 @@
+# robots.txt — checkthebim.com
+
+User-agent: *
+Allow: /
+
+# --- AI search / answer boti: chceme být v odpovědích, NECHAT projít ---
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# --- Volitelně: blokace TRAINING botů (odkomentuj, když nechceš do trénování) ---
+# User-agent: GPTBot
+# Disallow: /
+# User-agent: ClaudeBot
+# Disallow: /
+# User-agent: CCBot
+# Disallow: /
+
+Sitemap: https://checkthebim.com/sitemap.xml
