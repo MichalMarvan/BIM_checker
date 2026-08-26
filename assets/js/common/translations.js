@@ -9,7 +9,7 @@ const translations = {
     cs: {
     // === HLAVNÍ APLIKACE ===
         // Page titles + meta descriptions (Phase i18n cleanup)
-        'page.title.index': 'BIM Checker — Nástroje pro IFC a IDS',
+        'page.title.index': 'Validace IFC vůči IDS v prohlížeči — IFC/IDS validátor zdarma | BIM Checker',
         'page.title.validator': 'BIM Checker — IDS-IFC Validátor',
         'page.title.parser': 'BIM Checker — IDS Parser a Vizualizér',
         'page.title.viewer': 'BIM Checker — IFC Multi-File Viewer',
@@ -1236,7 +1236,7 @@ const translations = {
     en: {
     // === MAIN APPLICATION ===
         // Page titles + meta descriptions (Phase i18n cleanup)
-        'page.title.index': 'BIM Checker — Tools for IFC and IDS',
+        'page.title.index': 'IFC/IDS validator — validate IFC against IDS in your browser, free | BIM Checker',
         'page.title.validator': 'BIM Checker — IDS-IFC Validator',
         'page.title.parser': 'BIM Checker — IDS Parser & Visualizer',
         'page.title.viewer': 'BIM Checker — IFC Multi-File Viewer',
