@@ -146,7 +146,7 @@ class ErrorHandler {
             <div class="toast-confirm-dialog">
                 <div class="toast-confirm-icon">✏️</div>
                 <div class="toast-confirm-message">${this.escapeHtml(message)}</div>
-                <input type="text" class="toast-prompt-input" value="${this.escapeHtml(defaultValue)}" autofocus>
+                <input type="text" class="toast-prompt-input" value="${this.escapeAttr(defaultValue)}" autofocus>
                 <div class="toast-confirm-buttons">
                     <button class="toast-btn toast-btn-cancel">${t('error.cancel')}</button>
                     <button class="toast-btn toast-btn-confirm">${t('error.confirm')}</button>
@@ -226,12 +226,21 @@ class ErrorHandler {
      * Escape HTML to prevent XSS
      */
     static escapeHtml(text) {
-        if (typeof text !== 'string') {
-            return text;
+        if (window.BIMSafeHTML) {
+            return window.BIMSafeHTML.escapeHtml(text);
         }
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        // Fallback pokud safe-html.js není načtený - nikdy nevracej surový text
+        return String(text ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[ch]));
+    }
+
+    static escapeAttr(text) {
+        return window.BIMSafeHTML?.escapeAttr(text) ?? this.escapeHtml(text);
     }
 
     static _errorBuffer = [];
@@ -251,7 +260,9 @@ class ErrorHandler {
     }
 
     static _installGlobalListeners() {
-        if (ErrorHandler._listenersInstalled) return;
+        if (ErrorHandler._listenersInstalled) {
+            return;
+        }
         ErrorHandler._listenersInstalled = true;
 
         window.addEventListener('error', (e) => {

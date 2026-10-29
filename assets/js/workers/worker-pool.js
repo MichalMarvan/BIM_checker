@@ -50,6 +50,9 @@ class WorkerPool {
                 worker.onerror = (e) => this._handleWorkerError(worker, e);
 
                 this.workers.push(worker);
+                // Classic workers in this project do not all emit READY. A
+                // task can safely be posted while their script is loading;
+                // the browser queues it until onmessage is installed.
                 this.availableWorkers.push(worker);
             } catch (error) {
                 console.warn(`Failed to create worker ${i}:`, error);
@@ -64,6 +67,14 @@ class WorkerPool {
     _handleWorkerMessage(worker, event) {
         const { taskId, type, data, error } = event.data;
 
+        if (type === 'READY') {
+            if (!worker.busy && !this.availableWorkers.includes(worker)) {
+                this.availableWorkers.push(worker);
+            }
+            this._processQueue();
+            return;
+        }
+
         if (taskId && this.taskCallbacks.has(taskId)) {
             const { resolve, reject } = this.taskCallbacks.get(taskId);
             this.taskCallbacks.delete(taskId);
@@ -77,7 +88,9 @@ class WorkerPool {
 
         // Worker is now available
         worker.busy = false;
-        this.availableWorkers.push(worker);
+        if (!this.availableWorkers.includes(worker)) {
+            this.availableWorkers.push(worker);
+        }
 
         // Process next queued task
         this._processQueue();
@@ -90,16 +103,24 @@ class WorkerPool {
     _handleWorkerError(worker, error) {
         const desc = error.message || `(${error.type || 'unknown'}; src=${error.filename || '?'})`;
         console.error(`Worker ${worker.id} error: ${desc}`);
-        if (this.terminated) return;
+        if (this.terminated) {
+            return;
+        }
         // Treat any worker error as a fatal pool failure so consumers can fall
         // back to the main thread. Without this, pending submit() promises hang
         // forever because we don't track which task was on which worker.
         const err = new Error(`Worker pool failed: ${desc}`);
-        for (const [, cb] of this.taskCallbacks) cb.reject(err);
+        for (const [, cb] of this.taskCallbacks) {
+            cb.reject(err);
+        }
         this.taskCallbacks.clear();
         this.taskQueue.length = 0;
         this.terminated = true;
-        for (const w of this.workers) { try { w.terminate(); } catch (e) { /* ignore */ } }
+        for (const w of this.workers) {
+            try {
+                w.terminate();
+            } catch (e) { /* ignore */ }
+        }
         this.workers = [];
         this.availableWorkers = [];
     }

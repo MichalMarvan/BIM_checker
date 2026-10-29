@@ -1,6 +1,6 @@
 // Phase 6.15.2 — GeoTIFF heightmap parser → TerrainData.
 //
-// Uses `geotiff@2` from esm.sh (lazy-loaded on first use). Reads a single-band
+// Uses the local `geotiff@2` bundle (lazy-loaded on first use). Reads a single-band
 // elevation raster (DTM/DEM), samples to a regular grid, builds triangulated
 // TIN.
 //
@@ -21,9 +21,11 @@
 
 let _geotiffLib = null;
 async function _loadGeoTiff() {
-  if (_geotiffLib) return _geotiffLib;
-  _geotiffLib = await import('https://esm.sh/geotiff@2.1.3');
-  return _geotiffLib;
+    if (_geotiffLib) {
+        return _geotiffLib;
+    }
+    _geotiffLib = await import('../../../vendor/optional/geotiff.js');
+    return _geotiffLib;
 }
 
 /**
@@ -33,70 +35,73 @@ async function _loadGeoTiff() {
  * @returns {Promise<{ name, vertices, triangles, bbox, epsg }>}
  */
 export async function parseGeoTiff(arrayBuffer, opts = {}) {
-  const maxResolution = Math.max(8, opts.maxResolution || 256);
-  const { fromArrayBuffer } = await _loadGeoTiff();
-  const tiff = await fromArrayBuffer(arrayBuffer);
-  const image = await tiff.getImage();
-  const width = image.getWidth();
-  const height = image.getHeight();
-  const origin = image.getOrigin();      // [x, y] of top-left pixel
-  const resolution = image.getResolution();  // [px_w, px_h]  (px_h is typically negative)
-  const geoKeys = image.getGeoKeys();
+    const maxResolution = Math.max(8, opts.maxResolution || 256);
+    const { fromArrayBuffer } = await _loadGeoTiff();
+    const tiff = await fromArrayBuffer(arrayBuffer);
+    const image = await tiff.getImage();
+    const width = image.getWidth();
+    const height = image.getHeight();
+    const origin = image.getOrigin();      // [x, y] of top-left pixel
+    const resolution = image.getResolution();  // [px_w, px_h]  (px_h is typically negative)
+    const geoKeys = image.getGeoKeys();
 
-  // Extract EPSG code (ProjectedCSTypeGeoKey or GeographicTypeGeoKey)
-  let epsg = null;
-  if (geoKeys?.ProjectedCSTypeGeoKey) epsg = `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`;
-  else if (geoKeys?.GeographicTypeGeoKey) epsg = `EPSG:${geoKeys.GeographicTypeGeoKey}`;
-
-  // Read full raster — caller can downsample below
-  const rasters = await image.readRasters({ samples: [0] });
-  const elev = rasters[0];
-
-  // Decimate to keep mesh size manageable
-  const step = Math.max(1, Math.ceil(Math.max(width, height) / maxResolution));
-  const cols = Math.floor(width / step);
-  const rows = Math.floor(height / step);
-
-  const vertices = [];
-  const triangles = [];
-  const px = resolution[0];
-  const py = resolution[1];
-
-  // Build grid vertices (row-major, top to bottom)
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const ix = c * step;
-      const iy = r * step;
-      const x = origin[0] + ix * px;
-      const y = origin[1] + iy * py;   // py is typically negative
-      const z = elev[iy * width + ix];
-      vertices.push({ x, y, z: Number.isFinite(z) ? z : 0 });
+    // Extract EPSG code (ProjectedCSTypeGeoKey or GeographicTypeGeoKey)
+    let epsg = null;
+    if (geoKeys?.ProjectedCSTypeGeoKey) {
+        epsg = `EPSG:${geoKeys.ProjectedCSTypeGeoKey}`;
+    } else if (geoKeys?.GeographicTypeGeoKey) {
+        epsg = `EPSG:${geoKeys.GeographicTypeGeoKey}`;
     }
-  }
 
-  // Triangulate grid cells (2 triangles per quad)
-  for (let r = 0; r < rows - 1; r++) {
-    for (let c = 0; c < cols - 1; c++) {
-      const a = r * cols + c;
-      const b = a + 1;
-      const d = (r + 1) * cols + c;
-      const e = d + 1;
-      triangles.push([a, b, e]);
-      triangles.push([a, e, d]);
+    // Read full raster — caller can downsample below
+    const rasters = await image.readRasters({ samples: [0] });
+    const elev = rasters[0];
+
+    // Decimate to keep mesh size manageable
+    const step = Math.max(1, Math.ceil(Math.max(width, height) / maxResolution));
+    const cols = Math.floor(width / step);
+    const rows = Math.floor(height / step);
+
+    const vertices = [];
+    const triangles = [];
+    const px = resolution[0];
+    const py = resolution[1];
+
+    // Build grid vertices (row-major, top to bottom)
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const ix = c * step;
+            const iy = r * step;
+            const x = origin[0] + ix * px;
+            const y = origin[1] + iy * py;   // py is typically negative
+            const z = elev[iy * width + ix];
+            vertices.push({ x, y, z: Number.isFinite(z) ? z : 0 });
+        }
     }
-  }
 
-  const minX = Math.min(origin[0], origin[0] + width * px);
-  const maxX = Math.max(origin[0], origin[0] + width * px);
-  const minY = Math.min(origin[1], origin[1] + height * py);
-  const maxY = Math.max(origin[1], origin[1] + height * py);
+    // Triangulate grid cells (2 triangles per quad)
+    for (let r = 0; r < rows - 1; r++) {
+        for (let c = 0; c < cols - 1; c++) {
+            const a = r * cols + c;
+            const b = a + 1;
+            const d = (r + 1) * cols + c;
+            const e = d + 1;
+            triangles.push([a, b, e]);
+            triangles.push([a, e, d]);
+        }
+    }
 
-  return {
-    name: opts.name || 'GeoTIFF terrain',
-    vertices,
-    triangles,
-    bbox: { minX, minY, maxX, maxY },
-    epsg,
-    sourceResolution: { width, height, sampled: { cols, rows, step } },
-  };
+    const minX = Math.min(origin[0], origin[0] + width * px);
+    const maxX = Math.max(origin[0], origin[0] + width * px);
+    const minY = Math.min(origin[1], origin[1] + height * py);
+    const maxY = Math.max(origin[1], origin[1] + height * py);
+
+    return {
+        name: opts.name || 'GeoTIFF terrain',
+        vertices,
+        triangles,
+        bbox: { minX, minY, maxX, maxY },
+        epsg,
+        sourceResolution: { width, height, sampled: { cols, rows, step } },
+    };
 }

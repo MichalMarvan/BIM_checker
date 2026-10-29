@@ -32,7 +32,6 @@ const PANELS = {
   ask:           { loader: () => import('./ask-panel.js') },
   timeline:      { loader: () => import('./timeline-panel.js') },
   'three-tiles': { loader: () => import('./three-tiles-panel.js') },
-  'ids-templates': { loader: () => import('./ids-templates-panel.js') },
   display:       { loader: () => import('./display-panel.js') },
   georef:        { loader: () => import('./georef-panel.js') },
   spatial:       { loader: () => import('./spatial-panel.js') },

@@ -16,6 +16,10 @@ describe('IDS Excel Parser', () => {
             expect(typeof IDSExcelParser.parse).toBe('function');
         });
 
+        it('should expose the supported workbook format version', () => {
+            expect(IDSExcelParser.FORMAT_VERSION).toBe(2);
+        });
+
         it('should have required sheet names constant', () => {
             expect(IDSExcelParser.REQUIRED_SHEETS).toContain('info');
             expect(IDSExcelParser.REQUIRED_SHEETS).toContain('specifications');

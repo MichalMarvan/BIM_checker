@@ -151,14 +151,26 @@ class TestFramework {
         };
 
         const startTime = performance.now();
+        let timeoutId;
 
         try {
-            await test.fn();
+            const timeoutMs = 20000;
+            await Promise.race([
+                Promise.resolve().then(() => test.fn()),
+                new Promise((_, reject) => {
+                    timeoutId = setTimeout(
+                        () => reject(new Error(`Test exceeded ${timeoutMs} ms timeout`)),
+                        timeoutMs
+                    );
+                })
+            ]);
             result.passed = true;
         } catch (error) {
             result.passed = false;
             result.error = error.message;
             result.stack = error.stack;
+        } finally {
+            clearTimeout(timeoutId);
         }
 
         result.duration = Math.round(performance.now() - startTime);

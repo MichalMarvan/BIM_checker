@@ -38,7 +38,7 @@ body[data-page="viewer3d"] {
 .v3d-brand__icon {
     width: 30px;
     height: 30px;
-    background: linear-gradient(135deg, #667eea, #5568d3);
+    background: linear-gradient(135deg, #4f46e5, #4338ca);
     border-radius: var(--radius-md, 0.5rem);
     display: flex;
     align-items: center;
@@ -85,7 +85,7 @@ body[data-page="viewer3d"] {
 }
 .v3d-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
 .v3d-btn--primary {
-    background: linear-gradient(135deg, #667eea, #5568d3);
+    background: linear-gradient(135deg, #4f46e5, #4338ca);
     color: white;
     border-color: transparent;
 }
@@ -117,7 +117,7 @@ body[data-page="viewer3d"] {
     cursor: pointer;
     background: transparent;
     border: none;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
     transition: all 0.12s;
 }
 .v3d-lang__btn:hover { color: var(--text-primary); }
@@ -251,12 +251,16 @@ body[data-page="viewer3d"] {
     transition: background 0.12s, color 0.12s;
 }
 .v3d-rail__item svg { width: 19px; height: 19px; }
-.v3d-rail__label { font-size: 8.5px; font-weight: 600; letter-spacing: 0.01em; }
+.v3d-rail__label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.01em; }
 .v3d-rail__item:hover { background: rgba(102, 126, 234, 0.1); color: var(--primary-color); }
 .v3d-rail__item.active {
     background: rgba(102, 126, 234, 0.16);
     color: var(--primary-color);
     box-shadow: inset 2.5px 0 0 var(--primary-color);
+}
+[data-theme="dark"] .v3d-rail__item:hover,
+[data-theme="dark"] .v3d-rail__item.active {
+    color: #a5b4fc;
 }
 
 .v3d-drawer {
@@ -358,6 +362,31 @@ body[data-page="viewer3d"] {
     color: var(--text-tertiary);
 }
 .v3d-model-info__row b { color: var(--text-secondary); font-weight: 600; }
+.v3d-model-info__detail {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+.v3d-model-info__detail code {
+    overflow-wrap: anywhere;
+    color: var(--text-secondary);
+    font-size: 10px;
+    line-height: 1.4;
+}
+.v3d-model-info__quality {
+    margin-top: 4px;
+    padding: 5px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    line-height: 1.35;
+}
+.v3d-model-info__quality.is-ok { color: #166534; background: rgba(22, 163, 74, 0.12); }
+.v3d-model-info__quality.has-warnings { color: #92400e; background: rgba(217, 119, 6, 0.14); }
+[data-theme="dark"] .v3d-model-info__quality.is-ok { color: #86efac; }
+[data-theme="dark"] .v3d-model-info__quality.has-warnings { color: #fcd34d; }
 .v3d-model-card.is-hidden { opacity: 0.55; }
 .v3d-model-card__main { flex: 1; min-width: 0; }
 .v3d-model-card__name {
@@ -1237,8 +1266,60 @@ body[data-page="viewer3d"] {
     .v3d-brand__version { display: none; }
     .v3d-file { display: none; }
     .v3d-btn { padding: 4px 8px; font-size: 11px; }
-    .v3d-toolbar { top: auto; bottom: 56px; left: 60px; right: 8px; max-width: none; overflow-x: auto; }
-    .v3d-status { bottom: auto; top: 56px; left: 64px; }
+    .v3d-toolbar {
+        top: auto;
+        bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+        left: 60px;
+        right: 8px;
+        max-width: none;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        pointer-events: auto;
+        scrollbar-width: thin;
+        overscroll-behavior-x: contain;
+    }
+    .v3d-toolbar__group { flex: 0 0 auto; }
+    .v3d-status {
+        bottom: auto;
+        top: 56px;
+        left: 60px;
+        right: 8px;
+        max-width: none;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .v3d-drawer:not([hidden]) ~ .v3d-toolbar { left: 60px; }
+    .v3d-drawer:not([hidden]) ~ .v3d-status { left: 60px; }
     .v3d-drawer { width: calc(100vw - 52px); max-width: none; }
+    .v3d-st-load,
+    .v3d-st-load--folder,
+    .v3d-st-refresh,
+    .v3d-drawer__close { min-height: 44px; min-width: 44px; }
+    .v3d-st-file { min-height: 48px; }
     .v3d-panel-host { top: auto; bottom: 96px; right: 8px; left: 8px; width: auto; height: 50vh; }
+    .v3d-entity-bar {
+        left: 60px;
+        right: 8px;
+        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        transform: none;
+        max-width: none;
+        overflow-x: auto;
+        justify-content: flex-start;
+        border-radius: 12px;
+        animation: none;
+        overscroll-behavior-x: contain;
+    }
+    .v3d-entity-bar__main {
+        min-width: 140px;
+        max-width: min(220px, 52vw);
+        flex: 1 1 auto;
+    }
+    .v3d-entity-bar__tools { flex: 0 0 auto; }
+}
+
+@media (max-width: 420px) {
+    .v3d-entity-bar__icon,
+    .v3d-entity-bar__count { display: none; }
+    .v3d-entity-bar__main { min-width: 120px; max-width: 48vw; }
 }

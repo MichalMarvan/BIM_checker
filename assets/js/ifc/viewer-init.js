@@ -134,26 +134,27 @@ document.getElementById('clearFiltersBtn').addEventListener('click', () => {
 document.getElementById('exportBtn').addEventListener('click', () => {
     const state = window.ViewerState;
     const columns = window.currentColumns || [];
-    let csv = `${i18n.t('viewer.csv.file')},${i18n.t('viewer.csv.guid')},${i18n.t('viewer.csv.entity')},${i18n.t('viewer.csv.name')},${i18n.t('viewer.csv.layer')}`;
-    for (const col of columns) {
-        csv += ',"' + col.psetName + ' ' + col.propName + '"';
-    }
-    csv += '\n';
+    const rows = [[
+        i18n.t('viewer.csv.file'), i18n.t('viewer.csv.guid'), i18n.t('viewer.csv.entity'),
+        i18n.t('viewer.csv.name'), i18n.t('viewer.csv.layer'),
+        ...columns.map(col => `${col.psetName} ${col.propName}`)
+    ]];
 
     for (const item of state.filteredData) {
-        const row = ['"' + item.fileName + '"', item.guid, item.entity, '"' + item.name + '"', '"' + (item.layer || '-') + '"'];
+        const row = [item.fileName, item.guid, item.entity, item.name, item.layer || '-'];
         for (const col of columns) {
             const val = item.propertySets[col.psetName]?.[col.propName] || '';
-            row.push('"' + val + '"');
+            row.push(val);
         }
-        csv += row.join(',') + '\n';
+        rows.push(row);
     }
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([window.BIMCSV.encodeRows(rows)], { type: 'text/csv;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'ifc-multi-export.csv';
     link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 });
 
 // =======================
@@ -259,7 +260,7 @@ document.getElementById('selectAllVisibleBtn').addEventListener('click', () => {
     const startIndex = state.pageSize === -1 ? 0 : (state.currentPage - 1) * state.pageSize;
     const endIndex = state.pageSize === -1 ? state.filteredData.length : Math.min(startIndex + state.pageSize, state.filteredData.length);
     const pageData = state.filteredData.slice(startIndex, endIndex);
-    pageData.forEach(item => state.selectedEntities.add(item.guid));
+    pageData.forEach(item => state.selectedEntities.add(window.viewerEntityKey(item)));
     window.updateSelectedCount();
     window.renderTable();
 });
@@ -290,7 +291,7 @@ document.getElementById('selectAllPagesBtn').addEventListener('click', () => {
 
     state.filteredData.forEach(item => {
         if (item && item.guid) {
-            state.selectedEntities.add(item.guid);
+            state.selectedEntities.add(window.viewerEntityKey(item));
         }
     });
 
@@ -313,15 +314,18 @@ document.getElementById('deselectAllBtn').addEventListener('click', () => {
     window.renderTable();
 });
 
-document.getElementById('view3dSelectionBtn').addEventListener('click', (e) => {
-    window.sendSelectionToViewer(e.currentTarget);
-});
+const view3dSelectionBtn = document.getElementById('view3dSelectionBtn');
+if (view3dSelectionBtn) {
+    view3dSelectionBtn.addEventListener('click', (e) => {
+        window.sendSelectionToViewer(e.currentTarget);
+    });
+}
 
 // =======================
 // CELL EDITING
 // =======================
 
-function makeEditable(cell, guid, psetName, propName) {
+function makeEditable(cell, entityKey, psetName, propName) {
     const state = window.ViewerState;
     if (!state.editMode || state.editingCell === cell) {
         return;
@@ -336,12 +340,12 @@ function makeEditable(cell, guid, psetName, propName) {
     input.value = currentValue === '-' ? '' : currentValue;
 
     input.addEventListener('blur', () => {
-        saveCell(input, cell, guid, psetName, propName);
+        saveCell(input, cell, entityKey, psetName, propName);
     });
 
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-            saveCell(input, cell, guid, psetName, propName);
+            saveCell(input, cell, entityKey, psetName, propName);
         } else if (e.key === 'Escape') {
             cell.textContent = currentValue;
             state.editingCell = null;
@@ -354,24 +358,24 @@ function makeEditable(cell, guid, psetName, propName) {
     input.select();
 }
 
-function saveCell(input, cell, guid, psetName, propName) {
+function saveCell(input, cell, entityKey, psetName, propName) {
     const state = window.ViewerState;
     const newValue = input.value.trim();
-    const entity = state.allData.find(e => e.guid === guid);
+    const entity = window.findViewerEntityByKey(entityKey);
 
     if (!entity) {
         state.editingCell = null;
         return;
     }
 
-    if (!state.modifications[guid]) {
-        state.modifications[guid] = {};
+    if (!state.modifications[entityKey]) {
+        state.modifications[entityKey] = {};
     }
-    if (!state.modifications[guid][psetName]) {
-        state.modifications[guid][psetName] = {};
+    if (!state.modifications[entityKey][psetName]) {
+        state.modifications[entityKey][psetName] = {};
     }
 
-    state.modifications[guid][psetName][propName] = newValue;
+    state.modifications[entityKey][psetName][propName] = newValue;
 
     if (!entity.propertySets[psetName]) {
         entity.propertySets[psetName] = {};
@@ -448,8 +452,8 @@ document.getElementById('bulkPropName').addEventListener('change', (e) => {
     const valueCount = {};
     let emptyCount = 0;
 
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (!entity) {
             continue;
         }
@@ -474,7 +478,7 @@ document.getElementById('bulkPropName').addEventListener('change', (e) => {
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
                     <span style="font-weight: 600; color: #667eea; flex: 1;">${window.escapeHtml(value)}</span>
                     <span style="color: #6c757d; font-size: 0.9em; margin-left: 10px;">${count}× (${percentage}%)</span>
-                    <button onclick="document.getElementById('bulkValue').value = '${window.escapeHtml(value).replace(/'/g, "\\'")}';"
+                    <button type="button" data-action="apply-bulk-value" data-value="${window.escapeHtml(value)}"
                             style="margin-left: 10px; padding: 4px 10px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
                         ${i18n.t('viewer.apply')}
                     </button>
@@ -499,6 +503,15 @@ document.getElementById('bulkPropName').addEventListener('change', (e) => {
     }
 
     currentValuesList.innerHTML = html;
+    if (!currentValuesList.dataset.delegated) {
+        currentValuesList.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-action="apply-bulk-value"]');
+            if (button) {
+                document.getElementById('bulkValue').value = button.dataset.value;
+            }
+        });
+        currentValuesList.dataset.delegated = '1';
+    }
     currentValuesSection.style.display = 'block';
 });
 
@@ -522,20 +535,20 @@ function applyBulkEdit() {
         return;
     }
 
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (!entity) {
             continue;
         }
 
-        if (!state.modifications[guid]) {
-            state.modifications[guid] = {};
+        if (!state.modifications[entityKey]) {
+            state.modifications[entityKey] = {};
         }
-        if (!state.modifications[guid][psetName]) {
-            state.modifications[guid][psetName] = {};
+        if (!state.modifications[entityKey][psetName]) {
+            state.modifications[entityKey][psetName] = {};
         }
 
-        state.modifications[guid][psetName][propName] = value;
+        state.modifications[entityKey][psetName][propName] = value;
 
         if (!entity.propertySets[psetName]) {
             entity.propertySets[psetName] = {};
@@ -592,20 +605,20 @@ function applyAddPset() {
         state.visiblePsets[psetName][propName] = true;
     }
 
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (!entity) {
             continue;
         }
 
-        if (!state.modifications[guid]) {
-            state.modifications[guid] = {};
+        if (!state.modifications[entityKey]) {
+            state.modifications[entityKey] = {};
         }
-        if (!state.modifications[guid][psetName]) {
-            state.modifications[guid][psetName] = {};
+        if (!state.modifications[entityKey][psetName]) {
+            state.modifications[entityKey][psetName] = {};
         }
 
-        state.modifications[guid][psetName][propName] = value;
+        state.modifications[entityKey][psetName][propName] = value;
 
         if (!entity.propertySets[psetName]) {
             entity.propertySets[psetName] = {};
@@ -633,8 +646,8 @@ document.getElementById('renamePsetBtn').addEventListener('click', () => {
     const dropdown = document.getElementById('oldPsetName');
 
     const allPsets = new Set();
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (entity && entity.propertySets) {
             Object.keys(entity.propertySets).forEach(pset => allPsets.add(pset));
         }
@@ -679,20 +692,20 @@ function applyPsetRename() {
     }
 
     let count = 0;
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (!entity || !entity.propertySets[oldName]) {
             continue;
         }
 
-        if (!state.modifications[guid]) {
-            state.modifications[guid] = {};
+        if (!state.modifications[entityKey]) {
+            state.modifications[entityKey] = {};
         }
-        if (!state.modifications[guid].renamedPsets) {
-            state.modifications[guid].renamedPsets = {};
+        if (!state.modifications[entityKey].renamedPsets) {
+            state.modifications[entityKey].renamedPsets = {};
         }
 
-        state.modifications[guid].renamedPsets[oldName] = newName;
+        state.modifications[entityKey].renamedPsets[oldName] = newName;
         count++;
     }
 
@@ -715,8 +728,8 @@ document.getElementById('renamePropertyBtn').addEventListener('click', () => {
     const psetDropdown = document.getElementById('renamePropPsetName');
 
     const allPsets = new Set();
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (entity && entity.propertySets) {
             Object.keys(entity.propertySets).forEach(pset => allPsets.add(pset));
         }
@@ -766,8 +779,8 @@ function updatePropertyValuesList() {
 
     const valueCounts = new Map();
     let emptyCount = 0;
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (!entity || !entity.propertySets[psetName]) continue;
         const value = entity.propertySets[psetName][propName];
         if (value === undefined || value === null || value === '') {
@@ -812,8 +825,8 @@ function updatePropertyDropdown() {
     }
 
     const allProperties = new Set();
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (entity && entity.propertySets && entity.propertySets[psetName]) {
             Object.keys(entity.propertySets[psetName]).forEach(prop => allProperties.add(prop));
         }
@@ -864,23 +877,23 @@ function applyPropertyRename() {
     }
 
     let count = 0;
-    for (const guid of state.selectedEntities) {
-        const entity = state.allData.find(e => e.guid === guid);
+    for (const entityKey of state.selectedEntities) {
+        const entity = window.findViewerEntityByKey(entityKey);
         if (!entity || !entity.propertySets[psetName] || !entity.propertySets[psetName][oldPropName]) {
             continue;
         }
 
-        if (!state.modifications[guid]) {
-            state.modifications[guid] = {};
+        if (!state.modifications[entityKey]) {
+            state.modifications[entityKey] = {};
         }
-        if (!state.modifications[guid].renamedProperties) {
-            state.modifications[guid].renamedProperties = {};
+        if (!state.modifications[entityKey].renamedProperties) {
+            state.modifications[entityKey].renamedProperties = {};
         }
-        if (!state.modifications[guid].renamedProperties[psetName]) {
-            state.modifications[guid].renamedProperties[psetName] = {};
+        if (!state.modifications[entityKey].renamedProperties[psetName]) {
+            state.modifications[entityKey].renamedProperties[psetName] = {};
         }
 
-        state.modifications[guid].renamedProperties[psetName][oldPropName] = newPropName;
+        state.modifications[entityKey].renamedProperties[psetName][oldPropName] = newPropName;
         count++;
     }
 
@@ -934,14 +947,19 @@ document.getElementById('exportIfcBtn').addEventListener('click', () => {
 async function exportModifiedIFC(fileInfo) {
     const state = window.ViewerState;
     try {
-        const ifcContent = await window.getIFCContent(fileInfo.fileName);
+        const ifcContent = await window.getIFCContent(fileInfo.fileName, fileInfo.fileId);
 
         if (!ifcContent) {
             ErrorHandler.error(i18n.t('viewer.originalNotAvailable'));
             return;
         }
 
-        const modifiedIfc = applyModificationsToIFC(ifcContent, state.modifications, fileInfo.fileName);
+        const modifiedIfc = applyModificationsToIFC(
+            ifcContent,
+            state.modifications,
+            fileInfo.fileName,
+            fileInfo.fileId
+        );
 
         if (!modifiedIfc) {
             return;
@@ -1107,7 +1125,7 @@ function addPropertyToExistingPset(modifiedLines, parsed, classification, propNa
     return { newEntityLine: propLine, newPropId };
 }
 
-function applyModificationsToIFC(ifcContent, modifications, fileName) {
+function applyModificationsToIFC(ifcContent, modifications, fileName, fileId = null) {
     const state = window.ViewerState;
     const parsed = parseIFCStructure(ifcContent);
     const modifiedLines = [...parsed.lines];
@@ -1117,11 +1135,27 @@ function applyModificationsToIFC(ifcContent, modifications, fileName) {
     let createdCount = 0;
     const newEntities = [];
 
-    for (const [guid, psetModifications] of Object.entries(modifications)) {
-        const entity = state.allData.find(e => e.guid === guid && e.fileName === fileName);
+    for (const [entityKey, psetModifications] of Object.entries(modifications)) {
+        const entity = Array.from(state.allData).find(item => {
+            const sameFile = fileId !== null && fileId !== undefined
+                ? String(item.fileId) === String(fileId)
+                : item.fileName === fileName;
+            const itemKey = typeof window.viewerEntityKey === 'function'
+                ? window.viewerEntityKey(item)
+                : item.guid;
+            return sameFile && itemKey === entityKey;
+        }) || Array.from(state.allData).find(item => {
+            // Legacy modifications were keyed by GUID only.
+            const sameFile = fileId !== null && fileId !== undefined
+                ? String(item.fileId) === String(fileId)
+                : item.fileName === fileName;
+            return sameFile && item.guid === entityKey;
+        });
         if (!entity) {
             continue;
         }
+
+        const guid = entity.guid;
 
         const entityId = parsed.guidToEntityId.get(guid);
         if (!entityId) {
@@ -1556,18 +1590,45 @@ function getAllFilesInFolder(folderId) {
     return files;
 }
 
+function handleStorageTreeClick(event) {
+    const actionEl = event.target.closest('[data-action]');
+    if (!actionEl) {
+        return;
+    }
+    // closest() returns the innermost match, so a checkbox click resolves to the
+    // checkbox (not its wrapping row) — exactly one action fires per click.
+    switch (actionEl.dataset.action) {
+        case 'toggle-folder':
+            toggleStorageFolder(actionEl.dataset.folderId);
+            break;
+        case 'select-all-folder':
+            event.preventDefault();
+            selectAllFilesInFolder(actionEl.dataset.folderId);
+            break;
+        case 'toggle-file':
+            event.preventDefault();
+            toggleStorageFileSelection(actionEl.dataset.fileId);
+            break;
+    }
+}
+
 function renderStorageTree() {
+    const tree = document.getElementById('storageFileTree');
+    if (tree && !tree.dataset.delegated) {
+        tree.addEventListener('click', handleStorageTreeClick);
+        tree.dataset.delegated = '1';
+    }
     try {
         if (!storageMetadata || !storageMetadata.files || Object.keys(storageMetadata.files).length === 0) {
-            document.getElementById('storageFileTree').innerHTML = `<p class="storage-empty-message">${i18n.t('viewer.noIfcInStorage')}</p>`;
+            tree.innerHTML = `<p class="storage-empty-message">${i18n.t('viewer.noIfcInStorage')}</p>`;
             return;
         }
 
         const html = renderStorageFolderRecursive('root', 0);
-        document.getElementById('storageFileTree').innerHTML = html;
+        tree.innerHTML = html;
         updateSelectedFilesCount();
     } catch (e) {
-        document.getElementById('storageFileTree').innerHTML = `<p class="storage-error-message">${i18n.t('viewer.storageDisplayError')}</p>`;
+        tree.innerHTML = `<p class="storage-error-message">${i18n.t('viewer.storageDisplayError')}</p>`;
     }
 }
 
@@ -1587,12 +1648,13 @@ function renderStorageFolderRecursive(folderId, level) {
         const allFolderFiles = getAllFilesInFolder(folderId);
         const allFolderSelected = allFolderFiles.length > 0 && allFolderFiles.every(fileId => selectedStorageFiles.has(fileId));
 
+        const folderIdAttr = window.escapeHtml(folderId);
         html += `
             <div class="storage-folder-wrapper">
                 <div class="storage-folder-header" style="margin-left: ${level * 20}px;">
-                    <span onclick="toggleStorageFolder('${folderId}')" class="storage-folder-arrow">${arrow}</span>
-                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); selectAllFilesInFolder('${folderId}')" class="storage-folder-checkbox" title="${i18n.t('viewer.selectAllInFolder')}">
-                    <span onclick="toggleStorageFolder('${folderId}')" class="storage-folder-name">
+                    <span data-action="toggle-folder" data-folder-id="${folderIdAttr}" class="storage-folder-arrow">${arrow}</span>
+                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} data-action="select-all-folder" data-folder-id="${folderIdAttr}" class="storage-folder-checkbox" title="${i18n.t('viewer.selectAllInFolder')}">
+                    <span data-action="toggle-folder" data-folder-id="${folderIdAttr}" class="storage-folder-name">
                         📁 ${window.escapeHtml(folder.name)}
                         ${allFolderFiles.length > 0 ? `<span class="storage-folder-count">(${allFolderFiles.length} ${i18n.t('viewer.files')})</span>` : ''}
                     </span>
@@ -1621,11 +1683,12 @@ function renderStorageFolderRecursive(folderId, level) {
             files.forEach(file => {
                 const isSelected = selectedStorageFiles.has(file.id);
                 const sizeKB = (file.size / 1024).toFixed(1);
+                const fileIdAttr = window.escapeHtml(file.id);
                 html += `
                     <div class="storage-file-item ${isSelected ? 'selected' : ''}"
-                         onclick="toggleStorageFileSelection('${file.id}')"
+                         data-action="toggle-file" data-file-id="${fileIdAttr}"
                          style="margin-left: ${(level + 1) * 20}px;">
-                        <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); event.preventDefault(); toggleStorageFileSelection('${file.id}');" class="storage-file-checkbox">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} data-action="toggle-file" data-file-id="${fileIdAttr}" class="storage-file-checkbox">
                         <span class="storage-file-name">📄 ${window.escapeHtml(file.name)}</span>
                         <span class="storage-file-size">${sizeKB} KB</span>
                     </div>
@@ -1683,7 +1746,7 @@ async function loadSelectedFilesFromStorage() {
                     // parseIFCAsync expects string content (IFC is a text format).
                     // Local folder backend returns ArrayBuffer — decode to text.
                     const text = (buf instanceof ArrayBuffer) ? decoder.decode(buf) : buf;
-                    await window.parseIFCAsync(text, meta.name, i + 1, fileArray.length);
+                    await window.parseIFCAsync(text, meta.name, i + 1, fileArray.length, fileId);
                 }
             }
 
@@ -1735,7 +1798,7 @@ async function loadSelectedFilesFromStorage() {
                     const fileContent = await window.Compression.decompress(rawContent);
 
                     if (fileContent) {
-                        await window.parseIFCAsync(fileContent, fileMetadata.name, i + 1, fileArray.length);
+                        await window.parseIFCAsync(fileContent, fileMetadata.name, i + 1, fileArray.length, fileId);
                     }
                 }
             }

@@ -1,14 +1,16 @@
 // Phase 6.16 — Bundle a 3D Tiles output (tileset.json + model.glb + optional
 // extras) into a single ZIP blob for download.
 //
-// Uses JSZip from esm.sh (lazy-loaded on first use).
+// Uses the locally bundled JSZip (lazy-loaded on first use).
 
 let _JSZip = null;
 async function _loadJSZip() {
-  if (_JSZip) return _JSZip;
-  const mod = await import('https://esm.sh/jszip@3.10.1');
-  _JSZip = mod.default || mod;
-  return _JSZip;
+    if (_JSZip) {
+        return _JSZip;
+    }
+    const mod = await import('../../../vendor/optional/jszip.js');
+    _JSZip = mod.default || mod;
+    return _JSZip;
 }
 
 /**
@@ -21,12 +23,14 @@ async function _loadJSZip() {
  * @returns {Promise<Blob>}
  */
 export async function buildTilesetZip(opts) {
-  const JSZip = await _loadJSZip();
-  const zip = new JSZip();
-  zip.file('tileset.json', JSON.stringify(opts.tilesetJson, null, 2));
-  zip.file('model.glb', opts.glb);
-  if (opts.extras) {
-    for (const e of opts.extras) zip.file(e.path, e.content);
-  }
-  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    const JSZip = await _loadJSZip();
+    const zip = new JSZip();
+    zip.file('tileset.json', JSON.stringify(opts.tilesetJson, null, 2));
+    zip.file('model.glb', opts.glb);
+    if (opts.extras) {
+        for (const e of opts.extras) {
+            zip.file(e.path, e.content);
+        }
+    }
+    return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
 }

@@ -453,14 +453,11 @@ function formatValue(value) {
 }
 
 function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return window.BIMSafeHTML.escapeHtml(text);
+}
+
+function escapeAttr(text) {
+    return window.BIMSafeHTML.escapeAttr(text);
 }
 
 function explainRegex(pattern) {
@@ -611,8 +608,8 @@ function generateTreeView(node, level) {
     const nodeValue = node.childNodes.length === 1 && node.childNodes[0].nodeType === 3 ? node.textContent.trim() : '';
     const nodeId = 'node-' + Math.random().toString(36).substr(2, 9);
 
-    html += `<div class="tree-node ${level === 0 ? 'tree-root' : ''} ${hasChildren && level > 0 ? 'collapsed' : ''}" id="${escapeHtml(nodeId)}">`;
-    html += `<div data-action="toggle-tree-node" data-node-id="${escapeHtml(nodeId)}" style="margin-left: ${level * 20}px">`;
+    html += `<div class="tree-node ${level === 0 ? 'tree-root' : ''} ${hasChildren && level > 0 ? 'collapsed' : ''}" id="${escapeAttr(nodeId)}">`;
+    html += `<div data-action="toggle-tree-node" data-node-id="${escapeAttr(nodeId)}" style="margin-left: ${level * 20}px">`;
 
     if (hasChildren) {
         html += `<span class="tree-expand">${level > 0 ? '▶' : '▼'}</span> `;
@@ -1212,8 +1209,8 @@ function renderIdsStorageFolderRecursive(folderId, level) {
         html += `
                     <div style="margin-bottom: 8px;">
                         <div class="tree-folder-header" style="margin-left: ${level * 20}px;">
-                            <span data-action="toggle-ids-storage-folder" data-folder-id="${escapeHtml(folderId)}" class="tree-folder-arrow">${arrow}</span>
-                            <span data-action="toggle-ids-storage-folder" data-folder-id="${escapeHtml(folderId)}" class="tree-folder-name">
+                            <span data-action="toggle-ids-storage-folder" data-folder-id="${escapeAttr(folderId)}" class="tree-folder-arrow">${arrow}</span>
+                            <span data-action="toggle-ids-storage-folder" data-folder-id="${escapeAttr(folderId)}" class="tree-folder-name">
                                 📁 ${escapeHtml(folder.name)}
                                 ${allFolderFiles.length > 0 ? `<span class="tree-folder-count">(${allFolderFiles.length} ${escapeHtml(t('parser.storage.fileCount'))})</span>` : ''}
                             </span>
@@ -1247,9 +1244,9 @@ function renderIdsStorageFolderRecursive(folderId, level) {
                 const sizeKB = (file.size / 1024).toFixed(1);
                 html += `
                             <div class="tree-file-item ${isSelected ? 'selected' : ''}"
-                                 data-action="select-ids-file" data-file-id="${escapeHtml(file.id)}"
+                                 data-action="select-ids-file" data-file-id="${escapeAttr(file.id)}"
                                  style="margin-left: ${(level + 1) * 20}px;">
-                                <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} data-action="select-ids-file-radio" data-file-id="${escapeHtml(file.id)}" style="margin-right: 10px;">
+                                <input type="radio" name="idsFileSelection" ${isSelected ? 'checked' : ''} data-action="select-ids-file-radio" data-file-id="${escapeAttr(file.id)}" style="margin-right: 10px;">
                                 <span class="tree-file-name">📄 ${escapeHtml(file.name)}</span>
                                 <span class="tree-file-size">${escapeHtml(sizeKB)} KB</span>
                             </div>

@@ -24,11 +24,21 @@ async function handleFiles(files) {
         for (let i = 0; i < ifcFiles.length; i++) {
             const file = ifcFiles[i];
             const content = await window.readFileAsync(file);
-            await window.parseIFCAsync(content, file.name, i + 1, ifcFiles.length);
-            // Also persist to BIMStorage so AI tools + storage cards see this file
-            if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
-                window.BIMStorage.persistDropped('ifc', file, content);
+            let fileId = `memory:${Date.now()}:${i}:${Math.random().toString(36).slice(2)}`;
+            // Persist first so every parsed row carries the real storage identity.
+            // Read-only backends keep the stable per-session fallback above.
+            if (window.BIMStorage && typeof window.BIMStorage.saveFile === 'function') {
+                try {
+                    fileId = await window.BIMStorage.saveFile('ifc', {
+                        name: file.name,
+                        size: file.size,
+                        content
+                    }, 'root', { allowDuplicate: true });
+                } catch (error) {
+                    console.warn('[viewer-ui] IFC persistence skipped:', error?.message || error);
+                }
             }
+            await window.parseIFCAsync(content, file.name, i + 1, ifcFiles.length, fileId);
         }
 
         document.getElementById('loading').classList.remove('show');
@@ -47,7 +57,7 @@ async function removeFile(index) {
     const state = window.ViewerState;
     const file = state.loadedFiles[index];
 
-    await window.deleteIFCContent(file.fileName);
+    await window.deleteIFCContent(file.fileName, file.fileId);
 
     state.loadedFiles.splice(index, 1);
     updateFileList();
@@ -214,10 +224,19 @@ function updateUI() {
     defaultFileOption.value = '';
     defaultFileOption.textContent = i18n.t('viewer.allFiles');
     fileFilter.appendChild(defaultFileOption);
+    const fileNameTotals = state.loadedFiles.reduce((totals, file) => {
+        totals.set(file.fileName, (totals.get(file.fileName) || 0) + 1);
+        return totals;
+    }, new Map());
+    const fileNameIndexes = new Map();
     state.loadedFiles.forEach(file => {
         const option = document.createElement('option');
-        option.value = file.fileName;
-        option.textContent = file.fileName;
+        option.value = window.viewerFileKey(file.fileName, file.fileId);
+        const revisionIndex = (fileNameIndexes.get(file.fileName) || 0) + 1;
+        fileNameIndexes.set(file.fileName, revisionIndex);
+        option.textContent = fileNameTotals.get(file.fileName) > 1
+            ? `${file.fileName} (${revisionIndex})`
+            : file.fileName;
         fileFilter.appendChild(option);
     });
 
@@ -442,10 +461,16 @@ function findPsetRename(psetName) {
     const newNames = new Set();
     for (const guid in state.modifications) {
         const newName = state.modifications[guid]?.renamedPsets?.[psetName];
-        if (newName !== undefined) newNames.add(newName);
+        if (newName !== undefined) {
+            newNames.add(newName);
+        }
     }
-    if (newNames.size === 0) return null;
-    if (newNames.size === 1) return [...newNames][0];
+    if (newNames.size === 0) {
+        return null;
+    }
+    if (newNames.size === 1) {
+        return [...newNames][0];
+    }
     return null; // divergent renames — treat as no consistent rename to avoid misleading the user
 }
 
@@ -454,10 +479,16 @@ function findPropertyRename(psetName, propName) {
     const newNames = new Set();
     for (const guid in state.modifications) {
         const newName = state.modifications[guid]?.renamedProperties?.[psetName]?.[propName];
-        if (newName !== undefined) newNames.add(newName);
+        if (newName !== undefined) {
+            newNames.add(newName);
+        }
     }
-    if (newNames.size === 0) return null;
-    if (newNames.size === 1) return [...newNames][0];
+    if (newNames.size === 0) {
+        return null;
+    }
+    if (newNames.size === 1) {
+        return [...newNames][0];
+    }
     return null;
 }
 
@@ -503,9 +534,9 @@ function buildTable() {
             const endIndex = state.pageSize === -1 ? state.filteredData.length : Math.min(startIndex + state.pageSize, state.filteredData.length);
             const pageData = state.filteredData.slice(startIndex, endIndex);
             if (e.target.checked) {
-                pageData.forEach(item => state.selectedEntities.add(item.guid));
+                pageData.forEach(item => state.selectedEntities.add(window.viewerEntityKey(item)));
             } else {
-                pageData.forEach(item => state.selectedEntities.delete(item.guid));
+                pageData.forEach(item => state.selectedEntities.delete(window.viewerEntityKey(item)));
             }
             updateSelectedCount();
             renderTable();
@@ -713,18 +744,33 @@ function sortByProperty(psetName, propName) {
 // =======================
 
 function handoffRowKey(item) {
-    return `${item.fileName || ''}|||${item.guid || ''}|||${item.ifcId || ''}`;
+    return window.viewerEntityKey(item);
 }
 
 function matchesHandoffFilter(item, filter) {
-    if (!filter) return true;
-    if (filter.fileNames && filter.fileNames.size > 0 && !filter.fileNames.has(item.fileName)) {
+    if (!filter) {
+        return true;
+    }
+    const itemFileKey = window.viewerFileKey(item.fileName, item.fileId);
+    if (filter.fileKeys && filter.fileKeys.size > 0 && !filter.fileKeys.has(itemFileKey)) {
         return false;
     }
-    if (!filter.hasEntities) return true;
-    if (filter.rowKeys && filter.rowKeys.has(handoffRowKey(item))) return true;
-    if (filter.guids && item.guid && filter.guids.has(String(item.guid).toLowerCase())) return true;
-    const idsForFile = filter.ifcIdsByFile && filter.ifcIdsByFile.get(item.fileName);
+    if (!filter.fileKeys && filter.fileNames && filter.fileNames.size > 0 && !filter.fileNames.has(item.fileName)) {
+        return false;
+    }
+    if (!filter.hasEntities) {
+        return true;
+    }
+    if (filter.rowKeys && filter.rowKeys.has(handoffRowKey(item))) {
+        return true;
+    }
+    const guidsForFile = filter.guidsByFileKey && filter.guidsByFileKey.get(itemFileKey);
+    if (guidsForFile && item.guid && guidsForFile.has(String(item.guid).toLowerCase())) {
+        return true;
+    }
+    const idsForFile = filter.ifcIdsByFileKey
+        ? filter.ifcIdsByFileKey.get(itemFileKey)
+        : filter.ifcIdsByFile?.get(item.fileName);
     return !!(idsForFile && idsForFile.has(String(item.ifcId)));
 }
 
@@ -888,7 +934,9 @@ function applyFiltersAndRender() {
     }
 
     if (state.fileFilterValue) {
-        state.filteredData = state.filteredData.filter(item => item.fileName === state.fileFilterValue);
+        state.filteredData = state.filteredData.filter(item =>
+            window.viewerFileKey(item.fileName, item.fileId) === state.fileFilterValue
+        );
     }
 
     if (state.sortColumn) {
@@ -958,18 +1006,20 @@ function renderTable() {
         }
 
         if (state.editMode) {
+            const entityKey = window.viewerEntityKey(item);
             const checkCell = document.createElement('td');
             checkCell.classList.add('sticky-col', 'checkbox-cell');
             checkCell.style.left = '0px';
-            checkCell.innerHTML = `<input type="checkbox" ${state.selectedEntities.has(item.guid) ? 'checked' : ''}>`;
+            checkCell.innerHTML = `<input type="checkbox" ${state.selectedEntities.has(entityKey) ? 'checked' : ''}>`;
             checkCell.querySelector('input').addEventListener('change', () => {
-                toggleEntitySelection(item.guid);
+                toggleEntitySelection(entityKey);
                 renderTable();
             });
             row.appendChild(checkCell);
         }
 
-        const fileInfo = state.loadedFiles.find(f => f.fileName === item.fileName);
+        const fileInfo = state.loadedFiles.find(f => f.fileId === item.fileId)
+            || state.loadedFiles.find(f => f.fileName === item.fileName);
         const fileCell = document.createElement('td');
         const fileBadge = document.createElement('span');
         fileBadge.className = 'file-badge';
@@ -1006,10 +1056,10 @@ function renderTable() {
 
             if (state.editMode) {
                 cell.classList.add('editable');
-                cell.addEventListener('click', () => window.makeEditable(cell, item.guid, col.psetName, col.propName));
+                cell.addEventListener('click', () => window.makeEditable(cell, window.viewerEntityKey(item), col.psetName, col.propName));
             }
 
-            if (state.modifications[item.guid]?.[col.psetName]?.[col.propName] !== undefined) {
+            if (window.getViewerModification(item)?.[col.psetName]?.[col.propName] !== undefined) {
                 cell.classList.add('modified-cell');
             }
 
@@ -1046,10 +1096,10 @@ function renderTable() {
 
             if (state.editMode) {
                 cell.classList.add('editable');
-                cell.addEventListener('click', () => window.makeEditable(cell, item.guid, col.psetName, col.propName));
+                cell.addEventListener('click', () => window.makeEditable(cell, window.viewerEntityKey(item), col.psetName, col.propName));
             }
 
-            if (state.modifications[item.guid]?.[col.psetName]?.[col.propName] !== undefined) {
+            if (window.getViewerModification(item)?.[col.psetName]?.[col.propName] !== undefined) {
                 cell.classList.add('modified-cell');
             }
 
@@ -1085,11 +1135,13 @@ function sendRowToViewer(item, anchorEl) {
         source: 'ifc-viewer',
         fileName: item.fileName,
         guid: item.guid,
-        fileId: null
+        fileId: item.fileId
     });
     window.ViewerLink.send(payload).then((result) => {
         showViewerLinkFeedback(anchorEl, result);
-    }).catch(err => { console.warn('[viewer-ui] ViewerLink.send selhalo:', err); });
+    }).catch(err => {
+        console.warn('[viewer-ui] ViewerLink.send selhalo:', err);
+    });
 }
 
 // Odeslání zaškrtnutých řádků do 3D vieweru (dedup dle fileName+guid).
@@ -1101,15 +1153,15 @@ function sendSelectionToViewer(anchorEl) {
     const seen = Object.create(null);
     const items = [];
     for (const row of state.allData) {
-        if (!state.selectedEntities.has(row.guid)) {
+        if (!state.selectedEntities.has(window.viewerEntityKey(row))) {
             continue;
         }
-        const key = `${row.fileName}|||${row.guid}`;
+        const key = window.viewerEntityKey(row);
         if (seen[key]) {
             continue;
         }
         seen[key] = true;
-        items.push({ fileName: row.fileName, guid: row.guid, fileId: null });
+        items.push({ fileName: row.fileName, guid: row.guid, fileId: row.fileId });
     }
     if (items.length === 0) {
         return;
@@ -1120,7 +1172,9 @@ function sendSelectionToViewer(anchorEl) {
     });
     window.ViewerLink.send(payload).then((result) => {
         showViewerLinkFeedback(anchorEl, result);
-    }).catch(err => { console.warn('[viewer-ui] ViewerLink.send selhalo:', err); });
+    }).catch(err => {
+        console.warn('[viewer-ui] ViewerLink.send selhalo:', err);
+    });
 }
 
 // Krátká zpětná vazba (~2 s) po odeslání do 3D vieweru.
@@ -1130,7 +1184,9 @@ function showViewerLinkFeedback(anchorEl, result) {
     if (!statusEl) {
         return;
     }
-    const key = result === 'live' ? 'viewer.show3dLive' : 'viewer.show3dOpened';
+    const key = result === 'live'
+        ? 'viewer.show3dLive'
+        : result === 'blocked' ? 'viewer.show3dBlocked' : 'viewer.show3dOpened';
     statusEl.textContent = i18n.t(key);
     statusEl.classList.add('show');
     if (viewerLinkFeedbackTimer) {
@@ -1218,7 +1274,7 @@ function showStatistics() {
         card.style.cssText = 'background: white; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef;';
         card.innerHTML = `
             <div style="font-size: 2em; font-weight: 700; color: #667eea;">${count}</div>
-            <div style="font-size: 0.85em; color: #6c757d;">${entity}</div>
+            <div style="font-size: 0.85em; color: #6c757d;">${window.escapeHtml(entity)}</div>
         `;
         statsGrid.appendChild(card);
     }

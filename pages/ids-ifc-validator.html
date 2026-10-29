@@ -69,10 +69,10 @@
         </a>
         <div class="bim-mobile-topbar__actions">
             <div class="bim-mobile-topbar__lang">
-                <button class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
-                <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
+                <button type="button" class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
+                <button type="button" class="lang-btn" data-lang="en" aria-label="English">EN</button>
             </div>
-            <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
+            <button type="button" class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
         </div>
     </header>
     <!-- Loading Overlay - outside page-container for correct centering -->
@@ -95,7 +95,7 @@
             <h1 class="page-title" data-i18n="validator.title">IDS-IFC Validátor</h1>
             <div class="navbar-actions">
                 <!-- Bug Report Button -->
-                <button class="bug-report-btn" id="bugReportBtn" title="Nahlásit chybu" data-i18n-title="bugReport.tooltip" aria-label="Report bug">
+                <button type="button" class="bug-report-btn" id="bugReportBtn" title="Nahlásit chybu" data-i18n-title="bugReport.tooltip" aria-label="Report bug">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="8" y="6" width="8" height="14" rx="4"/>
                         <path d="M19 7l-3 2"/>
@@ -108,13 +108,13 @@
                     </svg>
                 </button>
                 <!-- Wizard Tour Button -->
-                <button class="wizard-header-btn" id="wizard-tour-btn" title="Spustit průvodce" data-i18n-title="tooltip.startTour">
+                <button type="button" class="wizard-header-btn" id="wizard-tour-btn" title="Spustit průvodce" data-i18n-title="tooltip.startTour">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                 </button>
                 <!-- Help Button -->
-                <button class="wizard-header-btn" id="wizard-help-btn" title="Nápověda" data-i18n-title="tooltip.help">
+                <button type="button" class="wizard-header-btn" id="wizard-help-btn" title="Nápověda" data-i18n-title="tooltip.help">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"/>
                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
@@ -122,17 +122,17 @@
                     </svg>
                 </button>
                 <!-- Phase 7: AI settings -->
-                <button class="ai-settings-btn" id="aiSettingsBtn" title="AI agenti — nastavení" data-i18n-title="ai.settings.tooltip" aria-label="AI settings">
+                <button type="button" class="ai-settings-btn" id="aiSettingsBtn" title="AI agenti — nastavení" data-i18n-title="ai.settings.tooltip" aria-label="AI settings">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"/>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                 </button>
                 <div class="language-switcher">
-                    <button class="lang-btn active" data-lang="cs">CZ</button>
-                    <button class="lang-btn" data-lang="en">EN</button>
+                    <button type="button" class="lang-btn active" data-lang="cs">CZ</button>
+                    <button type="button" class="lang-btn" data-lang="en">EN</button>
                 </div>
-                <button class="pwa-install-btn pwa-install-btn--unavailable" id="pwaInstallBtn" title="Nainstalovat aplikaci" data-i18n-title="tooltip.install">
+                <button type="button" class="pwa-install-btn pwa-install-btn--unavailable" id="pwaInstallBtn" title="Nainstalovat aplikaci" data-i18n-title="tooltip.install">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
@@ -140,7 +140,7 @@
                     </svg>
 
                 </button>
-                <button class="theme-toggle" id="themeToggle" title="Přepnout motiv" data-i18n-title="tooltip.toggleTheme">
+                <button type="button" class="theme-toggle" id="themeToggle" title="Přepnout motiv" data-i18n-title="tooltip.toggleTheme">
                     <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"/>
                         <line x1="12" y1="1" x2="12" y2="3"/>
@@ -163,7 +163,7 @@
         <div class="upload-section">
                 <div class="validator-page-header">
                     <h2 data-i18n="validator.groups">📋 Validační skupiny</h2>
-                    <button class="btn btn-success" onclick="addValidationGroup()" data-i18n="validator.addGroup">➕ Přidat validační skupinu</button>
+                    <button type="button" class="btn btn-success" onclick="addValidationGroup()" data-i18n="validator.addGroup">➕ Přidat validační skupinu</button>
                 </div>
 
                 <!-- XSD Summary Banner -->
@@ -180,12 +180,13 @@
                         <span class="presets-panel__title" data-i18n="presets.title">📁 Presety</span>
                     </div>
                     <div class="presets-panel__controls">
-                        <select id="presetSelect" class="presets-panel__select">
+                        <select id="presetSelect" class="presets-panel__select"
+                                aria-label="Vybrat validační preset" data-i18n-aria-label="presets.selectLabel">
                             <option value="" data-i18n="presets.placeholder">— Vyberte preset —</option>
                         </select>
-                        <button id="loadPresetBtn" class="btn btn-secondary" disabled data-i18n="presets.load">📂 Načíst</button>
-                        <button id="savePresetBtn" class="btn btn-primary" data-i18n="presets.saveAs">💾 Uložit jako</button>
-                        <button id="deletePresetBtn" class="btn btn-danger" disabled data-i18n="presets.delete">🗑️ Smazat</button>
+                        <button type="button" id="loadPresetBtn" class="btn btn-secondary" disabled data-i18n="presets.load">📂 Načíst</button>
+                        <button type="button" id="savePresetBtn" class="btn btn-primary" data-i18n="presets.saveAs">💾 Uložit jako</button>
+                        <button type="button" id="deletePresetBtn" class="btn btn-danger" disabled data-i18n="presets.delete">🗑️ Smazat</button>
                     </div>
                 </div>
 
@@ -200,7 +201,7 @@
                 <div class="error-message" id="errorMessage"></div>
 
                 <div class="validate-button-container" style="margin-top: 30px;">
-                    <button class="btn btn-primary" id="validateBtn" onclick="validateAll()" disabled data-i18n="validator.validateAll">
+                    <button type="button" class="btn btn-primary" id="validateBtn" onclick="validateAll()" disabled data-i18n="validator.validateAll">
                         🔍 Validovat vše
                     </button>
                 </div>
@@ -211,11 +212,11 @@
                 <div class="results-header">
                     <h2 data-i18n="validator.results">📊 Výsledky validace</h2>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-secondary viewer-link-btn" id="showAllIn3dBtn" title="Zobrazit vse ve 3D" data-i18n-title="validator.viewer.showAllTitle" data-i18n="validator.viewer.showAllBtn" disabled>🧊 Zobrazit vse ve 3D</button>
-                        <button class="btn btn-success" id="exportBtn" data-i18n="validator.exportExcel">📥 Export XLSX</button>
-                        <button class="btn btn-secondary" id="expandAllBtn" data-i18n="validator.expandAll">📖 Rozbalit vše</button>
-                        <button class="btn btn-secondary" id="collapseAllBtn" data-i18n="validator.collapseAll">📕 Sbalit vše</button>
-                        <button class="btn btn-secondary" id="newValidationBtn" data-i18n="validator.newValidation">🔄 Nová validace</button>
+                        <button type="button" class="btn btn-secondary viewer-link-btn" id="showAllIn3dBtn" title="Zobrazit vse ve 3D" data-i18n-title="validator.viewer.showAllTitle" data-i18n="validator.viewer.showAllBtn" disabled>🧊 Zobrazit vse ve 3D</button>
+                        <button type="button" class="btn btn-success" id="exportBtn" data-i18n="validator.exportExcel">📥 Export XLSX</button>
+                        <button type="button" class="btn btn-secondary" id="expandAllBtn" data-i18n="validator.expandAll">📖 Rozbalit vše</button>
+                        <button type="button" class="btn btn-secondary" id="collapseAllBtn" data-i18n="validator.collapseAll">📕 Sbalit vše</button>
+                        <button type="button" class="btn btn-secondary" id="newValidationBtn" data-i18n="validator.newValidation">🔄 Nová validace</button>
                     </div>
                 </div>
 
@@ -232,14 +233,13 @@
                         <select id="specFilter" class="filter-input">
                             <option value="" data-i18n="validator.allSpecs">Všechny specifikace</option>
                         </select>
-                        <button class="btn btn-secondary" id="clearFiltersBtn" data-i18n="validator.clearFilters">Vymazat filtry</button>
+                        <button type="button" class="btn btn-secondary" id="clearFiltersBtn" data-i18n="validator.clearFilters">Vymazat filtry</button>
                     </div>
                 </div>
 
                 <div id="resultsList"></div>
             </div>
         </div>
-    </main>
     <footer class="footer-modern">
         <div class="footer-container">
             <div class="footer-content">
@@ -264,6 +264,8 @@
                     <span class="footer-divider">•</span>
                     <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank" rel="noopener noreferrer" class="footer-link" data-i18n="footer.license">AGPL v3</a>
                     <span class="footer-divider">•</span>
+                    <a href="../PRIVACY.md" class="footer-link" data-i18n="footer.privacy">Soukromí</a>
+                    <span class="footer-divider">•</span>
                     <a href="https://michalmarvan.cz/contact" target="_blank" rel="noopener noreferrer" class="footer-link" data-i18n="footer.author">Autor</a>
                 </div>
             </div>
@@ -283,7 +285,7 @@
         <div class="modal-container">
             <div class="modal-header">
                 <h2 data-i18n="validator.modalIfcTitle">📦 Vybrat IFC soubory z úložiště</h2>
-                <button class="modal-close" onclick="closeIfcStorageModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeIfcStorageModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 15px; color: var(--text-secondary);" data-i18n="validator.selectMultiple"></p>
@@ -295,8 +297,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeIfcStorageModal()" data-i18n="btn.cancel"></button>
-                <button class="btn btn-primary" onclick="confirmIfcSelection()" data-i18n="validator.confirmSelection"></button>
+                <button type="button" class="btn btn-secondary" onclick="closeIfcStorageModal()" data-i18n="btn.cancel"></button>
+                <button type="button" class="btn btn-primary" onclick="confirmIfcSelection()" data-i18n="validator.confirmSelection"></button>
             </div>
         </div>
     </div>
@@ -306,7 +308,7 @@
         <div class="modal-container">
             <div class="modal-header">
                 <h2 data-i18n="validator.modalIdsTitle"></h2>
-                <button class="modal-close" onclick="closeIdsStorageModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeIdsStorageModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 15px; color: var(--text-secondary);" data-i18n="validator.selectSingle"></p>
@@ -318,17 +320,21 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeIdsStorageModal()" data-i18n="btn.cancel"></button>
-                <button class="btn btn-primary" onclick="confirmIdsSelection()" data-i18n="validator.confirmSelection"></button>
+                <button type="button" class="btn btn-secondary" onclick="closeIdsStorageModal()" data-i18n="btn.cancel"></button>
+                <button type="button" class="btn btn-primary" onclick="confirmIdsSelection()" data-i18n="validator.confirmSelection"></button>
             </div>
         </div>
     </div>
 
+    <script src="../assets/js/common/safe-html.js"></script>
+    <script src="../assets/js/common/service-registry.js"></script>
     <script src="../assets/js/common/translations.js"></script>
     <script src="../assets/js/common/i18n.js"></script>
+    <script src="../assets/js/common/dialog-accessibility.js"></script>
     <script src="../assets/js/common/error-handler.js"></script>
     <script src="../assets/js/common/bug-report.js"></script>
     <script src="../assets/js/common/compression.js"></script>
+    <script src="../assets/js/common/database-registry.js"></script>
     <script src="../assets/js/common/storage.js"></script>
     <script type="module" src="../assets/js/common/fs-handle-store.js"></script>
     <script src="../assets/js/common/local-folder-storage.js"></script>
@@ -352,7 +358,7 @@
     <script src="../assets/js/common/ids-xsd-validator.js"></script>
     <script src="../assets/js/common/viewer-link.js"></script>
     <script src="../assets/js/validator.js"></script>
-    <!-- Update Checker for desktop app -->
+    <!-- Optional web/PWA release checker -->
     <script type="module" src="../assets/js/common/update-checker.js"></script>
 
     <!-- Wizard -->

@@ -11,10 +11,14 @@
 class VirtualArray {
     constructor() {
         this.arrays = [];
+        // Bumped on every content change so derived lookups (see findViewerEntityByKey)
+        // can cache an index and rebuild only when the data actually changes.
+        this.version = 0;
     }
 
     setArrays(arrays) {
         this.arrays = arrays;
+        this.version++;
     }
 
     get length() {
@@ -175,9 +179,7 @@ function isIfcEntityComplete(buffer) {
 }
 
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return window.BIMSafeHTML.escapeHtml(text);
 }
 
 function updateProgress(percent, status) {
@@ -201,12 +203,67 @@ function readFileAsync(file) {
     });
 }
 
+function viewerFileKey(fileName, fileId) {
+    if (fileId !== undefined && fileId !== null && String(fileId) !== '') {
+        return `id:${String(fileId)}`;
+    }
+    return `name:${String(fileName || '')}`;
+}
+
+function viewerEntityKey(itemOrFileName, fileId, guid, ifcId) {
+    const item = itemOrFileName && typeof itemOrFileName === 'object' ? itemOrFileName : null;
+    const resolvedFileName = item ? item.fileName : itemOrFileName;
+    const resolvedFileId = item ? item.fileId : fileId;
+    const resolvedGuid = item ? item.guid : guid;
+    const resolvedIfcId = item ? (item.ifcId ?? item.expressId) : ifcId;
+    const entityPart = resolvedGuid
+        ? `guid:${String(resolvedGuid).toLowerCase()}`
+        : `express:${String(resolvedIfcId ?? '')}`;
+    return `${viewerFileKey(resolvedFileName, resolvedFileId)}|||${entityPart}`;
+}
+
+let _entityKeyIndex = null;
+let _entityKeyIndexVersion = -1;
+let _entityKeyIndexData = null;
+
+function findViewerEntityByKey(key) {
+    const state = window.ViewerState || ViewerState;
+    const allData = state.allData;
+    // Rebuild the index only when the underlying data changes; without this the old
+    // code did two full Array.from copies per call, so bulk operations over the
+    // selection were O(selected × entities) with a fresh array each iteration.
+    if (_entityKeyIndex === null || _entityKeyIndexData !== allData || _entityKeyIndexVersion !== allData.version) {
+        _entityKeyIndex = new Map();
+        _entityKeyIndexData = allData;
+        _entityKeyIndexVersion = allData.version;
+        allData.forEach(item => {
+            const composite = viewerEntityKey(item);
+            if (!_entityKeyIndex.has(composite)) {
+                _entityKeyIndex.set(composite, item);
+            }
+            if (item.guid && !_entityKeyIndex.has(item.guid)) {
+                _entityKeyIndex.set(item.guid, item);
+            }
+        });
+    }
+    return _entityKeyIndex.get(key) || null;
+}
+
+function getViewerModification(item) {
+    if (!item) {
+        return null;
+    }
+    return ViewerState.modifications[viewerEntityKey(item)]
+        || (item.guid ? ViewerState.modifications[item.guid] : null)
+        || null;
+}
+
 // =======================
 // IFC FILE CACHE (IndexedDB)
 // =======================
 async function initIFCCache() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open('bim_checker_ifc_cache', 1);
+        const request = indexedDB.open('bim_checker_ifc_cache', 2);
 
         request.onerror = () => reject(request.error);
 
@@ -220,49 +277,63 @@ async function initIFCCache() {
             if (!db.objectStoreNames.contains('ifc_files')) {
                 db.createObjectStore('ifc_files', { keyPath: 'fileName' });
             }
+            if (!db.objectStoreNames.contains('ifc_files_v2')) {
+                db.createObjectStore('ifc_files_v2', { keyPath: 'cacheKey' });
+            }
         };
     });
 }
 
-async function storeIFCContent(fileName, content) {
+async function storeIFCContent(fileName, content, fileId) {
     if (!ViewerState.ifcCacheDB) {
         await initIFCCache();
     }
 
     return new Promise((resolve, reject) => {
-        const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files'], 'readwrite');
-        const store = transaction.objectStore('ifc_files');
-        const request = store.put({ fileName, content });
+        const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files_v2'], 'readwrite');
+        const store = transaction.objectStore('ifc_files_v2');
+        const cacheKey = viewerFileKey(fileName, fileId);
+        const request = store.put({ cacheKey, fileName, fileId: fileId ?? null, content });
 
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
     });
 }
 
-async function getIFCContent(fileName) {
+async function getIFCContent(fileName, fileId) {
     if (!ViewerState.ifcCacheDB) {
         await initIFCCache();
     }
 
+    const current = await new Promise((resolve, reject) => {
+        const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files_v2'], 'readonly');
+        const store = transaction.objectStore('ifc_files_v2');
+        const request = store.get(viewerFileKey(fileName, fileId));
+        request.onsuccess = () => resolve(request.result?.content || null);
+        request.onerror = () => reject(request.error);
+    });
+    if (current !== null || fileId !== undefined && fileId !== null) {
+        return current;
+    }
+
+    // Backward compatibility for files cached before cache schema v2.
     return new Promise((resolve, reject) => {
         const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files'], 'readonly');
-        const store = transaction.objectStore('ifc_files');
-        const request = store.get(fileName);
-
+        const request = transaction.objectStore('ifc_files').get(fileName);
         request.onsuccess = () => resolve(request.result?.content || null);
         request.onerror = () => reject(request.error);
     });
 }
 
-async function deleteIFCContent(fileName) {
+async function deleteIFCContent(fileName, fileId) {
     if (!ViewerState.ifcCacheDB) {
         await initIFCCache();
     }
 
     return new Promise((resolve, reject) => {
-        const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files'], 'readwrite');
-        const store = transaction.objectStore('ifc_files');
-        const request = store.delete(fileName);
+        const transaction = ViewerState.ifcCacheDB.transaction(['ifc_files_v2'], 'readwrite');
+        const store = transaction.objectStore('ifc_files_v2');
+        const request = store.delete(viewerFileKey(fileName, fileId));
 
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
@@ -276,6 +347,10 @@ window.isIfcEntityComplete = isIfcEntityComplete;
 window.escapeHtml = escapeHtml;
 window.updateProgress = updateProgress;
 window.readFileAsync = readFileAsync;
+window.viewerFileKey = viewerFileKey;
+window.viewerEntityKey = viewerEntityKey;
+window.findViewerEntityByKey = findViewerEntityByKey;
+window.getViewerModification = getViewerModification;
 window.initIFCCache = initIFCCache;
 window.storeIFCContent = storeIFCContent;
 window.getIFCContent = getIFCContent;

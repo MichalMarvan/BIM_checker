@@ -8,10 +8,10 @@
 /* CSS VARIABLES - LIGHT MODE */
 :root {
     /* Modern Color Palette - Light Mode */
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
-    --primary-color: #667eea;
-    --primary-dark: #5568d3;
-    --primary-light: #818cf8;
+    --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%);
+    --primary-color: #4f46e5;
+    --primary-dark: #4338ca;
+    --primary-light: #6366f1;
 
     --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
@@ -46,7 +46,7 @@
     --bg-primary: #ffffff;
     --bg-secondary: #f9fafb;
     --bg-tertiary: #f3f4f6;
-    --bg-gradient: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
+    --bg-gradient: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%);
 
     /* Text Colors */
     --text-primary: #111827;
@@ -229,12 +229,12 @@ body {
 }
 
 .btn-primary {
-    background: #667eea;
+    background: #4f46e5;
     color: white;
 }
 
 .btn-primary:hover {
-    background: #5568d3;
+    background: #4338ca;
 }
 
 .btn-primary:disabled {
@@ -243,12 +243,12 @@ body {
 }
 
 .btn-success {
-    background: #28a745;
+    background: #15803d;
     color: white;
 }
 
 .btn-success:hover {
-    background: #218838;
+    background: #166534;
 }
 
 .btn-secondary {
@@ -259,6 +259,11 @@ body {
 .btn-secondary:hover {
     background: #5a6268;
 }
+[data-theme="dark"] .btn-secondary {
+    background: #475569;
+    color: #ffffff;
+}
+[data-theme="dark"] .btn-secondary:hover { background: #334155; }
 
 .btn-icon {
     background: white;
@@ -987,8 +992,12 @@ body {
 
 .lang-btn.active {
     background: white;
-    color: #667eea;
+    color: #4f46e5;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+[data-theme="dark"] .lang-btn.active {
+    background: #eef2ff;
+    color: #3730a3;
 }
 
 /* Mobile language switcher */
@@ -1137,4 +1146,31 @@ body {
     color: inherit;
     font-weight: 600;
     text-decoration: underline;
+}
+
+/* Controlled PWA update prompt */
+.pwa-update-notification {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 10020;
+    display: grid;
+    gap: 0.5rem;
+    width: min(24rem, calc(100vw - 2rem));
+    padding: 1rem;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+}
+
+.pwa-update-notification > span {
+    color: var(--text-secondary);
+}
+
+.pwa-update-notification__actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
 }

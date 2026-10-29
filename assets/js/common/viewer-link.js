@@ -39,7 +39,7 @@
         };
     }
 
-    // Payload pro více elementů; seznam souborů se dedupikuje dle fileName.
+    // Payload pro více elementů; soubory se deduplikují podle fileId, s názvem jako fallbackem.
     function buildElementsPayload(opts) {
         opts = opts || {};
         const items = opts.items || [];
@@ -76,14 +76,19 @@
             validation: {
                 title: opts.title,
                 items: items.map(function (it) {
-                    return { fileName: it.fileName, guid: it.guid, status: it.status };
+                    return {
+                        fileName: it.fileName,
+                        fileId: (it.fileId === undefined) ? null : it.fileId,
+                        guid: it.guid,
+                        status: it.status
+                    };
                 })
             },
             files: files
         };
     }
 
-    // Dedup seznamu souborů dle fileName (zachová první výskyt fileId).
+    // Dedup seznamu souborů podle stabilního fileId; název je fallback pro starší data.
     function dedupFiles(items) {
         const seen = Object.create(null);
         const files = [];
@@ -91,10 +96,13 @@
             if (!it || it.fileName === undefined || it.fileName === null) {
                 return;
             }
-            if (seen[it.fileName]) {
+            const identity = it.fileId !== undefined && it.fileId !== null && String(it.fileId) !== ''
+                ? 'id:' + String(it.fileId)
+                : 'name:' + String(it.fileName);
+            if (seen[identity]) {
                 return;
             }
-            seen[it.fileName] = true;
+            seen[identity] = true;
             files.push({
                 fileId: (it.fileId === undefined) ? null : it.fileId,
                 fileName: it.fileName
@@ -130,6 +138,55 @@
             let channel = null;
             let settled = false;
             let timer = null;
+            let viewerWindow = null;
+            let payloadStored = false;
+            let reservedNewWindow = false;
+
+            function storePayload(storage) {
+                try {
+                    storage.setItem(id, JSON.stringify(payload));
+                    payloadStored = true;
+                } catch {
+                    /* storage nedostupné */
+                }
+            }
+
+            function removePayloadEverywhere() {
+                try {
+                    sessionStorage.removeItem(id);
+                } catch { /* storage nedostupné */ }
+                try {
+                    localStorage.removeItem(id);
+                } catch { /* storage nedostupné */ }
+                try {
+                    viewerWindow?.sessionStorage?.removeItem(id);
+                } catch { /* jiný origin */ }
+            }
+
+            // Nové okno dostane kopii sessionStorage pouze při otevření, proto
+            // musí být payload uložený ještě před synchronní rezervací popupu.
+            storePayload(sessionStorage);
+            // localStorage is a one-shot fallback for browsers where copying
+            // sessionStorage into a freshly opened about:blank window races
+            // with immediate navigation. The receiver removes both copies.
+            storePayload(localStorage);
+
+            // Popup musí být rezervován synchronně v rámci click gesture. Pokud už
+            // pojmenované okno existuje, vrátí se jeho handle bez nové záložky.
+            try {
+                viewerWindow = window.open('', WINDOW_NAME);
+                // A freshly reserved popup is still about:blank. Navigate it
+                // immediately below: once it receives focus, browsers may
+                // aggressively throttle this source tab's ACK timeout.
+                reservedNewWindow = Boolean(viewerWindow && viewerWindow.location.href === 'about:blank');
+            } catch {
+                viewerWindow = null;
+            }
+            if (viewerWindow) {
+                try {
+                    storePayload(viewerWindow.sessionStorage);
+                } catch { /* jiný origin / zavřené okno */ }
+            }
 
             function cleanup() {
                 if (timer) {
@@ -152,12 +209,11 @@
                 }
                 settled = true;
                 cleanup();
+                removePayloadEverywhere();
                 // Refokus běžícího okna (bez navigace).
                 try {
-                    window.open('', WINDOW_NAME);
-                } catch {
-                    /* popup blokován */
-                }
+                    viewerWindow?.focus?.();
+                } catch { /* okno již není dostupné */ }
                 resolve('live');
             }
 
@@ -167,21 +223,39 @@
                 }
                 settled = true;
                 cleanup();
-                // Použij totéž id jako u BroadcastChannel akce — klíč handoffu.
+                // Obnov payload i v obou storage pro případ, že pojmenované okno
+                // existovalo už před akcí a při window.open se nic neklonovalo.
+                storePayload(sessionStorage);
                 try {
-                    sessionStorage.setItem(id, JSON.stringify(payload));
-                } catch {
-                    /* sessionStorage nedostupný */
+                    storePayload(viewerWindow?.sessionStorage);
+                } catch { /* jiný origin */ }
+                let opened = false;
+                if (payloadStored && viewerWindow && !viewerWindow.closed) {
+                    try {
+                        viewerWindow.location.href = buildViewerUrl(id);
+                        viewerWindow.focus?.();
+                        opened = true;
+                    } catch {
+                        opened = false;
+                    }
                 }
+                // Cílové okno má vlastní kopii; v odesílající záložce klíč nezůstává.
                 try {
-                    window.open(buildViewerUrl(id), WINDOW_NAME);
-                } catch {
-                    /* popup blokován */
+                    sessionStorage.removeItem(id);
+                } catch { /* storage nedostupné */ }
+                if (!opened) {
+                    try {
+                        localStorage.removeItem(id);
+                    } catch { /* storage nedostupné */ }
                 }
-                resolve('opened');
+                resolve(opened ? 'opened' : 'blocked');
             }
 
             try {
+                if (reservedNewWindow) {
+                    onHandoff();
+                    return;
+                }
                 channel = new BroadcastChannel(CHANNEL);
                 channel.onmessage = function (ev) {
                     const msg = ev && ev.data;
@@ -222,4 +296,5 @@
         makeHandoffKey: makeHandoffKey,
         send: send
     };
+    window.BIMServices?.register('viewerHandoff', window.ViewerLink, { local: true, version: 1 });
 })();

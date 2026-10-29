@@ -11,7 +11,7 @@
  */
 
 import { TOOL_DEFINITIONS } from './tool-defs.js';
-import { detectProvider } from './providers.js';
+import { isLocalEndpoint } from './agent-manager.js';
 
 export const MAX_TOOL_ITERATIONS = 8;
 
@@ -45,11 +45,12 @@ export function resolveToolsForAgent(agent, endpoint, defs = TOOL_DEFINITIONS) {
     if (agent && Array.isArray(agent.enabledTools)) {
         return defs.filter(d => agent.enabledTools.includes(d.function.name));
     }
-    const isLocal = (agent && agent.provider === 'ollama')
-        || detectProvider(endpoint || '') === 'ollama';
+    const isLocal = isLocalEndpoint(endpoint || '');
     if (isLocal) {
         const slim = new Set(DEFAULT_LOCAL_TOOLSET);
         return defs.filter(d => slim.has(d.function.name));
     }
-    return defs;
+    // Remote providers receive no local-data tools unless the user explicitly
+    // enables them in agent settings. Prompts still require a separate consent.
+    return [];
 }

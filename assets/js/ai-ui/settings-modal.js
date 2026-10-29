@@ -12,6 +12,8 @@ import { t, onLanguageChange } from './chat-i18n-helpers.js';
 import { TOOL_CATEGORIES, TOTAL_TOOLS } from '../ai/tool-catalog.js';
 import { AGENT_PRESETS, getPreset, resolvePreset } from '../ai/agent-presets.js';
 import * as ollamaSetup from './ollama-setup-modal.js';
+import { DEFAULT_LOCAL_TOOLSET } from '../ai/chat-tooling.js';
+import { getEffectiveEndpoint, isLocalEndpoint, validateUrl } from '../ai/agent-manager.js';
 
 let _modal = null;
 const _state = { view: 'list', editingId: null, modelsCache: {} };
@@ -77,14 +79,20 @@ async function _renderStorageBackendSection() {
 
 function _hasUnsavedChanges() {
     try {
-        if (window.idsEditorCore && window.idsEditorCore.hasUnsavedChanges) return true;
-        if (window.ViewerState && window.ViewerState.modifications && window.ViewerState.modifications.size > 0) return true;
+        if (window.idsEditorCore && window.idsEditorCore.hasUnsavedChanges) {
+            return true;
+        }
+        if (window.ViewerState && window.ViewerState.modifications && Object.keys(window.ViewerState.modifications).length > 0) {
+            return true;
+        }
     } catch (_) { /* ignore */ }
     return false;
 }
 
 function _confirmDestructiveSwitch() {
-    if (!_hasUnsavedChanges()) return true;
+    if (!_hasUnsavedChanges()) {
+        return true;
+    }
     const msg = (window.i18n && window.i18n.t)
         ? window.i18n.t('settings.storage.unsavedSwitchWarn')
         : 'Discard unsaved changes and switch project?';
@@ -92,14 +100,20 @@ function _confirmDestructiveSwitch() {
 }
 
 async function _activateProject(projectId) {
-    if (!window.BIMProjects) return false;
+    if (!window.BIMProjects) {
+        return false;
+    }
     const record = await window.BIMProjects.get(projectId);
-    if (!record || !record.handle) return false;
+    if (!record || !record.handle) {
+        return false;
+    }
     try {
         const perm = await record.handle.queryPermission({ mode: 'readwrite' });
         if (perm !== 'granted') {
             const ask = await record.handle.requestPermission({ mode: 'readwrite' });
-            if (ask !== 'granted') return false;
+            if (ask !== 'granted') {
+                return false;
+            }
         }
     } catch (e) {
         console.warn('Permission check failed:', e);
@@ -124,11 +138,15 @@ function _bindStorageBackendEvents(modalEl) {
 
     if (indexedDBRadio) {
         indexedDBRadio.addEventListener('change', async () => {
-            if (!indexedDBRadio.checked) return;
+            if (!indexedDBRadio.checked) {
+                return;
+            }
             const cur = window.BIMStorage && window.BIMStorage.backend;
             if (cur && cur.kind === 'localFolder') {
                 if (!_confirmDestructiveSwitch()) {
-                    if (localFolderRadio) localFolderRadio.checked = true;
+                    if (localFolderRadio) {
+                        localFolderRadio.checked = true;
+                    }
                     return;
                 }
                 window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
@@ -142,10 +160,16 @@ function _bindStorageBackendEvents(modalEl) {
 
     if (localFolderRadio) {
         localFolderRadio.addEventListener('change', async () => {
-            if (!localFolderRadio.checked) return;
-            if (!window.LocalFolderStorageBackend || !window.LocalFolderStorageBackend.isSupported()) return;
+            if (!localFolderRadio.checked) {
+                return;
+            }
+            if (!window.LocalFolderStorageBackend || !window.LocalFolderStorageBackend.isSupported()) {
+                return;
+            }
             if (!_confirmDestructiveSwitch()) {
-                if (indexedDBRadio) indexedDBRadio.checked = true;
+                if (indexedDBRadio) {
+                    indexedDBRadio.checked = true;
+                }
                 return;
             }
             const projects = window.BIMProjects ? await window.BIMProjects.list() : [];
@@ -153,14 +177,18 @@ function _bindStorageBackendEvents(modalEl) {
             const target = activeId && projects.find(p => p.id === activeId) ? activeId : (projects[0] && projects[0].id);
             if (target) {
                 const ok = await _activateProject(target);
-                if (!ok && indexedDBRadio) indexedDBRadio.checked = true;
+                if (!ok && indexedDBRadio) {
+                    indexedDBRadio.checked = true;
+                }
                 _refreshStorageBackendSection(modalEl);
                 return;
             }
             // No projects yet — prompt to add one
             await _addProjectFlow(modalEl);
             const stillNoActive = !(window.BIMProjects && window.BIMProjects.getActiveId());
-            if (stillNoActive && indexedDBRadio) indexedDBRadio.checked = true;
+            if (stillNoActive && indexedDBRadio) {
+                indexedDBRadio.checked = true;
+            }
             _refreshStorageBackendSection(modalEl);
         });
     }
@@ -171,7 +199,9 @@ function _bindStorageBackendEvents(modalEl) {
 
     projectRadios.forEach(radio => {
         radio.addEventListener('change', async () => {
-            if (!radio.checked) return;
+            if (!radio.checked) {
+                return;
+            }
             if (!_confirmDestructiveSwitch()) {
                 _refreshStorageBackendSection(modalEl);
                 return;
@@ -189,7 +219,9 @@ function _bindStorageBackendEvents(modalEl) {
             e.preventDefault();
             const id = btn.dataset.id;
             const record = await window.BIMProjects.get(id);
-            if (!record) return;
+            if (!record) {
+                return;
+            }
             const newName = window.prompt(t('settings.storage.renamePrompt'), record.name);
             if (newName && newName.trim() && newName !== record.name) {
                 await window.BIMProjects.rename(id, newName.trim());
@@ -203,10 +235,16 @@ function _bindStorageBackendEvents(modalEl) {
             e.preventDefault();
             const id = btn.dataset.id;
             const record = await window.BIMProjects.get(id);
-            if (!record) return;
+            if (!record) {
+                return;
+            }
             const wasActive = window.BIMProjects.getActiveId() === id;
-            if (wasActive && !_confirmDestructiveSwitch()) return;
-            if (!window.confirm(t('settings.storage.removeConfirm') + ' ' + record.name)) return;
+            if (wasActive && !_confirmDestructiveSwitch()) {
+                return;
+            }
+            if (!window.confirm(t('settings.storage.removeConfirm') + ' ' + record.name)) {
+                return;
+            }
             await window.BIMProjects.remove(id);
             if (wasActive) {
                 window.BIMStorage.setBackend(window.BIMStorage.indexedDBBackend);
@@ -219,17 +257,23 @@ function _bindStorageBackendEvents(modalEl) {
 }
 
 async function _addProjectFlow(modalEl) {
-    if (!window.LocalFolderStorageBackend || !window.LocalFolderStorageBackend.isSupported()) return;
+    if (!window.LocalFolderStorageBackend || !window.LocalFolderStorageBackend.isSupported()) {
+        return;
+    }
     let handle;
     try {
         handle = await window.showDirectoryPicker({ id: 'bim-checker-root', mode: 'readwrite' });
     } catch (e) {
-        if (e && e.name !== 'AbortError') console.warn('Folder pick failed:', e);
+        if (e && e.name !== 'AbortError') {
+            console.warn('Folder pick failed:', e);
+        }
         return;
     }
     const defaultName = handle.name || 'Project';
     const name = window.prompt(t('settings.storage.namePrompt'), defaultName);
-    if (name === null) return;
+    if (name === null) {
+        return;
+    }
     const record = await window.BIMProjects.add(name.trim() || defaultName, handle);
     await _activateProject(record.id);
     _refreshStorageBackendSection(modalEl);
@@ -237,22 +281,30 @@ async function _addProjectFlow(modalEl) {
 
 async function _refreshStorageBackendSection(modalEl) {
     const old = modalEl.querySelector('.storage-backend-section');
-    if (!old) return;
+    if (!old) {
+        return;
+    }
     const tmp = document.createElement('div');
     tmp.innerHTML = await _renderStorageBackendSection();
     old.replaceWith(tmp.firstElementChild);
-    if (window.i18n && window.i18n.updatePage) window.i18n.updatePage();
+    if (window.i18n && window.i18n.updatePage) {
+        window.i18n.updatePage();
+    }
     _bindStorageBackendEvents(modalEl);
 }
 
 export async function open() {
-    if (!_modal) _injectModal();
+    if (!_modal) {
+        _injectModal();
+    }
     await _renderListView();
     _modal.classList.add('active');
 }
 
 function _close() {
-    if (_modal) _modal.classList.remove('active');
+    if (_modal) {
+        _modal.classList.remove('active');
+    }
 }
 
 function _injectModal() {
@@ -270,11 +322,16 @@ function _injectModal() {
     document.body.appendChild(_modal);
     _modal.querySelector('#aiSettingsClose').addEventListener('click', _close);
     _modal.addEventListener('click', (e) => {
-        if (e.target === _modal) _close();
+        if (e.target === _modal) {
+            _close();
+        }
     });
     onLanguageChange(() => {
-        if (_state.view === 'list') _renderListView();
-        else _renderFormView(_state.editingId);
+        if (_state.view === 'list') {
+            _renderListView();
+        } else {
+            _renderFormView(_state.editingId);
+        }
     });
 }
 
@@ -289,7 +346,9 @@ async function _renderListView() {
     storageTmp.innerHTML = await _renderStorageBackendSection();
     body.appendChild(storageTmp.firstElementChild);
     _bindStorageBackendEvents(_modal);
-    if (window.i18n && window.i18n.updatePage) window.i18n.updatePage();
+    if (window.i18n && window.i18n.updatePage) {
+        window.i18n.updatePage();
+    }
 
     const heading = document.createElement('h3');
     heading.textContent = t('ai.settings.agentsHeading');
@@ -351,7 +410,9 @@ async function _renderFormView(agentId) {
                 <label>${t('ai.agent.startFromPreset')}</label>
                 <select id="agentPresetSelect">
                     <option value="">${t('ai.agent.noPreset')}</option>
-                    ${(() => { const _lang = (window.i18n && window.i18n.getLanguage) ? window.i18n.getLanguage() : 'cs'; return AGENT_PRESETS.map(p => resolvePreset(p, _lang)).map(p => `<option value="${p.id}">${escapeHtml(p.icon + ' ' + p.name)}</option>`).join(''); })()}
+                    ${(() => {
+        const _lang = (window.i18n && window.i18n.getLanguage) ? window.i18n.getLanguage() : 'cs'; return AGENT_PRESETS.map(p => resolvePreset(p, _lang)).map(p => `<option value="${p.id}">${escapeHtml(p.icon + ' ' + p.name)}</option>`).join('');
+    })()}
                 </select>
             </div>
             ` : ''}
@@ -368,7 +429,7 @@ async function _renderFormView(agentId) {
                 <label>${t('ai.agent.providerLabel')}</label>
                 <select id="agentProvider">
                     ${Object.entries(PROVIDERS).map(([k, p]) =>
-                        `<option value="${k}"${k === agent.provider ? ' selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
+        `<option value="${k}"${k === agent.provider ? ' selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
                 </select>
             </div>
             <div class="agent-form__row">
@@ -378,6 +439,7 @@ async function _renderFormView(agentId) {
             <div class="agent-form__row">
                 <label>${t('ai.agent.apiKeyLabel')}</label>
                 <input type="password" id="agentApiKey" value="${escapeAttr(agent.apiKey || '')}">
+                <small>${t('ai.agent.apiKeySessionHint')}</small>
             </div>
             <div class="agent-form__row">
                 <label>${t('ai.agent.modelLabel')}</label>
@@ -399,6 +461,7 @@ async function _renderFormView(agentId) {
             </div>
             <div class="agent-form__row">
                 <label>${t('ai.agent.enabledToolsLabel')}</label>
+                <small>${t('ai.agent.enabledToolsPrivacyHint')}</small>
                 <div class="agent-form__tool-picker" id="agentToolPicker"></div>
                 <div class="agent-form__tool-picker-actions">
                     <button type="button" id="toolPickerSelectAll" class="agent-form__tool-picker-action">${t('ai.agent.selectAllTools')}</button>
@@ -428,13 +491,15 @@ async function _renderFormView(agentId) {
         e.preventDefault();
         _saveFromForm();
     });
-    _renderToolPicker(agent ? agent.enabledTools : null);
+    _renderToolPicker(agent ? agent.enabledTools : null, agent);
 
     const presetSelect = _modal.querySelector('#agentPresetSelect');
     if (presetSelect) {
         presetSelect.addEventListener('change', (e) => {
             const raw = getPreset(e.target.value);
-            if (!raw) return;
+            if (!raw) {
+                return;
+            }
             const currentLang = (window.i18n && window.i18n.getLanguage) ? window.i18n.getLanguage() : 'cs';
             const preset = resolvePreset(raw, currentLang);
             _modal.querySelector('#agentName').value = preset.name;
@@ -449,7 +514,9 @@ async function _loadModelsIntoForm() {
     const provider = _modal.querySelector('#agentProvider').value;
     const baseUrl = _modal.querySelector('#agentEndpoint').value || PROVIDERS[provider].endpoint;
     const apiKey = _modal.querySelector('#agentApiKey').value;
-    if (!baseUrl) return;
+    if (!baseUrl) {
+        return;
+    }
     const cacheKey = `${baseUrl}::${apiKey}`;
     const select = _modal.querySelector('#agentModelSelect');
     const text = _modal.querySelector('#agentModelText');
@@ -460,8 +527,17 @@ async function _loadModelsIntoForm() {
         select.innerHTML = models.map(m => `<option value="${escapeAttr(m)}"${m === current ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('');
         select.style.display = '';
         text.style.display = 'none';
-        select.addEventListener('change', () => { text.value = select.value; });
-        if (current) select.value = current;
+        // _loadModelsIntoForm runs on every "Load models" click; bind the change
+        // handler once so listeners don't stack on the same persistent select.
+        if (!select.dataset.changeBound) {
+            select.addEventListener('change', () => {
+                text.value = select.value;
+            });
+            select.dataset.changeBound = '1';
+        }
+        if (current) {
+            select.value = current;
+        }
     } catch (e) {
         _renderConnStatusFromError(e, baseUrl);
         console.warn('Failed to load models:', e);
@@ -494,7 +570,9 @@ async function _testConnectionFromForm() {
 
 function _renderConnStatusFromError(err, endpoint) {
     const status = _modal.querySelector('#agentConnStatus');
-    if (!status) return;
+    if (!status) {
+        return;
+    }
     status.className = 'agent-form__conn-status is-error';
     const code = err && err.code;
     let msgKey = 'ai.error.unknown';
@@ -553,6 +631,13 @@ async function _saveFromForm() {
         temperature: parseFloat(_modal.querySelector('#agentTemp').value),
         isFavorite: _modal.querySelector('#agentFav').checked
     };
+    const effectiveEndpoint = getEffectiveEndpoint(data);
+    if (!validateUrl(effectiveEndpoint)) {
+        if (typeof ErrorHandler !== 'undefined') {
+            ErrorHandler.error(t('ai.agent.urlInvalid'));
+        }
+        return;
+    }
     if (!data.model || !data.model.trim()) {
         if (typeof ErrorHandler !== 'undefined') {
             ErrorHandler.error(t('settings.modal.errorNoModel'));
@@ -574,9 +659,13 @@ async function _saveFromForm() {
 
 async function _deleteAgent(id) {
     const agent = await storage.getAgent(id);
-    if (!agent) return;
+    if (!agent) {
+        return;
+    }
     const msg = t('ai.agent.deleteConfirm').replace('{name}', agent.name);
-    if (!confirm(msg)) return;
+    if (!confirm(msg)) {
+        return;
+    }
     await storage.deleteAgent(id);
     if (typeof ErrorHandler !== 'undefined') {
         ErrorHandler.success(t('ai.agent.deleted').replace('{name}', agent.name));
@@ -592,12 +681,15 @@ function _newAgentDefaults() {
     };
 }
 
-function _renderToolPicker(enabledTools) {
+function _renderToolPicker(enabledTools, agent = null) {
     const container = _modal.querySelector('#agentToolPicker');
-    if (!container) return;
+    if (!container) {
+        return;
+    }
     const allNames = TOOL_CATEGORIES.flatMap(c => c.tools.map(tool => tool.name));
+    const endpoint = getEffectiveEndpoint(agent || _newAgentDefaults());
     const enabledSet = (enabledTools === null || enabledTools === undefined)
-        ? new Set(allNames)
+        ? new Set(isLocalEndpoint(endpoint) ? DEFAULT_LOCAL_TOOLSET : [])
         : new Set(enabledTools);
 
     container.innerHTML = '';
@@ -643,44 +735,61 @@ function _attachToolPickerListeners() {
             const details = container.querySelector(`details[data-cat-id="${catId}"]`);
             const cbs = details.querySelectorAll('input[type="checkbox"][data-tool]');
             const allChecked = Array.from(cbs).every(cb => cb.checked);
-            cbs.forEach(cb => { cb.checked = !allChecked; });
+            cbs.forEach(cb => {
+                cb.checked = !allChecked;
+            });
             _updateToolPickerCounter();
         });
     });
     _modal.querySelector('#toolPickerSelectAll').addEventListener('click', () => {
-        container.querySelectorAll('input[type="checkbox"][data-tool]').forEach(cb => { cb.checked = true; });
+        container.querySelectorAll('input[type="checkbox"][data-tool]').forEach(cb => {
+            cb.checked = true;
+        });
         _updateToolPickerCounter();
     });
     _modal.querySelector('#toolPickerSelectNone').addEventListener('click', () => {
-        container.querySelectorAll('input[type="checkbox"][data-tool]').forEach(cb => { cb.checked = false; });
+        container.querySelectorAll('input[type="checkbox"][data-tool]').forEach(cb => {
+            cb.checked = false;
+        });
         _updateToolPickerCounter();
     });
 }
 
 function _updateToolPickerCounter() {
     const container = _modal.querySelector('#agentToolPicker');
-    if (!container) return;
+    if (!container) {
+        return;
+    }
     const total = TOTAL_TOOLS;
     const enabled = container.querySelectorAll('input[type="checkbox"][data-tool]:checked').length;
     const counter = _modal.querySelector('#toolPickerCounter');
-    if (counter) counter.textContent = `${enabled} / ${total}`;
+    if (counter) {
+        counter.textContent = `${enabled} / ${total}`;
+    }
     container.querySelectorAll('details.tool-picker-category').forEach(details => {
         const catId = details.dataset.catId;
         const cat = TOOL_CATEGORIES.find(c => c.id === catId);
         const enabledInCat = Array.from(details.querySelectorAll('input[type="checkbox"][data-tool]:checked')).length;
         const countSpan = details.querySelector('.category-count');
-        if (countSpan) countSpan.textContent = `${enabledInCat}/${cat.tools.length}`;
+        if (countSpan) {
+            countSpan.textContent = `${enabledInCat}/${cat.tools.length}`;
+        }
     });
 }
 
 function _collectEnabledTools() {
     const container = _modal.querySelector('#agentToolPicker');
-    if (!container) return null;
+    if (!container) {
+        return null;
+    }
     const checked = Array.from(container.querySelectorAll('input[type="checkbox"][data-tool]:checked'))
         .map(cb => cb.dataset.tool);
-    if (checked.length === TOTAL_TOOLS) return null;
     return checked;
 }
 
-function escapeHtml(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
-function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+function escapeHtml(s) {
+    const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML;
+}
+function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+}

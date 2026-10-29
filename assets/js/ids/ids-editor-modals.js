@@ -211,7 +211,7 @@ class IDSEditorModals {
         document.getElementById('modalBody').innerHTML = `
             <div class="form-group">
                 <label>${t('editor.entityNameLabel')}</label>
-                <input type="text" id="entityName" list="ifcEntityTypes" value="${nameValue}" placeholder="${t('editor.example')} IFCWALL" autocomplete="off">
+                <input type="text" id="entityName" list="ifcEntityTypes" value="${this.escapeAttr(nameValue)}" placeholder="${t('editor.example')} IFCWALL" autocomplete="off">
                 <datalist id="ifcEntityTypes">
                     ${datalistOptions}
                 </datalist>
@@ -220,7 +220,7 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>${t('editor.predefinedType')}</label>
-                <input type="text" id="entityPredefinedType" value="${predefinedTypeValue}" placeholder="${t('editor.example')} SOLIDWALL">
+                <input type="text" id="entityPredefinedType" value="${this.escapeAttr(predefinedTypeValue)}" placeholder="${t('editor.example')} SOLIDWALL">
                 <small>${t('editor.predefinedTypeDesc')}</small>
             </div>
         `;
@@ -426,7 +426,7 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>${t('editor.attributeNameLabel')}</label>
-                <input type="text" id="attributeName" value="${data.name || ''}" placeholder="${t('editor.example')} Name, GlobalId, Description">
+                <input type="text" id="attributeName" value="${this.escapeAttr(data.name || '')}" placeholder="${t('editor.example')} Name, GlobalId, Description">
                 <small>${t('editor.attributeName')}</small>
             </div>
 
@@ -478,7 +478,7 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>${t('editor.classValueLabel')}</label>
-                <input type="text" id="classificationValue" value="${this.escapeHtml(valueValue)}" placeholder="${t('editor.example')} Ss_25_10_20">
+                <input type="text" id="classificationValue" value="${this.escapeAttr(valueValue)}" placeholder="${this.escapeAttr(t('editor.example'))} Ss_25_10_20">
                 <small>${t('editor.classValue')}</small>
             </div>
 
@@ -603,13 +603,13 @@ class IDSEditorModals {
 
             <div class="form-group">
                 <label>${t('editor.parentEntityLabel')}</label>
-                <input type="text" id="partOfEntity" value="${this.escapeHtml(entityName)}" placeholder="${t('editor.example')} IFCBUILDING">
+                <input type="text" id="partOfEntity" value="${this.escapeAttr(entityName)}" placeholder="${this.escapeAttr(t('editor.example'))} IFCBUILDING">
                 <small>${t('editor.parentEntity')}</small>
             </div>
 
             <div class="form-group">
                 <label>${t('editor.predefinedType')}</label>
-                <input type="text" id="partOfPredefinedType" value="${this.escapeHtml(predefinedType)}" placeholder="${t('editor.example')} ELEMENT">
+                <input type="text" id="partOfPredefinedType" value="${this.escapeAttr(predefinedType)}" placeholder="${this.escapeAttr(t('editor.example'))} ELEMENT">
                 <small>${t('editor.predefinedTypeDesc')}</small>
             </div>
 
@@ -672,7 +672,7 @@ class IDSEditorModals {
                 return `
                     <div class="form-group">
                         <label>${t('editor.valueLabel')}</label>
-                        <input type="text" id="restrictionValue" value="${this.escapeHtml(value)}" placeholder="${t('editor.enterValue')}">
+                        <input type="text" id="restrictionValue" value="${this.escapeAttr(value)}" placeholder="${this.escapeAttr(t('editor.enterValue'))}">
                     </div>
                 `;
 
@@ -680,7 +680,7 @@ class IDSEditorModals {
                 return `
                     <div class="form-group">
                         <label>${t('editor.regexPatternLabel')}</label>
-                        <input type="text" id="restrictionPattern" value="${this.escapeHtml(value)}" placeholder="${t('editor.example')} ^WALL.*">
+                        <input type="text" id="restrictionPattern" value="${this.escapeAttr(value)}" placeholder="${this.escapeAttr(t('editor.example'))} ^WALL.*">
                         <small>${t('editor.regexPattern')}</small>
                     </div>
                 `;
@@ -704,7 +704,7 @@ class IDSEditorModals {
                     values.forEach(val => {
                         enumHtml += `
                             <div class="enumeration-item">
-                                <input type="text" value="${val}" class="enum-value">
+                                <input type="text" value="${this.escapeAttr(val)}" class="enum-value">
                                 <button type="button" onclick="idsEditorModals.removeEnumValue(this)">✕</button>
                             </div>
                         `;
@@ -723,11 +723,11 @@ class IDSEditorModals {
                     <div class="bounds-inputs">
                         <div class="form-group">
                             <label>${t('editor.minInclusive')}</label>
-                            <input type="number" id="boundsMinInclusive" value="${restriction.minInclusive || ''}" step="any">
+                            <input type="number" id="boundsMinInclusive" value="${this.escapeAttr(restriction.minInclusive || '')}" step="any">
                         </div>
                         <div class="form-group">
                             <label>${t('editor.maxInclusive')}</label>
-                            <input type="number" id="boundsMaxInclusive" value="${restriction.maxInclusive || ''}" step="any">
+                            <input type="number" id="boundsMaxInclusive" value="${this.escapeAttr(restriction.maxInclusive || '')}" step="any">
                         </div>
                     </div>
                     <div class="form-group">
@@ -1054,12 +1054,11 @@ class IDSEditorModals {
      * Escape HTML to prevent XSS
      */
     escapeHtml(text) {
-        if (!text) {
-            return '';
-        }
-        const div = document.createElement('div');
-        div.textContent = String(text);
-        return div.innerHTML;
+        return window.BIMSafeHTML.escapeHtml(text);
+    }
+
+    escapeAttr(text) {
+        return window.BIMSafeHTML.escapeAttr(text);
     }
 
     /**
@@ -1087,7 +1086,7 @@ class IDSEditorModals {
         document.getElementById('specModalBody').innerHTML = `
             <div class="form-group">
                 <label>${t('editor.specName')}</label>
-                <input type="text" id="specName" value="${this.escapeHtml(specData.name || '')}" placeholder="${t('editor.example')} Walls Fire Rating Check">
+                <input type="text" id="specName" value="${this.escapeAttr(specData.name || '')}" placeholder="${this.escapeAttr(t('editor.example'))} Walls Fire Rating Check">
                 <small>${t('editor.specDescLabel')}</small>
             </div>
 

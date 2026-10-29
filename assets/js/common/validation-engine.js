@@ -4,6 +4,8 @@
 const ValidationEngine = (function() {
     'use strict';
 
+    const ENGINE_VERSION = '1.0.0';
+    const RULES_VERSION = 'buildingSMART-IDS-1.0';
     const SUPPORTED_IFC = ['IFC2X3', 'IFC4', 'IFC4X3_ADD2'];
     const FLOAT_TOLERANCE = 1e-6;
 
@@ -109,8 +111,19 @@ const ValidationEngine = (function() {
     }
 
     function numericTolerance(value) {
+        // Official IDS 1.0 tolerance (testcases/tolerance): exactly 1e-6*(1+|value|).
         const numeric = Math.abs(Number(value) || 0);
-        return FLOAT_TOLERANCE * (1 + numeric) + Number.EPSILON * Math.max(1, numeric) * 10;
+        return FLOAT_TOLERANCE * (1 + numeric);
+    }
+
+    // Absorbs sub-ULP IEEE754 error when a value sits exactly on the tolerance
+    // boundary (official "pass" cases are authored at diff == tolerance). Scaled to
+    // operand magnitude and kept far below the smallest real testcase gap (1e-7), so
+    // it never lets a genuinely out-of-tolerance value through. Note: the pair
+    // tolerance/*_negative_high_number_lower_bound is unresolvable here because its
+    // pass and fail IFCREAL literals round to the identical float64.
+    function roundingSlack(a, b) {
+        return Math.max(1, Math.abs(a), Math.abs(b)) * 8 * Number.EPSILON;
     }
 
     function isIntegerType(dataType, base) {
@@ -147,7 +160,8 @@ const ValidationEngine = (function() {
         const expected = coerceExpected(expectedRaw, actual, dataType, base);
         if (!expected.valid) return false;
         if (typeof actual === 'number' && typeof expected.value === 'number') {
-            return Math.abs(actual - expected.value) <= numericTolerance(expected.value);
+            if (isIntegerType(dataType, base)) return actual === expected.value;
+            return Math.abs(actual - expected.value) <= numericTolerance(expected.value) + roundingSlack(actual, expected.value);
         }
         return actual === expected.value;
     }
@@ -203,10 +217,16 @@ const ValidationEngine = (function() {
                 if (typeof actual !== 'number') return false;
                 const expected = coerceExpected(facet.value, actual, dataType, base);
                 if (!expected.valid || typeof expected.value !== 'number') return false;
-                if (facet.type === 'minInclusive' && actual < expected.value) return false;
-                if (facet.type === 'maxInclusive' && actual > expected.value) return false;
-                if (facet.type === 'minExclusive' && actual <= expected.value) return false;
-                if (facet.type === 'maxExclusive' && actual >= expected.value) return false;
+                // IDS 1.0 (testcases/tolerance): real bounds widen inclusive limits by
+                // numericTolerance and narrow exclusive limits by it; integers stay exact.
+                // roundingSlack keeps values sitting exactly on the bound from being
+                // rejected by sub-ULP float error (always applied in the accepting direction).
+                const tolerance = isIntegerType(dataType, base) ? 0 : numericTolerance(expected.value);
+                const slack = isIntegerType(dataType, base) ? 0 : roundingSlack(actual, expected.value);
+                if (facet.type === 'minInclusive' && actual < expected.value - tolerance - slack) return false;
+                if (facet.type === 'maxInclusive' && actual > expected.value + tolerance + slack) return false;
+                if (facet.type === 'minExclusive' && !(tolerance ? actual >= expected.value + tolerance - slack : actual > expected.value)) return false;
+                if (facet.type === 'maxExclusive' && !(tolerance ? actual <= expected.value - tolerance + slack : actual < expected.value)) return false;
             }
         }
         return true;
@@ -310,8 +330,10 @@ const ValidationEngine = (function() {
         if (text === '.U.') return { value: null, dataType: dataType || 'IFCLOGICAL', kind: 'null' };
         const enumValue = unwrapEnum(text);
         if (enumValue !== null) return { value: enumValue, dataType, kind: 'string' };
-        if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) {
-            return { value: Number(text), dataType, kind: 'number' };
+        // Match the IFC parser: tolerate stray control characters inside numeric literals.
+        const numeric = text.replace(/[\x00-\x1f\x7f]/g, '');
+        if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(numeric)) {
+            return { value: Number(numeric), dataType, kind: 'number' };
         }
         return { value: text, dataType, kind: 'object' };
     }
@@ -579,6 +601,8 @@ const ValidationEngine = (function() {
         const occurrencePass = applicableEntities.length >= bounds.min && applicableEntities.length <= bounds.max;
         const prohibited = bounds.max === 0;
         const result = {
+            validatorVersion: ENGINE_VERSION,
+            rulesVersion: RULES_VERSION,
             specification: spec.name,
             status: occurrencePass ? 'pass' : 'fail',
             passCount: 0,
@@ -608,6 +632,9 @@ const ValidationEngine = (function() {
     }
 
     return {
+        VERSION: ENGINE_VERSION,
+        RULES_VERSION,
+        SUPPORTED_IFC: Object.freeze([...SUPPORTED_IFC]),
         matchValue,
         cardinalityResult,
         checkEntityFacet,
@@ -627,5 +654,11 @@ const ValidationEngine = (function() {
     };
 })();
 
-if (typeof window !== 'undefined') window.ValidationEngine = ValidationEngine;
+if (typeof window !== 'undefined') {
+    window.ValidationEngine = ValidationEngine;
+    window.BIMServices?.register('validation', ValidationEngine, {
+        local: true,
+        version: ValidationEngine.VERSION
+    });
+}
 if (typeof self !== 'undefined' && typeof window === 'undefined') self.ValidationEngine = ValidationEngine;

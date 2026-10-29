@@ -10,6 +10,7 @@ import * as storage from '../ai/chat-storage.js';
 import { chatCompletion } from '../ai/ai-client.js';
 import { getEffectiveEndpoint } from '../ai/agent-manager.js';
 import { resolveToolsForAgent, MAX_TOOL_ITERATIONS } from '../ai/chat-tooling.js';
+import { ensureRemoteConsent } from '../ai/remote-consent.js';
 import { executeToolCall } from '../ai/tool-executor.js';
 import { t, onLanguageChange } from './chat-i18n-helpers.js';
 import * as chatHeads from './chat-heads.js';
@@ -18,13 +19,17 @@ let _panel = null;
 const _state = { agentId: null, threadId: null, busy: false, abort: null };
 
 export async function openForAgent(agentId, threadId) {
-    if (!_panel) _injectPanel();
+    if (!_panel) {
+        _injectPanel();
+    }
     _state.agentId = agentId;
     window.__bimAiActiveAgentId = agentId;
     _state.threadId = null;
     if (threadId) {
         const thread = await storage.getThread(threadId);
-        if (thread && thread.agentId === agentId) _state.threadId = threadId;
+        if (thread && thread.agentId === agentId) {
+            _state.threadId = threadId;
+        }
     }
     await _refreshHeader();
     await _refreshThreadsSidebar();
@@ -39,7 +44,9 @@ export async function openForAgent(agentId, threadId) {
 
 export async function restoreLastSession() {
     const settings = await storage.getSettings();
-    if (!settings || !settings.chatPanelOpen || !settings.lastActiveAgentId) return false;
+    if (!settings || !settings.chatPanelOpen || !settings.lastActiveAgentId) {
+        return false;
+    }
     const agent = await storage.getAgent(settings.lastActiveAgentId);
     if (!agent) {
         await storage.updateSettings({ chatPanelOpen: false, lastActiveAgentId: null, lastActiveThreadId: null });
@@ -64,20 +71,28 @@ export function close() {
         _panel.classList.remove('is-minimized');
     }
     _hideLauncher(false);
-    if (_state.abort) _state.abort.abort();
+    if (_state.abort) {
+        _state.abort.abort();
+    }
     window.__bimAiActiveAgentId = null;
     chatHeads.setOpenHead(null);
-    if (removingAgentId) chatHeads.removeHead(removingAgentId);
+    if (removingAgentId) {
+        chatHeads.removeHead(removingAgentId);
+    }
     storage.updateSettings({ chatPanelOpen: false });
 }
 
 function _hideLauncher(hide) {
     const launcher = document.getElementById('chatLauncher');
-    if (launcher) launcher.style.display = hide ? 'none' : '';
+    if (launcher) {
+        launcher.style.display = hide ? 'none' : '';
+    }
 }
 
 function _toggleMinimize() {
-    if (!_panel) return;
+    if (!_panel) {
+        return;
+    }
     const wasMinimized = _panel.classList.contains('is-minimized');
     _panel.classList.toggle('is-minimized');
     if (!wasMinimized) {
@@ -115,12 +130,20 @@ function _injectPanel() {
         </div>`;
     document.body.appendChild(_panel);
 
-    _panel.querySelector('#chatCloseBtn').addEventListener('click', (e) => { e.stopPropagation(); close(); });
-    _panel.querySelector('#chatMinimizeBtn').addEventListener('click', (e) => { e.stopPropagation(); _toggleMinimize(); });
-    _panel.querySelector('#chatToggleThreads').addEventListener('click', (e) => { e.stopPropagation(); _toggleThreadsSidebar(); });
+    _panel.querySelector('#chatCloseBtn').addEventListener('click', (e) => {
+        e.stopPropagation(); close();
+    });
+    _panel.querySelector('#chatMinimizeBtn').addEventListener('click', (e) => {
+        e.stopPropagation(); _toggleMinimize();
+    });
+    _panel.querySelector('#chatToggleThreads').addEventListener('click', (e) => {
+        e.stopPropagation(); _toggleThreadsSidebar();
+    });
     // Click on header (excluding buttons) toggles minimize
     _panel.querySelector('#chatHeader').addEventListener('click', () => {
-        if (_panel.classList.contains('is-minimized')) _toggleMinimize();
+        if (_panel.classList.contains('is-minimized')) {
+            _toggleMinimize();
+        }
     });
     _panel.querySelector('#chatSendBtn').addEventListener('click', _send);
     const input = _panel.querySelector('#chatInput');
@@ -152,7 +175,9 @@ async function _toggleThreadsSidebar() {
 
 async function _refreshHeader() {
     const agent = await storage.getAgent(_state.agentId);
-    if (!agent) return;
+    if (!agent) {
+        return;
+    }
     const title = t('ai.chat.headerLabel').replace('{agentName}', `${agent.icon || '🤖'} ${agent.name}`);
     _panel.querySelector('#chatHeaderTitle').textContent = title;
 }
@@ -187,7 +212,9 @@ async function _refreshThreadsSidebar() {
     for (const thread of threads) {
         const item = document.createElement('div');
         item.className = 'chat-panel__threads__item';
-        if (thread.id === _state.threadId) item.classList.add('is-active');
+        if (thread.id === _state.threadId) {
+            item.classList.add('is-active');
+        }
         item.innerHTML = `
             <div class="chat-panel__threads__item__title">${escapeHtml(thread.title || t('ai.thread.untitledTitle'))}</div>
             <div class="chat-panel__threads__item__time">${_relativeTime(thread.updatedAt)}</div>`;
@@ -217,7 +244,9 @@ async function _refreshMessages() {
 
     const msgs = await storage.listMessages(_state.threadId);
     for (const m of msgs) {
-        if (m.role === 'system') continue;
+        if (m.role === 'system') {
+            continue;
+        }
         if (m.role === 'tool') {
             _appendToolResultBubble(m.content || '');
             continue;
@@ -249,7 +278,9 @@ function _appendToolResultBubble(jsonContent) {
     const div = document.createElement('div');
     div.className = 'chat-panel__msg chat-panel__msg--toolresult';
     let parsed = null;
-    try { parsed = JSON.parse(jsonContent); } catch {}
+    try {
+        parsed = JSON.parse(jsonContent);
+    } catch {}
     const isError = parsed && typeof parsed === 'object' && parsed.error;
     const preview = (typeof jsonContent === 'string') ? jsonContent.slice(0, 120) : '';
     div.textContent = `${isError ? '❌' : '✓'} ${t('ai.chat.toolReturned')}: ${preview}`;
@@ -268,17 +299,32 @@ function _appendBubble(role, content) {
 }
 
 async function _send() {
-    if (_state.busy) return;
+    if (_state.busy) {
+        return;
+    }
     const input = _panel.querySelector('#chatInput');
     const text = input.value.trim();
-    if (!text) return;
+    if (!text) {
+        return;
+    }
 
     const agent = await storage.getAgent(_state.agentId);
-    if (!agent) return;
+    if (!agent) {
+        return;
+    }
     if (!agent.model || !String(agent.model).trim()) {
         if (typeof ErrorHandler !== 'undefined') {
             ErrorHandler.error(t('chat.agent.noModel', { name: agent.name }));
         }
+        return;
+    }
+
+    const endpoint = getEffectiveEndpoint(agent);
+    const consentMessage = t('ai.privacy.remoteConsent', {
+        provider: _providerName(agent.provider),
+        endpoint
+    });
+    if (!ensureRemoteConsent(endpoint, window.confirm.bind(window), consentMessage)) {
         return;
     }
 
@@ -307,14 +353,22 @@ async function _send() {
     let pendingNavigation = null;
 
     try {
-        let messages = [];
-        if (agent.systemPrompt) messages.push({ role: 'system', content: agent.systemPrompt });
+        const messages = [];
+        if (agent.systemPrompt) {
+            messages.push({ role: 'system', content: agent.systemPrompt });
+        }
         const allMsgs = await storage.listMessages(_state.threadId);
         for (const m of allMsgs) {
             const cleaned = { role: m.role, content: m.content };
-            if (m.tool_calls) cleaned.tool_calls = m.tool_calls;
-            if (m.tool_call_id) cleaned.tool_call_id = m.tool_call_id;
-            if (m.name && m.role === 'tool') cleaned.name = m.name;
+            if (m.tool_calls) {
+                cleaned.tool_calls = m.tool_calls;
+            }
+            if (m.tool_call_id) {
+                cleaned.tool_call_id = m.tool_call_id;
+            }
+            if (m.name && m.role === 'tool') {
+                cleaned.name = m.name;
+            }
             messages.push(cleaned);
         }
 
@@ -327,9 +381,9 @@ async function _send() {
             _panel.querySelector('#chatMessages').appendChild(thinkingDiv);
 
             let streamed = '';
-            const filteredTools = resolveToolsForAgent(agent, getEffectiveEndpoint(agent));
+            const filteredTools = resolveToolsForAgent(agent, endpoint);
             const result = await chatCompletion(
-                getEffectiveEndpoint(agent),
+                endpoint,
                 agent.apiKey,
                 agent.model,
                 messages,
@@ -374,7 +428,9 @@ async function _send() {
 
             for (const tc of toolCalls) {
                 let parsedArgs = {};
-                try { parsedArgs = JSON.parse(tc.function?.arguments || '{}'); } catch {}
+                try {
+                    parsedArgs = JSON.parse(tc.function?.arguments || '{}');
+                } catch {}
                 const toolResult = await executeToolCall({
                     id: tc.id,
                     name: tc.function?.name,
@@ -415,7 +471,9 @@ async function _send() {
     } catch (err) {
         if (err?.name === 'AbortError') {
             const lastThinking = _panel.querySelector('.chat-panel__msg--thinking');
-            if (lastThinking) lastThinking.remove();
+            if (lastThinking) {
+                lastThinking.remove();
+            }
             return;
         }
         input.value = text;
@@ -439,17 +497,29 @@ async function _send() {
         if (pendingNavigation) {
             const url = pendingNavigation;
             pendingNavigation = null;
-            setTimeout(() => { window.location.href = url; }, 50);
+            setTimeout(() => {
+                window.location.href = url;
+            }, 50);
         }
     }
 }
 
 function _errorKeyFromException(err) {
-    if (!err) return null;
-    if (err.code === 'auth') return 'ai.error.invalidApiKey';
-    if (err.code === 'rate_limit') return 'ai.error.rateLimit';
-    if (err.code === 'server') return 'ai.error.providerDown';
-    if (err.message && /Failed to fetch|NetworkError/i.test(err.message)) return 'ai.error.network';
+    if (!err) {
+        return null;
+    }
+    if (err.code === 'auth') {
+        return 'ai.error.invalidApiKey';
+    }
+    if (err.code === 'rate_limit') {
+        return 'ai.error.rateLimit';
+    }
+    if (err.code === 'server') {
+        return 'ai.error.providerDown';
+    }
+    if (err.message && /Failed to fetch|NetworkError/i.test(err.message)) {
+        return 'ai.error.network';
+    }
     return 'ai.error.unknown';
 }
 
@@ -460,10 +530,18 @@ function _providerName(key) {
 
 function _relativeTime(ms) {
     const diff = Date.now() - ms;
-    if (diff < 60000) return t('chat.time.now');
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} min`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} h`;
+    if (diff < 60000) {
+        return t('chat.time.now');
+    }
+    if (diff < 3600000) {
+        return `${Math.floor(diff / 60000)} min`;
+    }
+    if (diff < 86400000) {
+        return `${Math.floor(diff / 3600000)} h`;
+    }
     return new Date(ms).toLocaleDateString();
 }
 
-function escapeHtml(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+function escapeHtml(s) {
+    const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML;
+}

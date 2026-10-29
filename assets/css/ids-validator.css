@@ -34,7 +34,7 @@
 .vg-empty-state {
     text-align: center;
     padding: 60px;
-    color: #a0aec0;
+    color: var(--text-secondary);
 }
 
 .vg-empty-state__icon {

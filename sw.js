@@ -1,140 +1,26 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-const CACHE_VERSION = 'bim-checker-v153';
-const ASSETS_TO_CACHE = [
-    './index.html',
-    './assets/og-image-v2.png',
-    './favicon.svg',
-    './favicon.ico',
-    './manifest.json',
-    './pages/ids-parser-visualizer.html',
-    './pages/ids-ifc-validator.html',
-    './pages/ifc-viewer-multi-file.html',
-    './assets/css/common.css',
-    './assets/css/mobile-nav.css',
-    './assets/css/index.css',
-    './assets/css/wizard.css',
-    './assets/css/ids-parser.css',
-    './assets/css/ids-validator.css',
-    './assets/css/ifc-viewer.css',
-    './assets/css/ids-editor-styles.css',
-    './assets/css/progress-panel.css',
-    './assets/js/common/translations.js',
-    './assets/js/common/viewer-link.js',
-    './assets/js/common/mobile-nav.js',
-    './assets/js/common/i18n.js',
-    './assets/js/common/error-handler.js',
-    './assets/js/common/storage.js',
-    './assets/js/common/fs-handle-store.js',
-    './assets/js/common/local-folder-storage.js',
-    './assets/js/common/first-launch-popup.js',
-    './assets/js/common/storage-card-folder-states.js',
-    './assets/js/common/storage-backend-restore.js',
-    './assets/js/common/folder-file-autoload.js',
-    './assets/js/common/save-to-folder-dialog.js',
-    './assets/js/common/bim-save-file.js',
-    './assets/js/common/theme.js',
-    './assets/js/common/utils.js',
-    './assets/js/common/components.js',
-    './assets/js/common/drag-drop.js',
-    './assets/js/common/virtual-tree.js',
-    './assets/js/common/ifc-stream-parser.js',
-    './assets/js/common/performance-monitor.js',
-    './assets/js/common/regex-cache.js',
-    './assets/js/common/property-set-index.js',
-    './assets/js/common/validation-engine.js',
-    './assets/js/common/validation-orchestrator.js',
-    './assets/js/common/progress-panel.js',
-    './assets/js/common/wizard.js',
-    './assets/js/common/wizard-steps.js',
-    './assets/js/common/update-checker.js',
-    './assets/js/common/bug-report.js',
-    './assets/js/common/compression.js',
-    './assets/js/common/compression-worker.js',
-    './assets/js/common/ifc-parser-core.js',
-    './assets/js/common/validation-presets.js',
-    './assets/js/common/pwa.js',
-    './assets/js/index.js',
-    './assets/js/parser.js',
-    './assets/js/validator.js',
-    './assets/js/ids/ifc-data.js',
-    './assets/js/ids/ids-xml-generator.js',
-    './assets/js/ids/ids-excel-generator.js',
-    './assets/js/ids/ids-excel-parser.js',
-    './assets/js/ids/ids-excel-template.js',
-    './assets/js/ids/ids-editor-core.js',
-    './assets/js/ids/ids-editor-modals.js',
-    './assets/js/ids/ids-auto-fix.js',
-    './assets/js/ids/ids-auto-fix-modal.js',
-    './assets/js/ifc/ifc-pset-utils.js',
-    './assets/js/ifc/viewer-core.js',
-    './assets/js/ifc/viewer-parser.js',
-    './assets/js/ifc/viewer-init.js',
-    './assets/js/ifc/viewer-ui.js',
-    './assets/js/workers/ifc-parser.worker.js',
-    './assets/js/workers/worker-pool.js',
-    './assets/js/workers/validation.worker.js',
-    './assets/js/vendor/xlsx.full.min.js',
-    './assets/js/vendor/xmllint-wasm.js',
-    './assets/js/vendor/xmllint-browser.js',
-    './assets/js/vendor/xmllint.wasm',
-    './assets/data/ids-1.0.xsd',
-    './assets/data/xml.xsd',
-    './assets/data/XMLSchema.xsd',
-    './assets/data/XMLSchema.dtd',
-    './assets/data/datatypes.dtd',
-    './assets/data/ifc-hierarchy-IFC2X3.json',
-    './assets/data/ifc-hierarchy-IFC4.json',
-    './assets/data/ifc-hierarchy-IFC4X3_ADD2.json',
-    './assets/js/common/ids-parser.js',
-    './assets/js/common/ifc-hierarchy.js',
-    './assets/js/common/ifc-params.js',
-    './assets/js/common/ids-xsd-validator.js',
-    './assets/icons/pwa/icon-128x128.png',
-    './assets/icons/pwa/icon-256x256.png',
-    './assets/icons/pwa/icon-512x512.png',
-    './assets/js/ai/providers.js',
-    './assets/js/ai/ai-client.js',
-    './assets/js/ai/agent-manager.js',
-    './assets/js/ai/tool-defs.js',
-    './assets/js/ai/chat-tooling.js',
-    './assets/js/ai/tool-executor.js',
-    './assets/js/ai/tool-catalog.js',
-    './assets/js/ai/agent-presets.js',
-    './assets/js/ai/tools/_helpers.js',
-    './assets/js/ai/tools/tool-storage.js',
-    './assets/js/ai/tools/tool-validator.js',
-    './assets/js/ai/tools/tool-ids.js',
-    './assets/js/ai/tools/tool-ifc.js',
-    './assets/js/ai/tools/tool-ui.js',
-    './assets/js/ai/tools/tool-settings.js',
-    './assets/js/ai/tools/tool-agents.js',
-    './assets/js/ai/tools/tool-presets.js',
-    './assets/js/ai/tools/tool-bsdd.js',
-    './assets/js/ai/chat-storage.js',
-    './assets/js/ai-ui/init.js',
-    './assets/js/ai-ui/chat-panel-mobile.js',
-    './assets/js/ai-ui/chat-launcher.js',
-    './assets/js/ai-ui/settings-modal.js',
-    './assets/js/ai-ui/chat-panel.js',
-    './assets/js/ai-ui/chat-heads.js',
-    './assets/js/ai-ui/chat-i18n-helpers.js',
-    './assets/js/ai-ui/ollama-setup-modal.js',
-    './assets/css/ai-chat.css'
-];
+importScripts('./assets/data/precache-manifest.js');
 
-// Install - cache assets individually (don't fail on single missing file)
+const PRECACHE = self.BIM_CHECKER_PRECACHE;
+const CACHE_PREFIX = 'bim-checker-';
+const CORE_CACHE = `${CACHE_PREFIX}core-${PRECACHE.version}`;
+const RUNTIME_CACHE = `${CACHE_PREFIX}runtime-${PRECACHE.version}`;
+const RUNTIME_MAX_ENTRIES = 160;
+
+async function putRuntime(request, response) {
+    const cache = await caches.open(RUNTIME_CACHE);
+    await cache.put(request, response);
+    const keys = await cache.keys();
+    const excess = keys.length - RUNTIME_MAX_ENTRIES;
+    if (excess > 0) await Promise.all(keys.slice(0, excess).map(key => cache.delete(key)));
+}
+
+// Installation fails atomically if a required core asset is missing. This
+// prevents activating a release that only appears to work offline.
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_VERSION).then((cache) => {
-            return Promise.allSettled(
-                ASSETS_TO_CACHE.map((url) =>
-                    cache.add(url).catch((err) => {
-                        console.warn('Failed to cache:', url, err);
-                    })
-                )
-            );
-        }).then(() => self.skipWaiting())
+        caches.open(CORE_CACHE).then(cache => cache.addAll(PRECACHE.assets))
     );
 });
 
@@ -145,7 +31,8 @@ self.addEventListener('activate', (event) => {
             .then((cacheNames) => {
                 return Promise.all(
                     cacheNames
-                        .filter((name) => name !== CACHE_VERSION)
+                        .filter(name => name.startsWith(CACHE_PREFIX))
+                        .filter(name => name !== CORE_CACHE && name !== RUNTIME_CACHE)
                         .map((name) => caches.delete(name))
                 );
             })
@@ -153,26 +40,33 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch - network-first for HTML, cache-first for assets
+// Aktualizace již ovládající aplikace se aktivuje až po potvrzení uživatelem.
+self.addEventListener('message', event => {
+    if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// Fetch - version-coherent cache-first for local pages and assets. The browser
+// still checks sw.js for updates; the waiting worker is activated by the UI.
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
+    const requestUrl = new URL(event.request.url);
+    if (requestUrl.origin !== self.location.origin) return;
 
-    // HTML pages: network-first (always get latest, fall back to cache)
+    // HTML pages: keep the page shell and its assets on the same release.
     if (event.request.mode === 'navigate' || event.request.destination === 'document') {
         event.respondWith(
-            fetch(event.request)
-                .then((response) => {
-                    if (response && response.status === 200) {
-                        const clone = response.clone();
-                        caches.open(CACHE_VERSION).then((cache) => {
-                            cache.put(event.request, clone);
-                        });
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    return caches.match(event.request);
-                })
+            caches.match(event.request).then(async cached => {
+                if (cached) return cached;
+                if (requestUrl.pathname.endsWith('/')) {
+                    const index = await caches.match(new URL(`${requestUrl.pathname}index.html`, self.location.origin));
+                    if (index) return index;
+                }
+                const response = await fetch(event.request);
+                if (response?.status === 200) {
+                    await putRuntime(event.request, response.clone());
+                }
+                return response;
+            })
         );
         return;
     }
@@ -189,9 +83,7 @@ self.addEventListener('fetch', (event) => {
                         return response;
                     }
                     const clone = response.clone();
-                    caches.open(CACHE_VERSION).then((cache) => {
-                        cache.put(event.request, clone);
-                    });
+                    putRuntime(event.request, clone).catch(() => {});
                     return response;
                 });
             })

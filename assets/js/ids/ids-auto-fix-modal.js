@@ -11,10 +11,7 @@ window.IDSAutoFixModal = (function () {
     'use strict';
 
     function escapeHtml(s) {
-        if (s === null || s === undefined) return '';
-        return String(s).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-        })[c]);
+        return window.BIMSafeHTML.escapeHtml(s);
     }
 
     function show(descriptors) {

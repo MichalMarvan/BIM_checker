@@ -37,12 +37,22 @@ describe('agent-manager', () => {
         expect(manager.getEffectiveEndpoint(null)).toBe('');
     });
 
-    it('validateUrl accepts http and https only', () => {
+    it('validateUrl accepts HTTPS and local HTTP only', () => {
         expect(manager.validateUrl('http://localhost')).toBe(true);
+        expect(manager.validateUrl('http://127.0.0.1:11434/v1')).toBe(true);
         expect(manager.validateUrl('https://example.com')).toBe(true);
+        expect(manager.validateUrl('http://example.com')).toBe(false);
+        expect(manager.validateUrl('http://localhost.example.com')).toBe(false);
         expect(manager.validateUrl('ftp://example.com')).toBe(false);
         expect(manager.validateUrl('javascript:alert(1)')).toBe(false);
         expect(manager.validateUrl('')).toBe(false);
         expect(manager.validateUrl(null)).toBe(false);
+    });
+
+    it('isLocalEndpoint only trusts loopback hostnames and addresses', () => {
+        expect(manager.isLocalEndpoint('http://localhost:11434/v1')).toBe(true);
+        expect(manager.isLocalEndpoint('http://127.0.0.2/v1')).toBe(true);
+        expect(manager.isLocalEndpoint('https://localhost.example.com/v1')).toBe(false);
+        expect(manager.isLocalEndpoint('https://api.example.com/v1')).toBe(false);
     });
 });

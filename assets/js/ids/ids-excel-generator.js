@@ -52,6 +52,7 @@ const IDSExcelGenerator = (function() {
      */
     function _generateInfoSheet(idsData) {
         return [
+            ...IDSExcelFormat.markerRows(),
             { Field: 'title', Value: idsData.title || '' },
             { Field: 'author', Value: idsData.author || '' },
             { Field: 'version', Value: idsData.version || '' },
@@ -350,6 +351,7 @@ const IDSExcelGenerator = (function() {
 
     // Public API
     return {
+        FORMAT_VERSION: IDSExcelFormat.CURRENT_VERSION,
         generate,
         download,
         // Expose private methods for testing

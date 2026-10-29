@@ -75,7 +75,9 @@ function showViewerLinkFeedback(btn, result) {
         fb.className = 'viewer-link-feedback';
         wrap.appendChild(fb);
     }
-    fb.textContent = (result === 'live') ? t('validator.viewer.live') : t('validator.viewer.opened');
+    fb.textContent = result === 'live'
+        ? t('validator.viewer.live')
+        : result === 'blocked' ? t('validator.viewer.blocked') : t('validator.viewer.opened');
     if (fb._timer) clearTimeout(fb._timer);
     fb._timer = setTimeout(() => {
         fb.textContent = '';
@@ -113,12 +115,17 @@ function sendToViewer(payload, btn) {
 }
 
 // Posbírá validation-items pro danou specifikaci; jen statusy pass/fail.
-function collectSpecItems(specResult, fileName) {
+function collectSpecItems(specResult, fileName, fileId) {
     const items = [];
     if (!specResult || !Array.isArray(specResult.entityResults)) return items;
     for (const er of specResult.entityResults) {
         if (er.status !== 'pass' && er.status !== 'fail') continue;
-        items.push({ fileName: er.fileName || fileName, guid: er.guid, status: er.status });
+        items.push({
+            fileName: er.fileName || fileName || specResult.fileName,
+            fileId: er.fileId ?? fileId ?? specResult.fileId ?? null,
+            guid: er.guid,
+            status: er.status
+        });
     }
     return items;
 }
@@ -137,10 +144,12 @@ function collectAllValidationItems() {
                 for (const er of specResult.entityResults) {
                     if (er.status !== 'pass' && er.status !== 'fail') continue;
                     const fileName = er.fileName || ifcResult.ifcFileName;
-                    const key = fileName + '|||' + er.guid;
+                    const fileId = er.fileId ?? ifcResult.ifcFileId ?? null;
+                    const fileKey = fileId !== null ? `id:${fileId}` : `name:${fileName}`;
+                    const key = fileKey + '|||' + er.guid;
                     const existing = byKey.get(key);
                     if (!existing) {
-                        byKey.set(key, { fileName: fileName, guid: er.guid, status: er.status });
+                        byKey.set(key, { fileName, fileId, guid: er.guid, status: er.status });
                     } else if (er.status === 'fail') {
                         existing.status = 'fail';
                     }
@@ -157,13 +166,19 @@ function collectFileValidationItems(ifcResult) {
     const byGuid = new Map();
     if (!ifcResult || !Array.isArray(ifcResult.specificationResults)) return [];
     const fileName = ifcResult.ifcFileName;
+    const fileId = ifcResult.ifcFileId ?? null;
     for (const specResult of ifcResult.specificationResults) {
         if (!Array.isArray(specResult.entityResults)) continue;
         for (const er of specResult.entityResults) {
             if (er.status !== 'pass' && er.status !== 'fail') continue;
             const prev = byGuid.get(er.guid);
             if (!prev || er.status === 'fail') {
-                byGuid.set(er.guid, { fileName: er.fileName || fileName, guid: er.guid, status: er.status });
+                byGuid.set(er.guid, {
+                    fileName: er.fileName || fileName,
+                    fileId: er.fileId ?? fileId,
+                    guid: er.guid,
+                    status: er.status
+                });
             }
         }
     }
@@ -832,7 +847,10 @@ function createIFCResultElement(ifcResult) {
             e.stopPropagation();
             const fileName = ifcResult.ifcFileName;
             const items = collectFileValidationItems(ifcResult);
-            const files = [{ fileId: fileIdForName(fileName, buildFileIdMap()), fileName: fileName }];
+            const files = [{
+                fileId: ifcResult.ifcFileId ?? fileIdForName(fileName, buildFileIdMap()),
+                fileName
+            }];
             const payload = window.ViewerLink && window.ViewerLink.buildValidationPayload
                 ? window.ViewerLink.buildValidationPayload({
                     source: 'validator',
@@ -932,7 +950,7 @@ function createSpecificationResultElement(specResult) {
     if (specViewerBtn) {
         specViewerBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const items = collectSpecItems(specResult);
+            const items = collectSpecItems(specResult, specResult.fileName, specResult.fileId);
             if (items.length === 0) {
                 showViewerLinkFeedbackNoItems(specViewerBtn);
                 return;
@@ -1016,7 +1034,7 @@ function createEntityResultElement(entityResult) {
         viewerBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const fileName = entityResult.fileName || '';
-            const fileId = fileIdForName(fileName, buildFileIdMap());
+            const fileId = entityResult.fileId ?? fileIdForName(fileName, buildFileIdMap());
             const payload = window.ViewerLink && window.ViewerLink.buildElementPayload
                 ? window.ViewerLink.buildElementPayload({
                     source: 'validator',
@@ -1305,6 +1323,8 @@ function _exportToXLSX() {
     // Create summary sheet
     const summaryData = [];
     summaryData.push(['IDS Validation Summary']);
+    summaryData.push(['Validator engine', ValidationEngine.VERSION]);
+    summaryData.push(['IDS rules', ValidationEngine.RULES_VERSION]);
     summaryData.push([]);
     summaryData.push(['IFC File', 'IDS File', 'Total Validations', 'Passed', 'Failed', 'Pass Rate']);
 
@@ -1348,8 +1368,8 @@ function _exportToXLSX() {
     ];
 
     const summaryLastCol = String.fromCharCode(64 + 6); // 6 columns → 'F'
-    summaryWs['!autofilter'] = { ref: `A3:${summaryLastCol}${summaryData.length}` };
-    summaryWs['!views'] = [{ state: 'frozen', ySplit: 3 }];
+    summaryWs['!autofilter'] = { ref: `A5:${summaryLastCol}${summaryData.length}` };
+    summaryWs['!views'] = [{ state: 'frozen', ySplit: 5 }];
 
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary', true);
 
@@ -1502,6 +1522,7 @@ function renderValidationGroups() {
     }
 
     const container = document.getElementById('validationGroups');
+    if (!container) return;
 
     if (validationGroups.length === 0) {
         // Empty state is rendered statically in HTML on initial load to avoid CLS.
@@ -1839,15 +1860,24 @@ async function handleIfcDrop(files, groupIndex) {
 
     for (const file of ifcFiles) {
         const content = await readFileAsText(file);
+        let fileId = 'memory_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        if (window.BIMStorage && typeof window.BIMStorage.saveFile === 'function') {
+            try {
+                fileId = await window.BIMStorage.saveFile('ifc', {
+                    name: file.name,
+                    size: file.size,
+                    content
+                }, 'root', { allowDuplicate: true });
+            } catch (error) {
+                console.warn('[validator] IFC persistence skipped:', error?.message || error);
+            }
+        }
         group.ifcFiles.push({
-            id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            id: fileId,
             name: file.name,
             size: file.size,
             content: content
         });
-        if (window.BIMStorage && typeof window.BIMStorage.persistDropped === 'function') {
-            window.BIMStorage.persistDropped('ifc', file, content);
-        }
         if (group.missingIfcNames && group.missingIfcNames.includes(file.name)) {
             group.missingIfcNames = group.missingIfcNames.filter(n => n !== file.name);
         }
@@ -1907,6 +1937,7 @@ async function handleIdsDrop(files, groupIndex) {
 // Update validate button
 function updateValidateButton() {
     const btn = document.getElementById('validateBtn');
+    if (!btn) return;
     const hasValidGroups = validationGroups.some(g => g.ifcFiles.length > 0 && g.idsFile);
     btn.disabled = !hasValidGroups;
 }
@@ -2167,7 +2198,7 @@ function renderIfcFolderRecursive(folderId, level) {
             <div style="margin-bottom: 8px;">
                 <div class="tree-folder-header" style="margin-left: ${level * 20}px;">
                     <span data-folder-id="${safeFolderId}" class="tree-folder-arrow ifc-folder-toggle">${arrow}</span>
-                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} data-folder-id="${safeFolderId}" class="ifc-folder-checkbox" style="margin-right: 10px;" title="${escapeHtml(t('viewer.selectAllInFolder'))}">
+                    <input type="checkbox" ${allFolderSelected ? 'checked' : ''} data-folder-id="${safeFolderId}" class="ifc-folder-checkbox" style="margin-right: 10px;" title="${escapeAttr(t('viewer.selectAllInFolder'))}">
                     <span data-folder-id="${safeFolderId}" class="tree-folder-name ifc-folder-toggle">
                         📁 ${escapeHtml(folder.name)}
                         ${allFolderFiles.length > 0 ? `<span class="tree-folder-count">(${allFolderFiles.length} ${escapeHtml(t('viewer.files'))})</span>` : ''}
@@ -2787,6 +2818,7 @@ async function validateAll() {
                     idsTitle: group.idsFile.name,
                     ifcResults: group.ifcFiles.map(ifcFile => ({
                         ifcFileName: ifcFile.name,
+                        ifcFileId: ifcFile.id ?? null,
                         specificationResults: [{
                             specification: 'IDS 1.0 XSD',
                             status: 'error',
@@ -2861,6 +2893,14 @@ async function validateAll() {
                     ifcFile.name,
                     ifcSchema
                 );
+                for (const specResult of specificationResults) {
+                    if (!specResult) continue;
+                    specResult.fileName = ifcFile.name;
+                    specResult.fileId = ifcFile.id ?? null;
+                    for (const entityResult of specResult.entityResults || []) {
+                        entityResult.fileId = ifcFile.id ?? null;
+                    }
+                }
 
                 // Update UI - complete
                 completedFiles++;
@@ -2875,6 +2915,7 @@ async function validateAll() {
 
                 return {
                     ifcFileName: ifcFile.name,
+                    ifcFileId: ifcFile.id ?? null,
                     specificationResults: specificationResults
                 };
             }

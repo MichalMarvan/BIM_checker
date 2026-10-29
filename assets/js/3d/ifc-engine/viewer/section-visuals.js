@@ -484,7 +484,7 @@ export class SectionVisuals {
       g.userData.baseScale = base;
       // Kompozice s hoverem: běží každý frame a přepisuje scale, proto musí sám
       // aplikovat hover ×1.1 na uloženém id (jinak by smazal bump ze setHandleHover).
-      const hovered = this._hoveredHandleId != null
+      const hovered = this._hoveredHandleId !== null && this._hoveredHandleId !== undefined
         && g.userData.sectionPlaneId === this._hoveredHandleId;
       g.scale.setScalar(hovered ? base * HANDLE_HOVER_SCALE : base);
     }
@@ -503,11 +503,11 @@ export class SectionVisuals {
   setHandleHover(planeId) {
     // Ulož id — updateHandleScale ho každý frame znovu aplikuje na scale
     // (jinak by per-frame reset scale hover bump smazal). Barvu řešíme hned tady.
-    this._hoveredHandleId = planeId != null ? planeId : null;
+    this._hoveredHandleId = planeId !== null && planeId !== undefined ? planeId : null;
     for (const g of this._handles) {
       if (!g.visible) continue;
       const base = g.userData.baseScale || 1;
-      const hovered = planeId != null && g.userData.sectionPlaneId === planeId;
+      const hovered = planeId !== null && planeId !== undefined && g.userData.sectionPlaneId === planeId;
       if (hovered) {
         g.userData.discMat.color.setHex(HANDLE_DISC_COLOR_HOVER);
         g.scale.setScalar(base * HANDLE_HOVER_SCALE);

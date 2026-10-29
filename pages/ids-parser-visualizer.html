@@ -68,10 +68,10 @@
         </a>
         <div class="bim-mobile-topbar__actions">
             <div class="bim-mobile-topbar__lang">
-                <button class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
-                <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
+                <button type="button" class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
+                <button type="button" class="lang-btn" data-lang="en" aria-label="English">EN</button>
             </div>
-            <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
+            <button type="button" class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
         </div>
     </header>
     <nav class="navbar navbar-subpage">
@@ -80,7 +80,7 @@
             <h1 class="page-title" data-i18n="parser.title">IDS Parser a Vizualizér</h1>
             <div class="navbar-actions">
                 <!-- Bug Report Button -->
-                <button class="bug-report-btn" id="bugReportBtn" title="Nahlásit chybu" data-i18n-title="bugReport.tooltip" aria-label="Report bug">
+                <button type="button" class="bug-report-btn" id="bugReportBtn" title="Nahlásit chybu" data-i18n-title="bugReport.tooltip" aria-label="Report bug">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="8" y="6" width="8" height="14" rx="4"/>
                         <path d="M19 7l-3 2"/>
@@ -93,13 +93,13 @@
                     </svg>
                 </button>
                 <!-- Wizard Tour Button -->
-                <button class="wizard-header-btn" id="wizard-tour-btn" title="Spustit průvodce" data-i18n-title="tooltip.startTour">
+                <button type="button" class="wizard-header-btn" id="wizard-tour-btn" title="Spustit průvodce" data-i18n-title="tooltip.startTour">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                 </button>
                 <!-- Help Button -->
-                <button class="wizard-header-btn" id="wizard-help-btn" title="Nápověda" data-i18n-title="tooltip.help">
+                <button type="button" class="wizard-header-btn" id="wizard-help-btn" title="Nápověda" data-i18n-title="tooltip.help">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"/>
                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
@@ -107,17 +107,17 @@
                     </svg>
                 </button>
                 <!-- Phase 7: AI settings -->
-                <button class="ai-settings-btn" id="aiSettingsBtn" title="AI agenti — nastavení" data-i18n-title="ai.settings.tooltip" aria-label="AI settings">
+                <button type="button" class="ai-settings-btn" id="aiSettingsBtn" title="AI agenti — nastavení" data-i18n-title="ai.settings.tooltip" aria-label="AI settings">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"/>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                 </button>
                 <div class="language-switcher">
-                    <button class="lang-btn active" data-lang="cs">CZ</button>
-                    <button class="lang-btn" data-lang="en">EN</button>
+                    <button type="button" class="lang-btn active" data-lang="cs">CZ</button>
+                    <button type="button" class="lang-btn" data-lang="en">EN</button>
                 </div>
-                <button class="pwa-install-btn pwa-install-btn--unavailable" id="pwaInstallBtn" title="Nainstalovat aplikaci" data-i18n-title="tooltip.install">
+                <button type="button" class="pwa-install-btn pwa-install-btn--unavailable" id="pwaInstallBtn" title="Nainstalovat aplikaci" data-i18n-title="tooltip.install">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
@@ -125,7 +125,7 @@
                     </svg>
 
                 </button>
-                <button class="theme-toggle" id="themeToggle" title="Přepnout motiv" data-i18n-title="tooltip.toggleTheme">
+                <button type="button" class="theme-toggle" id="themeToggle" title="Přepnout motiv" data-i18n-title="tooltip.toggleTheme">
                     <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"/>
                         <line x1="12" y1="1" x2="12" y2="3"/>
@@ -164,8 +164,8 @@
                     <input type="file" id="fileInput" class="file-input" accept=".ids,.xml" style="display: none;">
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 1rem; justify-content: center;">
-                    <button class="btn btn-primary" onclick="event.stopPropagation(); loadSampleIDS()" data-i18n="parser.loadSample">Načíst ukázkový IDS</button>
-                    <button class="btn btn-success" onclick="event.stopPropagation(); openStoragePicker()" data-i18n="parser.loadFromStorage">📦 Načíst z úložiště</button>
+                    <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); loadSampleIDS()" data-i18n="parser.loadSample">Načíst ukázkový IDS</button>
+                    <button type="button" class="btn btn-success" onclick="event.stopPropagation(); openStoragePicker()" data-i18n="parser.loadFromStorage">📦 Načíst z úložiště</button>
                 </div>
                 <div class="error-message" id="errorMessage"></div>
             </div>
@@ -186,10 +186,10 @@
                 </div>
 
                 <div class="tabs">
-                    <button class="tab active" onclick="switchTab('visual')" data-i18n="parser.tabVisual">📊 Vizuální zobrazení</button>
-                    <button class="tab" onclick="switchTab('tree')" data-i18n="parser.tabTree">🌳 Stromová struktura</button>
-                    <button class="tab" onclick="switchTab('editor')" data-i18n="parser.tabEditor">✏️ Editor</button>
-                    <button class="tab" onclick="switchTab('raw')" data-i18n="parser.tabRaw">📝 Raw XML</button>
+                    <button type="button" class="tab active" onclick="switchTab('visual')" data-i18n="parser.tabVisual">📊 Vizuální zobrazení</button>
+                    <button type="button" class="tab" onclick="switchTab('tree')" data-i18n="parser.tabTree">🌳 Stromová struktura</button>
+                    <button type="button" class="tab" onclick="switchTab('editor')" data-i18n="parser.tabEditor">✏️ Editor</button>
+                    <button type="button" class="tab" onclick="switchTab('raw')" data-i18n="parser.tabRaw">📝 Raw XML</button>
                 </div>
 
                 <div id="visualTab" class="tab-content active">
@@ -203,13 +203,14 @@
 
                 <div id="editorTab" class="tab-content">
                     <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e9ecef; flex-wrap: wrap;">
-                        <button class="btn btn-secondary" id="createNewIdsBtn" data-i18n="parser.createNew">✨ Vytvořit nový IDS</button>
-                        <button class="btn btn-primary" id="toggleEditBtn" data-i18n="parser.editMode">✏️ Editační režim</button>
-                        <button class="btn btn-success" id="downloadIdsBtn" data-i18n="parser.download">💾 Stáhnout IDS</button>
+                        <button type="button" class="btn btn-secondary" id="createNewIdsBtn" data-i18n="parser.createNew">✨ Vytvořit nový IDS</button>
+                        <button type="button" class="btn btn-primary" id="toggleEditBtn" data-i18n="parser.editMode">✏️ Editační režim</button>
+                        <button type="button" class="btn btn-success" id="downloadIdsBtn" data-i18n="parser.download">💾 Stáhnout IDS</button>
                         <span class="btn-divider"></span>
-                        <button class="btn btn-excel" id="downloadTemplateBtn" data-i18n="parser.downloadTemplate">📋 Stáhnout šablonu</button>
-                        <button class="btn btn-excel" id="importExcelBtn" data-i18n="parser.importExcel">📥 Import z Excelu</button>
-                        <button class="btn btn-excel" id="exportExcelBtn" data-i18n="parser.exportExcel">📤 Export do Excelu</button>
+                        <button type="button" class="btn btn-excel" id="downloadTemplateBtn" data-i18n="parser.downloadTemplate">📋 Stáhnout šablonu</button>
+                        <button type="button" class="btn btn-excel" id="importExcelBtn" data-i18n="parser.importExcel">📥 Import z Excelu</button>
+                        <button type="button" class="btn btn-secondary" id="downloadImportReportBtn" data-i18n="parser.importReport" disabled>🧾 Protokol importu</button>
+                        <button type="button" class="btn btn-excel" id="exportExcelBtn" data-i18n="parser.exportExcel">📤 Export do Excelu</button>
                     </div>
                     <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
                     <div id="idsContent"></div>
@@ -246,6 +247,8 @@
                     <span class="footer-divider">•</span>
                     <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank" rel="noopener noreferrer" class="footer-link" data-i18n="footer.license">AGPL v3</a>
                     <span class="footer-divider">•</span>
+                    <a href="../PRIVACY.md" class="footer-link" data-i18n="footer.privacy">Soukromí</a>
+                    <span class="footer-divider">•</span>
                     <a href="https://michalmarvan.cz/contact" target="_blank" rel="noopener noreferrer" class="footer-link" data-i18n="footer.author">Autor</a>
                 </div>
             </div>
@@ -273,8 +276,8 @@
                 <p id="xsdExportWarning" style="margin-top: 1rem; color: var(--text-secondary);"></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="xsdExportCancel"></button>
-                <button type="button" class="btn btn-primary" id="xsdExportProceed"></button>
+                <button type="button" class="btn btn-secondary" id="xsdExportCancel" data-i18n="xsd.export.cancel">Zrušit</button>
+                <button type="button" class="btn btn-primary" id="xsdExportProceed" data-i18n="xsd.export.proceed">Přesto exportovat</button>
             </div>
         </div>
     </div>
@@ -291,9 +294,9 @@
                 <ul class="ids-auto-fix-list" id="idsAutoFixList"></ul>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="idsAutoFixIgnore"></button>
-                <button type="button" class="btn btn-secondary" id="idsAutoFixFixSelected"></button>
-                <button type="button" class="btn btn-primary" id="idsAutoFixFixAll"></button>
+                <button type="button" class="btn btn-secondary" id="idsAutoFixIgnore" data-i18n="editor.autoFix.ignore">Ignorovat</button>
+                <button type="button" class="btn btn-secondary" id="idsAutoFixFixSelected" data-i18n="editor.autoFix.fixSelected">Opravit vybrané</button>
+                <button type="button" class="btn btn-primary" id="idsAutoFixFixAll" data-i18n="editor.autoFix.fixAll">Opravit vše</button>
             </div>
         </div>
     </div>
@@ -303,7 +306,7 @@
         <div class="modal-container">
             <div class="modal-header">
                 <h2 data-i18n="parser.modalTitle">📦 Načíst IDS soubor z úložiště</h2>
-                <button class="modal-close" onclick="closeIdsStoragePicker()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeIdsStoragePicker()">&times;</button>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 15px; color: var(--text-secondary);" data-i18n="parser.selectFile">
@@ -317,15 +320,18 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeIdsStoragePicker()" data-i18n="btn.cancel">Zrušit</button>
-                <button class="btn btn-primary" onclick="loadSelectedIdsFromStorage()" data-i18n="parser.loadFile">Načíst soubor</button>
+                <button type="button" class="btn btn-secondary" onclick="closeIdsStoragePicker()" data-i18n="btn.cancel">Zrušit</button>
+                <button type="button" class="btn btn-primary" onclick="loadSelectedIdsFromStorage()" data-i18n="parser.loadFile">Načíst soubor</button>
             </div>
         </div>
     </div>
 
     <!-- Scripts -->
+    <script src="../assets/js/common/safe-html.js"></script>
+    <script src="../assets/js/common/service-registry.js"></script>
     <script src="../assets/js/common/translations.js"></script>
     <script src="../assets/js/common/i18n.js"></script>
+    <script src="../assets/js/common/dialog-accessibility.js"></script>
     <script src="../assets/js/common/error-handler.js"></script>
     <script src="../assets/js/common/bug-report.js"></script>
     <script src="../assets/js/common/compression.js"></script>
@@ -333,6 +339,7 @@
     <script src="../assets/js/common/property-set-index.js"></script>
     <script src="../assets/js/common/ifc-parser-core.js"></script>
     <script src="../assets/js/common/validation-presets.js"></script>
+    <script src="../assets/js/common/database-registry.js"></script>
     <script src="../assets/js/common/storage.js"></script>
     <script type="module" src="../assets/js/common/fs-handle-store.js"></script>
     <script src="../assets/js/common/local-folder-storage.js"></script>
@@ -351,6 +358,7 @@
     <script src="../assets/js/ids/ids-editor-modals.js"></script>
     <script src="../assets/js/ids/ids-editor-core.js"></script>
     <script src="../assets/js/vendor/xlsx.full.min.js"></script>
+    <script src="../assets/js/ids/ids-excel-format.js"></script>
     <script src="../assets/js/ids/ids-excel-parser.js"></script>
     <script src="../assets/js/ids/ids-excel-generator.js"></script>
     <script src="../assets/js/ids/ids-excel-template.js"></script>
@@ -359,7 +367,7 @@
     <script src="../assets/js/common/ifc-params.js"></script>
     <script src="../assets/js/common/ids-xsd-validator.js"></script>
     <script src="../assets/js/parser.js"></script>
-    <!-- Update Checker for desktop app -->
+    <!-- Optional web/PWA release checker -->
     <script type="module" src="../assets/js/common/update-checker.js"></script>
 
     <!-- Wizard -->

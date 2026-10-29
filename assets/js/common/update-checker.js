@@ -2,7 +2,7 @@
 /* Copyright (C) 2025 Michal Marvan */
 /**
  * Update Checker - kontroluje nové verze na GitHub Releases
- * Funguje v Tauri i ve webové verzi
+ * Určeno pro webovou/PWA verzi aplikace.
  */
 
 const UPDATE_CONFIG = {
@@ -48,6 +48,38 @@ function shouldCheckForUpdates() {
 }
 
 /**
+ * Minimální HTML escape (fail-safe, bez závislosti na safe-html.js)
+ * @param {string} text
+ * @returns {string}
+ */
+function escapeHtml(text) {
+    return String(text ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
+}
+
+/**
+ * Vrátí URL jen pokud je to https: odkaz na github.com, jinak null
+ * @param {string} url
+ * @returns {string|null}
+ */
+function sanitizeReleaseUrl(url) {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol === 'https:' && parsed.hostname === 'github.com') {
+            return parsed.href;
+        }
+    } catch {
+        // neplatná URL
+    }
+    return null;
+}
+
+/**
  * Zobrazí notifikaci o nové verzi
  * @param {string} version - nová verze
  * @param {string} releaseUrl - URL na GitHub release
@@ -58,6 +90,8 @@ function showUpdateNotification(version, releaseUrl, releaseNotes) {
     if (document.querySelector('.update-notification')) {
         return;
     }
+
+    const safeUrl = sanitizeReleaseUrl(releaseUrl);
 
     // Vytvoř notification element
     const notification = document.createElement('div');
@@ -70,11 +104,11 @@ function showUpdateNotification(version, releaseUrl, releaseNotes) {
                 <button class="update-notification-close" aria-label="Close" data-i18n-aria-label="update.close">&times;</button>
             </div>
             <div class="update-notification-body">
-                <p><strong>BIM Checker ${version}</strong></p>
-                ${releaseNotes ? `<p class="update-notification-notes">${releaseNotes.slice(0, 200)}${releaseNotes.length > 200 ? '...' : ''}</p>` : ''}
+                <p><strong>BIM Checker ${escapeHtml(version)}</strong></p>
+                ${releaseNotes ? `<p class="update-notification-notes">${escapeHtml(releaseNotes.slice(0, 200))}${releaseNotes.length > 200 ? '...' : ''}</p>` : ''}
             </div>
             <div class="update-notification-actions">
-                <a href="${releaseUrl}" target="_blank" rel="noopener noreferrer" class="update-notification-btn primary" data-i18n="update.download">Download new version</a>
+                ${safeUrl ? `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="update-notification-btn primary" data-i18n="update.download">Download new version</a>` : ''}
                 <button class="update-notification-btn secondary update-notification-later" data-i18n="update.later">Later</button>
             </div>
         </div>

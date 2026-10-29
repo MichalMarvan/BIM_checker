@@ -30,6 +30,8 @@ describe('Parallel Validation Integration', () => {
         expect(result.specification).toBe('Wall Check');
         expect(result.entityResults.length).toBe(1);
         expect(result.passCount).toBe(1);
+        expect(result.validatorVersion).toBe(ValidationEngine.VERSION);
+        expect(result.rulesVersion).toBe(ValidationEngine.RULES_VERSION);
     });
 
     it('should use RegexCache for repeated patterns', () => {
@@ -138,6 +140,43 @@ describe('Parallel Validation Integration', () => {
         const filtered = ValidationEngine.filterByApplicability(entities, applicability);
 
         expect(filtered.length).toBe(2);
+    });
+
+    it('should produce identical normalized results on the main thread and in a Worker', async () => {
+        const entities = [{
+            guid: 'worker-parity-wall',
+            entity: 'IFCWALL',
+            name: 'External Wall',
+            propertySets: { Pset_WallCommon: { FireRating: 'REI60', IsExternal: true } },
+            attributes: { Name: 'External Wall', GlobalId: 'worker-parity-wall' }
+        }];
+        const spec = {
+            name: 'Worker parity',
+            minOccurs: '1',
+            maxOccurs: 'unbounded',
+            ifcVersions: ['IFC4'],
+            applicability: [{ type: 'entity', name: { type: 'simple', value: 'IFCWALL' } }],
+            requirements: [{
+                type: 'property',
+                propertySet: { type: 'simple', value: 'Pset_WallCommon' },
+                name: { type: 'simple', value: 'FireRating' },
+                value: { type: 'simple', value: 'REI60' },
+                cardinality: 'required'
+            }]
+        };
+        const main = await ValidationEngine.validateBatch(entities, spec, { ifcSchema: 'IFC4' });
+        const pool = new WorkerPool({ size: 1, workerScript: '../assets/js/workers/validation.worker.js' });
+        try {
+            const worker = await Promise.race([
+                pool.submit('VALIDATE_BATCH', { entities, spec, ifcSchema: 'IFC4' }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Validation worker parity timeout')), 10000))
+            ]);
+            delete worker.startIndex;
+            delete worker.processedCount;
+            expect(JSON.stringify(worker)).toBe(JSON.stringify(main));
+        } finally {
+            pool.terminate();
+        }
     });
 
 });

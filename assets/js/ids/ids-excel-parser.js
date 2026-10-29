@@ -39,6 +39,29 @@ const IDSExcelParser = (function() {
         const psetsLookupData = _sheetToJson(workbook, 'psets_lookup');
         const elementPsetsData = _sheetToJson(workbook, 'element_psets');
 
+        const format = IDSExcelFormat.inspect(infoData);
+        if (format.marked && format.id !== IDSExcelFormat.ID) {
+            throw _fatal(`Unsupported Excel format '${format.id}'`, 'EXCEL_FORMAT_UNSUPPORTED');
+        }
+        if (format.version === null || format.version < IDSExcelFormat.LEGACY_VERSION) {
+            throw _fatal('Invalid IDS Excel format version', 'EXCEL_FORMAT_VERSION_INVALID');
+        }
+        if (format.version > IDSExcelFormat.CURRENT_VERSION) {
+            throw _fatal(
+                `This workbook uses newer IDS Excel format ${format.version}; this version supports up to ${IDSExcelFormat.CURRENT_VERSION}`,
+                'EXCEL_FORMAT_TOO_NEW'
+            );
+        }
+        if (!format.marked) {
+            warnings.push('Legacy unversioned workbook imported as format 1');
+        } else if (format.version < IDSExcelFormat.CURRENT_VERSION) {
+            warnings.push(`Workbook format ${format.version} migrated to ${IDSExcelFormat.CURRENT_VERSION} during import`);
+        }
+        const unknownSheets = workbook.SheetNames.filter(name => !ALL_SHEETS.includes(name));
+        if (unknownSheets.length) {
+            warnings.push(`Unknown sheets were ignored: ${unknownSheets.join(', ')}`);
+        }
+
         // Convert to IDS structure
         const info = _parseInfoSheet(infoData);
         const specifications = _parseSpecificationsSheet(specificationsData);
@@ -84,7 +107,91 @@ const IDSExcelParser = (function() {
             }))
         };
 
-        return { data: idsData, warnings };
+        const importedFacets = idsData.specifications.reduce((summary, specification) => {
+            summary.applicability += specification.applicability.length;
+            summary.requirements += specification.requirements.length;
+            return summary;
+        }, { applicability: 0, requirements: 0 });
+        const report = {
+            status: warnings.length ? 'warning' : 'ok',
+            sourceFormatVersion: format.version,
+            targetFormatVersion: IDSExcelFormat.CURRENT_VERSION,
+            migrated: !format.marked || format.version < IDSExcelFormat.CURRENT_VERSION,
+            idsSchemaVersion: format.idsSchemaVersion || IDSExcelFormat.IDS_SCHEMA_VERSION,
+            unknownSheets,
+            rows: {
+                info: infoData.length,
+                specifications: specificationsData.length,
+                applicability: applicabilityData.length,
+                requirements: requirementsData.length,
+                psets_lookup: psetsLookupData.length,
+                element_psets: elementPsetsData.length
+            },
+            imported: {
+                specifications: idsData.specifications.length,
+                ...importedFacets
+            },
+            skippedRows: warnings.filter(warning => /\bskipped\b/i.test(warning)).length
+        };
+
+        return { data: idsData, warnings, report };
+    }
+
+    /**
+     * Create an auditable report for one parsed workbook and validate its IDS XML.
+     * @param {{data: Object, warnings: string[], report: Object}} result
+     * @param {{name: string, size: number, lastModified?: number}} file
+     * @returns {Promise<Object>}
+     */
+    async function createImportReport(result, file) {
+        const xsd = {
+            available: typeof IDSXMLGenerator !== 'undefined'
+                && Boolean(window.IDSXSDValidator)
+                && typeof window.IDSXSDValidator.validate === 'function',
+            checked: false,
+            valid: null,
+            errorCount: 0,
+            errors: [],
+            runtimeError: null
+        };
+        if (xsd.available) {
+            try {
+                const xml = new IDSXMLGenerator().generateIDS(result.data);
+                const validation = await window.IDSXSDValidator.validate(xml);
+                xsd.checked = true;
+                xsd.valid = validation.valid;
+                xsd.errors = validation.errors || [];
+                xsd.errorCount = xsd.errors.length;
+            } catch (error) {
+                xsd.runtimeError = error.message;
+                xsd.errors = [{ line: null, column: null, severity: 'error', message: error.message }];
+                xsd.errorCount = 1;
+            }
+        }
+
+        return {
+            ...result.report,
+            format: 'BIM_CHECKER_IDS_EXCEL_IMPORT_REPORT',
+            formatVersion: 1,
+            importedAt: new Date().toISOString(),
+            source: {
+                name: file.name,
+                size: file.size,
+                lastModified: file.lastModified || null
+            },
+            status: xsd.runtimeError
+                ? 'validation-error'
+                : (xsd.checked && !xsd.valid ? 'invalid' : result.report.status),
+            warnings: [...result.warnings],
+            xsd
+        };
+    }
+
+    function _fatal(message, code) {
+        const error = new Error(message);
+        error.code = code;
+        error.fatal = true;
+        return error;
     }
 
     /**
@@ -157,8 +264,12 @@ const IDSExcelParser = (function() {
     }
 
     function _normaliseDate(value) {
-        if (!value) return '';
-        if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+        if (!value) {
+            return '';
+        }
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return value.toISOString().slice(0, 10);
+        }
         if (typeof value === 'number' && typeof XLSX !== 'undefined' && XLSX.SSF?.parse_date_code) {
             const date = XLSX.SSF.parse_date_code(value);
             if (date) {
@@ -170,7 +281,9 @@ const IDSExcelParser = (function() {
 
     function _parseJsonValue(row, column, warnings, context) {
         const raw = row[column];
-        if (raw === undefined || raw === null || raw === '') return undefined;
+        if (raw === undefined || raw === null || raw === '') {
+            return undefined;
+        }
         try {
             return typeof raw === 'string' ? JSON.parse(raw) : raw;
         } catch {
@@ -180,19 +293,27 @@ const IDSExcelParser = (function() {
     }
 
     function _simpleValue(value) {
-        if (value === undefined || value === null || value === '') return null;
+        if (value === undefined || value === null || value === '') {
+            return null;
+        }
         return { type: 'simple', value: String(value) };
     }
 
     function _readValue(row, jsonColumn, legacyValue, legacyType, warnings, context) {
         const exact = _parseJsonValue(row, jsonColumn, warnings, context);
-        if (exact !== undefined) return exact;
+        if (exact !== undefined) {
+            return exact;
+        }
         return _parseValueFromExcel(legacyValue, legacyType || 'simple');
     }
 
     function _valueText(value) {
-        if (typeof value === 'string') return value;
-        if (value?.type === 'simple' || value?.type === 'simpleValue') return String(value.value ?? '');
+        if (typeof value === 'string') {
+            return value;
+        }
+        if (value?.type === 'simple' || value?.type === 'simpleValue') {
+            return String(value.value ?? '');
+        }
         return '';
     }
 
@@ -206,7 +327,9 @@ const IDSExcelParser = (function() {
             };
         } else if (facetType === 'partof' || facetType === 'part_of') {
             let entity = _parseJsonValue(row, 'entity_json', warnings, context);
-            if (typeof entity === 'string') entity = { type: 'entity', name: _simpleValue(entity) };
+            if (typeof entity === 'string') {
+                entity = { type: 'entity', name: _simpleValue(entity) };
+            }
             if (!entity) {
                 entity = {
                     type: 'entity',
@@ -265,8 +388,12 @@ const IDSExcelParser = (function() {
             }
             facet.cardinality = cardinality;
         }
-        if (isRequirement && row.instructions) facet.instructions = String(row.instructions);
-        if (isRequirement && row.uri && ['property', 'classification', 'material'].includes(facet.type)) facet.uri = String(row.uri);
+        if (isRequirement && row.instructions) {
+            facet.instructions = String(row.instructions);
+        }
+        if (isRequirement && row.uri && ['property', 'classification', 'material'].includes(facet.type)) {
+            facet.uri = String(row.uri);
+        }
         return facet;
     }
 
@@ -281,7 +408,9 @@ const IDSExcelParser = (function() {
             const row = applicabilityData[i];
             const specId = String(row.spec_id || '').trim();
 
-            if (!specId) continue;
+            if (!specId) {
+                continue;
+            }
 
             if (!specMap.has(specId)) {
                 warnings.push(`Row ${i + 2} in applicability: Unknown spec_id '${specId}' - skipped`);
@@ -292,7 +421,9 @@ const IDSExcelParser = (function() {
             const spec = specMap.get(specId);
 
             const facet = _parseFacetRow(row, facetType, false, warnings, `Row ${i + 2} in applicability`);
-            if (facet) spec.applicability.push(facet);
+            if (facet) {
+                spec.applicability.push(facet);
+            }
         }
     }
 
@@ -323,7 +454,9 @@ const IDSExcelParser = (function() {
             const spec = specMap.get(specId);
             const facetType = (row.facet_type || '').toLowerCase();
             const facet = _parseFacetRow(row, facetType, true, warnings, `Row ${i + 2} in requirements`);
-            if (facet) spec.requirements.push(facet);
+            if (facet) {
+                spec.requirements.push(facet);
+            }
         }
     }
 
@@ -341,7 +474,9 @@ const IDSExcelParser = (function() {
             const psetName = String(row.pset_name || '').trim();
             const propName = String(row.property_name || '').trim();
 
-            if (!psetName || !propName) continue;
+            if (!psetName || !propName) {
+                continue;
+            }
 
             const catalogSpecId = String(row.spec_id || '').trim();
             const key = `${catalogSpecId}|${psetName}`;
@@ -363,7 +498,9 @@ const IDSExcelParser = (function() {
             const specId = String(row.spec_id || '').trim();
             const psetName = String(row.pset_name || '').trim();
 
-            if (!specId || !psetName) continue;
+            if (!specId || !psetName) {
+                continue;
+            }
 
             if (!specMap.has(specId)) {
                 warnings.push(`Row ${i + 2} in element_psets: Unknown spec_id '${specId}' - skipped`);
@@ -382,23 +519,37 @@ const IDSExcelParser = (function() {
             const hasDirectProperties = spec.requirements.some(requirement =>
                 requirement.type === 'property' && _valueText(requirement.propertySet) === psetName
             );
-            if (hasDirectProperties) continue;
+            if (hasDirectProperties) {
+                continue;
+            }
 
             const properties = psetCatalog.get(catalogKey);
             const valueOverride = row.value_override || '';
-            const cardinality = row.cardinality || 'required';
+            // Validate/normalize like the facet path so invalid values surface as an
+            // import warning here instead of an export-time throw in the XML generator.
+            let cardinality = String(row.cardinality || 'required').toLowerCase();
+            if (!['required', 'optional', 'prohibited'].includes(cardinality)) {
+                warnings.push(`Row ${i + 2} in element_psets: Invalid cardinality '${cardinality}' changed to 'required'`);
+                cardinality = 'required';
+            }
 
             // Add each property as a requirement
             for (const prop of properties) {
                 const valueStr = valueOverride || prop.value;
                 const valueType = valueOverride ? 'simple' : prop.valueType;
 
+                let dataType = prop.dataType ? String(prop.dataType).toUpperCase() : null;
+                if (dataType && !/^[A-Z0-9]+$/.test(dataType)) {
+                    warnings.push(`Row ${i + 2} in element_psets: Invalid dataType '${prop.dataType}' for '${prop.name}' - dropped`);
+                    dataType = null;
+                }
+
                 const reqFacet = {
                     type: 'property',
                     propertySet: { type: 'simple', value: psetName },
                     baseName: { type: 'simple', value: prop.name },
                     value: _parseValueFromExcel(valueStr, valueType),
-                    dataType: prop.dataType || null,
+                    dataType: dataType,
                     cardinality: cardinality
                 };
                 if (prop.uri) {
@@ -477,9 +628,11 @@ const IDSExcelParser = (function() {
 
     // Public API
     return {
+        FORMAT_VERSION: IDSExcelFormat.CURRENT_VERSION,
         REQUIRED_SHEETS,
         ALL_SHEETS,
         parse,
+        createImportReport,
         // Expose private methods for testing
         _parseInfoSheet,
         _parseSpecificationsSheet,

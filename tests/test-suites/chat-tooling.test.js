@@ -15,10 +15,10 @@ describe('ai/chat-tooling — tool filtering for agents', () => {
         expect(result.map(d => d.function.name).includes('list_storage_files')).toBe(true);
     });
 
-    it('cloud provider with no explicit selection gets the full toolset', () => {
+    it('cloud provider with no explicit selection gets no local-data tools', () => {
         const agent = { provider: 'google', enabledTools: null };
         const result = tooling.resolveToolsForAgent(agent, 'https://generativelanguage.googleapis.com/v1beta/openai');
-        expect(result.length).toBe(defs.length);
+        expect(result.length).toBe(0);
     });
 
     it('local provider (ollama) with no explicit selection gets the slim default set', () => {

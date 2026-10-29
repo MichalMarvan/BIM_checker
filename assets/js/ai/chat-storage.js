@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2025 Michal Marvan */
-function _t(key) { return (typeof window.t === 'function') ? window.t(key) : key; }
+function _t(key) {
+    return (typeof window.t === 'function') ? window.t(key) : key;
+}
 const DB_NAME = 'bim_checker_storage';
 const STORE = 'storage';
 
@@ -8,11 +10,14 @@ const KEY_AGENTS    = 'ai_agents';
 const KEY_SETTINGS  = 'ai_settings';
 const KEY_THREADS   = 'ai_threads';
 const KEY_MSGS_PFX  = 'ai_messages_';
+const SESSION_API_KEY_PFX = 'bim_checker_ai_api_key:';
 
 let _dbPromise = null;
 
 function _openDB() {
-    if (_dbPromise) return _dbPromise;
+    if (_dbPromise) {
+        return _dbPromise;
+    }
     _dbPromise = new Promise((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, 1);
         req.onerror = () => reject(req.error);
@@ -61,9 +66,54 @@ function _genId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function _readSessionApiKey(id) {
+    try {
+        return sessionStorage.getItem(SESSION_API_KEY_PFX + id) || '';
+    } catch {
+        return '';
+    }
+}
+
+function _writeSessionApiKey(id, apiKey) {
+    try {
+        const key = SESSION_API_KEY_PFX + id;
+        if (apiKey) {
+            sessionStorage.setItem(key, String(apiKey));
+        } else {
+            sessionStorage.removeItem(key);
+        }
+    } catch {
+        // Some private browsing modes disable sessionStorage. The agent can
+        // still be saved, but the secret intentionally is not persisted.
+    }
+}
+
+function _removeSessionApiKey(id) {
+    _writeSessionApiKey(id, '');
+}
+
+async function _persistAgents(list) {
+    const sanitized = list.map(({ apiKey: _secret, ...agent }) => agent);
+    await _put(KEY_AGENTS, sanitized);
+}
+
 // Agents CRUD
 export async function listAgents() {
-    return (await _get(KEY_AGENTS)) || [];
+    const stored = (await _get(KEY_AGENTS)) || [];
+    let migratedLegacySecrets = false;
+    for (const agent of stored) {
+        if (Object.prototype.hasOwnProperty.call(agent, 'apiKey')) {
+            _writeSessionApiKey(agent.id, agent.apiKey);
+            migratedLegacySecrets = true;
+        }
+    }
+    if (migratedLegacySecrets) {
+        await _persistAgents(stored);
+    }
+    return stored.map(({ apiKey: _legacySecret, ...agent }) => ({
+        ...agent,
+        apiKey: _readSessionApiKey(agent.id)
+    }));
 }
 
 export async function getAgent(id) {
@@ -73,22 +123,30 @@ export async function getAgent(id) {
 
 export async function saveAgent(data) {
     const name = String(data.name || '').trim();
-    if (name.length === 0) throw new Error('Agent name required');
+    if (name.length === 0) {
+        throw new Error('Agent name required');
+    }
 
     const list = await listAgents();
     const now = Date.now();
 
     if (data.id) {
         const idx = list.findIndex(a => a.id === data.id);
-        if (idx === -1) throw new Error('Agent not found');
+        if (idx === -1) {
+            throw new Error('Agent not found');
+        }
         const merged = {
             ...list[idx],
             ...data,
             name,
             updatedAt: now
         };
+        if (Object.prototype.hasOwnProperty.call(data, 'apiKey')) {
+            _writeSessionApiKey(merged.id, data.apiKey);
+            merged.apiKey = String(data.apiKey || '');
+        }
         list[idx] = merged;
-        await _put(KEY_AGENTS, list);
+        await _persistAgents(list);
         return merged.id;
     }
 
@@ -99,27 +157,31 @@ export async function saveAgent(data) {
         icon: data.icon || '🤖',
         provider: data.provider || 'google',
         baseUrl: data.baseUrl || '',
-        apiKey: data.apiKey || '',
         model: data.model || '',
         systemPrompt: data.systemPrompt || '',
         temperature: typeof data.temperature === 'number' ? data.temperature : 0.7,
-        enabledTools: data.enabledTools || null,
+        enabledTools: Array.isArray(data.enabledTools) ? data.enabledTools : null,
         isFavorite: data.isFavorite !== false,
         favoriteOrder: typeof data.favoriteOrder === 'number' ? data.favoriteOrder : list.length,
         createdAt: now,
         updatedAt: now
     };
+    _writeSessionApiKey(id, data.apiKey);
+    agent.apiKey = String(data.apiKey || '');
     list.push(agent);
-    await _put(KEY_AGENTS, list);
+    await _persistAgents(list);
     return id;
 }
 
 export async function deleteAgent(id) {
     const list = await listAgents();
     const idx = list.findIndex(a => a.id === id);
-    if (idx === -1) return false;
+    if (idx === -1) {
+        return false;
+    }
     list.splice(idx, 1);
-    await _put(KEY_AGENTS, list);
+    await _persistAgents(list);
+    _removeSessionApiKey(id);
     // Cascading delete: threads + messages (listThreads is still a stub in this task — returns [])
     const threads = await listThreads(id);
     for (const t of threads) {
@@ -134,11 +196,15 @@ export async function deleteAgent(id) {
 export async function setFavorite(id, isFavorite, order) {
     const list = await listAgents();
     const agent = list.find(a => a.id === id);
-    if (!agent) return;
+    if (!agent) {
+        return;
+    }
     agent.isFavorite = !!isFavorite;
-    if (typeof order === 'number') agent.favoriteOrder = order;
+    if (typeof order === 'number') {
+        agent.favoriteOrder = order;
+    }
     agent.updatedAt = Date.now();
-    await _put(KEY_AGENTS, list);
+    await _persistAgents(list);
 }
 
 export async function listFavorites() {
@@ -194,7 +260,9 @@ export async function createThread(agentId, firstMessage) {
 export async function deleteThread(id) {
     const all = (await _get(KEY_THREADS)) || [];
     const idx = all.findIndex(t => t.id === id);
-    if (idx === -1) return false;
+    if (idx === -1) {
+        return false;
+    }
     all.splice(idx, 1);
     await _put(KEY_THREADS, all);
     await _delete(KEY_MSGS_PFX + id);
@@ -204,7 +272,9 @@ export async function deleteThread(id) {
 export async function updateThreadTitle(id, title) {
     const all = (await _get(KEY_THREADS)) || [];
     const t = all.find(x => x.id === id);
-    if (!t) return;
+    if (!t) {
+        return;
+    }
     t.title = String(title).slice(0, 60);
     t.updatedAt = Date.now();
     await _put(KEY_THREADS, all);
@@ -250,4 +320,7 @@ function _defaultSettings() {
 }
 
 // Internal exports for tests (not part of public API)
-export const _internals = { _get, _put, _delete, _genId, KEY_AGENTS, KEY_SETTINGS, KEY_THREADS, KEY_MSGS_PFX };
+export const _internals = {
+    _get, _put, _delete, _genId, _readSessionApiKey, _removeSessionApiKey,
+    KEY_AGENTS, KEY_SETTINGS, KEY_THREADS, KEY_MSGS_PFX, SESSION_API_KEY_PFX
+};

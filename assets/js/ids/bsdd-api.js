@@ -13,6 +13,7 @@ const BsddApi = {
     _debounceTimer: null,
     DEBOUNCE_MS: 300,
     CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
+    RETRY_AFTER_CAP_MS: 4000, // never wait longer than this on a 429
 
     /**
      * Build URL for text search.
@@ -36,7 +37,36 @@ const BsddApi = {
     },
 
     /**
-     * Fetch with caching.
+     * Parse the Retry-After header (seconds or HTTP date) into a delay,
+     * capped at RETRY_AFTER_CAP_MS.
+     */
+    _retryAfterMs(response) {
+        const header = response.headers.get('Retry-After');
+        let ms = NaN;
+        if (header) {
+            const seconds = Number(header);
+            ms = Number.isFinite(seconds)
+                ? seconds * 1000
+                : new Date(header).getTime() - Date.now();
+        }
+        if (!Number.isFinite(ms) || ms < 0) {
+            ms = 1000;
+        }
+        return Math.min(ms, this.RETRY_AFTER_CAP_MS);
+    },
+
+    _rateLimitError() {
+        const error = new Error('bSDD API error: 429 Too Many Requests');
+        error.name = 'BsddRateLimitError';
+        error.status = 429;
+        return error;
+    },
+
+    /**
+     * Fetch with caching. A 429 gets a single retry after the server's
+     * Retry-After delay; a persistent 429 throws a BsddRateLimitError so
+     * the UI can tell rate limiting apart from a network failure.
+     * Only 2xx responses are cached.
      */
     async _fetchCached(apiPath) {
         const cached = this._cache.get(apiPath);
@@ -44,9 +74,19 @@ const BsddApi = {
             return cached.data;
         }
 
-        const response = await fetch(`${this.BASE_URL}${apiPath}`, {
+        let response = await fetch(`${this.BASE_URL}${apiPath}`, {
             headers: { 'Accept': 'application/json' }
         });
+
+        if (response.status === 429) {
+            await new Promise(resolve => setTimeout(resolve, this._retryAfterMs(response)));
+            response = await fetch(`${this.BASE_URL}${apiPath}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (response.status === 429) {
+                throw this._rateLimitError();
+            }
+        }
 
         if (!response.ok) {
             throw new Error(`bSDD API error: ${response.status} ${response.statusText}`);
@@ -67,7 +107,9 @@ const BsddApi = {
         return new Promise((resolve, reject) => {
             clearTimeout(this._debounceTimer);
             if (this._pendingReject) {
-                this._pendingReject(new Error('Debounced: superseded by newer call'));
+                const superseded = new Error('Debounced: superseded by newer call');
+                superseded.name = 'SupersededError';
+                this._pendingReject(superseded);
             }
             this._pendingReject = reject;
             this._debounceTimer = setTimeout(async () => {
@@ -94,16 +136,32 @@ const BsddApi = {
         if (!query || query.length < 2) return [];
         const apiPath = this._buildSearchUrl(query, dictionaryUri);
         const data = await this._fetchCached(apiPath);
-        const classes = dictionaryUri
-            ? ((data.dictionary || {}).classes || [])
-            : (data.classes || []);
+        // SearchInDictionary/v1 delivers a proper dictionary name;
+        // TextSearch/v2 classes only carry dictionaryUri, so derive a label.
+        const dictionary = dictionaryUri ? (data.dictionary || {}) : null;
+        const classes = dictionary ? (dictionary.classes || []) : (data.classes || []);
         return classes.map(cls => ({
             name: cls.name,
             code: cls.code || cls.referenceCode || '',
             uri: cls.uri,
-            dictionaryName: cls.dictionaryUri || dictionaryUri || '',
+            dictionaryName: (dictionary && dictionary.name)
+                || this._dictionaryLabel(cls.dictionaryUri || dictionaryUri),
             dictionaryUri: cls.dictionaryUri || dictionaryUri || ''
         }));
+    },
+
+    /**
+     * Turn a dictionary URI into a readable label, e.g.
+     * https://identifier.buildingsmart.org/uri/buildingsmart/ifc/4.3 -> buildingsmart/ifc/4.3
+     */
+    _dictionaryLabel(uri) {
+        if (!uri) return '';
+        try {
+            const parsed = new URL(uri);
+            return parsed.pathname.replace(/^\/uri\//, '').replace(/^\//, '') || parsed.host;
+        } catch {
+            return String(uri);
+        }
     },
 
     /**

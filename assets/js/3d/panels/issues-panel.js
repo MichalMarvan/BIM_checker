@@ -177,7 +177,7 @@ export default class IssuesPanel {
                 this._msg('Žádné issues k exportu.', 'warn');
                 return;
             }
-            const JSZip = await import('https://esm.sh/jszip@3.10.1').then((m) => m.default);
+            const JSZip = await import('../../vendor/optional/jszip.js').then((m) => m.default);
             const zip = new JSZip();
             zip.file('bcf.version', '<Version VersionId="2.1"><DetailedVersion>2.1</DetailedVersion></Version>');
             list.forEach((it) => {
@@ -198,7 +198,7 @@ export default class IssuesPanel {
             return;
         }
         try {
-            const JSZip = await import('https://esm.sh/jszip@3.10.1').then((m) => m.default);
+            const JSZip = await import('../../vendor/optional/jszip.js').then((m) => m.default);
             const zip = await JSZip.loadAsync(file);
             const list = load();
             let added = 0;

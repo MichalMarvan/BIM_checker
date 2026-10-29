@@ -425,12 +425,7 @@ class FilePanel {
 
     // Escape HTML to prevent XSS
     escapeHtml(str) {
-        if (typeof str !== 'string') {
-            return str;
-        }
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        return window.BIMSafeHTML.escapeHtml(str);
     }
 
     // Attach event listeners after rendering (replaces inline handlers)

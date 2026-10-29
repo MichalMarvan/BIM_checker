@@ -189,6 +189,19 @@ describe('Storage Module', () => {
         expect(file.content).toBe('version 2');
     });
 
+    it('should preserve same-name IFC revisions when allowDuplicate is requested', async () => {
+        await BIMStorage.init();
+        const name = 'revision-copy.ifc';
+        const id1 = await BIMStorage.saveFile('ifc', { name, content: 'revision 1', size: 10 }, 'root', { allowDuplicate: true });
+        const id2 = await BIMStorage.saveFile('ifc', { name, content: 'revision 2', size: 10 }, 'root', { allowDuplicate: true });
+        const matches = (await BIMStorage.getFiles('ifc')).filter(file => file.name === name);
+
+        expect(id1 === id2).toBe(false);
+        expect(matches.length).toBe(2);
+        expect(await BIMStorage.getFileContent('ifc', id1)).toBe('revision 1');
+        expect(await BIMStorage.getFileContent('ifc', id2)).toBe('revision 2');
+    });
+
     it('should maintain separate storage for IFC and IDS', async () => {
         await BIMStorage.init();
 

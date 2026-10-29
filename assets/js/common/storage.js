@@ -8,6 +8,9 @@
 // =======================
 // INDEXEDDB WRAPPER
 // =======================
+const PROJECT_DATABASE = window.BIMDatabaseRegistry?.get('projectStorage')
+    || { name: 'bim_checker_storage', version: 1 };
+
 class IndexedDBStorage {
     constructor(dbName) {
         this.dbName = dbName;
@@ -16,7 +19,7 @@ class IndexedDBStorage {
 
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 1);
+            const request = indexedDB.open(this.dbName, PROJECT_DATABASE.version);
 
             request.onerror = () => reject(request.error);
             request.onsuccess = () => {
@@ -474,7 +477,7 @@ class StorageManager {
 // Initialize storage DB helper for pages that need direct access
 async function initStorageDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open('bim_checker_storage', 1);
+        const request = indexedDB.open(PROJECT_DATABASE.name, PROJECT_DATABASE.version);
 
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
@@ -523,17 +526,20 @@ class IndexedDBStorageBackend {
         return true;
     }
 
-    async saveFile(type, file, folderId = 'root') {
+    async saveFile(type, file, folderId = 'root', options = {}) {
         if (!this.initialized) {
             await this.init();
         }
 
         const storage = this._storageFor(type);
 
-        // Check for duplicate file name and delete it first (overwrite behavior)
-        const existingFile = await this.getFile(type, file.name);
-        if (existingFile) {
-            await storage.deleteFile(existingFile.id);
+        // Default UI behavior remains overwrite-by-name. Multi-model workflows
+        // can explicitly preserve revisions with the same file name.
+        if (!options.allowDuplicate) {
+            const existingFiles = (await this.getFiles(type)).filter(item => item.name === file.name);
+            for (const existingFile of existingFiles) {
+                await storage.deleteFile(existingFile.id);
+            }
         }
 
         return await storage.addFile(file, folderId);
@@ -729,8 +735,8 @@ window.BIMStorage = {
         return await _activeBackend.init();
     },
 
-    async saveFile(type, file, folderId = 'root') {
-        return await _activeBackend.saveFile(type, file, folderId);
+    async saveFile(type, file, folderId = 'root', options = {}) {
+        return await _activeBackend.saveFile(type, file, folderId, options);
     },
 
     // Fire-and-forget persistence for files brought in via drag-drop / file picker.
@@ -796,3 +802,4 @@ window.BIMStorage = {
         return await _activeBackend.moveFile(type, fileId, targetFolderId);
     }
 };
+window.BIMServices?.register('storage', window.BIMStorage, { local: true, version: 1 });

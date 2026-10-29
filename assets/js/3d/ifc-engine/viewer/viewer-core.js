@@ -8,6 +8,7 @@ import { PostPipeline } from './post/pipeline.js';
 import { EdgesPass } from './post/edges-pass.js';
 import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
+import { detectProductTypes } from '../parser/product-detect.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
 import { HIDDEN_PRODUCT_TYPES } from '../constants.js';
 import { selectAt, isPickable, isClippedOut } from './selection.js';
@@ -621,16 +622,48 @@ export class ViewerCore {
     });
 
     const candidates = [];
-    for (const ifcType of entityIndex.types()) {
+    const productTypes = detectProductTypes(entityIndex);
+    const geometryStats = {
+      productCount: 0,
+      renderedElementCount: 0,
+      elementsWithoutGeometry: 0,
+      unsupportedRepresentationTypes: [],
+      fallbackGeometryCount: 0,
+      exactBooleanDifferenceCount: 0,
+      recursionLimitCount: 0,
+      invalidReferenceCount: 0,
+      outlierItemCount: 0,
+      geometryWarningCount: 0,
+    };
+    const unsupportedTypes = new Set();
+    for (const ifcType of productTypes) {
       // Openings are subtracted volumes, spaces are room air — rendering
       // either as solids hides the actual construction (see constants.js).
       if (HIDDEN_PRODUCT_TYPES.has(ifcType)) continue;
       const entities = entityIndex.byType(ifcType);
+      geometryStats.productCount += entities.length;
       const typeColor = IFC_TYPE_COLORS[ifcType] ?? DEFAULT_COLOR;
       for (const entity of entities) {
         await maybeYield();
         const result = buildEntityGeometry(entityIndex, entity.expressId);
-        if (!result || result.items.length === 0) continue;
+        if (!result || result.items.length === 0) {
+          geometryStats.elementsWithoutGeometry += 1;
+          if (result?.diagnostics) {
+            for (const type of result.diagnostics.unsupportedRepresentationTypes) unsupportedTypes.add(type);
+            geometryStats.fallbackGeometryCount += result.diagnostics.fallbackGeometryCount;
+            geometryStats.exactBooleanDifferenceCount += result.diagnostics.exactBooleanDifferenceCount;
+            geometryStats.recursionLimitCount += result.diagnostics.recursionLimitCount;
+            geometryStats.invalidReferenceCount += result.diagnostics.invalidReferenceCount;
+          }
+          continue;
+        }
+        if (result.diagnostics) {
+          for (const type of result.diagnostics.unsupportedRepresentationTypes) unsupportedTypes.add(type);
+          geometryStats.fallbackGeometryCount += result.diagnostics.fallbackGeometryCount;
+          geometryStats.exactBooleanDifferenceCount += result.diagnostics.exactBooleanDifferenceCount;
+          geometryStats.recursionLimitCount += result.diagnostics.recursionLimitCount;
+          geometryStats.invalidReferenceCount += result.diagnostics.invalidReferenceCount;
+        }
         for (const item of result.items) {
           if (!item.bufferGeometry.boundingBox) item.bufferGeometry.computeBoundingBox();
           const bb = item.bufferGeometry.boundingBox;
@@ -646,6 +679,14 @@ export class ViewerCore {
     const cap = Math.max(medianExt * 100, 1000 / Math.max(lengthScale, 1e-6));
     const accepted = sortedExt.length > 0 ? candidates.filter(c => c.ext <= cap) : candidates;
     const skipped = candidates.length - accepted.length;
+    geometryStats.outlierItemCount = skipped;
+    geometryStats.renderedElementCount = new Set(accepted.map(c => c.entity.expressId)).size;
+    geometryStats.unsupportedRepresentationTypes = [...unsupportedTypes].sort();
+    geometryStats.geometryWarningCount = geometryStats.unsupportedRepresentationTypes.length
+      + geometryStats.fallbackGeometryCount
+      + geometryStats.recursionLimitCount
+      + geometryStats.invalidReferenceCount
+      + geometryStats.outlierItemCount;
     if (skipped > 0) {
       console.warn(`[viewer] addModel: skipped ${skipped} outlier mesh items (extent > ${cap.toFixed(0)}, median ${medianExt.toFixed(2)})`);
     }
@@ -676,12 +717,13 @@ export class ViewerCore {
           elementsByType: new Map(),
           featureEdges: [],
           featureEdgesMaterial: null,
+          geometryStats,
         });
         this._recomputeSceneBbox();
         return;
       }
       if (built) {
-        this._finishMergedModel(modelId, built, group, innerGroup);
+        this._finishMergedModel(modelId, built, group, innerGroup, geometryStats);
       }
       return;
     }
@@ -780,6 +822,7 @@ export class ViewerCore {
       group, innerGroup, meshes,
       featureEdges: featureEdgesList,
       featureEdgesMaterial,
+      geometryStats,
     });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
     this._recomputeSceneBbox();
@@ -807,7 +850,7 @@ export class ViewerCore {
    * scene graph and register the model record. Called by addModel (fresh
    * build) and addModelFromCache (deserialized .bimcache).
    */
-  _finishMergedModel(modelId, built, group, innerGroup) {
+  _finishMergedModel(modelId, built, group, innerGroup, geometryStats = null) {
     built.mesh.userData = { modelId, merged: true, mergedTable: built.table };
     built.mesh.layers.enable(NORMAL_PASS_LAYER);  // include in the normal pass
     innerGroup.add(built.mesh);
@@ -849,6 +892,7 @@ export class ViewerCore {
       elementsByType: built.elementsByType,
       featureEdges: mergedFeatureEdges,
       featureEdgesMaterial: mergedEdgeMaterial,
+      geometryStats,
     });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
     this._recomputeSceneBbox();
@@ -894,7 +938,7 @@ export class ViewerCore {
       edgePositions: (payload.edgePositions && payload.edgePositions.length > 0) ? payload.edgePositions : null,
       edgesTable: payload.edgesTable || [],
     };
-    this._finishMergedModel(modelId, built, group, innerGroup);
+    this._finishMergedModel(modelId, built, group, innerGroup, payload.meta?.geometry || null);
   }
 
   /**

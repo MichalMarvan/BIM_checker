@@ -123,7 +123,12 @@
         if (value === '.U.') return null;
         const enumValue = unwrapEnum(value);
         if (enumValue !== null) return enumValue;
-        if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value)) return Number(value);
+        // Lenient STEP tokenizers treat stray control characters as insignificant
+        // between tokens; some exporters emit them inside real literals, e.g.
+        // IFCREAL(\x16\x160.000001). Strip them before the numeric test so such
+        // values parse as numbers rather than falling through as raw strings.
+        const numeric = value.replace(/[\x00-\x1f\x7f]/g, '');
+        if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(numeric)) return Number(numeric);
         return value;
     }
 

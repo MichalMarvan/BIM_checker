@@ -12,7 +12,22 @@ export function getEffectiveEndpoint(agent) {
     return agent.baseUrl || (PROVIDERS[agent.provider]?.endpoint || '');
 }
 
+export function isLocalEndpoint(endpoint) {
+    try {
+        const url = new URL(endpoint);
+        const host = url.hostname.toLowerCase();
+        return host === 'localhost' || host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host);
+    } catch {
+        return false;
+    }
+}
+
 export function validateUrl(url) {
     if (!url) return false;
-    return /^https?:\/\//.test(url);
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:' || (parsed.protocol === 'http:' && isLocalEndpoint(url));
+    } catch {
+        return false;
+    }
 }

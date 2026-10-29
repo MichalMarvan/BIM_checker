@@ -147,6 +147,8 @@ export class IfcEngine {
       this._models.set(modelId, { meta, index });
       if (this._viewer) {
         await this._viewer.addModel(modelId, index, { lengthScale });
+        const geometryStats = this._viewer._models.get(modelId)?.geometryStats;
+        if (geometryStats) meta.geometry = { ...geometryStats };
         this._viewer._emit('modelLoaded', { modelId, stats: { ...meta } });
       }
       const t4 = performance.now();

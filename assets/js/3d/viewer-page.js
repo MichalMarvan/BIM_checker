@@ -22,8 +22,8 @@ const state = {
     canvas: null,
     loadedModels: new Map(),  // modelId → { name, stats }
     federationAnchor: null    // [x, y, z] world coords of FIRST model's bbox center
-                              // Subsequent loads shift by the SAME anchor so models
-                              // keep their real-world relative positions.
+    // Subsequent loads shift by the SAME anchor so models
+    // keep their real-world relative positions.
 };
 
 const IFC_VIEWER_HANDOFF_PREFIX = 'bim-ifc-viewer-handoff';
@@ -35,17 +35,23 @@ function t(key) {
 let _statusHideTimer = null;
 function setStatus(msg, kind = 'info') {
     const el = document.getElementById('viewer3dStatus');
-    if (!el) return;
+    if (!el) {
+        return;
+    }
     el.textContent = msg;
     el.dataset.kind = kind;
     el.hidden = !msg;
     // Success confirmations are transient — they used to stick around forever
     // (e.g. the green "model loaded" pill). Auto-hide after a moment.
-    if (_statusHideTimer) { clearTimeout(_statusHideTimer); _statusHideTimer = null; }
+    if (_statusHideTimer) {
+        clearTimeout(_statusHideTimer); _statusHideTimer = null;
+    }
     if (kind === 'success') {
         _statusHideTimer = setTimeout(() => {
             _statusHideTimer = null;
-            if (el.dataset.kind === 'success') el.hidden = true;
+            if (el.dataset.kind === 'success') {
+                el.hidden = true;
+            }
         }, 4000);
     }
 }
@@ -57,18 +63,32 @@ function escapeHtml(s) {
 }
 
 function formatBytes(b) {
-    if (!b) return '0 B';
-    if (b < 1024) return `${b} B`;
-    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    if (!b) {
+        return '0 B';
+    }
+    if (b < 1024) {
+        return `${b} B`;
+    }
+    if (b < 1024 * 1024) {
+        return `${(b / 1024).toFixed(1)} KB`;
+    }
     return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function setupCanvas() {
     const container = document.getElementById('viewerContainer');
-    if (!container) throw new Error('viewerContainer not found');
-    if (state.canvas) return state.canvas;
+    if (!container) {
+        throw new Error('viewerContainer not found');
+    }
+    if (state.canvas) {
+        return state.canvas;
+    }
 
     const canvas = document.createElement('canvas');
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', 'Interaktivní 3D pohled IFC modelu');
+    canvas.setAttribute('aria-describedby', 'viewer3dStatus v3dEntityBar');
+    canvas.tabIndex = 0;
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     canvas.style.display = 'block';
@@ -89,7 +109,9 @@ function setupCanvas() {
  * surfaces here, not at page load, so the UI / picker stays alive.
  */
 function getEngine() {
-    if (state.enginePromise) return state.enginePromise;
+    if (state.enginePromise) {
+        return state.enginePromise;
+    }
     state.enginePromise = (async () => {
         setStatus(t('viewer3d.initEngine') || 'Inicializuji 3D engine…');
         const mod = await import('./ifc-engine/index.js');
@@ -104,7 +126,11 @@ function getEngine() {
         // Switch federation to 'manual' so engine's auto-recompute on every
         // addModel doesn't reset previously-positioned models back to their
         // (huge) S-JTSK world coords. We feed our own offsets via setModelOffset.
-        try { engine.setFederationMode('manual'); } catch (e) { console.warn('[3d-viewer] setFederationMode failed:', e); }
+        try {
+            engine.setFederationMode('manual');
+        } catch (e) {
+            console.warn('[3d-viewer] setFederationMode failed:', e);
+        }
 
         if (typeof ResizeObserver !== 'undefined') {
             const container = document.getElementById('viewerContainer');
@@ -115,7 +141,9 @@ function getEngine() {
                 if (canvas.width !== w || canvas.height !== h) {
                     canvas.width = w;
                     canvas.height = h;
-                    if (typeof engine.resize === 'function') engine.resize(w, h);
+                    if (typeof engine.resize === 'function') {
+                        engine.resize(w, h);
+                    }
                 }
             });
             ro.observe(container);
@@ -125,7 +153,11 @@ function getEngine() {
         window.__engine = engine;
         // Auto-persistence měření a řezných rovin per model (obsahový hash).
         // Registruje change-callback s debounce; restore běží po každém loadu.
-        try { initStatePersistence(engine); } catch (e) { console.warn('[3d-viewer] initStatePersistence failed:', e); }
+        try {
+            initStatePersistence(engine);
+        } catch (e) {
+            console.warn('[3d-viewer] initStatePersistence failed:', e);
+        }
         wireSelectionInteractions(engine, canvas);
         engine.on?.('selectionChanged', renderEntityBar);
         return engine;
@@ -157,20 +189,31 @@ async function loadIfcFromStorage(fileMeta) {
     // ms of main-thread CPU that the read/decompress path competes with).
     // On HW-accelerated GPUs frames are cheap — keep the viewport live.
     const needsLoadPause = !!(preEngine && preEngine._viewer && preEngine._viewer._softwareGL);
-    if (needsLoadPause && typeof preEngine.pauseRendering === 'function') { preEngine.pauseRendering(); pagePauseActive = true; }
+    if (needsLoadPause && typeof preEngine.pauseRendering === 'function') {
+        preEngine.pauseRendering(); pagePauseActive = true;
+    }
     const releasePagePause = () => {
-        if (pagePauseActive && preEngine && typeof preEngine.resumeRendering === 'function') preEngine.resumeRendering();
+        if (pagePauseActive && preEngine && typeof preEngine.resumeRendering === 'function') {
+            preEngine.resumeRendering();
+        }
         pagePauseActive = false;
     };
     try {
         setStatus(`${t('viewer3d.loading') || 'Načítám'} ${fileMeta.name}…`);
         let raw = await window.BIMStorage.getFileContent('ifc', fileMeta.id);
-        if (!raw) throw new Error('Empty file content');
+        if (!raw) {
+            throw new Error('Empty file content');
+        }
         let buffer;
-        if (raw instanceof ArrayBuffer) buffer = raw;
-        else if (typeof raw === 'string') buffer = new TextEncoder().encode(raw).buffer;
-        else if (raw && raw.buffer instanceof ArrayBuffer) buffer = raw.buffer;
-        else buffer = raw;
+        if (raw instanceof ArrayBuffer) {
+            buffer = raw;
+        } else if (typeof raw === 'string') {
+            buffer = new TextEncoder().encode(raw).buffer;
+        } else if (raw && raw.buffer instanceof ArrayBuffer) {
+            buffer = raw.buffer;
+        } else {
+            buffer = raw;
+        }
         raw = null; // buffer holds the only reference from here on
         console.log('[3d-viewer] buffer ready, requesting engine…');
         const engine = await getEngine();
@@ -248,13 +291,21 @@ async function loadIfcFromStorage(fileMeta) {
                     if (cacheBuf) {
                         import('./ifc-engine/cache/cache-store.js')
                             .then(cs => cs.cachePut(contentHash, cacheBuf, { name: fileMeta.name }))
-                            .then(ok => { if (ok) console.log(`[3d-viewer] cached ${fileMeta.name} (${Math.round(cacheBuf.byteLength / 1048576)} MB)`); })
+                            .then(ok => {
+                                if (ok) {
+                                    console.log(`[3d-viewer] cached ${fileMeta.name} (${Math.round(cacheBuf.byteLength / 1048576)} MB)`);
+                                }
+                            })
                             .catch(e => console.warn('[3d-viewer] cache write failed:', e));
                         // Portable mirror in the connected folder (no-op when
                         // no folder / no permission / non-Chromium).
                         import('./ifc-engine/cache/folder-cache.js')
                             .then(fc => fc.folderCachePut(contentHash, cacheBuf))
-                            .then(ok => { if (ok) console.log(`[3d-viewer] cached ${fileMeta.name} → BIM_checker/cache/ (folder)`); })
+                            .then(ok => {
+                                if (ok) {
+                                    console.log(`[3d-viewer] cached ${fileMeta.name} → BIM_checker/cache/ (folder)`);
+                                }
+                            })
                             .catch(e => console.warn('[3d-viewer] folder cache write failed:', e));
                     }
                 } catch (e) {
@@ -285,7 +336,9 @@ async function loadIfcFromStorage(fileMeta) {
         try {
             const coords = typeof engine.getCoords === 'function' ? engine.getCoords(modelId) : null;
             console.log('[3d-viewer] getCoords:', coords);
-        } catch (e) { console.warn('[3d-viewer] getCoords failed:', e); }
+        } catch (e) {
+            console.warn('[3d-viewer] getCoords failed:', e);
+        }
 
         // Force a resize sync — covers the case where canvas was created
         // before the container had layout dimensions.
@@ -297,9 +350,13 @@ async function loadIfcFromStorage(fileMeta) {
                 const w = Math.max(1, Math.floor(r.width));
                 const h = Math.max(1, Math.floor(r.height));
                 console.log('[3d-viewer] post-load resize sync:', w, '×', h);
-                if (typeof engine.resize === 'function') engine.resize(w, h);
+                if (typeof engine.resize === 'function') {
+                    engine.resize(w, h);
+                }
             }
-        } catch (e) { console.warn('[3d-viewer] resize sync failed:', e); }
+        } catch (e) {
+            console.warn('[3d-viewer] resize sync failed:', e);
+        }
 
         // Shift this model's group to scene origin so geometry sits near (0,0,0).
         // Civil IFCs (Czech S-JTSK etc.) place vertices at world coords ~10^6 m.
@@ -356,7 +413,9 @@ async function loadIfcFromStorage(fileMeta) {
                     // its buffer holds scene-local (small) coordinates.
                     const visited = new Set();
                     internal.group.traverse(obj => {
-                        if (!obj.geometry) return;
+                        if (!obj.geometry) {
+                            return;
+                        }
                         if (visited.has(obj.geometry.uuid)) {
                             // Two meshes may share a buffer (rare but possible) — skip second pass
                             return;
@@ -401,7 +460,9 @@ async function loadIfcFromStorage(fileMeta) {
                     console.log('[3d-viewer] baked', visited.size, 'geometries to scene-local frame');
                 }
             }
-        } catch (e) { console.warn('[3d-viewer] federation bake failed:', e); }
+        } catch (e) {
+            console.warn('[3d-viewer] federation bake failed:', e);
+        }
 
         // Raycast BVH — built after the bake (vertices were rewritten above).
         // Async on purpose: the camera framing below doesn't need it.
@@ -409,7 +470,9 @@ async function loadIfcFromStorage(fileMeta) {
             if (engine._viewer && typeof engine._viewer.rebuildBVH === 'function') {
                 engine._viewer.rebuildBVH(modelId).catch(e => console.warn('[3d-viewer] BVH build failed:', e));
             }
-        } catch (e) { console.warn('[3d-viewer] BVH build failed:', e); }
+        } catch (e) {
+            console.warn('[3d-viewer] BVH build failed:', e);
+        }
 
         // Persistence: předej hash enginu a obnov uložený stav (měření + řezné
         // roviny) PO federation bake — model-lokální transformace musí sedět na
@@ -417,9 +480,13 @@ async function loadIfcFromStorage(fileMeta) {
         // uživateli (load promise se stále awaituje), takže žádný race s klikáním.
         if (contentHash) {
             try {
-                if (typeof engine.setModelContentHash === 'function') engine.setModelContentHash(modelId, contentHash);
+                if (typeof engine.setModelContentHash === 'function') {
+                    engine.setModelContentHash(modelId, contentHash);
+                }
                 await restoreModelState(engine, modelId, contentHash);
-            } catch (e) { console.warn('[3d-viewer] state restore failed:', e); }
+            } catch (e) {
+                console.warn('[3d-viewer] state restore failed:', e);
+            }
         }
 
         // IFC 4.3 Alignment-basedView: osy z IfcAlignment se importují
@@ -431,12 +498,21 @@ async function loadIfcFromStorage(fileMeta) {
                 const axes = engine.findIfcAlignments(modelId);
                 let ok = 0;
                 for (const a of axes) {
-                    try { if (engine.loadAlignmentFromIfc(a.modelId, a.expressId)) ok++; }
-                    catch (err) { console.warn('[3d-viewer] auto-import osy selhal:', a.name, err); }
+                    try {
+                        if (engine.loadAlignmentFromIfc(a.modelId, a.expressId)) {
+                            ok++;
+                        }
+                    } catch (err) {
+                        console.warn('[3d-viewer] auto-import osy selhal:', a.name, err);
+                    }
                 }
-                if (ok > 0) console.log(`[3d-viewer] auto-import ${ok} os(y) z IfcAlignment`);
+                if (ok > 0) {
+                    console.log(`[3d-viewer] auto-import ${ok} os(y) z IfcAlignment`);
+                }
             }
-        } catch (e) { console.warn('[3d-viewer] auto-import os selhal:', e); }
+        } catch (e) {
+            console.warn('[3d-viewer] auto-import os selhal:', e);
+        }
 
         // Frame the camera only for the first model on an empty scene —
         // later loads keep whatever view the user has set. Race-safe for
@@ -446,7 +522,11 @@ async function loadIfcFromStorage(fileMeta) {
         const isOnlyModel = (typeof engine.getModels === 'function') && engine.getModels().length === 1;
         if ((!hadModels && !state.initialFitDone) || isOnlyModel) {
             if (typeof engine.fitAll === 'function') {
-                try { engine.fitAll(); console.log('[3d-viewer] fitAll done'); } catch (e) { console.warn('[3d-viewer] fitAll failed:', e); }
+                try {
+                    engine.fitAll(); console.log('[3d-viewer] fitAll done');
+                } catch (e) {
+                    console.warn('[3d-viewer] fitAll failed:', e);
+                }
             }
             state.initialFitDone = true;
         } else {
@@ -491,15 +571,23 @@ const CONCURRENT_LOADS = 2;
 
 async function loadSelectedFromPicker() {
     const ids = Array.from(pickerState.selected);
-    if (ids.length === 0) return;
+    if (ids.length === 0) {
+        return;
+    }
     const modal = document.getElementById('viewer3dPickerModal');
-    if (modal) modal.classList.remove('show');
+    if (modal) {
+        modal.classList.remove('show');
+    }
     const queue = [...ids];
     const lanes = Array.from({ length: Math.min(CONCURRENT_LOADS, queue.length) }, async () => {
         while (queue.length > 0) {
             const meta = pickerState.files[queue.shift()];
-            if (!meta) continue;
-            try { await loadIfcFromStorage(meta); } catch (_) { /* keep going through the batch */ }
+            if (!meta) {
+                continue;
+            }
+            try {
+                await loadIfcFromStorage(meta);
+            } catch (_) { /* keep going through the batch */ }
         }
     });
     await Promise.all(lanes);
@@ -511,7 +599,11 @@ function removeModel(modelId) {
     const eng = state.engine;
     const unload = eng && (eng.unloadModel || eng.removeModel);
     if (unload) {
-        try { unload.call(eng, modelId); } catch (e) { console.warn('removeModel failed:', e); }
+        try {
+            unload.call(eng, modelId);
+        } catch (e) {
+            console.warn('removeModel failed:', e);
+        }
     }
     state.loadedModels.delete(modelId);
     // When the scene is empty, drop the federation anchor so the next loaded
@@ -533,7 +625,9 @@ function getLoadedModelPayloads({ visibleOnly = false } = {}) {
         fileId: info.fileId || '',
         name: info.name,
     }));
-    if (!visibleOnly || !engine || typeof engine.isModelVisible !== 'function') return models;
+    if (!visibleOnly || !engine || typeof engine.isModelVisible !== 'function') {
+        return models;
+    }
     const visible = models.filter(m => engine.isModelVisible(m.modelId));
     return visible.length > 0 ? visible : models;
 }
@@ -603,19 +697,25 @@ function escAttr(s) {
 
 /** Build unified {folders, files} from active BIMStorage backend. */
 async function buildPickerTree() {
-    if (!window.BIMStorage) throw new Error('BIMStorage backend not ready');
+    if (!window.BIMStorage) {
+        throw new Error('BIMStorage backend not ready');
+    }
     // On a fresh page load the previously-connected folder backend is restored
     // asynchronously (reconnect + scan + setBackend). If we build the tree
     // before that finishes, the active backend is still the empty default
     // IndexedDB one and the panel shows "no files" until a manual Obnovit.
     // Wait for the restore so the first build already sees the real backend.
-    try { await window.BIMStorageBackendRestore?.ready; } catch { /* fall through to whatever backend is active */ }
+    try {
+        await window.BIMStorageBackendRestore?.ready;
+    } catch { /* fall through to whatever backend is active */ }
     // On a fresh page load the backend (and its folder metadata) isn't
     // initialized yet — without this the IndexedDB branch below sees a null
     // ifcStorage and we'd degrade to the flat no-folders fallback.
     await window.BIMStorage.init();
     const backend = window.BIMStorage.backend;
-    if (!backend) throw new Error('BIMStorage backend not ready');
+    if (!backend) {
+        throw new Error('BIMStorage backend not ready');
+    }
 
     // Folder mode — walk getFolderTree('ifc')
     if (backend.kind === 'localFolder' && typeof backend.getFolderTree === 'function') {
@@ -639,9 +739,13 @@ async function buildPickerTree() {
             for (const f of node.files) {
                 files[f.path] = { id: f.path, name: f.name, size: f.size, folder: folderId };
             }
-            for (const sub of node.subfolders) walk(sub, folderId, sub.path || sub.name);
+            for (const sub of node.subfolders) {
+                walk(sub, folderId, sub.path || sub.name);
+            }
         }
-        if (tree) walk(tree, null, 'root');
+        if (tree) {
+            walk(tree, null, 'root');
+        }
         return { folders, files };
     }
 
@@ -675,21 +779,29 @@ async function buildPickerTree() {
     const list = await window.BIMStorage.getFiles('ifc');
     const folders = { root: { id: 'root', name: t('storage.rootFolder') || 'Root', parentId: null, children: [], files: list.map(f => f.id) } };
     const files = {};
-    for (const f of list) files[f.id] = { id: f.id, name: f.name, size: f.size, folder: 'root' };
+    for (const f of list) {
+        files[f.id] = { id: f.id, name: f.name, size: f.size, folder: 'root' };
+    }
     return { folders, files };
 }
 
 function getAllFilesInFolder(folderId) {
     const folder = pickerState.folders[folderId];
-    if (!folder) return [];
+    if (!folder) {
+        return [];
+    }
     let acc = [...folder.files];
-    for (const childId of folder.children) acc = acc.concat(getAllFilesInFolder(childId));
+    for (const childId of folder.children) {
+        acc = acc.concat(getAllFilesInFolder(childId));
+    }
     return acc;
 }
 
 function renderPickerFolderRecursive(folderId, level) {
     const folder = pickerState.folders[folderId];
-    if (!folder) return '';
+    if (!folder) {
+        return '';
+    }
     const isExpanded = pickerState.expanded.has(folderId);
     const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
     const arrow = hasChildren ? (isExpanded ? '▼' : '▶') : '';
@@ -720,7 +832,9 @@ function renderPickerFolderRecursive(folderId, level) {
         }
         for (const fileId of folder.files) {
             const file = pickerState.files[fileId];
-            if (!file) continue;
+            if (!file) {
+                continue;
+            }
             const safeFileId = escAttr(fileId);
             const indent = (folderId === 'root') ? level * 14 : (level + 1) * 14;
             const checked = pickerState.selected.has(fileId) ? 'checked' : '';
@@ -757,9 +871,14 @@ function attachPickerTreeListeners(listEl, modal) {
         el.addEventListener('click', (e) => {
             e.stopPropagation();
             const folderId = el.dataset.folderId;
-            if (!folderId) return;
-            if (pickerState.expanded.has(folderId)) pickerState.expanded.delete(folderId);
-            else pickerState.expanded.add(folderId);
+            if (!folderId) {
+                return;
+            }
+            if (pickerState.expanded.has(folderId)) {
+                pickerState.expanded.delete(folderId);
+            } else {
+                pickerState.expanded.add(folderId);
+            }
             listEl.innerHTML = renderPickerFolderRecursive('root', 0);
             attachPickerTreeListeners(listEl, modal);
         });
@@ -770,7 +889,9 @@ function attachPickerTreeListeners(listEl, modal) {
         input.addEventListener('change', (e) => {
             e.stopPropagation();
             const folderId = input.dataset.folderId;
-            if (!folderId) return;
+            if (!folderId) {
+                return;
+            }
             const allInFolder = getAllFilesInFolder(folderId);
             const allChecked = allInFolder.length > 0 && allInFolder.every(fid => pickerState.selected.has(fid));
             if (allChecked) {
@@ -787,9 +908,14 @@ function attachPickerTreeListeners(listEl, modal) {
         input.addEventListener('change', (e) => {
             e.stopPropagation();
             const fileId = input.dataset.fileId;
-            if (!fileId) return;
-            if (input.checked) pickerState.selected.add(fileId);
-            else pickerState.selected.delete(fileId);
+            if (!fileId) {
+                return;
+            }
+            if (input.checked) {
+                pickerState.selected.add(fileId);
+            } else {
+                pickerState.selected.delete(fileId);
+            }
             // Re-render so parent folder checkbox reflects the new aggregate state
             listEl.innerHTML = renderPickerFolderRecursive('root', 0);
             attachPickerTreeListeners(listEl, modal);
@@ -799,7 +925,9 @@ function attachPickerTreeListeners(listEl, modal) {
     // Click on file row (outside checkbox) toggles too
     listEl.querySelectorAll('.v3d-picker-file').forEach(row => {
         row.addEventListener('click', (e) => {
-            if (e.target.tagName === 'INPUT') return;
+            if (e.target.tagName === 'INPUT') {
+                return;
+            }
             const check = row.querySelector('.v3d-picker-check');
             if (check) {
                 check.checked = !check.checked;
@@ -812,21 +940,29 @@ function attachPickerTreeListeners(listEl, modal) {
 async function openStoragePicker() {
     const modal = document.getElementById('viewer3dPickerModal');
     const listEl = document.getElementById('viewer3dPickerList');
-    if (!modal || !listEl) return;
+    if (!modal || !listEl) {
+        return;
+    }
 
     listEl.innerHTML = `<p class="storage-empty-message">${escapeHtml(t('viewer3d.pickerLoading') || 'Načítám…')}</p>`;
     modal.classList.add('show');
 
     try {
-        if (!window.BIMStorage) throw new Error('BIMStorage not initialized');
+        if (!window.BIMStorage) {
+            throw new Error('BIMStorage not initialized');
+        }
         if (typeof window.BIMStorage.init === 'function') {
-            try { await window.BIMStorage.init(); } catch (_) { /* ignore */ }
+            try {
+                await window.BIMStorage.init();
+            } catch (_) { /* ignore */ }
         }
         const tree = await buildPickerTree();
         pickerState.folders = tree.folders;
         pickerState.files = tree.files;
         // Auto-expand all top-level so the file tree is visible by default
-        for (const fId of Object.keys(tree.folders)) pickerState.expanded.add(fId);
+        for (const fId of Object.keys(tree.folders)) {
+            pickerState.expanded.add(fId);
+        }
 
         if (Object.keys(tree.files).length === 0) {
             listEl.innerHTML = `<p class="storage-empty-message" data-i18n="viewer3d.pickerEmpty">${escapeHtml(t('viewer3d.pickerEmpty') || 'Žádné IFC soubory ve storage.')}</p>`;
@@ -859,35 +995,49 @@ function wireUI() {
     });
 
     const closeBtn = document.getElementById('viewer3dPickerClose');
-    if (closeBtn) closeBtn.addEventListener('click', () => {
-        document.getElementById('viewer3dPickerModal').classList.remove('show');
-    });
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            document.getElementById('viewer3dPickerModal').classList.remove('show');
+        });
+    }
 
     const cancelBtn = document.getElementById('v3dPickerCancel');
-    if (cancelBtn) cancelBtn.addEventListener('click', () => {
-        document.getElementById('viewer3dPickerModal').classList.remove('show');
-        pickerState.selected.clear();
-    });
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            document.getElementById('viewer3dPickerModal').classList.remove('show');
+            pickerState.selected.clear();
+        });
+    }
 
     const confirmBtn = document.getElementById('v3dPickerConfirm');
-    if (confirmBtn) confirmBtn.addEventListener('click', loadSelectedFromPicker);
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', loadSelectedFromPicker);
+    }
 
     const modal = document.getElementById('viewer3dPickerModal');
-    if (modal) modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.classList.remove('show');
-    });
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('show');
+            }
+        });
+    }
 
     // Direct-action toolbar button (not a panel): restore visibility of everything
     const showAllBtn = document.getElementById('v3dShowAllBtn');
-    if (showAllBtn) showAllBtn.addEventListener('click', () => {
-        state.engine?.showAll();
-        setStatus('✓ Viditelnost všech prvků obnovena', 'success');
-    });
+    if (showAllBtn) {
+        showAllBtn.addEventListener('click', () => {
+            state.engine?.showAll();
+            setStatus('✓ Viditelnost všech prvků obnovena', 'success');
+        });
+    }
 
     document.querySelectorAll('.v3d-tool').forEach(btn => {
         btn.addEventListener('click', async () => {
             const tool = btn.dataset.tool;
-            if (!tool) return;  // direct-action buttons (data-action) are wired separately
+            if (!tool) {
+                return;
+            }  // direct-action buttons (data-action) are wired separately
             try {
                 const [{ togglePanel }, panels] = await Promise.all([
                     import('./ui/panel-manager.js'),
@@ -910,7 +1060,9 @@ function wireUI() {
 
 function renderEntityBar(selected) {
     const bar = document.getElementById('v3dEntityBar');
-    if (!bar) return;
+    if (!bar) {
+        return;
+    }
     const arr = Array.isArray(selected) ? selected : [];
     if (arr.length === 0) {
         bar.hidden = true;
@@ -930,7 +1082,9 @@ function renderEntityBar(selected) {
     const typeSep = document.getElementById('v3dEntityTypeSep');
     typeEl.textContent = ifcType;
     typeEl.hidden = !rawName;
-    if (typeSep) typeSep.hidden = !rawName;
+    if (typeSep) {
+        typeSep.hidden = !rawName;
+    }
     document.getElementById('v3dEntityId').textContent = `#${first.expressId}`;
     const guidEl = document.getElementById('v3dEntityGuid');
     const fullGuid = meta.guid || '';
@@ -964,26 +1118,36 @@ function wireEntityBarButtons() {
     const ebHandlers = {
         focus: () => {
             const sel = state.engine?.getSelectedEntities() || [];
-            if (sel.length === 0) return;
+            if (sel.length === 0) {
+                return;
+            }
             state.engine.focusEntity(sel[0].modelId, sel[0].expressId);
         },
         hide: () => {
             const sel = state.engine?.getSelectedEntities() || [];
-            if (sel.length === 0) return;
+            if (sel.length === 0) {
+                return;
+            }
             state.engine.hideEntities(sel.map(s => ({ modelId: s.modelId, expressId: s.expressId })));
             state.engine.clearSelection();
         },
         isolate: () => {
             const sel = state.engine?.getSelectedEntities() || [];
-            if (sel.length === 0) return;
+            if (sel.length === 0) {
+                return;
+            }
             state.engine.isolateEntities(sel.map(s => ({ modelId: s.modelId, expressId: s.expressId })));
         },
         'same-type': () => {
             const sel = state.engine?.getSelectedEntities() || [];
-            if (sel.length === 0) return;
+            if (sel.length === 0) {
+                return;
+            }
             const first = sel[0];
             const ids = state.engine.findSameTypeIds?.(first.modelId, first.expressId) || [];
-            if (ids.length === 0) return;
+            if (ids.length === 0) {
+                return;
+            }
             state.engine.selectEntities(
                 ids.map(expressId => ({ modelId: first.modelId, expressId })),
                 'replace',
@@ -991,7 +1155,9 @@ function wireEntityBarButtons() {
         },
         detail: async () => {
             const sel = state.engine?.getSelectedEntities() || [];
-            if (sel.length === 0) return;
+            if (sel.length === 0) {
+                return;
+            }
             const [{ togglePanel }, panels] = await Promise.all([
                 import('./ui/panel-manager.js'),
                 import('./panels/index.js'),
@@ -1007,7 +1173,9 @@ function wireEntityBarButtons() {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const fn = ebHandlers[btn.dataset.ebAction];
-            if (fn) fn();
+            if (fn) {
+                fn();
+            }
         });
     });
 
@@ -1016,9 +1184,13 @@ function wireEntityBarButtons() {
     if (slider) {
         slider.addEventListener('input', () => {
             const pct = parseInt(slider.value, 10);
-            if (valEl) valEl.textContent = `${pct} %`;
+            if (valEl) {
+                valEl.textContent = `${pct} %`;
+            }
             const sel = state.engine?.getSelectedEntities() || [];
-            if (sel.length === 0) return;
+            if (sel.length === 0) {
+                return;
+            }
             const alpha = 1 - pct / 100;
             state.engine.setEntityOpacity(
                 sel.map(s => ({ modelId: s.modelId, expressId: s.expressId })),
@@ -1033,7 +1205,9 @@ function wireEntityBarButtons() {
         guidBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const guid = guidBtn.dataset.guid;
-            if (!guid) return;
+            if (!guid) {
+                return;
+            }
             try {
                 await navigator.clipboard.writeText(guid);
             } catch (_) {
@@ -1054,7 +1228,7 @@ function wireEntityBarButtons() {
 function wireSelectionInteractions(engine, canvas) {
     let hoverRaf = 0;
     let dragStart = null;     // { x, y, isShift }
-    let dragRect = null;      // div element while dragging
+    const dragRect = null;      // div element while dragging
     let lastWheel = 0;
     const BOX = document.getElementById('v3dBoxSelect');
 
@@ -1066,25 +1240,37 @@ function wireSelectionInteractions(engine, canvas) {
             import('./ui/panel-manager.js'),
             import('./panels/index.js'),
         ]);
-        if (getActiveTool() === 'clip') return;
+        if (getActiveTool() === 'clip') {
+            return;
+        }
         panels.ensureRegistered();
         await togglePanel('clip', engine, { state, t, setStatus });
     }
 
     // Wheel zoom moves the camera — don't pay for hover raycasts mid-gesture
-    canvas.addEventListener('wheel', () => { lastWheel = performance.now(); }, { passive: true });
+    canvas.addEventListener('wheel', () => {
+        lastWheel = performance.now();
+    }, { passive: true });
 
     canvas.addEventListener('mousemove', (e) => {
         // Hover preview (throttled to rAF)
-        if (hoverRaf) return;
+        if (hoverRaf) {
+            return;
+        }
         hoverRaf = requestAnimationFrame(() => {
             hoverRaf = 0;
             // Camera interactions must never pay for a full-scene pick: any
             // held button = orbit/pan drag, recent wheel = zoom in progress.
-            if (e.buttons !== 0) return;
-            if (performance.now() - lastWheel < 200) return;
+            if (e.buttons !== 0) {
+                return;
+            }
+            if (performance.now() - lastWheel < 200) {
+                return;
+            }
             // Suspend hover during drag-select to avoid flicker
-            if (dragStart && (Math.abs(e.clientX - dragStart.x) > 3 || Math.abs(e.clientY - dragStart.y) > 3)) return;
+            if (dragStart && (Math.abs(e.clientX - dragStart.x) > 3 || Math.abs(e.clientY - dragStart.y) > 3)) {
+                return;
+            }
             const hit = engine.pickEntity(e.clientX, e.clientY);
             engine.setHoverEntity(hit ? { modelId: hit.modelId, expressId: hit.expressId } : null);
         });
@@ -1109,12 +1295,16 @@ function wireSelectionInteractions(engine, canvas) {
     });
 
     canvas.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;  // left button only
+        if (e.button !== 0) {
+            return;
+        }  // left button only
         dragStart = { x: e.clientX, y: e.clientY, isShift: e.shiftKey };
     });
 
     canvas.addEventListener('mouseup', (e) => {
-        if (!dragStart) return;
+        if (!dragStart) {
+            return;
+        }
         const dx = Math.abs(e.clientX - dragStart.x);
         const dy = Math.abs(e.clientY - dragStart.y);
         const wasDrag = (dx > 3 || dy > 3);
@@ -1138,7 +1328,9 @@ function wireSelectionInteractions(engine, canvas) {
             // Click: single pick
             const hit = engine.pickEntity(e.clientX, e.clientY);
             if (!hit) {
-                if (!(e.ctrlKey || e.metaKey)) engine.clearSelection();
+                if (!(e.ctrlKey || e.metaKey)) {
+                    engine.clearSelection();
+                }
             } else {
                 const mode = (e.ctrlKey || e.metaKey) ? 'toggle' : 'replace';
                 engine.selectEntities([{ modelId: hit.modelId, expressId: hit.expressId }], mode);
@@ -1152,10 +1344,18 @@ function wireSelectionInteractions(engine, canvas) {
 function boot() {
     wireUI();
     wireEntityBarButtons();
+    window.addEventListener('languageChanged', () => {
+        refreshRailPanel();
+        if (state.loadedModels.size === 0) {
+            setStatus(t('viewer3d.empty'));
+        }
+    });
     setStatus(t('viewer3d.empty') || 'Žádný model — otevři Modely v levé liště.');
     // Keep loading discoverable: with an empty scene, open the Storage drawer
     // right away (loading lives there; Models shows only what's loaded).
-    if (state.loadedModels.size === 0) openRailPanel('storage');
+    if (state.loadedModels.size === 0) {
+        openRailPanel('storage');
+    }
 
     // Viewer-link přijímač (akce z validátoru / Multi-File tabulky → skok na prvek).
     // Předáváme getEngine (ne hotovou instanci): engine se zhmotní až s první
@@ -1166,6 +1366,7 @@ function boot() {
         loadFileByMeta: loadIfcFromStorage,       // (fileMeta) => Promise<modelId>
         getLoadedModels: () => state.loadedModels,
         setStatus,
+        onMissingFile: () => openRailPanel('storage'),
     });
 }
 

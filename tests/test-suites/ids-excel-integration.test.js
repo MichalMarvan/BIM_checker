@@ -48,6 +48,55 @@ describe('IDS Excel Integration', () => {
         expect(result.data.title).toBe('Test IDS');
         expect(result.data.specifications.length).toBe(1);
         expect(result.data.specifications[0].name).toBe('Wall Check');
+        expect(result.warnings).toEqual([]);
+        expect(result.report.status).toBe('ok');
+        expect(result.report.sourceFormatVersion).toBe(2);
+        expect(result.report.imported.specifications).toBe(1);
+    });
+
+    it('should migrate an unversioned legacy workbook with an explicit report', () => {
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([
+            { Field: 'title', Value: 'Legacy IDS' },
+            { Field: 'version', Value: '1.0' }
+        ]), 'info');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([
+            { spec_id: 'LEGACY', name: 'Legacy', ifcVersion: 'IFC4' }
+        ]), 'specifications');
+
+        const result = IDSExcelParser.parse(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }));
+        expect(result.data.title).toBe('Legacy IDS');
+        expect(result.report.sourceFormatVersion).toBe(1);
+        expect(result.report.migrated).toBe(true);
+        expect(result.warnings[0]).toMatch(/Legacy unversioned workbook/);
+    });
+
+    it('should refuse a newer workbook instead of silently losing data', () => {
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([
+            { Field: '_bim_checker_format', Value: IDSExcelFormat.ID },
+            { Field: '_bim_checker_format_version', Value: IDSExcelFormat.CURRENT_VERSION + 1 },
+            { Field: 'title', Value: 'Future' }
+        ]), 'info');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([
+            { spec_id: 'FUTURE', name: 'Future', ifcVersion: 'IFC4' }
+        ]), 'specifications');
+        const buffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+
+        expect(() => IDSExcelParser.parse(buffer)).toThrow('newer IDS Excel format');
+    });
+
+    it('should report ignored sheets and skipped rows', () => {
+        const workbook = XLSX.read(IDSExcelGenerator.generate(IDSExcelTemplate.generateTemplateData()), { type: 'array' });
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([{ future: 'value' }]), 'future_data');
+        const applicability = XLSX.utils.sheet_to_json(workbook.Sheets.applicability, { defval: '' });
+        applicability.push({ spec_id: 'MISSING', facet_type: 'entity', entity_name: 'IFCWALL' });
+        workbook.Sheets.applicability = XLSX.utils.json_to_sheet(applicability);
+
+        const result = IDSExcelParser.parse(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }));
+        expect(result.report.unknownSheets).toEqual(['future_data']);
+        expect(result.report.skippedRows).toBe(1);
+        expect(result.report.status).toBe('warning');
     });
 
     it('should have Top 20 psets in template', () => {
@@ -227,6 +276,83 @@ describe('IDS Excel Integration', () => {
         const validation = await IDSXSDValidator.validate(xml);
         expect(validation.valid).toBe(true);
         expect(validation.errors).toEqual([]);
+    }, 10000);
+
+    it('should create a versioned import report with automatic XSD validation', async () => {
+        const parsed = IDSExcelParser.parse(IDSExcelGenerator.generate(IDSExcelTemplate.generateTemplateData()));
+        const report = await IDSExcelParser.createImportReport(parsed, {
+            name: 'requirements.xlsx',
+            size: 1234,
+            lastModified: 1700000000000
+        });
+
+        expect(report.format).toBe('BIM_CHECKER_IDS_EXCEL_IMPORT_REPORT');
+        expect(report.formatVersion).toBe(1);
+        expect(report.source.name).toBe('requirements.xlsx');
+        expect(report.imported.specifications).toBe(parsed.data.specifications.length);
+        expect(report.xsd.checked).toBe(true);
+        expect(report.xsd.valid).toBe(true);
+        expect(report.xsd.errorCount).toBe(0);
+        expect(report.status).toBe(parsed.report.status);
+    }, 10000);
+
+    it('should preserve all IDS 1.0 facet semantics through XML, Excel and XML', async () => {
+        const source = {
+            title: 'All facets',
+            version: '1.0',
+            date: '2026-07-22',
+            specifications: [{
+                identifier: 'ALL-FACETS',
+                name: 'All facets',
+                ifcVersion: 'IFC2X3 IFC4 IFC4X3_ADD2',
+                minOccurs: '0',
+                maxOccurs: 'unbounded',
+                requirementsDescription: 'Semantic roundtrip',
+                applicability: [{
+                    type: 'entity',
+                    name: { type: 'restriction', base: 'xs:string', facets: [{ type: 'pattern', value: 'IFC.*' }] },
+                    predefinedType: { type: 'simple', value: 'USERDEFINED' }
+                }],
+                requirements: [
+                    {
+                        type: 'partOf', relation: 'IFCRELAGGREGATES', cardinality: 'required',
+                        entity: { type: 'entity', name: { type: 'simple', value: 'IFCBUILDING' } }
+                    },
+                    {
+                        type: 'classification', cardinality: 'optional', uri: 'https://example.test/class',
+                        system: { type: 'simple', value: 'Uniclass' },
+                        value: { type: 'enumeration', base: 'xs:string', values: ['A', 'B'], facets: [{ type: 'enumeration', value: 'A' }, { type: 'enumeration', value: 'B' }] }
+                    },
+                    {
+                        type: 'attribute', cardinality: 'required', instructions: 'Set tag',
+                        name: { type: 'simple', value: 'Tag' },
+                        value: { type: 'restriction', base: 'xs:string', facets: [{ type: 'minLength', value: '2' }, { type: 'pattern', value: '[A-Z]+' }] }
+                    },
+                    {
+                        type: 'property', cardinality: 'prohibited', dataType: 'IFCLABEL', uri: 'https://example.test/property',
+                        propertySet: { type: 'simple', value: 'Pset_Test' },
+                        baseName: { type: 'simple', value: 'Forbidden' },
+                        value: { type: 'simple', value: '=still data' }
+                    },
+                    {
+                        type: 'material', cardinality: 'required', uri: 'https://example.test/material',
+                        value: { type: 'restriction', base: 'xs:string', facets: [{ type: 'pattern', value: 'Concrete.*' }] }
+                    }
+                ]
+            }]
+        };
+        const generator = new IDSXMLGenerator();
+        const sourceXml = generator.generateIDS(source);
+        const parsedSource = IDSParser.parse(sourceXml);
+        const workbookData = { ...parsedSource.info, specifications: parsedSource.specifications };
+        const imported = IDSExcelParser.parse(IDSExcelGenerator.generate(workbookData));
+        const roundtripXml = generator.generateIDS(imported.data);
+        const parsedRoundtrip = IDSParser.parse(roundtripXml);
+
+        expect(parsedRoundtrip.info).toEqual(parsedSource.info);
+        expect(parsedRoundtrip.specifications).toEqual(parsedSource.specifications);
+        const xsd = await IDSXSDValidator.validate(roundtripXml);
+        expect(xsd.valid).toBe(true);
     }, 10000);
 
 });

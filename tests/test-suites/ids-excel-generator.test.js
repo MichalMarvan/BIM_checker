@@ -44,6 +44,14 @@ describe('IDS Excel Generator', () => {
         expect(typeof IDSExcelGenerator.generate).toBe('function');
     });
 
+    it('should stamp the current workbook format and IDS schema', () => {
+        const rows = IDSExcelGenerator._generateInfoSheet(mockIdsData);
+        expect(IDSExcelGenerator.FORMAT_VERSION).toBe(2);
+        expect(rows.find(row => row.Field === '_bim_checker_format').Value).toBe('BIM_CHECKER_IDS_EXCEL');
+        expect(rows.find(row => row.Field === '_bim_checker_format_version').Value).toBe(2);
+        expect(rows.find(row => row.Field === '_ids_schema_version').Value).toBe('1.0');
+    });
+
     it('should generate info sheet data', () => {
         const result = IDSExcelGenerator._generateInfoSheet(mockIdsData);
 

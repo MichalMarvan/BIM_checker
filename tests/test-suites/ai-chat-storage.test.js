@@ -9,6 +9,12 @@ describe('chat-storage agents', () => {
         await storage._internals._delete(storage._internals.KEY_AGENTS);
         await storage._internals._delete(storage._internals.KEY_SETTINGS);
         await storage._internals._delete(storage._internals.KEY_THREADS);
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+            const key = sessionStorage.key(i);
+            if (key && key.startsWith(storage._internals.SESSION_API_KEY_PFX)) {
+                sessionStorage.removeItem(key);
+            }
+        }
     });
 
     it('listAgents() returns [] when nothing saved', async () => {
@@ -34,6 +40,32 @@ describe('chat-storage agents', () => {
         expect(agent.isFavorite).toBe(true);
         expect(agent.icon).toBe('🤖');
         expect(agent.systemPrompt).toBe('');
+    });
+
+    it('keeps API keys in sessionStorage and never persists them in IndexedDB', async () => {
+        const id = await storage.saveAgent({ name: 'Secret', provider: 'openai', apiKey: 'sk-test-secret' });
+        const agent = await storage.getAgent(id);
+        const persisted = await storage._internals._get(storage._internals.KEY_AGENTS);
+        expect(agent.apiKey).toBe('sk-test-secret');
+        expect(persisted[0].apiKey).toBe(undefined);
+        expect(JSON.stringify(persisted).includes('sk-test-secret')).toBe(false);
+    });
+
+    it('migrates legacy persisted API keys to sessionStorage', async () => {
+        await storage._internals._put(storage._internals.KEY_AGENTS, [{
+            id: 'legacy-agent', name: 'Legacy', provider: 'openai', apiKey: 'legacy-secret'
+        }]);
+        const agent = await storage.getAgent('legacy-agent');
+        const persisted = await storage._internals._get(storage._internals.KEY_AGENTS);
+        expect(agent.apiKey).toBe('legacy-secret');
+        expect(persisted[0].apiKey).toBe(undefined);
+    });
+
+    it('preserves an explicitly empty enabledTools selection', async () => {
+        const id = await storage.saveAgent({ name: 'No tools', provider: 'openai', enabledTools: [] });
+        const agent = await storage.getAgent(id);
+        expect(Array.isArray(agent.enabledTools)).toBe(true);
+        expect(agent.enabledTools.length).toBe(0);
     });
 
     it('saveAgent with id updates existing agent (preserves createdAt)', async () => {

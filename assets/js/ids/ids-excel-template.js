@@ -111,6 +111,7 @@ const IDSExcelTemplate = (function() {
 
         // Info sheet
         const infoData = [
+            ...IDSExcelFormat.markerRows(),
             { Field: 'title', Value: '[Your IDS Title]' },
             { Field: 'author', Value: '[your@email.com]' },
             { Field: 'version', Value: '1.0' },

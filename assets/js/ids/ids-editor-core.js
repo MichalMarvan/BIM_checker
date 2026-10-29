@@ -11,6 +11,7 @@ class IDSEditorCore {
         this.editMode = false;
         this.xmlGenerator = new IDSXMLGenerator();
         this.hasUnsavedChanges = false;
+        this.lastExcelImportReport = null;
     }
 
     /**
@@ -68,6 +69,11 @@ class IDSEditorCore {
         const importExcelBtn = document.getElementById('importExcelBtn');
         if (importExcelBtn) {
             importExcelBtn.addEventListener('click', () => this.importExcel());
+        }
+
+        const downloadImportReportBtn = document.getElementById('downloadImportReportBtn');
+        if (downloadImportReportBtn) {
+            downloadImportReportBtn.addEventListener('click', () => this.downloadExcelImportReport());
         }
 
         const exportExcelBtn = document.getElementById('exportExcelBtn');
@@ -168,11 +174,19 @@ class IDSEditorCore {
         }
 
         const convertValue = value => {
-            if (Array.isArray(value)) return value.map(convertValue);
-            if (!value || typeof value !== 'object') return value;
+            if (Array.isArray(value)) {
+                return value.map(convertValue);
+            }
+            if (!value || typeof value !== 'object') {
+                return value;
+            }
             const converted = {};
-            for (const [key, child] of Object.entries(value)) converted[key] = convertValue(child);
-            if (converted.type === 'simple') converted.type = 'simpleValue';
+            for (const [key, child] of Object.entries(value)) {
+                converted[key] = convertValue(child);
+            }
+            if (converted.type === 'simple') {
+                converted.type = 'simpleValue';
+            }
             return converted;
         };
 
@@ -394,8 +408,8 @@ class IDSEditorCore {
             ? spec.ifcVersions
             : (spec.ifcVersion ? spec.ifcVersion.trim().split(/\s+/).filter(Boolean) : ['IFC4']);
         const cardinality = (spec.minOccurs === '0' && spec.maxOccurs === '0') ? 'prohibited'
-                          : (spec.minOccurs === '0') ? 'optional'
-                          : 'required';
+            : (spec.minOccurs === '0') ? 'optional'
+                : 'required';
 
         let html = `
             <div class="specification-item collapsible-section" data-index="${index}">
@@ -540,7 +554,7 @@ class IDSEditorCore {
             const values = restriction.values || restriction.enumeration || [];
             return `${t('editor.enumeration')}: [${values.map(v => this.escapeHtml(v)).join(', ')}]`;
         } else if (restriction.type === 'bounds' || (restriction.type === 'restriction' && (restriction.minInclusive || restriction.maxInclusive))) {
-            return `${t('editor.bounds')}: ${restriction.minInclusive || '∞'} - ${restriction.maxInclusive || '∞'}`;
+            return `${t('editor.bounds')}: ${this.escapeHtml(restriction.minInclusive || '∞')} - ${this.escapeHtml(restriction.maxInclusive || '∞')}`;
         }
 
         // Fallback - try to extract value
@@ -800,24 +814,24 @@ class IDSEditorCore {
                 <div class="modal-body">
                     <div class="form-group">
                         <label>${t('editor.labelTitle')} <span style="color: red;">*</span></label>
-                        <input type="text" id="editInfoTitle" value="${this.escapeHtml(this.idsData.title)}" required>
+                        <input type="text" id="editInfoTitle" value="${this.escapeAttr(this.idsData.title)}" required>
                         <small>${t('editor.requiredField')}</small>
                     </div>
                     <div class="form-group">
                         <label>${t('editor.labelVersion')}</label>
-                        <input type="text" id="editInfoVersion" value="${this.escapeHtml(this.idsData.version || '')}" placeholder="${t('editor.example')} 1.0">
+                        <input type="text" id="editInfoVersion" value="${this.escapeAttr(this.idsData.version || '')}" placeholder="${this.escapeAttr(t('editor.example'))} 1.0">
                     </div>
                     <div class="form-group">
                         <label>${t('editor.labelAuthor')}</label>
-                        <input type="email" id="editInfoAuthor" value="${this.escapeHtml(this.idsData.author || '')}" placeholder="${t('editor.authorName')}">
+                        <input type="email" id="editInfoAuthor" value="${this.escapeAttr(this.idsData.author || '')}" placeholder="${this.escapeAttr(t('editor.authorName'))}">
                     </div>
                     <div class="form-group">
                         <label>${t('editor.labelDate')}</label>
-                        <input type="date" id="editInfoDate" value="${this.idsData.date || ''}">
+                        <input type="date" id="editInfoDate" value="${this.escapeAttr(this.idsData.date || '')}">
                     </div>
                     <div class="form-group">
                         <label>${t('editor.labelCopyright')}</label>
-                        <input type="text" id="editInfoCopyright" value="${this.escapeHtml(this.idsData.copyright || '')}" placeholder="Copyright">
+                        <input type="text" id="editInfoCopyright" value="${this.escapeAttr(this.idsData.copyright || '')}" placeholder="Copyright">
                     </div>
                     <div class="form-group">
                         <label>${t('editor.labelDescription')}</label>
@@ -831,7 +845,7 @@ class IDSEditorCore {
                     </div>
                     <div class="form-group">
                         <label>${t('editor.labelMilestone')}</label>
-                        <input type="text" id="editInfoMilestone" value="${this.escapeHtml(this.idsData.milestone || '')}" placeholder="${t('editor.example')} Design, Construction, As-Built">
+                        <input type="text" id="editInfoMilestone" value="${this.escapeAttr(this.idsData.milestone || '')}" placeholder="${this.escapeAttr(t('editor.example'))} Design, Construction, As-Built">
                         <small>${t('editor.projectPhase')}</small>
                     </div>
                 </div>
@@ -998,9 +1012,11 @@ class IDSEditorCore {
      * Escape HTML
      */
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return window.BIMSafeHTML.escapeHtml(text);
+    }
+
+    escapeAttr(text) {
+        return window.BIMSafeHTML.escapeAttr(text);
     }
 
     // ========================================
@@ -1034,7 +1050,9 @@ class IDSEditorCore {
      */
     async handleExcelFile(event) {
         const file = event.target.files[0];
-        if (!file) return;
+        if (!file) {
+            return;
+        }
 
         // Reset input
         event.target.value = '';
@@ -1046,9 +1064,19 @@ class IDSEditorCore {
             }
         }
 
+        this.lastExcelImportReport = null;
+        const reportButton = document.getElementById('downloadImportReportBtn');
+        if (reportButton) {
+            reportButton.disabled = true;
+        }
+
         try {
             const buffer = await file.arrayBuffer();
             const result = IDSExcelParser.parse(buffer);
+            this.lastExcelImportReport = await IDSExcelParser.createImportReport(result, file);
+            if (reportButton) {
+                reportButton.disabled = false;
+            }
 
             // Show warnings if any
             if (result.warnings.length > 0) {
@@ -1085,6 +1113,9 @@ class IDSEditorCore {
                     <button class="btn btn-secondary excel-warning-cancel">
                         ${t('btn.cancel') || 'Cancel'}
                     </button>
+                    <button class="btn btn-secondary excel-warning-report">
+                        ${t('parser.importReport') || 'Import Report'}
+                    </button>
                     <button class="btn btn-primary excel-warning-continue">
                         ${t('editor.continueToEditor') || 'Continue to Editor'}
                     </button>
@@ -1097,6 +1128,10 @@ class IDSEditorCore {
         // Event listeners
         dialog.querySelector('.excel-warning-cancel').addEventListener('click', () => {
             dialog.remove();
+        });
+
+        dialog.querySelector('.excel-warning-report').addEventListener('click', () => {
+            this.downloadExcelImportReport();
         });
 
         dialog.querySelector('.excel-warning-continue').addEventListener('click', () => {
@@ -1128,6 +1163,32 @@ class IDSEditorCore {
         this.renderIDS();
         this.enableEditMode();
         this.showMessage(t('editor.excelImported') || 'Excel imported successfully', 'success');
+
+        if (typeof window.runXSDValidation === 'function') {
+            const xml = this.xmlGenerator.generateIDS(this.idsData);
+            window.runXSDValidation(xml);
+        }
+    }
+
+    /**
+     * Download the report created by the most recent Excel import.
+     */
+    downloadExcelImportReport() {
+        if (!this.lastExcelImportReport) {
+            return;
+        }
+        const blob = new Blob(
+            [JSON.stringify(this.lastExcelImportReport, null, 2)],
+            { type: 'application/json;charset=utf-8' }
+        );
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        const sourceName = this.lastExcelImportReport.source.name.replace(/\.[^.]+$/, '');
+        link.download = `${sourceName}-import-report.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
     }
 
     /**

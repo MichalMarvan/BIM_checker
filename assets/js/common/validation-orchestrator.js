@@ -248,6 +248,8 @@ class ValidationOrchestrator {
         return {
             fileName: file.name,
             entityCount: entities.length,
+            validatorVersion: ValidationEngine.VERSION,
+            rulesVersion: ValidationEngine.RULES_VERSION,
             specificationResults: specResults
         };
     }

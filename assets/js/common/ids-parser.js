@@ -203,3 +203,4 @@ window.IDSParser = (function() {
         parseIfcVersionList
     };
 })();
+window.BIMServices?.register('ids', window.IDSParser, { local: true, version: '1.0' });

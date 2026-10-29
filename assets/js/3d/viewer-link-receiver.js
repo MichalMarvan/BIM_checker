@@ -48,8 +48,9 @@ let activeValidation = null; // { chip: HTMLElement|null, dimmed: Array<{modelId
  * @param {Function} deps.loadFileByMeta    — (fileMeta) => Promise<modelId> (= loadIfcFromStorage)
  * @param {Function} deps.getLoadedModels   — () => Map<modelId, {name, fileId}>
  * @param {Function} [deps.setStatus]       — (text, kind?) => void; status pill vieweru
+ * @param {Function} [deps.onMissingFile]   — otevře ruční načtení ve Storage
  */
-export function initViewerLink({ getEngine, loadFileByMeta, getLoadedModels, setStatus }) {
+export function initViewerLink({ getEngine, loadFileByMeta, getLoadedModels, setStatus, onMissingFile }) {
     if (typeof getEngine !== 'function') {
         console.warn('[viewer-link-receiver] chybí getEngine — přijímací strana nespuštěna');
         return;
@@ -59,7 +60,9 @@ export function initViewerLink({ getEngine, loadFileByMeta, getLoadedModels, set
     // Pojmenuj okno, aby ho odesílatel uměl refokusovat (window.open('', name)).
     // Přepíšeme jen prázdné jméno — respektujeme případné existující target.
     try {
-        if (!window.name) window.name = WINDOW_NAME;
+        if (!window.name) {
+            window.name = WINDOW_NAME;
+        }
     } catch {
         /* window.name nedostupné — refokus okna nebude fungovat, ale akce ano */
     }
@@ -71,7 +74,7 @@ export function initViewerLink({ getEngine, loadFileByMeta, getLoadedModels, set
     const runActionQueued = (payload) => {
         queue = queue.then(async () => {
             const engine = await getEngine();
-            return runAction(payload, { engine, loadFileByMeta, getLoadedModels, status });
+            return runAction(payload, { engine, loadFileByMeta, getLoadedModels, status, onMissingFile });
         }).catch((err) => {
             console.error('[viewer-link-receiver] runAction selhal:', err);
             status('✗ Akce z tabulky/validátoru selhala', 'error');
@@ -84,7 +87,9 @@ export function initViewerLink({ getEngine, loadFileByMeta, getLoadedModels, set
         const channel = new BroadcastChannel(CHANNEL);
         channel.onmessage = (ev) => {
             const msg = ev && ev.data;
-            if (!msg || msg.type !== 'action') return;
+            if (!msg || msg.type !== 'action') {
+                return;
+            }
             // ack MUSÍ odejít dřív než jakákoli async práce — odesílatel čeká
             // jen 400 ms; id se vrací verbatim (= klíč handoffu).
             try {
@@ -102,13 +107,16 @@ export function initViewerLink({ getEngine, loadFileByMeta, getLoadedModels, set
     // Payload přečteme hned (jednorázový klíč ze sessionStorage), akci ale
     // provedeme přes frontu — engine se zhmotní až uvnitř runActionQueued.
     const bootPayload = readBootPayload();
-    if (bootPayload) runActionQueued(bootPayload);
+    if (bootPayload) {
+        runActionQueued(bootPayload);
+    }
 }
 
 /**
- * Přečte boot payload z ?handoff=<key> → sessionStorage a klíč zase odstraní
- * (jednorázový handoff). Vrací null, když parametr chybí, klíč není ve
- * storage, nebo je JSON poškozený.
+ * Přečte boot payload z ?handoff=<key>. Primární sessionStorage drží payload
+ * jen v dvojici oken; jednorázový localStorage fallback pokrývá prohlížeče,
+ * kde kopie sessionStorage závodí s okamžitou navigací about:blank popupu.
+ * Obě kopie se po přečtení odstraní.
  */
 function readBootPayload() {
     let key = null;
@@ -117,11 +125,17 @@ function readBootPayload() {
     } catch {
         return null;
     }
-    if (!key) return null;
+    if (!key) {
+        return null;
+    }
     try {
-        const raw = sessionStorage.getItem(key);
-        if (!raw) return null;
+        const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+        if (!raw) {
+            console.warn('[viewer-link-receiver] boot payload nebyl ve storage nalezen');
+            return null;
+        }
         sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
         return JSON.parse(raw);
     } catch (e) {
         console.warn('[viewer-link-receiver] neplatný boot payload:', e);
@@ -134,7 +148,9 @@ function readBootPayload() {
  * Neznámý version/mode → warn + status, nikdy nehází výjimku ven.
  */
 async function runAction(payload, ctx) {
-    if (!payload || typeof payload !== 'object') return;
+    if (!payload || typeof payload !== 'object') {
+        return;
+    }
     const { status } = ctx;
 
     if (payload.version !== 1) {
@@ -162,7 +178,9 @@ async function runAction(payload, ctx) {
 
 /** Normalizuje id na string; null/undefined/'' vrací jako '' (= chybí). */
 function normId(v) {
-    if (v === null || v === undefined) return '';
+    if (v === null || v === undefined) {
+        return '';
+    }
     return String(v);
 }
 
@@ -179,14 +197,19 @@ async function ensureFiles(files, ctx) {
     const { loadFileByMeta, getLoadedModels, status } = ctx;
     const byFileId = new Map();
     const byName = new Map();
+    const missing = [];
 
     const indexLoaded = () => {
         byFileId.clear();
         byName.clear();
         const loaded = getLoadedModels() || new Map();
         for (const [modelId, info] of loaded) {
-            if (info && normId(info.fileId)) byFileId.set(normId(info.fileId), modelId);
-            if (info && info.name) byName.set(info.name, modelId);
+            if (info && normId(info.fileId)) {
+                byFileId.set(normId(info.fileId), modelId);
+            }
+            if (info && info.name) {
+                byName.set(info.name, modelId);
+            }
         }
     };
     indexLoaded();
@@ -195,7 +218,9 @@ async function ensureFiles(files, ctx) {
     // Vzor převzat z assets/js/ifc/viewer-handoff.js (BIMStorage je window global).
     let storageFiles = null;
     const getStorageFiles = async () => {
-        if (storageFiles) return storageFiles;
+        if (storageFiles) {
+            return storageFiles;
+        }
         if (!window.BIMStorage) {
             console.warn('[viewer-link-receiver] BIMStorage není dostupné');
             storageFiles = [];
@@ -208,20 +233,26 @@ async function ensureFiles(files, ctx) {
     };
 
     for (const file of files) {
-        if (!file) continue;
+        if (!file) {
+            continue;
+        }
         const fileId = normId(file.fileId);
         const fileName = file.fileName || file.name || '';
 
-        // Už načtený? (fileId přednostně, pak jméno)
-        if (fileId && byFileId.has(fileId)) continue;
-        if (fileName && byName.has(fileName)) continue;
+        // Je-li fileId známé, jméno nesmí zaměnit dvě revize se stejným názvem.
+        if (fileId && byFileId.has(fileId)) {
+            continue;
+        }
+        if (!fileId && fileName && byName.has(fileName)) {
+            continue;
+        }
 
         // Dohledat ve storage.
         let meta = null;
         try {
             const list = await getStorageFiles();
             meta = (fileId ? list.find(f => normId(f.id) === fileId) : null)
-                || (fileName ? list.find(f => f.name === fileName) : null)
+                || (!fileId && fileName ? list.find(f => f.name === fileName) : null)
                 || null;
         } catch (e) {
             console.warn('[viewer-link-receiver] čtení storage selhalo:', e);
@@ -229,7 +260,11 @@ async function ensureFiles(files, ctx) {
 
         if (!meta) {
             console.warn('[viewer-link-receiver] soubor není ve storage:', fileName || fileId);
-            status(`Soubor ${fileName || fileId} není ve storage`, 'error');
+            missing.push(fileName || fileId);
+            status(`Soubor ${fileName || fileId} není ve storage — načti ho ručně přes Storage`, 'error');
+            try {
+                ctx.onMissingFile?.(file);
+            } catch { /* UI fallback nesmí zrušit handoff */ }
             continue;
         }
 
@@ -243,14 +278,18 @@ async function ensureFiles(files, ctx) {
 
     // Přeindexovat — načtení výše přidalo nové modely do getLoadedModels.
     indexLoaded();
-    return { byFileId, byName };
+    return { byFileId, byName, missing };
 }
 
 /** Najde modelId pro záznam elementu podle fileId (přednostně) nebo jména. */
 function modelIdForElement(el, modelsByFile) {
     const fileId = normId(el.fileId);
-    if (fileId && modelsByFile.byFileId.has(fileId)) return modelsByFile.byFileId.get(fileId);
-    if (el.fileName && modelsByFile.byName.has(el.fileName)) return modelsByFile.byName.get(el.fileName);
+    if (fileId && modelsByFile.byFileId.has(fileId)) {
+        return modelsByFile.byFileId.get(fileId);
+    }
+    if (el.fileName && modelsByFile.byName.has(el.fileName)) {
+        return modelsByFile.byName.get(el.fileName);
+    }
     return null;
 }
 
@@ -261,6 +300,10 @@ function modelIdForElement(el, modelsByFile) {
 async function applyElementMode(payload, modelsByFile, ctx) {
     const { engine, status } = ctx;
 
+    // Element handoff replaces a previous validation visualization; keeping
+    // its red/green overlay would make the new orange selection ambiguous.
+    clearValidationDisplay(engine);
+
     // Normalizace: buď jeden `element`, nebo pole `elements`.
     const elements = Array.isArray(payload.elements)
         ? payload.elements
@@ -270,13 +313,17 @@ async function applyElementMode(payload, modelsByFile, ctx) {
     // jednou per model.
     const guidsByModel = new Map();
     for (const el of elements) {
-        if (!el || !el.guid) continue;
+        if (!el || !el.guid) {
+            continue;
+        }
         const modelId = modelIdForElement(el, modelsByFile);
         if (!modelId) {
             console.warn('[viewer-link-receiver] pro prvek nenalezen model:', el.fileName || el.fileId);
             continue;
         }
-        if (!guidsByModel.has(modelId)) guidsByModel.set(modelId, []);
+        if (!guidsByModel.has(modelId)) {
+            guidsByModel.set(modelId, []);
+        }
         guidsByModel.get(modelId).push(String(el.guid));
     }
 
@@ -295,7 +342,9 @@ async function applyElementMode(payload, modelsByFile, ctx) {
     }
 
     if (items.length === 0) {
-        status('Prvek z tabulky se v modelu nenašel', 'error');
+        status(modelsByFile.missing?.length
+            ? `Soubor ${modelsByFile.missing.join(', ')} není ve storage — načti ho ručně přes Storage`
+            : 'Prvek z tabulky se v modelu nenašel', 'error');
         return;
     }
 
@@ -338,19 +387,27 @@ async function applyValidationMode(payload, modelsByFile, ctx) {
     // fail má přednost, aby prvek failnutý v ≥1 spec zůstal červený).
     const guidStatusByModel = new Map();
     for (const it of rawItems) {
-        if (!it || !it.guid) continue;
+        if (!it || !it.guid) {
+            continue;
+        }
         const st = it.status === 'fail' ? 'fail' : (it.status === 'pass' ? 'pass' : null);
-        if (!st) continue; // jen pass/fail, ostatní statusy ignoruj
+        if (!st) {
+            continue;
+        } // jen pass/fail, ostatní statusy ignoruj
         const modelId = modelIdForElement(it, modelsByFile);
         if (!modelId) {
             console.warn('[viewer-link-receiver] pro validovaný prvek nenalezen model:', it.fileName || it.fileId);
             continue;
         }
-        if (!guidStatusByModel.has(modelId)) guidStatusByModel.set(modelId, new Map());
+        if (!guidStatusByModel.has(modelId)) {
+            guidStatusByModel.set(modelId, new Map());
+        }
         const perModel = guidStatusByModel.get(modelId);
         const guid = String(it.guid);
         // fail přebíjí pass; pass nenahradí už zapsaný fail.
-        if (st === 'fail' || !perModel.has(guid)) perModel.set(guid, st);
+        if (st === 'fail' || !perModel.has(guid)) {
+            perModel.set(guid, st);
+        }
     }
 
     // 3) Rozliš GUIDy → expressId, poskládej highlight položky a validovanou množinu.
@@ -368,16 +425,24 @@ async function applyValidationMode(payload, modelsByFile, ctx) {
         const set = new Set();
         for (const [guid, st] of perModel) {
             const expressId = resolved.get(guid);
-            if (expressId === undefined) { notFoundCount++; continue; }
+            if (expressId === undefined) {
+                notFoundCount++; continue;
+            }
             set.add(expressId);
             highlightItems.push({ modelId, expressId, color: st === 'fail' ? COLOR_FAIL : COLOR_PASS });
-            if (st === 'fail') failCount++; else passCount++;
+            if (st === 'fail') {
+                failCount++;
+            } else {
+                passCount++;
+            }
         }
         validatedByModel.set(modelId, set);
     }
 
     if (highlightItems.length === 0) {
-        status('Validované prvky se v modelu nenašly', 'error');
+        status(modelsByFile.missing?.length
+            ? `Soubor ${modelsByFile.missing.join(', ')} není ve storage — načti ho ručně přes Storage`
+            : 'Validované prvky se v modelu nenašly', 'error');
         return;
     }
 
@@ -406,7 +471,9 @@ async function applyValidationMode(payload, modelsByFile, ctx) {
                 console.warn('[viewer-link-receiver] search (ztlumení) selhal:', e);
             }
             for (const h of hits) {
-                if (set.has(h.expressId)) continue; // nevaliduj přes validované (pass i fail)
+                if (set.has(h.expressId)) {
+                    continue;
+                } // nevaliduj přes validované (pass i fail)
                 others.push({ modelId, expressId: h.expressId });
             }
         }
@@ -441,16 +508,22 @@ async function applyValidationMode(payload, modelsByFile, ctx) {
 function clearValidationDisplay(engine) {
     if (activeValidation) {
         if (activeValidation.chip) {
-            try { activeValidation.chip.remove(); } catch { /* chip už mohl zmizet */ }
+            try {
+                activeValidation.chip.remove();
+            } catch { /* chip už mohl zmizet */ }
         }
         if (activeValidation.dimmed && activeValidation.dimmed.length
             && typeof engine?.setEntityOpacity === 'function') {
-            try { engine.setEntityOpacity(activeValidation.dimmed, 1); } catch (e) {
+            try {
+                engine.setEntityOpacity(activeValidation.dimmed, 1);
+            } catch (e) {
                 console.warn('[viewer-link-receiver] obnova opacity selhala:', e);
             }
         }
         activeValidation = null;
-        try { engine?.clearHighlights?.(); } catch (e) {
+        try {
+            engine?.clearHighlights?.();
+        } catch (e) {
             console.warn('[viewer-link-receiver] clearHighlights (úklid) selhal:', e);
         }
     }
@@ -481,8 +554,12 @@ function buildValidationChip({ title, passCount, failCount, notFoundCount, dimSk
     const counts = document.createElement('span');
     counts.className = 'v3d-validation-chip__counts';
     let text = `Validace: ${passCount} ✓ · ${failCount} ✗`;
-    if (notFoundCount > 0) text += ` (${notFoundCount} nenalezeno)`;
-    if (dimSkipped) text += ' (ztlumení vynecháno — velký model)';
+    if (notFoundCount > 0) {
+        text += ` (${notFoundCount} nenalezeno)`;
+    }
+    if (dimSkipped) {
+        text += ' (ztlumení vynecháno — velký model)';
+    }
     counts.textContent = text;
     chip.appendChild(counts);
 
@@ -490,7 +567,9 @@ function buildValidationChip({ title, passCount, failCount, notFoundCount, dimSk
     btn.type = 'button';
     btn.className = 'v3d-validation-chip__close';
     btn.textContent = '✕ Zrušit';
-    btn.addEventListener('click', () => { onCancel?.(); });
+    btn.addEventListener('click', () => {
+        onCancel?.();
+    });
     chip.appendChild(btn);
 
     host.appendChild(chip);

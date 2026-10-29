@@ -27,19 +27,23 @@ class BsddAutocomplete {
 
     render() {
         const container = this.options.container;
+        const escapeAttr = window.BIMSafeHTML?.escapeAttr || (value => String(value || '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]));
+        const inputId = escapeAttr(this.options.inputId);
         container.classList.add('bsdd-autocomplete-wrapper');
 
         container.innerHTML = `
             <div class="bsdd-input-row">
                 <input type="text"
-                       id="${this.options.inputId}"
+                       id="${inputId}"
                        class="bsdd-input"
-                       value="${this.options.initialValue || ''}"
-                       placeholder="${this.options.placeholder || ''}"
+                       value="${escapeAttr(this.options.initialValue || '')}"
+                       placeholder="${escapeAttr(this.options.placeholder || '')}"
                        autocomplete="off">
                 <span class="bsdd-search-icon">🔍</span>
             </div>
-            <div class="bsdd-dropdown" id="${this.options.inputId}_dropdown" style="display:none;">
+            <div class="bsdd-dropdown" id="${inputId}_dropdown" style="display:none;">
                 <div class="bsdd-dropdown-content"></div>
             </div>
         `;
@@ -54,7 +58,9 @@ class BsddAutocomplete {
         this.input.addEventListener('input', () => this.onInput());
         this.input.addEventListener('keydown', (e) => this.onKeydown(e));
         this.input.addEventListener('focus', () => {
-            if (this.results.length > 0) this.showDropdown();
+            if (this.results.length > 0) {
+                this.showDropdown();
+            }
         });
 
         // Close dropdown when clicking outside
@@ -86,6 +92,10 @@ class BsddAutocomplete {
                 this.showDropdown();
             }
         } catch (error) {
+            if (error && error.name === 'SupersededError') {
+                // A newer debounced search took over — not a failure, stay silent.
+                return;
+            }
             this.showError(error.message);
         }
     }
@@ -129,7 +139,9 @@ class BsddAutocomplete {
     }
 
     onKeydown(e) {
-        if (!this.isOpen) return;
+        if (!this.isOpen) {
+            return;
+        }
 
         switch (e.key) {
             case 'ArrowDown':
@@ -174,7 +186,7 @@ class BsddAutocomplete {
         this.showDropdown();
     }
 
-    showError(message) {
+    showError(_message) {
         this.dropdownContent.innerHTML = `<div class="bsdd-error">${t('bsdd.connectionError')}</div>`;
         this.showDropdown();
     }
@@ -198,10 +210,9 @@ class BsddAutocomplete {
     }
 
     escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return window.BIMSafeHTML?.escapeHtml(text) ?? String(text || '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]);
     }
 }
 

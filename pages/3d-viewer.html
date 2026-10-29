@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title data-i18n="page.title.viewer3d">BIM Checker — 3D Viewer</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#667eea">
     <link rel="stylesheet" href="../assets/css/common.css">
     <link rel="stylesheet" href="../assets/css/3d-viewer.css">
@@ -28,10 +29,13 @@
     <script type="importmap">
     {
         "imports": {
-            "three": "https://esm.sh/three@0.182.0/build/three.module.js",
-            "three/examples/jsm/controls/OrbitControls.js": "https://esm.sh/three@0.182.0/examples/jsm/controls/OrbitControls.js",
-            "three/examples/jsm/environments/RoomEnvironment.js": "https://esm.sh/three@0.182.0/examples/jsm/environments/RoomEnvironment.js",
-            "three-mesh-bvh": "https://esm.sh/three-mesh-bvh@0.9.1?external=three"
+            "three": "../assets/js/vendor/three/three.module.js",
+            "three/examples/jsm/controls/OrbitControls.js": "../assets/js/vendor/three/examples/jsm/controls/OrbitControls.js",
+            "three/examples/jsm/environments/RoomEnvironment.js": "../assets/js/vendor/three/examples/jsm/environments/RoomEnvironment.js",
+            "three/examples/jsm/exporters/GLTFExporter.js": "../assets/js/vendor/three/examples/jsm/exporters/GLTFExporter.js",
+            "three-mesh-bvh": "../assets/js/vendor/three-mesh-bvh/index.module.js",
+            "onnxruntime-common": "../assets/js/vendor/optional/ort.webgpu.bundle.min.mjs",
+            "onnxruntime-web/webgpu": "../assets/js/vendor/optional/ort.webgpu.bundle.min.mjs"
         }
     }
     </script>
@@ -56,10 +60,10 @@
 
         <div class="v3d-navbar__actions">
             <div class="v3d-lang">
-                <button class="v3d-lang__btn active" data-lang="cs">CZ</button>
-                <button class="v3d-lang__btn" data-lang="en">EN</button>
+                <button type="button" class="v3d-lang__btn lang-btn active" data-lang="cs">CZ</button>
+                <button type="button" class="v3d-lang__btn lang-btn" data-lang="en">EN</button>
             </div>
-            <button class="v3d-icon-btn" id="themeToggle" title="Přepnout téma" data-i18n-title="theme.toggle">
+            <button type="button" class="v3d-icon-btn" id="themeToggle" title="Přepnout téma" data-i18n-title="theme.toggle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                 </svg>
@@ -71,23 +75,23 @@
     <main class="v3d-main">
         <!-- Left icon rail (Trimble-style) + slide-out drawer -->
         <aside class="v3d-rail" id="v3dRail">
-            <button class="v3d-rail__item" data-rail="storage" title="Storage — složky a IFC soubory">
+            <button type="button" class="v3d-rail__item" data-rail="storage" title="Storage — složky a IFC soubory" data-i18n-title="viewer3d.rail.storageTitle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                <span class="v3d-rail__label">Storage</span>
+                <span class="v3d-rail__label" data-i18n="viewer3d.rail.storage">Storage</span>
             </button>
-            <button class="v3d-rail__item" data-rail="models" title="Modely — načítání a správa">
+            <button type="button" class="v3d-rail__item" data-rail="models" title="Modely — načítání a správa" data-i18n-title="viewer3d.rail.modelsTitle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                <span class="v3d-rail__label">Modely</span>
+                <span class="v3d-rail__label" data-i18n="viewer3d.rail.models">Modely</span>
             </button>
-            <button class="v3d-rail__item" data-rail="viewpoints" title="Uložené pohledy">
+            <button type="button" class="v3d-rail__item" data-rail="viewpoints" title="Uložené pohledy" data-i18n-title="viewer3d.rail.viewpointsTitle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                <span class="v3d-rail__label">Pohledy</span>
+                <span class="v3d-rail__label" data-i18n="viewer3d.rail.viewpoints">Pohledy</span>
             </button>
         </aside>
         <section class="v3d-drawer" id="v3dDrawer" hidden>
             <header class="v3d-drawer__header">
                 <h3 class="v3d-drawer__title" id="v3dDrawerTitle">—</h3>
-                <button class="v3d-drawer__close" id="v3dDrawerClose" aria-label="Zavřít">&times;</button>
+                <button type="button" class="v3d-drawer__close" id="v3dDrawerClose" aria-label="Zavřít" data-i18n-aria-label="viewer3d.close">&times;</button>
             </header>
             <div class="v3d-drawer__body" id="v3dDrawerBody"></div>
         </section>
@@ -97,94 +101,91 @@
         <!-- Floating tool toolbar overlaid on canvas (top-left) -->
         <div class="v3d-toolbar" id="v3dToolbar">
             <div class="v3d-toolbar__group">
-                <button class="v3d-tool active" data-tool="select" title="Výběr objektů" data-i18n-title="viewer3d.tool.select">
+                <button type="button" class="v3d-tool active" data-tool="select" title="Výběr objektů" data-i18n-title="viewer3d.tool.select">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="orbit" title="Orbitální navigace" data-i18n-title="viewer3d.tool.orbit">
+                <button type="button" class="v3d-tool" hidden data-tool="orbit" title="Orbitální navigace" data-i18n-title="viewer3d.tool.orbit">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
-                <button class="v3d-tool" data-tool="measure" title="Měření" data-i18n-title="viewer3d.tool.measure">
+                <button type="button" class="v3d-tool" data-tool="measure" title="Měření" data-i18n-title="viewer3d.tool.measure">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M19 3v18M3 12h18"/></svg>
                 </button>
-                <button class="v3d-tool" data-tool="clip" title="Řez modelem" data-i18n-title="viewer3d.tool.clip">
+                <button type="button" class="v3d-tool" data-tool="clip" title="Řez modelem" data-i18n-title="viewer3d.tool.clip">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="walk" title="Walk mode (WASD)" data-i18n-title="viewer3d.tool.walk">
+                <button type="button" class="v3d-tool" hidden data-tool="walk" title="Walk mode (WASD)" data-i18n-title="viewer3d.tool.walk">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="M14 6.5l1.5 4.5 3 1.5M9.5 21l1.5-7-2-3M11 14l-2 7M11 11l-3 1.5L6 17"/></svg>
                 </button>
             </div>
 
             <div class="v3d-toolbar__group">
-                <button class="v3d-tool" hidden data-tool="search" title="Hledat objekty" data-i18n-title="viewer3d.tool.search">
+                <button type="button" class="v3d-tool" hidden data-tool="search" title="Hledat objekty" data-i18n-title="viewer3d.tool.search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="color" title="Obarvit podle vlastnosti" data-i18n-title="viewer3d.tool.color">
+                <button type="button" class="v3d-tool" hidden data-tool="color" title="Obarvit podle vlastnosti" data-i18n-title="viewer3d.tool.color">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="sets" title="Sady výběru" data-i18n-title="viewer3d.tool.sets">
+                <button type="button" class="v3d-tool" hidden data-tool="sets" title="Sady výběru" data-i18n-title="viewer3d.tool.sets">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-1.41-1.41A2 2 0 0 1 17 14.17V11a5 5 0 0 0-10 0v3.17a2 2 0 0 1-.59 1.42L5 17z"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="schedule" title="Tabulka prvků" data-i18n-title="viewer3d.tool.schedule">
+                <button type="button" class="v3d-tool" hidden data-tool="schedule" title="Tabulka prvků" data-i18n-title="viewer3d.tool.schedule">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
                 </button>
             </div>
 
             <div class="v3d-toolbar__group">
-                <button class="v3d-tool" hidden data-tool="pins" title="Piny / markup" data-i18n-title="viewer3d.tool.pins">
+                <button type="button" class="v3d-tool" hidden data-tool="pins" title="Piny / markup" data-i18n-title="viewer3d.tool.pins">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="issues" title="Issues" data-i18n-title="viewer3d.tool.issues">
+                <button type="button" class="v3d-tool" hidden data-tool="issues" title="Issues" data-i18n-title="viewer3d.tool.issues">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="screenshot" title="Screenshot" data-i18n-title="viewer3d.tool.screenshot">
+                <button type="button" class="v3d-tool" hidden data-tool="screenshot" title="Screenshot" data-i18n-title="viewer3d.tool.screenshot">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="pdf" title="PDF report" data-i18n-title="viewer3d.tool.pdf">
+                <button type="button" class="v3d-tool" hidden data-tool="pdf" title="PDF report" data-i18n-title="viewer3d.tool.pdf">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="share" title="Sdílet pohled" data-i18n-title="viewer3d.tool.share">
+                <button type="button" class="v3d-tool" hidden data-tool="share" title="Sdílet pohled" data-i18n-title="viewer3d.tool.share">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                 </button>
             </div>
 
             <div class="v3d-toolbar__group">
-                <button class="v3d-tool" hidden data-tool="clash" title="Detekce kolizí" data-i18n-title="viewer3d.tool.clash">
+                <button type="button" class="v3d-tool" hidden data-tool="clash" title="Detekce kolizí" data-i18n-title="viewer3d.tool.clash">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                 </button>
-                <button class="v3d-tool" data-tool="alignment" title="Osy trasy (IFC / LandXML)" data-i18n-title="viewer3d.tool.alignment">
+                <button type="button" class="v3d-tool" data-tool="alignment" title="Osy trasy (IFC / LandXML)" data-i18n-title="viewer3d.tool.alignment">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21c2 0 4-2 4-4M8 17c0-2 2-4 4-4M12 13c2 0 4-2 4-4M16 9c0-2 2-4 4-4"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="diff" title="Diff dvou verzí" data-i18n-title="viewer3d.tool.diff">
+                <button type="button" class="v3d-tool" hidden data-tool="diff" title="Diff dvou verzí" data-i18n-title="viewer3d.tool.diff">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="ask" title="Ask Anything (RAG)" data-i18n-title="viewer3d.tool.ask">
+                <button type="button" class="v3d-tool" hidden data-tool="ask" title="Ask Anything (RAG)" data-i18n-title="viewer3d.tool.ask">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="timeline" title="4D Timeline" data-i18n-title="viewer3d.tool.timeline">
+                <button type="button" class="v3d-tool" hidden data-tool="timeline" title="4D Timeline" data-i18n-title="viewer3d.tool.timeline">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </button>
             </div>
 
             <div class="v3d-toolbar__group">
-                <button class="v3d-tool" hidden data-tool="three-tiles" title="Export 3D Tiles (Cesium)" data-i18n-title="viewer3d.tool.threeTiles">
+                <button type="button" class="v3d-tool" hidden data-tool="three-tiles" title="Export 3D Tiles (Cesium)" data-i18n-title="viewer3d.tool.threeTiles">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                </button>
-                <button class="v3d-tool" hidden data-tool="ids-templates" title="IDS šablony" data-i18n-title="viewer3d.tool.idsTemplates">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>
                 </button>
             </div>
 
             <div class="v3d-toolbar__group">
-                <button class="v3d-tool" hidden data-tool="spatial" title="Strom modelu (spatial)" data-i18n-title="viewer3d.tool.spatial">
+                <button type="button" class="v3d-tool" hidden data-tool="spatial" title="Strom modelu (spatial)" data-i18n-title="viewer3d.tool.spatial">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="display" title="Zobrazení (Solid/X-ray/Wireframe)" data-i18n-title="viewer3d.tool.display">
+                <button type="button" class="v3d-tool" hidden data-tool="display" title="Zobrazení (Solid/X-ray/Wireframe)" data-i18n-title="viewer3d.tool.display">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
                 </button>
-                <button class="v3d-tool" hidden id="v3dShowAllBtn" data-action="show-all" title="Zobrazit vše (zrušit skrytí a izolaci prvků)">
+                <button type="button" class="v3d-tool" hidden id="v3dShowAllBtn" data-action="show-all" title="Zobrazit vše (zrušit skrytí a izolaci prvků)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><polyline points="15.5 19.5 17.5 21.5 21.5 17.5"/></svg>
                 </button>
-                <button class="v3d-tool" hidden data-tool="georef" title="Geo-referenace" data-i18n-title="viewer3d.tool.georef">
+                <button type="button" class="v3d-tool" hidden data-tool="georef" title="Geo-referenace" data-i18n-title="viewer3d.tool.georef">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
                 </button>
             </div>
@@ -206,42 +207,42 @@
                     <span class="v3d-entity-bar__sep" id="v3dEntityTypeSep">·</span>
                     <span class="v3d-entity-bar__id" id="v3dEntityId">—</span>
                     <span class="v3d-entity-bar__sep">·</span>
-                    <button class="v3d-entity-bar__guid" id="v3dEntityGuid" title="">—</button>
+                    <button type="button" class="v3d-entity-bar__guid" id="v3dEntityGuid" title="">—</button>
                 </div>
             </div>
             <div class="v3d-entity-bar__count" id="v3dEntityCount" hidden></div>
             <div class="v3d-entity-bar__tools">
-                <button class="v3d-eb-btn" data-eb-action="focus" title="Přiblížit kameru na prvek">
+                <button type="button" class="v3d-eb-btn" data-eb-action="focus" title="Přiblížit kameru na prvek" data-i18n-title="viewer3d.entity.focusTitle">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                    <span>Pohled</span>
+                    <span data-i18n="viewer3d.entity.focus">Pohled</span>
                 </button>
-                <button class="v3d-eb-btn" data-eb-action="hide" title="Skrýt prvek">
+                <button type="button" class="v3d-eb-btn" data-eb-action="hide" title="Skrýt prvek" data-i18n-title="viewer3d.entity.hideTitle">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    <span>Skrýt</span>
+                    <span data-i18n="viewer3d.entity.hide">Skrýt</span>
                 </button>
-                <button class="v3d-eb-btn" data-eb-action="isolate" title="Skrýt vše ostatní">
+                <button type="button" class="v3d-eb-btn" data-eb-action="isolate" title="Skrýt vše ostatní" data-i18n-title="viewer3d.entity.isolateTitle">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <span>Izolovat</span>
+                    <span data-i18n="viewer3d.entity.isolate">Izolovat</span>
                 </button>
-                <button class="v3d-eb-btn" data-eb-action="same-type" title="Vybrat všechny stejného typu">
+                <button type="button" class="v3d-eb-btn" data-eb-action="same-type" title="Vybrat všechny stejného typu" data-i18n-title="viewer3d.entity.sameTypeTitle">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                    <span>Stejný typ</span>
+                    <span data-i18n="viewer3d.entity.sameType">Stejný typ</span>
                 </button>
-                <label class="v3d-eb-opacity" title="Průhlednost: 0 % = neprůhledný, 100 % = neviditelný">
-                    <span>Průhl.</span>
+                <label class="v3d-eb-opacity" title="Průhlednost: 0 % = neprůhledný, 100 % = neviditelný" data-i18n-title="viewer3d.entity.opacityTitle">
+                    <span data-i18n="viewer3d.entity.opacity">Průhl.</span>
                     <input type="range" min="0" max="100" step="5" value="0" id="v3dEntityOpacity">
                     <span class="v3d-eb-opacity__val" id="v3dEntityOpacityVal">0 %</span>
                 </label>
                 <span class="v3d-eb-sep"></span>
-                <button class="v3d-eb-btn" data-eb-action="detail" title="Detail vlastností">
+                <button type="button" class="v3d-eb-btn" data-eb-action="detail" title="Detail vlastností" data-i18n-title="viewer3d.entity.detailTitle">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                    <span>Detail</span>
+                    <span data-i18n="viewer3d.entity.detail">Detail</span>
                 </button>
-                <button class="v3d-eb-btn" data-eb-action="table" title="Otevřít vybrané prvky v IFC tabulce">
+                <button type="button" class="v3d-eb-btn" data-eb-action="table" title="Otevřít vybrané prvky v IFC tabulce" data-i18n-title="viewer3d.entity.tableTitle">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="4" x2="8" y2="20"/><line x1="14" y1="4" x2="14" y2="20"/></svg>
-                    <span>Tabulka</span>
+                    <span data-i18n="viewer3d.entity.table">Tabulka</span>
                 </button>
-                <button class="v3d-eb-btn v3d-eb-btn--close" data-eb-action="close" title="Zrušit výběr">
+                <button type="button" class="v3d-eb-btn v3d-eb-btn--close" data-eb-action="close" title="Zrušit výběr" data-i18n-title="viewer3d.entity.clearTitle">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
@@ -256,7 +257,7 @@
         <div class="modal-container v3d-picker-modal">
             <div class="modal-header">
                 <h2 data-i18n="viewer3d.pickerTitle">Vybrat IFC ze storage</h2>
-                <button class="modal-close" id="viewer3dPickerClose">&times;</button>
+                <button type="button" class="modal-close" id="viewer3dPickerClose">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="viewer3dPickerList" class="v3d-picker-list">
@@ -264,18 +265,22 @@
                 </div>
             </div>
             <div class="v3d-picker-footer">
-                <button class="v3d-btn" id="v3dPickerCancel" data-i18n="viewer3d.pickerCancel">Zrušit</button>
-                <button class="v3d-btn v3d-btn--primary" id="v3dPickerConfirm" disabled data-i18n="viewer3d.pickerConfirm">Načíst vybrané</button>
+                <button type="button" class="v3d-btn" id="v3dPickerCancel" data-i18n="viewer3d.pickerCancel">Zrušit</button>
+                <button type="button" class="v3d-btn v3d-btn--primary" id="v3dPickerConfirm" disabled data-i18n="viewer3d.pickerConfirm">Načíst vybrané</button>
             </div>
         </div>
     </div>
 
     <!-- Shared core -->
+    <script src="../assets/js/common/safe-html.js"></script>
+    <script src="../assets/js/common/service-registry.js"></script>
     <script src="../assets/js/common/translations.js"></script>
     <script src="../assets/js/common/i18n.js"></script>
+    <script src="../assets/js/common/dialog-accessibility.js"></script>
     <script src="../assets/js/common/theme.js"></script>
     <script src="../assets/js/common/error-handler.js"></script>
     <script src="../assets/js/common/compression.js"></script>
+    <script src="../assets/js/common/database-registry.js"></script>
     <script src="../assets/js/common/storage.js"></script>
     <script src="../assets/js/common/local-folder-storage.js"></script>
     <script src="../assets/js/common/storage-backend-restore.js"></script>
@@ -283,5 +288,6 @@
 
     <!-- 3D viewer bootstrap (ESM, uses import map for three) -->
     <script type="module" src="../assets/js/3d/viewer-page.js"></script>
+    <script src="../assets/js/common/pwa.js"></script>
 </body>
 </html>

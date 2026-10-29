@@ -76,10 +76,10 @@
         </a>
         <div class="bim-mobile-topbar__actions">
             <div class="bim-mobile-topbar__lang">
-                <button class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
-                <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
+                <button type="button" class="lang-btn active" data-lang="cs" aria-label="Czech">CZ</button>
+                <button type="button" class="lang-btn" data-lang="en" aria-label="English">EN</button>
             </div>
-            <button class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
+            <button type="button" class="bim-mobile-topbar__settings" id="aiSettingsBtnMobile" title="AI agenti">⚙️</button>
         </div>
     </header>
     <!-- Navigation Bar -->
@@ -104,7 +104,7 @@
             </nav>
             <div class="navbar-actions">
                 <!-- Bug Report Button -->
-                <button class="bug-report-btn" id="bugReportBtn" title="Nahlásit chybu" data-i18n-title="bugReport.tooltip" aria-label="Report bug">
+                <button type="button" class="bug-report-btn" id="bugReportBtn" title="Nahlásit chybu" data-i18n-title="bugReport.tooltip" aria-label="Report bug">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="8" y="6" width="8" height="14" rx="4"/>
                         <path d="M19 7l-3 2"/>
@@ -117,13 +117,13 @@
                     </svg>
                 </button>
                 <!-- Wizard Tour Button -->
-                <button class="wizard-header-btn wizard-tour-btn" id="wizard-tour-btn" title="Spustit průvodce" data-i18n-title="tooltip.startTour">
+                <button type="button" class="wizard-header-btn wizard-tour-btn" id="wizard-tour-btn" title="Spustit průvodce" data-i18n-title="tooltip.startTour">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                 </button>
                 <!-- Help Button -->
-                <button class="wizard-header-btn wizard-help-btn" id="wizard-help-btn" title="Nápověda" data-i18n-title="tooltip.help">
+                <button type="button" class="wizard-header-btn wizard-help-btn" id="wizard-help-btn" title="Nápověda" data-i18n-title="tooltip.help">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"/>
                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
@@ -131,17 +131,17 @@
                     </svg>
                 </button>
                 <!-- Phase 7: AI settings -->
-                <button class="ai-settings-btn" id="aiSettingsBtn" title="AI agenti — nastavení" data-i18n-title="ai.settings.tooltip" aria-label="AI settings">
+                <button type="button" class="ai-settings-btn" id="aiSettingsBtn" title="AI agenti — nastavení" data-i18n-title="ai.settings.tooltip" aria-label="AI settings">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"/>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                 </button>
                 <div class="language-switcher">
-                    <button class="lang-btn active" data-lang="cs">CZ</button>
-                    <button class="lang-btn" data-lang="en">EN</button>
+                    <button type="button" class="lang-btn active" data-lang="cs">CZ</button>
+                    <button type="button" class="lang-btn" data-lang="en">EN</button>
                 </div>
-                <button class="pwa-install-btn pwa-install-btn--unavailable" id="pwaInstallBtn" title="Nainstalovat aplikaci" data-i18n-title="tooltip.install">
+                <button type="button" class="pwa-install-btn pwa-install-btn--unavailable" id="pwaInstallBtn" title="Nainstalovat aplikaci" data-i18n-title="tooltip.install">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
@@ -149,7 +149,7 @@
                     </svg>
 
                 </button>
-                <button class="theme-toggle" id="themeToggle" title="Přepnout motiv" data-i18n-title="tooltip.toggleTheme">
+                <button type="button" class="theme-toggle" id="themeToggle" title="Přepnout motiv" data-i18n-title="tooltip.toggleTheme">
                     <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"/>
                         <line x1="12" y1="1" x2="12" y2="3"/>
@@ -225,24 +225,24 @@
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn-icon-modern" id="ifcNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">
+                            <button type="button" class="btn-icon-modern" id="ifcNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-7l-2-2H5a2 2 0 00-2 2z"/>
                                     <line x1="12" y1="11" x2="12" y2="17"/>
                                     <line x1="9" y1="14" x2="15" y2="14"/>
                                 </svg>
                             </button>
-                            <button class="btn-icon-modern" id="ifcUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">
+                            <button type="button" class="btn-icon-modern" id="ifcUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                 </svg>
                             </button>
-                            <button class="btn-icon-modern" id="ifcExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">
+                            <button type="button" class="btn-icon-modern" id="ifcExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="6 9 12 15 18 9"/>
                                 </svg>
                             </button>
-                            <button class="btn-icon-modern" id="ifcCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">
+                            <button type="button" class="btn-icon-modern" id="ifcCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="18 15 12 9 6 15"/>
                                 </svg>
@@ -310,24 +310,24 @@
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn-icon-modern" id="idsNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">
+                            <button type="button" class="btn-icon-modern" id="idsNewFolderBtn" data-i18n-title="storage.newFolder" title="Nová složka">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-7l-2-2H5a2 2 0 00-2 2z"/>
                                     <line x1="12" y1="11" x2="12" y2="17"/>
                                     <line x1="9" y1="14" x2="15" y2="14"/>
                                 </svg>
                             </button>
-                            <button class="btn-icon-modern" id="idsUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">
+                            <button type="button" class="btn-icon-modern" id="idsUploadBtn" data-i18n-title="storage.upload" title="Nahrát soubory">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                 </svg>
                             </button>
-                            <button class="btn-icon-modern" id="idsExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">
+                            <button type="button" class="btn-icon-modern" id="idsExpandAllBtn" data-i18n-title="storage.expandAll" title="Rozbalit vše">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="6 9 12 15 18 9"/>
                                 </svg>
                             </button>
-                            <button class="btn-icon-modern" id="idsCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">
+                            <button type="button" class="btn-icon-modern" id="idsCollapseAllBtn" data-i18n-title="storage.collapseAll" title="Sbalit vše">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="18 15 12 9 6 15"/>
                                 </svg>
@@ -374,6 +374,19 @@
                     </div>
 
                     <input type="file" id="idsFileInput" accept=".ids,.xml" multiple style="display: none;">
+                </div>
+            </div>
+            <div class="storage-management" role="group" aria-labelledby="storageManagementTitle">
+                <div>
+                    <h3 id="storageManagementTitle" data-i18n="storage.management.title">Záloha a správa úložiště</h3>
+                    <p data-i18n="storage.management.description">Záloha obsahuje IFC, IDS a strukturu složek. Obnova vytvoří novou složku a původní data nemaže.</p>
+                    <p class="storage-management__usage"><span data-i18n="storage.management.usage">Využití prohlížeče</span>: <strong id="storageManagementUsage">—</strong></p>
+                </div>
+                <div class="storage-management__actions">
+                    <button type="button" class="btn btn-secondary" id="storageBackupExport" data-i18n="storage.management.export">Exportovat zálohu</button>
+                    <button type="button" class="btn btn-secondary" id="storageBackupImport" data-i18n="storage.management.restore">Obnovit ze zálohy</button>
+                    <button type="button" class="btn btn-secondary" id="storageCacheClear" data-i18n="storage.management.clearCache">Vyčistit pouze cache</button>
+                    <input type="file" id="storageBackupFile" accept=".json,.bimchecker.json,application/json" hidden>
                 </div>
             </div>
         </section>
@@ -573,6 +586,8 @@
                     <span class="footer-divider">•</span>
                     <a href="https://www.gnu.org/licenses/agpl-3.0" target="_blank" rel="noopener noreferrer" class="footer-link" data-i18n="footer.license">AGPL v3</a>
                     <span class="footer-divider">•</span>
+                    <a href="PRIVACY.md" class="footer-link" data-i18n="footer.privacy">Soukromí</a>
+                    <span class="footer-divider">•</span>
                     <a href="https://michalmarvan.cz/contact" target="_blank" rel="noopener noreferrer" class="footer-link" data-i18n="footer.author">Autor</a>
                 </div>
             </div>
@@ -603,8 +618,11 @@
         </div>
     </div>
 
+    <script src="assets/js/common/safe-html.js"></script>
+    <script src="assets/js/common/service-registry.js"></script>
     <script src="assets/js/common/translations.js"></script>
     <script src="assets/js/common/i18n.js"></script>
+    <script src="assets/js/common/dialog-accessibility.js"></script>
     <script src="assets/js/common/error-handler.js"></script>
     <script src="assets/js/common/bug-report.js"></script>
     <script src="assets/js/common/compression.js"></script>
@@ -614,7 +632,9 @@
     <script src="assets/js/common/validation-presets.js"></script>
     <script src="assets/js/common/ids-parser.js"></script>
     <script src="assets/js/ids/ids-xml-generator.js"></script>
+    <script src="assets/js/common/database-registry.js"></script>
     <script src="assets/js/common/storage.js"></script>
+    <script src="assets/js/common/storage-management.js"></script>
     <script type="module" src="assets/js/common/fs-handle-store.js"></script>
     <script src="assets/js/common/local-folder-storage.js"></script>
     <script src="assets/js/common/save-to-folder-dialog.js"></script>
@@ -654,7 +674,7 @@
             setTimeout(initWizard, 10);
         }
     </script>
-    <!-- Update Checker for desktop app -->
+    <!-- Optional web/PWA release checker -->
     <script type="module" src="assets/js/common/update-checker.js"></script>
     <!-- PWA -->
     <script src="assets/js/common/pwa.js"></script>

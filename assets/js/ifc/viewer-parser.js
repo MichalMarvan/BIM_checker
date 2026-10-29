@@ -529,7 +529,7 @@ function parseLayerAssignment(params, entityMap) {
 // MAIN PARSING FUNCTIONS
 // =======================
 
-async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
+async function parseIFCAsync(content, fileName, fileIndex, totalFiles, fileId = null) {
     const state = window.ViewerState;
 
     try {
@@ -763,7 +763,8 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
                             name: name || '-',
                             layer: entityLayer,
                             propertySets,
-                            fileName: fileName
+                            fileName: fileName,
+                            fileId
                         });
                     }
                 }
@@ -778,10 +779,11 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles) {
 
         const color = state.fileColors[state.loadedFiles.length % state.fileColors.length];
 
-        await window.storeIFCContent(fileName, content);
+        await window.storeIFCContent(fileName, content, fileId);
 
         state.loadedFiles.push({
             fileName,
+            fileId,
             data: fileData,
             color,
             entityCount: fileData.length,

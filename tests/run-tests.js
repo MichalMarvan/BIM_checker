@@ -17,6 +17,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 
+// The test harness intentionally exercises a few production error branches.
+// Keep this list narrow: every other browser error must fail CI.
+const EXPECTED_BROWSER_ERROR_PATTERNS = [
+    /^idsEditorCore not found!$/,
+    /^Editor or currentIDSData not available\b/,
+    /blob:fake/
+];
+
+function isExpectedBrowserError(text) {
+    return EXPECTED_BROWSER_ERROR_PATTERNS.some(pattern => pattern.test(text));
+}
+
 // MIME types
 const mimeTypes = {
     '.html': 'text/html',
@@ -59,7 +71,7 @@ function startServer(port) {
             }
         });
 
-        server.listen(port, () => {
+        server.listen(port, '127.0.0.1', () => {
             resolve(server);
         });
     });
@@ -84,12 +96,13 @@ async function runTests() {
     const port = 8765;
     let server;
     let browser;
+    const browserErrors = [];
 
     try {
         // Start server
         console.log('Starting HTTP server...');
         server = await startServer(port);
-        console.log(`Server running at http://localhost:${port}`);
+        console.log(`Server running at http://127.0.0.1:${port}`);
 
         // Launch browser
         console.log('Launching headless browser...');
@@ -109,14 +122,25 @@ async function runTests() {
             const text = msg.text();
             if (type === 'error') {
                 console.error('  [ERROR]', text);
+                browserErrors.push({ type: 'console.error', text });
             } else if (type === 'warn') {
                 console.warn('  [WARN]', text);
             }
         });
+        page.on('pageerror', error => {
+            const text = error?.stack || error?.message || String(error);
+            console.error('  [PAGE ERROR]', text);
+            browserErrors.push({ type: 'pageerror', text });
+        });
+        page.on('requestfailed', request => {
+            const text = `${request.url()} — ${request.failure()?.errorText || 'request failed'}`;
+            console.error('  [REQUEST FAILED]', text);
+            browserErrors.push({ type: 'requestfailed', text });
+        });
 
         // Navigate to test runner
         console.log('Loading test runner...');
-        await page.goto(`http://localhost:${port}/tests/test-runner.html`, {
+        await page.goto(`http://127.0.0.1:${port}/tests/test-runner.html`, {
             waitUntil: 'networkidle0',
             timeout: 30000
         });
@@ -189,6 +213,14 @@ async function runTests() {
         console.log('\n' + '='.repeat(60));
         console.log(`SUMMARY: ${results.passed}/${results.total} tests passed`);
 
+        const unexpectedBrowserErrors = browserErrors.filter(issue => !isExpectedBrowserError(issue.text));
+        if (unexpectedBrowserErrors.length > 0) {
+            console.log(`\x1b[31m${unexpectedBrowserErrors.length} unexpected browser errors\x1b[0m`);
+            for (const issue of unexpectedBrowserErrors) {
+                console.log(`  [${issue.type}] ${issue.text}`);
+            }
+        }
+
         if (results.failed > 0) {
             console.log(`\x1b[31m${results.failed} tests FAILED\x1b[0m`);
         } else {
@@ -197,7 +229,7 @@ async function runTests() {
         console.log('='.repeat(60));
 
         // Exit with appropriate code
-        process.exitCode = results.failed > 0 ? 1 : 0;
+        process.exitCode = results.failed > 0 || unexpectedBrowserErrors.length > 0 ? 1 : 0;
 
     } catch (error) {
         console.error('Test runner error:', error.message);

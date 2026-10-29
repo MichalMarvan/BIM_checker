@@ -68,6 +68,8 @@ describe('Internationalization (i18n)', () => {
         expect(csKeys.length).toBeGreaterThan(0);
         expect(enKeys.length).toBeGreaterThan(0);
         expect(csKeys.length).toBe(enKeys.length);
+        expect(csKeys.filter(key => !Object.prototype.hasOwnProperty.call(window.translations.en, key))).toEqual([]);
+        expect(enKeys.filter(key => !Object.prototype.hasOwnProperty.call(window.translations.cs, key))).toEqual([]);
     });
 
     it('should switch language', () => {
