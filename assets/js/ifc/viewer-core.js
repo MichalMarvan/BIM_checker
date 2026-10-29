@@ -156,8 +156,10 @@ const ViewerState = {
 // =======================
 
 /**
- * Check if a buffer represents a complete IFC entity.
- * Handles edge case where semicolon might be inside a string.
+ * Check if a buffer represents a complete IFC entity: ends with `;` outside a
+ * string ('' = escaped apostrophe, only inside a string) and outside a comment.
+ * Same rule as IFCStreamParser.isEntityComplete; the viewer parser itself now
+ * tokenizes records with IfcRecordScanner (viewer-parser.js).
  */
 function isIfcEntityComplete(buffer) {
     if (!buffer.trimEnd().endsWith(';')) {
@@ -166,12 +168,19 @@ function isIfcEntityComplete(buffer) {
 
     let inString = false;
     for (let i = 0; i < buffer.length; i++) {
-        if (buffer[i] === "'") {
-            if (buffer[i + 1] === "'") {
+        const char = buffer[i];
+        if (char === "'") {
+            if (inString && buffer[i + 1] === "'") {
                 i++;
                 continue;
             }
             inString = !inString;
+        } else if (!inString && char === '/' && buffer[i + 1] === '*') {
+            const end = buffer.indexOf('*/', i + 2);
+            if (end === -1) {
+                return false;
+            }
+            i = end + 1;
         }
     }
 

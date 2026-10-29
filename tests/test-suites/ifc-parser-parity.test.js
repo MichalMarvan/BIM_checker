@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2026 Michal Marvan */
-// Parita tří STEP tokenizerů: parseStepText/splitParams (3d/ifc-engine/parser/step-parser.js)
-// je jádro pravdy; IFCParserCore._buildEntityMap/_splitParams (common/ifc-parser-core.js)
-// a IFCStreamParser (common/ifc-stream-parser.js) musí dávat stejné entity a stejné položky.
-describe('ifc-parser-parity — step-parser vs IFCParserCore vs IFCStreamParser', () => {
+// Parita čtyř STEP tokenizerů: parseStepText/splitParams (3d/ifc-engine/parser/step-parser.js)
+// je jádro pravdy; IFCParserCore._buildEntityMap/_splitParams (common/ifc-parser-core.js),
+// IFCStreamParser (common/ifc-stream-parser.js) a viewer parser collectIfcEntities/
+// parseEntityFast/splitParams (ifc/viewer-parser.js) musí dávat stejné entity a položky.
+// Viewer parser u typů ze SKIP_ENTITY_TYPES params nevyřezává (params null, skipped true);
+// u nich se porovnává jen id a typ.
+describe('ifc-parser-parity — step-parser vs IFCParserCore vs IFCStreamParser vs viewer', () => {
     let step;
     async function mod() {
         if (!step) step = await import('../../assets/js/3d/ifc-engine/parser/step-parser.js');
@@ -25,10 +28,12 @@ describe('ifc-parser-parity — step-parser vs IFCParserCore vs IFCStreamParser'
         const ref = parseStepText(text).entities;
         const core = IFCParserCore._buildEntityMap(text);
         const stream = streamEntities(text, chunkSize);
+        const viewer = window.collectIfcEntities(text);
         const probe = new IFCStreamParser();
         const problems = [];
         if (core.size !== ref.size) problems.push(`core count ${core.size} != ${ref.size}`);
         if (stream.size !== ref.size) problems.push(`stream count ${stream.size} != ${ref.size}`);
+        if (viewer.size !== ref.size) problems.push(`viewer count ${viewer.size} != ${ref.size}`);
         for (const [id, e] of ref) {
             const c = core.get(String(id));
             if (!c) { problems.push(`core missing #${id}`); continue; }
@@ -37,6 +42,14 @@ describe('ifc-parser-parity — step-parser vs IFCParserCore vs IFCStreamParser'
             const a = splitParams(e.params);
             const b = IFCParserCore._splitParams(c.params);
             if (JSON.stringify(a) !== JSON.stringify(b)) problems.push(`core split #${id} ${JSON.stringify(b)} != ${JSON.stringify(a)}`);
+            const v = viewer.get(String(id));
+            if (!v) { problems.push(`viewer missing #${id}`); continue; }
+            if (v.type !== e.type) problems.push(`viewer type #${id} ${v.type} != ${e.type}`);
+            if (!v.skipped) {
+                if (v.params !== e.params) problems.push(`viewer params #${id} ${JSON.stringify(v.params)} != ${JSON.stringify(e.params)}`);
+                const vp = window.ViewerParser.splitParams(v.params);
+                if (JSON.stringify(a) !== JSON.stringify(vp)) problems.push(`viewer split #${id} ${JSON.stringify(vp)} != ${JSON.stringify(a)}`);
+            }
             const s = stream.get(id);
             if (!s) { problems.push(`stream missing #${id}`); continue; }
             if (s.type !== e.type) problems.push(`stream type #${id} ${s.type} != ${e.type}`);
@@ -121,6 +134,44 @@ describe('ifc-parser-parity — step-parser vs IFCParserCore vs IFCStreamParser'
         for (const size of [1, 2, 3, 7, 64, 100000]) {
             expect(JSON.stringify(await diff(data, size))).toBe('[]');
         }
+    });
+
+    it('viewer: komentář v parametrech, \\X0\\ před uvozovkou a víceřádkový záznam dávají stejné entity', async () => {
+        const data = "#1=IFCWALL('S\\X2\\017D\\X0\\',/* #9 */$,'a;b',\n  (#2),\n#3);\n/* x */#2=IFCCARTESIANPOINT((0.,0.,0.));\n#3=IFCPROPERTYSET('g',$,'it''s',$,(#4));";
+        expect(JSON.stringify(await diff(data))).toBe('[]');
+        const v = window.collectIfcEntities(wrap(data));
+        expect(v.size).toBe(3);
+        expect(v.get('1').params).toBe("'S\\X2\\017D\\X0\\',$,'a;b',(#2),#3");
+        expect(v.get('2').skipped).toBe(true);
+        expect(v.get('2').params).toBeNull();
+        // window.splitParams přepisuje ifc-string-encoding.test.js vlastní kopií — ber viewer verzi z namespace.
+        expect(JSON.stringify(window.ViewerParser.splitParams("'a',,(1,2),"))).toBe('["\'a\'","","(1,2)",""]');
+    });
+
+    it('viewer: parseEntityFast akceptuje záznam s i bez ";", malá písmena v typu, odmítá nevalidní hlavu', () => {
+        expect(window.parseEntityFast("#7 = ifcSlab ('x') ;").params).toBe("'x'");
+        expect(window.parseEntityFast("#7 = ifcSlab ('x') ;").type).toBe('IFCSLAB');
+        expect(window.parseEntityFast("#7=IFCSLAB('x')").params).toBe("'x'");
+        expect(window.parseEntityFast('#a=IFCSLAB(1);')).toBeNull();
+        expect(window.parseEntityFast('#1=IFC-SLAB(1);')).toBeNull();
+        expect(window.parseEntityFast('#1=IFCSLAB(1;')).toBeNull();
+        expect(window.parseEntityFast('#1=(IFCA(1)IFCB(2));')).toBeNull();
+    });
+
+    it('viewer: IfcRecordScanner zpracuje stejné záznamy po částech i najednou', () => {
+        const data = "#1=IFCWALL('it''s',/* k */$,'\\X2\\00E1\\X0\\');\n#2=IFCSLAB((1.,2.),#1);\n#3=IFCBEAM('c'\n#4=IFCBEAM('d');";
+        const text = wrap(data);
+        const whole = [];
+        new window.IfcRecordScanner(text).scan(r => whole.push(r));
+        for (const step of [1, 3, 10, 1000]) {
+            const parts = [];
+            const scanner = new window.IfcRecordScanner(text);
+            let limit = scanner.position + step;
+            while (scanner.scan(r => parts.push(r), limit)) limit += step;
+            expect(JSON.stringify(parts)).toBe(JSON.stringify(whole));
+        }
+        expect(whole.length).toBe(3);
+        expect(whole[2]).toBe("#4=IFCBEAM('d')");
     });
 
     it('collectStatements vrací záznamy ukončené středníkem (zpětná kompatibilita)', () => {

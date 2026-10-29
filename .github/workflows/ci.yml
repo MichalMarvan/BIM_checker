@@ -83,6 +83,9 @@ jobs:
           path: test-results/buildingsmart-ids.*
           if-no-files-found: error
 
+      - name: IFC geometry regression corpus gate
+        run: npm run test:ifc-corpus
+
       - name: Browser page smoke tests
         run: npm run test:smoke
 

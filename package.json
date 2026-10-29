@@ -36,6 +36,7 @@
     "validate:html": "html-validate index.html pages/*.html",
     "test:smoke": "node scripts/smoke-pages.mjs",
     "test:ids-conformance": "node scripts/audit-buildingSMART-ids-tests.mjs",
+    "test:ifc-corpus": "node scripts/ifc-diag/corpus-gate.mjs",
     "test:e2e": "node scripts/e2e-viewer-handoff.mjs",
     "test:a11y": "node scripts/accessibility-pages.mjs",
     "test:offline": "node scripts/offline-pages.mjs",

@@ -1,0 +1,72 @@
+ISO-10303-21;
+HEADER;
+/* Synthetic BIM_checker fixture derived from buildingSMART extruded-solid.ifc (IFC4.x-specification-models). */
+/* Purpose: STEP tokenizer edge cases — comments inside records, ';' and \X0\ before a closing quote, */
+/* multi-line records, two records on one line, lower-case type names, and one record missing its ');' */
+/* (#9000 swallows #9001: the broken head is dropped, #9001 must still be parsed). Geometry must stay OK. */
+FILE_DESCRIPTION(('ViewDefinition [NotAssigned]','Comment [tokenizer edge cases]'),'2;1');
+FILE_NAME('synthetic-tokenizer-edge-cases.ifc','2026-10-30T00:00:00',('redacted'),('redacted'),'redacted','redacted','BIM_checker regression corpus');
+FILE_SCHEMA(('IFC4X3_ADD2'));
+ENDSEC;
+
+DATA;
+#100= IFCPROJECT('0xScRe4drECQ4DMSqUjd6e',#110,'proxy; with /* not a comment */ swept solid',$,$,$,$,(#201),#301);
+#110= IFCOWNERHISTORY(#111,#115,$,.ADDED.,1320688800,$,$,1320688800);
+#111= IFCPERSONANDORGANIZATION(#112,#113,$);
+#112= IFCPERSON($,'redacted','redacted',$,$,$,$,$);
+#113= IFCORGANIZATION($,'redacted',$,$,$);
+#115= IFCAPPLICATION(#113,'redacted','redacted','redacted');
+#201= IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.0E-5,#210,$);
+#202= IFCGEOMETRICREPRESENTATIONSUBCONTEXT('Body','Model',*,*,*,*,#201,$,.MODEL_VIEW.,$);
+#210= IFCAXIS2PLACEMENT3D(#901,$,$);
+#301= IFCUNITASSIGNMENT((#311,#312));
+#311= IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);
+#312= IFCCONVERSIONBASEDUNIT(#313,.PLANEANGLEUNIT.,'degree',#314);
+#313= IFCDIMENSIONALEXPONENTS(0,0,0,0,0,0,0);
+#314= IFCMEASUREWITHUNIT(IFCPLANEANGLEMEASURE(0.017453293),#315);
+#315= IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.);
+#500= IFCBUILDING('2FCZDorxHDT8NI01kdXi8Q',$,'Budova \X2\017D\X0\',$,$,#511,$,$,.ELEMENT.,$,$,$);
+#511= IFCLOCALPLACEMENT($,#512);
+#512= IFCAXIS2PLACEMENT3D(#901,$,$);
+#519= IFCRELAGGREGATES('2YBqaV_8L15eWJ9DA1sGmU',$,$,$,#100,(#500));
+#901= IFCCARTESIANPOINT((0.,0.,0.));#902= IFCDIRECTION((1.,0.,0.));
+#904= ifcDirection((0.,0.,1.));
+
+/* comment immediately before a record: #1000 */
+#1000= IFCBUILDINGELEMENTPROXY('1kTvXnbbzCWw8lcMd1dR4p',$,'P-1 \X2\00E1\X0\','it''s; a /* sample */ proxy',$,#1001,#1010,$,$);
+#1001= IFCLOCALPLACEMENT(#511,#1002);
+#1002= IFCAXIS2PLACEMENT3D(#1003,$,$);
+#1003= IFCCARTESIANPOINT((1000.,/* y */0.,0.));
+#1010= IFCPRODUCTDEFINITIONSHAPE($,$,(#1020));
+#1020= IFCSHAPEREPRESENTATION(#202,
+  'Body',
+  'SweptSolid',
+  (#1021));
+#1021= IFCEXTRUDEDAREASOLID(#1022,$,#904,
+  2000.);
+#1022= IFCRECTANGLEPROFILEDEF(.AREA.,'1m x 1m rectangle',$,1000.,1000.);
+
+/* second proxy: faceted brep with multi-line point list and a comment inside the face list */
+#2000= IFCBUILDINGELEMENTPROXY('1kTvXnbbzCWw8lcMd1dR4q',$,'P-2','brep proxy',$,#2001,#2010,$,$);
+#2001= IFCLOCALPLACEMENT(#511,#2002);
+#2002= IFCAXIS2PLACEMENT3D(#2003,$,$);
+#2003= IFCCARTESIANPOINT((4000.,0.,0.));
+#2010= IFCPRODUCTDEFINITIONSHAPE($,$,(#2020));
+#2020= IFCSHAPEREPRESENTATION(#202,'Body','Tessellation',(#2021));
+#2021= IFCTRIANGULATEDFACESET(#2022,$,.T.,(
+  (1,2,3),(1,3,4),/* top */(5,8,7),(5,7,6),
+  (1,5,6),(1,6,2),(2,6,7),(2,7,3),
+  (3,7,8),(3,8,4),(4,8,5),(4,5,1)),$);
+#2022= IFCCARTESIANPOINTLIST3D((
+  (0.,0.,0.),(1000.,0.,0.),(1000.,1000.,0.),(0.,1000.,0.),
+  (0.,0.,1000.),(1000.,0.,1000.),(1000.,1000.,1000.),(0.,1000.,1000.)),$);
+
+/* #9000 is deliberately missing its closing ');' — it swallows #9001, which must survive */
+#9000= IFCPROPERTYSET('3kTvXnbbzCWw8lcMd1dR4r',$,'Broken Pset',$,(#9002)
+#9001= IFCPROPERTYSET('3kTvXnbbzCWw8lcMd1dR4s',$,'Pset_Edge',$,(#9002));
+#9002= IFCPROPERTYSINGLEVALUE('Note',$,IFCTEXT('semi;colon \X2\017D\X0\'),$);
+#9003= IFCRELDEFINESBYPROPERTIES('3kTvXnbbzCWw8lcMd1dR4t',$,$,$,(#1000,#2000),#9001);
+
+#10000=IFCRELCONTAINEDINSPATIALSTRUCTURE('2TnxZkTXT08eDuMuhUUFNz',$,'Physical model',$,(#1000,#2000),#500);
+ENDSEC;
+END-ISO-10303-21;

@@ -41,6 +41,7 @@ podpora/
 !test-data/*.ids
 !examples/**/*.ifc
 !examples/**/*.ids
+!tests/fixtures/ifc-corpus/*.ifc
 
 # Generated frontend builds
 dist/

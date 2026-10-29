@@ -1,7 +1,10 @@
 // Parita STEP tokenizerů: parseStepText (assets/js/3d/ifc-engine/parser/step-parser.js)
-// versus IFCParserCore._buildEntityMap (ifc-parser-core.js) a IFCStreamParser
-// (ifc-stream-parser.js). Pro každý soubor porovná množinu entit (id → typ)
+// versus IFCParserCore._buildEntityMap (ifc-parser-core.js), IFCStreamParser
+// (ifc-stream-parser.js) a viewer parser collectIfcEntities/parseEntityFast
+// (assets/js/ifc/viewer-parser.js). Pro každý soubor porovná množinu entit (id → typ)
 // a rozdělení params na top-level položky; rozdíly vypíše a uloží do JSON.
+// U viewer parseru se params porovnávají jen u entit mimo SKIP_ENTITY_TYPES
+// (u přeskočených typů viewer params záměrně nevyřezává).
 //
 // Použití:
 //   node scripts/ifc-diag/parser-parity.mjs <soubor|složka>... [--sample=N] [--max-mb=M] [--out=cesta.json] [--quiet]
@@ -35,7 +38,9 @@ globalThis.window = globalThis;
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
 await import(pathToFileURL(path.join(root, 'assets/js/common/ifc-parser-core.js')).href);
 await import(pathToFileURL(path.join(root, 'assets/js/common/ifc-stream-parser.js')).href);
+await import(pathToFileURL(path.join(root, 'assets/js/ifc/viewer-parser.js')).href);
 const { IFCParserCore, IFCStreamParser } = globalThis;
+const { collectIfcEntities, splitParams: viewerSplitParams } = globalThis.ViewerParser;
 
 function walk(p, acc) {
   const st = fs.statSync(p);
@@ -99,12 +104,15 @@ function compareFile(file) {
   const t2 = performance.now();
   const stream = runStreamParser(text);
   const tStream = performance.now() - t2;
+  const t3 = performance.now();
+  const viewer = collectIfcEntities(text);
+  const tViewer = performance.now() - t3;
 
   const result = {
     file,
     bytes: text.length,
-    counts: { ref: ref.entities.size, core: core.size, stream: stream.size },
-    ms: { ref: Math.round(tRef), core: Math.round(tCore), stream: Math.round(tStream) },
+    counts: { ref: ref.entities.size, core: core.size, stream: stream.size, viewer: viewer.size },
+    ms: { ref: Math.round(tRef), core: Math.round(tCore), stream: Math.round(tStream), viewer: Math.round(tViewer) },
     diagnostics: {
       invalid: ref.diagnostics.invalidRecordCount,
       duplicates: ref.diagnostics.duplicateIdCount,
@@ -113,7 +121,8 @@ function compareFile(file) {
     },
     emptyFieldEntities: 0, // entity s prázdnou top-level položkou (např. `a,,b`) — splitParams je od 2026-10 zachovává
     core: { missing: 0, extra: 0, typeDiff: 0, paramsDiff: 0, partsDiff: 0, samples: [] },
-    stream: { missing: 0, extra: 0, typeDiff: 0, argsDiff: 0, samples: [] }
+    stream: { missing: 0, extra: 0, typeDiff: 0, argsDiff: 0, samples: [] },
+    viewer: { missing: 0, extra: 0, typeDiff: 0, paramsDiff: 0, partsDiff: 0, skipped: 0, samples: [] }
   };
   const addSample = (bucket, s) => { if (bucket.samples.length < MAX_SAMPLES) bucket.samples.push(s); };
 
@@ -160,8 +169,31 @@ function compareFile(file) {
     if (!ref.entities.has(id)) { result.stream.extra++; addSample(result.stream, { id, kind: 'extra', other: `${stream.get(id).type}` }); }
   }
 
+  // --- viewer (assets/js/ifc/viewer-parser.js) ---
+  for (const [id, e] of ref.entities) {
+    const v = viewer.get(String(id));
+    if (!v) { result.viewer.missing++; addSample(result.viewer, { id, kind: 'missing', ref: `${e.type}(${e.params.slice(0, 80)})` }); continue; }
+    if (v.type !== e.type) { result.viewer.typeDiff++; addSample(result.viewer, { id, kind: 'type', ref: e.type, other: v.type }); continue; }
+    if (v.skipped) { result.viewer.skipped++; continue; }
+    const a = splitParams(e.params);
+    const b = viewerSplitParams(v.params);
+    const partsEqual = a.length === b.length && a.every((x, i) => x === b[i]);
+    if (v.params !== e.params) {
+      result.viewer.paramsDiff++;
+      if (!partsEqual) result.viewer.partsDiff++;
+      addSample(result.viewer, { id, kind: partsEqual ? 'params-raw' : 'params-parts', ref: e.params.slice(0, 100), other: String(v.params).slice(0, 100) });
+    } else if (!partsEqual) {
+      result.viewer.partsDiff++;
+      addSample(result.viewer, { id, kind: 'split', ref: a, other: b });
+    }
+  }
+  for (const id of viewer.keys()) {
+    if (!ref.entities.has(Number(id))) { result.viewer.extra++; addSample(result.viewer, { id, kind: 'extra', other: `${viewer.get(id).type}` }); }
+  }
+
   result.coreEqual = result.counts.ref === result.counts.core && !result.core.missing && !result.core.extra && !result.core.typeDiff && !result.core.paramsDiff && !result.core.partsDiff;
   result.streamEqual = result.counts.ref === result.counts.stream && !result.stream.missing && !result.stream.extra && !result.stream.typeDiff && !result.stream.argsDiff;
+  result.viewerEqual = result.counts.ref === result.counts.viewer && !result.viewer.missing && !result.viewer.extra && !result.viewer.typeDiff && !result.viewer.paramsDiff && !result.viewer.partsDiff;
   return result;
 }
 
@@ -180,13 +212,14 @@ for (const file of files) {
     continue;
   }
   results.push(r);
-  if (!r.coreEqual || !r.streamEqual) anyDiff = true;
-  const c = r.core, s = r.stream;
-  const line = `${r.coreEqual && r.streamEqual ? 'OK   ' : 'DIFF '} ${path.basename(file).padEnd(48)} ref=${r.counts.ref} core=${r.counts.core}(-${c.missing}/+${c.extra}/t${c.typeDiff}/p${c.paramsDiff}/s${c.partsDiff}) stream=${r.counts.stream}(-${s.missing}/+${s.extra}/t${s.typeDiff}/a${s.argsDiff}) ms=${r.ms.ref}/${r.ms.core}/${r.ms.stream}`;
+  if (!r.coreEqual || !r.streamEqual || !r.viewerEqual) anyDiff = true;
+  const c = r.core, s = r.stream, v = r.viewer;
+  const line = `${r.coreEqual && r.streamEqual && r.viewerEqual ? 'OK   ' : 'DIFF '} ${path.basename(file).padEnd(48)} ref=${r.counts.ref} core=${r.counts.core}(-${c.missing}/+${c.extra}/t${c.typeDiff}/p${c.paramsDiff}/s${c.partsDiff}) stream=${r.counts.stream}(-${s.missing}/+${s.extra}/t${s.typeDiff}/a${s.argsDiff}) viewer=${r.counts.viewer}(-${v.missing}/+${v.extra}/t${v.typeDiff}/p${v.paramsDiff}/s${v.partsDiff}) ms=${r.ms.ref}/${r.ms.core}/${r.ms.stream}/${r.ms.viewer}`;
   console.log(line);
   if (!quiet) {
     for (const smp of c.samples.slice(0, 3)) console.log(`      core   #${smp.id} ${smp.kind}: ${JSON.stringify(smp.ref ?? '')} | ${JSON.stringify(smp.other ?? '')}`);
     for (const smp of s.samples.slice(0, 3)) console.log(`      stream #${smp.id} ${smp.kind}: ${JSON.stringify(smp.ref ?? '')} | ${JSON.stringify(smp.other ?? '')}`);
+    for (const smp of v.samples.slice(0, 3)) console.log(`      viewer #${smp.id} ${smp.kind}: ${JSON.stringify(smp.ref ?? '')} | ${JSON.stringify(smp.other ?? '')}`);
   }
 }
 
@@ -194,6 +227,7 @@ const summary = {
   files: results.length,
   coreEqual: results.filter(r => r.coreEqual).length,
   streamEqual: results.filter(r => r.streamEqual).length,
+  viewerEqual: results.filter(r => r.viewerEqual).length,
   errors: results.filter(r => r.error).length,
   totals: results.reduce((acc, r) => {
     if (r.error) return acc;
@@ -201,9 +235,10 @@ const summary = {
     acc.emptyFieldEntities += r.emptyFieldEntities;
     for (const k of ['missing', 'extra', 'typeDiff', 'paramsDiff', 'partsDiff']) acc.core[k] += r.core[k];
     for (const k of ['missing', 'extra', 'typeDiff', 'argsDiff']) acc.stream[k] += r.stream[k];
-    acc.ms.ref += r.ms.ref; acc.ms.core += r.ms.core; acc.ms.stream += r.ms.stream;
+    for (const k of ['missing', 'extra', 'typeDiff', 'paramsDiff', 'partsDiff', 'skipped']) acc.viewer[k] += r.viewer[k];
+    acc.ms.ref += r.ms.ref; acc.ms.core += r.ms.core; acc.ms.stream += r.ms.stream; acc.ms.viewer += r.ms.viewer;
     return acc;
-  }, { ref: 0, emptyFieldEntities: 0, core: { missing: 0, extra: 0, typeDiff: 0, paramsDiff: 0, partsDiff: 0 }, stream: { missing: 0, extra: 0, typeDiff: 0, argsDiff: 0 }, ms: { ref: 0, core: 0, stream: 0 } })
+  }, { ref: 0, emptyFieldEntities: 0, core: { missing: 0, extra: 0, typeDiff: 0, paramsDiff: 0, partsDiff: 0 }, stream: { missing: 0, extra: 0, typeDiff: 0, argsDiff: 0 }, viewer: { missing: 0, extra: 0, typeDiff: 0, paramsDiff: 0, partsDiff: 0, skipped: 0 }, ms: { ref: 0, core: 0, stream: 0, viewer: 0 } })
 };
 console.log('\nSOUHRN', JSON.stringify(summary));
 fs.mkdirSync(path.dirname(outPath), { recursive: true });

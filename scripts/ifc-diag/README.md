@@ -243,6 +243,55 @@ Pro srovnatelný korpusový běh neměňte zdroje enginu během měření. Při 
 práci použijte samostatnou kopii harnessu a `assets/` se zachovanými relativními
 cestami; samotné vstupní IFC mohou zůstat na původním místě.
 
+## CI brána nad regresním korpusem (`corpus-gate.mjs`)
+
+`tests/fixtures/ifc-corpus/` obsahuje ~19 drobných IFC (celkem ~160 kB, původ a
+licence v jeho `README.md`). `scripts/ifc-diag/corpus-gate.mjs` nad ním spustí
+`geometry-diagnose.mjs` (stejný harness, Puppeteer) a porovná výsledek
+s `tests/fixtures/ifc-corpus/expected.json` — per soubor počty produktů podle
+stavu, parser diagnostics a per produkt stav + degenerované trojúhelníky.
+
+```sh
+tp-run 'npm run test:ifc-corpus'                 # brána (CI krok „IFC geometry regression corpus gate“)
+tp-run 'npm run test:ifc-corpus -- --update'     # vědomá aktualizace expected.json
+tp-run --pull test-results                       # surové výstupy: test-results/ifc-diagnostics/corpus-gate/
+```
+
+Brána selže (kód 1) **jen při regresi** nebo absolutní chybě:
+
+- soubor skončil `FILE_ERROR`, chybí v běhu, nebo není v `expected.json`;
+- jakýkoli produkt `FAILED_GEOMETRY` nebo `nanCount > 0` (vždy, i když by to expected.json obsahoval);
+- produkt má horší stav než očekávaný (pořadí `OK_EXACT < OK_APPROXIMATED < PARTIAL
+  < NO_REPRESENTATION < UNSUPPORTED_GEOMETRY < FAILED_GEOMETRY`; změna z/na
+  `NOT_APPLICABLE` je vždy regrese), zmizel, přibyl mu nepodporovaný typ nebo
+  vzrostl počet degenerovaných trojúhelníků;
+- parser: vzrostl `invalidRecordCount`/`duplicateIdCount`, nově neukončený záznam,
+  klesl `entityCount`, změnilo se schéma.
+
+Lepší stav než očekávaný se vypíše jako `IMPROVED` a bránu neshodí; nové produkty
+jako `INFO`. V obou případech přeneste stav do `expected.json` přes `--update`
+(spusťte, zkontrolujte diff `expected.json` a commitněte ho spolu se změnou enginu).
+`--update` odmítne zapsat stav s `FILE_ERROR`; se stavem FAILED/NaN zapíše, ale
+upozorní, že brána stejně selže. Volby: `--corpus=dir`, `--expected=file`,
+`--out=dir`, `--timeout=s`.
+
+Nový fixture: zkopírujte malý soubor do `tests/fixtures/ifc-corpus/`, doplňte
+řádek do jeho `README.md` (původ, licence) a spusťte `--update`.
+
+## Parita STEP tokenizerů (`parser-parity.mjs`)
+
+Porovnává čtyři tokenizery nad reálnými soubory: `parseStepText` (reference),
+`IFCParserCore._buildEntityMap`, `IFCStreamParser` a viewer parser
+`collectIfcEntities`/`parseEntityFast` (`assets/js/ifc/viewer-parser.js`;
+u typů ze `SKIP_ENTITY_TYPES` se porovnává jen id a typ, params viewer nevyřezává).
+
+```sh
+tp-run 'node scripts/ifc-diag/parser-parity.mjs tests/fixtures/ifc-corpus ~/shared/buildingsmart/IFC4.x-specification-models/models --sample=40'
+```
+
+Návratový kód 2 = nalezen rozdíl. Syntetické případy hlídá
+`tests/test-suites/ifc-parser-parity.test.js`.
+
 ## Ověření harnessu
 
 ```sh

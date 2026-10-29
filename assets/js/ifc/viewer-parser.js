@@ -214,45 +214,170 @@ const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
 // Very large file threshold (150MB) - show stronger warning
 const VERY_LARGE_FILE_THRESHOLD = 150 * 1024 * 1024;
 
+// =======================
+// STEP RECORD TOKENIZER
+// =======================
+// Stejná sémantika jako parseStepText v assets/js/3d/ifc-engine/parser/step-parser.js
+// (ES modul, sem ho nelze importovat — tento soubor je klasický skript): záznam končí
+// prvním `;` mimo řetězec ('' = escapovaný apostrof) a mimo /* komentář */, komentáře
+// se z textu vyříznou, víceřádkový záznam se spojí bez mezer, záznam nezačínající `#`
+// se ignoruje, ENDSEC ukončuje DATA sekci a záznam bez `);`, který spolkl následující
+// entitu, se zahodí (zbytek se zpracuje). Paritu hlídá
+// tests/test-suites/ifc-parser-parity.test.js a scripts/ifc-diag/parser-parity.mjs.
+
+const IFC_DATA_SECTION_RE = /\bDATA\s*;/;
+const IFC_ENTITY_HEAD_RE = /^#(\d+)\s*=\s*([A-Za-z][A-Za-z0-9_]*)\s*\(/;
+const IFC_INNER_ENTITY_START_RE = /'(?:[^']|'')*'|(#\d+\s*=)/g;
+
+function skipIfcString(text, openAt) {
+    let j = openAt + 1;
+    for (;;) {
+        j = text.indexOf("'", j);
+        if (j === -1) {
+            return text.length;
+        }
+        if (text.charCodeAt(j + 1) === 39) {
+            j += 2;
+            continue;
+        }
+        return j + 1;
+    }
+}
+
+// Záznam, který spolkl následující entitu (chybí `);`): hlavu zahodit, zbytek zpracovat.
+function emitIfcRecord(rec, onRecord) {
+    if (rec.indexOf('=', 1) !== -1) {
+        IFC_INNER_ENTITY_START_RE.lastIndex = 1;
+        for (let s = IFC_INNER_ENTITY_START_RE.exec(rec); s !== null; s = IFC_INNER_ENTITY_START_RE.exec(rec)) {
+            if (s[1] !== undefined) {
+                emitIfcRecord(rec.slice(s.index), onRecord);
+                return;
+            }
+        }
+    }
+    onRecord(rec);
+}
+
 /**
- * Fast entity parsing using indexOf/substring instead of regex
- * Much faster for long lines (1MB+ geometry data)
+ * Přerušitelný skener DATA sekce: scan() zpracuje záznamy až po zadaný offset,
+ * takže parseIFCAsync může mezi dávkami pustit UI (progress) bez rozdělení textu na řádky.
+ */
+class IfcRecordScanner {
+    constructor(text) {
+        this.text = text || '';
+        this.scanRe = /['/;]/g;
+        this.recordText = '';
+        this.done = false;
+        const dataMatch = IFC_DATA_SECTION_RE.exec(this.text);
+        this.segStart = dataMatch ? dataMatch.index + dataMatch[0].length : this.text.length;
+        this.done = !dataMatch;
+        this.scanRe.lastIndex = this.segStart;
+    }
+
+    /** Offset, po který je text zpracovaný. */
+    get position() {
+        return this.done ? this.text.length : this.scanRe.lastIndex;
+    }
+
+    /**
+     * Zpracuje záznamy (každý bez `;`, oříznutý, s vyříznutými komentáři), dokud skener
+     * nepřekročí offset `limit` nebo nedojde na konec DATA sekce.
+     * @param {(rec: string) => void} onRecord
+     * @param {number} [limit]
+     * @returns {boolean} true, pokud zbývá další práce
+     */
+    scan(onRecord, limit = Infinity) {
+        const text = this.text;
+        const scanRe = this.scanRe;
+        while (!this.done) {
+            const m = scanRe.exec(text);
+            if (m === null) {
+                this.done = true;
+                break;
+            }
+            const at = m.index;
+            if (at >= limit) {
+                scanRe.lastIndex = at;
+                return true;
+            }
+            const c = text.charCodeAt(at);
+            if (c === 39 /* ' */) {
+                scanRe.lastIndex = skipIfcString(text, at);
+            } else if (c === 47 /* / */) {
+                if (text.charCodeAt(at + 1) !== 42 /* * */) {
+                    continue;
+                }
+                const end = text.indexOf('*/', at + 2);
+                this.recordText += text.slice(this.segStart, at);
+                this.segStart = end === -1 ? text.length : end + 2;
+                scanRe.lastIndex = this.segStart;
+            } else {
+                let rec = (this.recordText + text.slice(this.segStart, at)).trim();
+                this.recordText = '';
+                this.segStart = at + 1;
+                if (rec === '' || rec.charCodeAt(0) !== 35 /* # */) {
+                    if (/^ENDSEC$/i.test(rec)) {
+                        this.done = true;
+                        break;
+                    }
+                    continue;
+                }
+                if (rec.indexOf('\n') !== -1) {
+                    rec = rec.replace(/\s*\r?\n\s*/g, '');
+                }
+                emitIfcRecord(rec, onRecord);
+            }
+        }
+        return false;
+    }
+}
+
+/**
+ * Rozebere jeden záznam `#id=TYPE(params)` (volitelně ukončený `;`) na id, typ a
+ * syrové params mezi vnějšími závorkami. Typy ze SKIP_ENTITY_TYPES dostanou
+ * `skipped: true` a params se u nich nevyřezávají (rychlé pro dlouhé geometrické řádky).
+ * Shodné s ENTITY_RECORD_RE ve step-parseru: id číselné, typ identifikátor, velká písmena.
  */
 function parseEntityFast(line) {
-    // Find #ID=
-    if (!line.startsWith('#')) {
+    if (!line || line.charCodeAt(0) !== 35 /* # */) {
         return null;
     }
-
-    const eqPos = line.indexOf('=');
-    if (eqPos === -1) {
+    const head = IFC_ENTITY_HEAD_RE.exec(line);
+    if (!head) {
         return null;
     }
+    const id = head[1];
+    const entityType = head[2].toUpperCase();
 
-    const id = line.substring(1, eqPos).trim();
-
-    // Find entity type
-    const parenPos = line.indexOf('(', eqPos);
-    if (parenPos === -1) {
-        return null;
-    }
-
-    const entityType = line.substring(eqPos + 1, parenPos).trim();
-
-    // Check if we should skip this entity type
     if (SKIP_ENTITY_TYPES.has(entityType)) {
         return { id, type: entityType, params: null, skipped: true };
     }
 
-    // Extract params (everything between first ( and last ))
-    const lastParen = line.lastIndexOf(')');
-    if (lastParen === -1) {
+    let end = line.length;
+    while (end > 0 && line.charCodeAt(end - 1) <= 32) end--;
+    if (line.charCodeAt(end - 1) === 59 /* ; */) {
+        end--;
+        while (end > 0 && line.charCodeAt(end - 1) <= 32) end--;
+    }
+    if (end <= head[0].length || line.charCodeAt(end - 1) !== 41 /* ) */) {
         return null;
     }
 
-    const params = line.substring(parenPos + 1, lastParen);
+    return { id, type: entityType, params: line.slice(head[0].length, end - 1), skipped: false };
+}
 
-    return { id, type: entityType, params, skipped: false };
+/**
+ * Celá DATA sekce → Map<id, {id, type, params, skipped}> (synchronně; pro testy a paritu).
+ */
+function collectIfcEntities(content) {
+    const map = new Map();
+    new IfcRecordScanner(content).scan(rec => {
+        const parsed = parseEntityFast(rec);
+        if (parsed) {
+            map.set(parsed.id, parsed);
+        }
+    });
+    return map;
 }
 
 /**
@@ -336,8 +461,13 @@ function encodeIFCString(str) {
 // PARAMETER SPLITTING
 // =======================
 
+// Shodné s splitParams ve step-parser.js a IFCParserCore._splitParams: prázdné
+// položky se zachovávají ("a,,b" → ["a","","b"]), prázdný vstup dává [].
 function splitParams(params) {
     const parts = [];
+    if (!params || params.trim() === '') {
+        return parts;
+    }
     let current = '';
     let depth = 0;
     let inString = false;
@@ -366,9 +496,7 @@ function splitParams(params) {
         }
         current += char;
     }
-    if (current) {
-        parts.push(current.trim());
-    }
+    parts.push(current.trim());
     return parts;
 }
 
@@ -560,7 +688,6 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles, fileId = 
         }
 
         const fileData = [];
-        const lines = content.split('\n');
         const entityMap = new Map();
         const propertySetMap = new Map();
         const relDefinesMap = new Map();
@@ -568,75 +695,30 @@ async function parseIFCAsync(content, fileName, fileIndex, totalFiles, fileId = 
         const productShapeMap = new Map();
 
         const CHUNK_SIZE = 2000;
-        const totalLines = lines.length;
 
-        // Phase 1: Collect entities with multi-line support (OPTIMIZED)
+        // Phase 1: Collect entities — one tokenizer pass over the DATA section
+        // (comments, multi-line records and ';' in strings handled like parseStepText),
+        // interrupted every SCAN_STEP characters to update progress.
         window.updateProgress(0, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')}`);
 
-        let entityBuffer = '';
-        let inDataSection = false;
-
-        for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
-            const chunk = lines.slice(i, i + CHUNK_SIZE);
-
-            for (let line of chunk) {
-                line = line.trim();
-
-                if (line === 'DATA;') {
-                    inDataSection = true;
-                    continue;
-                }
-                if (line === 'ENDSEC;') {
-                    if (entityBuffer) {
-                        // Use fast parsing for buffered entities
-                        const parsed = parseEntityFast(entityBuffer);
-                        if (parsed && !parsed.skipped) {
-                            entityMap.set(parsed.id, { id: parsed.id, type: parsed.type, params: parsed.params });
-                        } else if (parsed && parsed.skipped) {
-                            skippedEntities++;
-                        }
-                        entityBuffer = '';
-                    }
-                    inDataSection = false;
-                    continue;
-                }
-
-                if (!inDataSection) {
-                    continue;
-                }
-                if (!line) {
-                    continue;
-                }
-
-                if (entityBuffer) {
-                    entityBuffer += ' ' + line;
-                    if (window.isIfcEntityComplete(entityBuffer)) {
-                        // Use fast parsing for long lines
-                        const parsed = parseEntityFast(entityBuffer);
-                        if (parsed && !parsed.skipped) {
-                            entityMap.set(parsed.id, { id: parsed.id, type: parsed.type, params: parsed.params });
-                        } else if (parsed && parsed.skipped) {
-                            skippedEntities++;
-                        }
-                        entityBuffer = '';
-                    }
-                } else if (line.startsWith('#')) {
-                    if (window.isIfcEntityComplete(line)) {
-                        // Use fast parsing - much faster for long lines
-                        const parsed = parseEntityFast(line);
-                        if (parsed && !parsed.skipped) {
-                            entityMap.set(parsed.id, { id: parsed.id, type: parsed.type, params: parsed.params });
-                        } else if (parsed && parsed.skipped) {
-                            skippedEntities++;
-                        }
-                    } else {
-                        entityBuffer = line;
-                    }
-                }
+        const SCAN_STEP = 2 * 1024 * 1024;
+        const scanner = new IfcRecordScanner(content);
+        const onRecord = rec => {
+            const parsed = parseEntityFast(rec);
+            if (!parsed) {
+                return;
             }
+            if (parsed.skipped) {
+                skippedEntities++;
+            } else {
+                entityMap.set(parsed.id, { id: parsed.id, type: parsed.type, params: parsed.params });
+            }
+        };
 
-            const progress = ((i + CHUNK_SIZE) / totalLines) * 25;
-            window.updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')} (${i + CHUNK_SIZE}/${totalLines} ${i18n.t('viewer.rows')})`);
+        for (let limit = scanner.position + SCAN_STEP; scanner.scan(onRecord, limit); limit += SCAN_STEP) {
+            const done = Math.min(scanner.position, fileSize);
+            const progress = (done / Math.max(fileSize, 1)) * 25;
+            window.updateProgress(progress, `${i18n.t('validator.loading.parsingIfcNum')} ${fileIndex}/${totalFiles}: ${fileName} - ${i18n.t('viewer.phase1')} (${Math.round(progress * 4)} %)`);
 
             await new Promise(resolve => setTimeout(resolve, 0));
         }
@@ -974,6 +1056,11 @@ window.parseIFC = parseIFC;
 window.buildSpatialTree = buildSpatialTree;
 // Large file optimization exports
 window.parseEntityFast = parseEntityFast;
+window.IfcRecordScanner = IfcRecordScanner;
+window.collectIfcEntities = collectIfcEntities;
+// Namespace export: window.splitParams přepisují klasické skripty se stejnojmennou
+// funkcí (např. testy); parita a nástroje berou funkce odsud.
+window.ViewerParser = Object.freeze({ splitParams, parseEntityFast, collectIfcEntities, IfcRecordScanner });
 window.validateIFCContent = validateIFCContent;
 window.SKIP_ENTITY_TYPES = SKIP_ENTITY_TYPES;
 window.REQUIRED_ENTITY_TYPES = REQUIRED_ENTITY_TYPES;

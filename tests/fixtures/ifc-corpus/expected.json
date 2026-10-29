@@ -1,0 +1,972 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-29T23:29:16.681Z",
+  "engineSha256": {
+    "parser/step-parser.js": "e8b62178acd51e6a3b9d716f40b924ea0327baa753cd7ee8f0c1d0d468ec616c",
+    "parser/entity-index.js": "15c1620804b2ff7c8d11f90050d48e4de984fe7241e714ae55dbd3479c965233",
+    "parser/product-detect.js": "9584c874b8e3e77121a044ada2fd38ff803b9e2dc65b1be8fad07adff4c4aaa6",
+    "geometry/geometry-core.js": "ed37c6078fea7b7ee255761e23f54d8b5ae3a8a4e8638aad95e9a97373fc0984",
+    "geometry/mesh-types.js": "ca5998458af48b613febfb4200c61b830f85912d2bd24bae3813223ca4860b62",
+    "constants.js": "0dd7973c0350d8023f52bfafa80e8a8e5c2d4c38a66432a8f7d904a8fa44400e"
+  },
+  "files": {
+    "basin-faceted-brep.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 692,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 2,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "213": {
+          "ifcType": "IFCSANITARYTERMINAL",
+          "status": "OK_EXACT",
+          "triangles": 312,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "basin-tessellation.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 35,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 2,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "213": {
+          "ifcType": "IFCSANITARYTERMINAL",
+          "status": "OK_EXACT",
+          "triangles": 234,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "bath-csg-solid.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 48,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 2,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "225": {
+          "ifcType": "IFCSANITARYTERMINAL",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "beam-revolved-solid.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 56,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 25,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "70": {
+          "ifcType": "IFCBEAM",
+          "status": "OK_EXACT",
+          "triangles": 308,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "brep-model.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 61,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 26,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "1000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "csg-primitive.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 37,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 25,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "1000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "cube-advanced-brep.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 182,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 9,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "181": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 24580,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "curve-parameters-in-degrees.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 131,
+      "productCount": 3,
+      "processedProducts": 3,
+      "counts": {
+        "OK_EXACT": 3,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 4,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "77": {
+          "ifcType": "IFCCOLUMN",
+          "status": "OK_EXACT",
+          "triangles": 64,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "131": {
+          "ifcType": "IFCCOLUMN",
+          "status": "OK_EXACT",
+          "triangles": 68,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "180": {
+          "ifcType": "IFCCOLUMN",
+          "status": "OK_EXACT",
+          "triangles": 24,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "extruded-solid.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 36,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 28,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "1000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "fixed-reference-swept-area-solid.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 173,
+      "productCount": 10,
+      "processedProducts": 10,
+      "counts": {
+        "OK_EXACT": 0,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 1,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 9
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 0,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "29": {
+          "ifcType": "IFCALIGNMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "35": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "38": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "41": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "46": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "48": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "50": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "107": {
+          "ifcType": "IFCBUILTELEMENT",
+          "status": "UNSUPPORTED_GEOMETRY",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": [
+            "IFCFIXEDREFERENCESWEPTAREASOLID"
+          ]
+        },
+        "1101": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "2001": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "mapped-shape-with-transformation.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 45,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 35,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "1000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "pass-als006-alignment_horizontal_shape_representation.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 168,
+      "productCount": 12,
+      "processedProducts": 12,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 11
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 1,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "29": {
+          "ifcType": "IFCALIGNMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "34": {
+          "ifcType": "IFCALIGNMENTHORIZONTAL",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "35": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "38": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "41": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "45": {
+          "ifcType": "IFCALIGNMENTVERTICAL",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "46": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "48": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "50": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "107": {
+          "ifcType": "IFCBUILTELEMENT",
+          "status": "OK_EXACT",
+          "triangles": 412,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "1101": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "2001": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "pass-gem001-brep_model.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4",
+      "entityCount": 61,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 26,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "1000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "polygonal-face-tessellation.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 52,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 6,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "30": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 28,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "sectioned-solid-horizontal.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 169,
+      "productCount": 10,
+      "processedProducts": 10,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 9
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 0,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "29": {
+          "ifcType": "IFCALIGNMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "35": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "38": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "41": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "46": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "48": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "50": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "107": {
+          "ifcType": "IFCBUILTELEMENT",
+          "status": "OK_EXACT",
+          "triangles": 412,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "1101": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "2001": {
+          "ifcType": "IFCALIGNMENTSEGMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "slab-openings.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 63,
+      "productCount": 3,
+      "processedProducts": 3,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 2
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 2,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "303": {
+          "ifcType": "IFCSLAB",
+          "status": "OK_EXACT",
+          "triangles": 96,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "325": {
+          "ifcType": "IFCOPENINGELEMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "336": {
+          "ifcType": "IFCOPENINGELEMENT",
+          "status": "NOT_APPLICABLE",
+          "triangles": 0,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "surface-model.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 61,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 26,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "1000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "synthetic-tokenizer-edge-cases.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 42,
+      "productCount": 2,
+      "processedProducts": 2,
+      "counts": {
+        "OK_EXACT": 2,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 1,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 5,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "1000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        },
+        "2000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    },
+    "triangulated-item.ifc": {
+      "status": "COMPLETE",
+      "error": null,
+      "schema": "IFC4X3_ADD2",
+      "entityCount": 35,
+      "productCount": 1,
+      "processedProducts": 1,
+      "counts": {
+        "OK_EXACT": 1,
+        "OK_APPROXIMATED": 0,
+        "PARTIAL": 0,
+        "NO_REPRESENTATION": 0,
+        "UNSUPPORTED_GEOMETRY": 0,
+        "FAILED_GEOMETRY": 0,
+        "NOT_APPLICABLE": 0
+      },
+      "nanCount": 0,
+      "degenerateTriangles": 0,
+      "parser": {
+        "invalidRecordCount": 0,
+        "duplicateIdCount": 0,
+        "complexRecordCount": 0,
+        "commentCount": 25,
+        "unterminatedRecord": false
+      },
+      "products": {
+        "1000": {
+          "ifcType": "IFCBUILDINGELEMENTPROXY",
+          "status": "OK_EXACT",
+          "triangles": 12,
+          "nanCount": 0,
+          "degenerateTriangles": 0,
+          "unsupported": []
+        }
+      }
+    }
+  }
+}
