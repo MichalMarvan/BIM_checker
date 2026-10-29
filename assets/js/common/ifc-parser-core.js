@@ -63,12 +63,19 @@
         return str;
     }
 
+    // Shodné s splitParams v assets/js/3d/ifc-engine/parser/step-parser.js (ES modul,
+    // nelze ho sem importovat — tento soubor běží jako klasický skript i v importScripts).
+    // Prázdné položky se zachovávají ("a,,b" → ["a","","b"]), prázdný vstup dává [].
+    // Paritu hlídá tests/test-suites/ifc-parser-parity.test.js.
     function splitParams(params) {
         const parts = [];
+        if (!params || params.trim() === '') {
+            return parts;
+        }
         let current = '';
         let depth = 0;
         let inString = false;
-        for (let i = 0; i < (params || '').length; i++) {
+        for (let i = 0; i < params.length; i++) {
             const char = params[i];
             if (char === "'") {
                 if (inString && params[i + 1] === "'") {
@@ -89,7 +96,7 @@
             }
             current += char;
         }
-        if (current || params === '') parts.push(current.trim());
+        parts.push(current.trim());
         return parts;
     }
 
@@ -176,49 +183,99 @@
         return null;
     }
 
-    function collectStatements(content) {
-        const dataMatch = /\bDATA\s*;/i.exec(content || '');
-        if (!dataMatch) return [];
-        const text = content.slice(dataMatch.index + dataMatch[0].length);
-        const statements = [];
-        let current = '';
-        let inString = false;
-        let collecting = false;
-        for (let i = 0; i < text.length; i++) {
-            const char = text[i];
-            if (!collecting) {
-                if (char === '#') {
-                    collecting = true;
-                    current = '#';
-                } else if (text.slice(i, i + 7).toUpperCase() === 'ENDSEC;') {
-                    break;
-                }
+    // Rozdělení DATA sekce na záznamy — stejná sémantika jako parseStepText v
+    // assets/js/3d/ifc-engine/parser/step-parser.js: záznam končí prvním `;` mimo
+    // řetězec ('' = escapovaný apostrof) a mimo /* komentář */; komentáře se
+    // z textu záznamu vyříznou; víceřádkový záznam se spojí bez mezer; záznam
+    // nezačínající `#` se ignoruje; ENDSEC ukončuje sekci.
+    const DATA_SECTION_RE = /\bDATA\s*;/;
+    const ENTITY_RECORD_RE = /^#(\d+)\s*=\s*([A-Za-z][A-Za-z0-9_]*)\s*\(([\s\S]*)\)$/;
+    const INNER_ENTITY_START_RE = /'(?:[^']|'')*'|(#\d+\s*=)/g;
+
+    function skipString(text, openAt) {
+        let j = openAt + 1;
+        for (;;) {
+            j = text.indexOf("'", j);
+            if (j === -1) {
+                return text.length;
+            }
+            if (text.charCodeAt(j + 1) === 39) {
+                j += 2;
                 continue;
             }
-            current += char;
-            if (char === "'") {
-                if (inString && text[i + 1] === "'") {
-                    current += text[++i];
+            return j + 1;
+        }
+    }
+
+    function forEachRecord(content, onRecord) {
+        const text = content || '';
+        const dataMatch = DATA_SECTION_RE.exec(text);
+        if (!dataMatch) {
+            return;
+        }
+        const scanRe = /['/;]/g;
+        let segStart = dataMatch.index + dataMatch[0].length;
+        let recordText = '';
+        scanRe.lastIndex = segStart;
+        for (let m = scanRe.exec(text); m !== null; m = scanRe.exec(text)) {
+            const at = m.index;
+            const c = text.charCodeAt(at);
+            if (c === 39 /* ' */) {
+                scanRe.lastIndex = skipString(text, at);
+            } else if (c === 47 /* / */) {
+                if (text.charCodeAt(at + 1) !== 42 /* * */) {
                     continue;
                 }
-                inString = !inString;
-            }
-            if (char === ';' && !inString) {
-                statements.push(current.trim());
-                current = '';
-                collecting = false;
+                const end = text.indexOf('*/', at + 2);
+                recordText += text.slice(segStart, at);
+                segStart = end === -1 ? text.length : end + 2;
+                scanRe.lastIndex = segStart;
+            } else {
+                let rec = (recordText + text.slice(segStart, at)).trim();
+                recordText = '';
+                segStart = at + 1;
+                if (rec === '' || rec.charCodeAt(0) !== 35 /* # */) {
+                    if (/^ENDSEC$/i.test(rec)) {
+                        break;
+                    }
+                    continue;
+                }
+                if (rec.indexOf('\n') !== -1) {
+                    rec = rec.replace(/\s*\r?\n\s*/g, '');
+                }
+                onRecord(rec);
             }
         }
+    }
+
+    // Záznam, který spolkl následující entitu (chybí `);`): hlavu zahodit, zbytek zpracovat.
+    function splitSwallowedRecords(rec, onRecord) {
+        if (rec.indexOf('=', 1) !== -1) {
+            INNER_ENTITY_START_RE.lastIndex = 1;
+            for (let s = INNER_ENTITY_START_RE.exec(rec); s !== null; s = INNER_ENTITY_START_RE.exec(rec)) {
+                if (s[1] !== undefined) {
+                    splitSwallowedRecords(rec.slice(s.index), onRecord);
+                    return;
+                }
+            }
+        }
+        onRecord(rec);
+    }
+
+    function collectStatements(content) {
+        const statements = [];
+        forEachRecord(content, rec => statements.push(rec + ';'));
         return statements;
     }
 
     function buildEntityMap(content) {
         const map = new Map();
-        for (const statement of collectStatements(content)) {
-            const match = statement.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\s*\(([\s\S]*)\)\s*;$/i);
-            if (!match) continue;
-            map.set(match[1], { id: match[1], type: match[2].toUpperCase(), params: match[3].trim() });
-        }
+        forEachRecord(content, raw => splitSwallowedRecords(raw, rec => {
+            const match = ENTITY_RECORD_RE.exec(rec);
+            if (match) {
+                map.set(match[1], { id: match[1], type: match[2].toUpperCase(), params: match[3] });
+            }
+        }));
         return map;
     }
 

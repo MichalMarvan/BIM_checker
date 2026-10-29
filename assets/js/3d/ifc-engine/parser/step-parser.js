@@ -8,11 +8,19 @@
 /**
  * Split STEP entity params (without outer parens) into top-level fields.
  * Handles nested parens, strings (single quotes), and escaped quotes ('').
+ * Empty fields are kept so attribute positions stay stable: "a,,b" → ["a", "", "b"].
+ * Only an empty/blank input yields [] (an entity or list with no fields).
  *
  * Example: "'a',(1,2),#3" → ["'a'", "(1,2)", "#3"]
+ *
+ * Kept in sync with IFCParserCore._splitParams (assets/js/common/ifc-parser-core.js)
+ * and IFCStreamParser.parseArguments — tests/test-suites/ifc-parser-parity.test.js guards it.
  */
 export function splitParams(params) {
   const out = [];
+  if (!params || params.trim() === '') {
+    return out;
+  }
   let cur = '';
   let depth = 0;
   let inStr = false;
@@ -34,16 +42,14 @@ export function splitParams(params) {
       if (c === '(') depth++;
       else if (c === ')') depth--;
       else if (c === ',' && depth === 0) {
-        const trimmed = cur.trim();
-        if (trimmed !== '') out.push(trimmed);
+        out.push(cur.trim());
         cur = '';
         continue;
       }
     }
     cur += c;
   }
-  const trimmed = cur.trim();
-  if (trimmed !== '') out.push(trimmed);
+  out.push(cur.trim());
   return out;
 }
 

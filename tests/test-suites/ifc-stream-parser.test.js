@@ -100,9 +100,31 @@ describe('IFC Stream Parser', () => {
         expect(args).toHaveLength(3);
     });
 
-    it('should handle empty arguments', () => {
+    it('should handle empty arguments (no fields, same as splitParams)', () => {
         const args = parser.parseArguments("");
-        expect(args).toHaveLength(1);
+        expect(args).toHaveLength(0);
+    });
+
+    it('should keep empty fields so attribute positions stay stable', () => {
+        const args = parser.parseArguments("'a',,#3");
+        expect(args).toHaveLength(3);
+        expect(args[1]).toBe('');
+    });
+
+    it('should not treat backslash before a quote as an escape (\\X0\\ encoding)', () => {
+        const args = parser.parseArguments("'S\\X2\\017D\\X0\\',$,IFCTEXT('RS'),$");
+        expect(args).toHaveLength(4);
+        expect(args[0]).toBe('S\\X2\\017D\\X0\\');
+    });
+
+    it('parseText splits records on ; outside strings and comments', () => {
+        const seen = [];
+        const p = new IFCStreamParser({ onEntity: e => seen.push(e) });
+        p.parseText("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n/* #0 note */\n#1=IFCWALL('a;b',/* x */$);#2=IFCSLAB('it''s',\n  $);\nENDSEC;\n#3=IFCBEAM($);", 7);
+        expect(seen.length).toBe(2);
+        expect(seen[0].arguments[0]).toBe('a;b');
+        expect(seen[0].arguments.length).toBe(2);
+        expect(seen[1].arguments[0]).toBe("it's");
     });
 
     it('should not process lines before DATA section', () => {

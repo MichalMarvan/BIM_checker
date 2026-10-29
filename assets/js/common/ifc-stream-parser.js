@@ -3,7 +3,18 @@
 /* ===========================================
    BIM CHECKER - IFC STREAM PARSER
    Streaming parser for large IFC files
+
+   Tokenizace má stejnou sémantiku jako parseStepText v
+   assets/js/3d/ifc-engine/parser/step-parser.js (ES modul, sem ho nelze
+   importovat): záznam končí prvním `;` mimo řetězec ('' = escapovaný
+   apostrof) a mimo blokový komentář, komentáře se vyříznou, víceřádkový
+   záznam se spojí bez mezer, záznam nezačínající `#` se ignoruje, ENDSEC
+   ukončuje DATA sekci. Paritu hlídá tests/test-suites/ifc-parser-parity.test.js.
    =========================================== */
+
+const STREAM_DATA_SECTION_RE = /\bDATA\s*;/;
+const STREAM_ENTITY_RECORD_RE = /^#(\d+)\s*=\s*([A-Za-z][A-Za-z0-9_]*)\s*\(([\s\S]*)\)\s*;?$/;
+const STREAM_INNER_ENTITY_START_RE = /'(?:[^']|'')*'|(#\d+\s*=)/g;
 
 class IFCStreamParser {
     constructor(options = {}) {
@@ -13,11 +24,12 @@ class IFCStreamParser {
         this.onComplete = options.onComplete || (() => {});
 
         this.buffer = '';
-        this.entityBuffer = ''; // Buffer for multi-line entities
+        this.recordText = ''; // dokončené úseky rozpracovaného záznamu (před komentářem)
         this.totalBytes = 0;
         this.processedBytes = 0;
         this.entityCount = 0;
         this.headerProcessed = false;
+        this.sectionDone = false;
     }
 
     async parseFile(file) {
@@ -31,10 +43,7 @@ class IFCStreamParser {
                 const { done, value } = await reader.read();
 
                 if (done) {
-                    // Process remaining buffer
-                    if (this.buffer.trim()) {
-                        this.processLine(this.buffer);
-                    }
+                    this.finish();
                     this.onComplete({
                         totalEntities: this.entityCount,
                         totalBytes: this.totalBytes
@@ -42,17 +51,9 @@ class IFCStreamParser {
                     break;
                 }
 
-                // Decode chunk
-                const chunk = decoder.decode(value, { stream: true });
                 this.processedBytes += value.byteLength;
+                this.feed(decoder.decode(value, { stream: true }));
 
-                // Add to buffer
-                this.buffer += chunk;
-
-                // Process complete lines
-                this.processBuffer();
-
-                // Report progress
                 const progress = (this.processedBytes / this.totalBytes) * 100;
                 this.onProgress({
                     progress: Math.round(progress),
@@ -66,21 +67,172 @@ class IFCStreamParser {
         }
     }
 
+    /**
+     * Synchronně zpracuje celý text po kusech (stejná cesta jako parseFile).
+     * @param {string} text
+     * @param {number} [chunkSize]
+     */
+    parseText(text, chunkSize = this.chunkSize) {
+        for (let i = 0; i < text.length; i += chunkSize) {
+            this.feed(text.slice(i, i + chunkSize));
+        }
+        this.finish();
+        return this.entityCount;
+    }
+
+    /** Přidá další kus textu a zpracuje všechny úplné záznamy. */
+    feed(chunk) {
+        this.buffer += chunk;
+        this.scan(false);
+    }
+
+    /** Konec vstupu: neukončený komentář se zahodí, záznam bez `;` se (jako ve step-parseru) nevydá. */
+    finish() {
+        this.scan(true);
+        this.buffer = '';
+        this.recordText = '';
+    }
+
     processBuffer() {
-        const lines = this.buffer.split('\n');
+        this.scan(false);
+    }
 
-        // Keep last incomplete line in buffer
-        this.buffer = lines.pop() || '';
+    /**
+     * Zpracuje všechny úplné záznamy v bufferu; neúplný zbytek (rozpracovaný
+     * řetězec, komentář nebo záznam bez `;`) zůstane v bufferu na další kus.
+     * @param {boolean} eof — true: vstup skončil, neukončené konstrukce se uzavřou
+     */
+    scan(eof) {
+        if (this.sectionDone) {
+            this.buffer = '';
+            return;
+        }
+        if (!this.headerProcessed) {
+            const dataMatch = STREAM_DATA_SECTION_RE.exec(this.buffer);
+            if (!dataMatch) {
+                // `DATA;` může být rozdělen hranicí kusu — nech konec bufferu.
+                this.buffer = eof ? '' : this.buffer.slice(-8);
+                return;
+            }
+            this.headerProcessed = true;
+            this.buffer = this.buffer.slice(dataMatch.index + dataMatch[0].length);
+        }
 
-        // Process complete lines
-        for (const line of lines) {
-            this.processLine(line);
+        const text = this.buffer;
+        const scanRe = /['/;]/g;
+        let segStart = 0;
+        for (let m = scanRe.exec(text); m !== null; m = scanRe.exec(text)) {
+            const at = m.index;
+            const c = text.charCodeAt(at);
+            if (c === 39 /* ' */) {
+                let j = at + 1;
+                let closed = false;
+                for (;;) {
+                    j = text.indexOf("'", j);
+                    if (j === -1) {
+                        break;
+                    }
+                    if (j + 1 >= text.length && !eof) {
+                        break;
+                    } // za `'` může ještě přijít `'` (escape)
+                    if (text.charCodeAt(j + 1) === 39) {
+                        j += 2; continue;
+                    }
+                    j++;
+                    closed = true;
+                    break;
+                }
+                if (!closed) {
+                    if (!eof) {
+                        this.buffer = text.slice(segStart); return;
+                    }
+                    j = text.length;
+                }
+                scanRe.lastIndex = j;
+            } else if (c === 47 /* / */) {
+                if (at + 1 >= text.length && !eof) {
+                    this.buffer = text.slice(segStart); return;
+                }
+                if (text.charCodeAt(at + 1) !== 42 /* * */) {
+                    continue;
+                }
+                const end = text.indexOf('*/', at + 2);
+                if (end === -1) {
+                    this.recordText += text.slice(segStart, at);
+                    this.buffer = eof ? '' : text.slice(at);
+                    if (eof) {
+                        this.recordText = '';
+                    }
+                    return;
+                }
+                this.recordText += text.slice(segStart, at);
+                segStart = end + 2;
+                scanRe.lastIndex = segStart;
+            } else {
+                const rec = (this.recordText + text.slice(segStart, at)).trim();
+                this.recordText = '';
+                segStart = at + 1;
+                if (!this.handleRecord(rec)) {
+                    this.sectionDone = true;
+                    this.buffer = '';
+                    return;
+                }
+            }
+        }
+        this.buffer = eof ? '' : text.slice(segStart);
+    }
+
+    /**
+     * Zpracuje jeden ukončený záznam (bez `;`).
+     * @returns {boolean} false, když záznam je ENDSEC (konec DATA sekce)
+     */
+    handleRecord(rec) {
+        if (rec === '') {
+            return true;
+        }
+        if (/^ENDSEC$/i.test(rec)) {
+            return false;
+        }
+        if (rec.charCodeAt(0) !== 35 /* # */) {
+            return true;
+        }
+        if (rec.indexOf('\n') !== -1) {
+            rec = rec.replace(/\s*\r?\n\s*/g, '');
+        }
+        this.emitRecord(rec);
+        return true;
+    }
+
+    /** Záznam, který spolkl následující entitu (chybí `);`): hlavu zahodit, zbytek zpracovat. */
+    emitRecord(rec) {
+        if (rec.indexOf('=', 1) !== -1) {
+            STREAM_INNER_ENTITY_START_RE.lastIndex = 1;
+            for (let s = STREAM_INNER_ENTITY_START_RE.exec(rec); s !== null; s = STREAM_INNER_ENTITY_START_RE.exec(rec)) {
+                if (s[1] === undefined) {
+                    continue;
+                }
+                this.emitRecord(rec.slice(s.index));
+                return;
+            }
+        }
+        const entity = this.parseEntity(rec);
+        if (entity) {
+            this.entityCount++;
+            this.onEntity(entity);
         }
     }
 
     /**
-     * Check if a buffer represents a complete IFC entity.
-     * Handles edge case where semicolon might be inside a string.
+     * Zpětně kompatibilní vstup po řádcích: řádek se přidá do bufferu
+     * (včetně konce řádku) a zpracuje se stejným automatem jako feed().
+     */
+    processLine(line) {
+        this.feed(line + '\n');
+    }
+
+    /**
+     * Check if a buffer represents a complete IFC entity: ends with `;`
+     * outside a string ('' = escaped apostrophe) and outside a comment.
      * @param {string} buffer - The entity buffer to check
      * @returns {boolean} - True if entity is complete
      */
@@ -88,89 +240,29 @@ class IFCStreamParser {
         if (!buffer.trimEnd().endsWith(';')) {
             return false;
         }
-
-        // Count apostrophes to determine if we're inside a string
-        // IFC uses single quotes for strings, and escaped quotes are ''
         let inString = false;
         for (let i = 0; i < buffer.length; i++) {
-            if (buffer[i] === "'") {
-                // Check for escaped quote (two consecutive apostrophes)
-                if (buffer[i + 1] === "'") {
-                    i++; // Skip the escaped quote
+            const char = buffer[i];
+            if (char === "'") {
+                if (inString && buffer[i + 1] === "'") {
+                    i++;
                     continue;
                 }
                 inString = !inString;
-            }
-        }
-
-        // Entity is complete only if we're not inside a string
-        return !inString;
-    }
-
-    processLine(line) {
-        line = line.trim();
-
-        if (!line) {
-            return;
-        }
-
-        // Skip header lines until DATA section
-        if (!this.headerProcessed) {
-            if (line === 'DATA;') {
-                this.headerProcessed = true;
-            }
-            return;
-        }
-
-        // Stop at ENDSEC
-        if (line === 'ENDSEC;') {
-            // Process any remaining entity in buffer
-            if (this.entityBuffer) {
-                this.processEntityBuffer();
-            }
-            return;
-        }
-
-        // Handle multi-line entity support
-        // IFC entities can span multiple lines and end with semicolon
-        if (this.entityBuffer) {
-            // We're in the middle of a multi-line entity
-            this.entityBuffer += ' ' + line;
-            if (this.isEntityComplete(this.entityBuffer)) {
-                // Entity complete
-                this.processEntityBuffer();
-            }
-        } else if (line.startsWith('#')) {
-            // Start of a new entity
-            if (this.isEntityComplete(line)) {
-                // Single-line entity (most common case)
-                const entity = this.parseEntity(line);
-                if (entity) {
-                    this.entityCount++;
-                    this.onEntity(entity);
+            } else if (!inString && char === '/' && buffer[i + 1] === '*') {
+                const end = buffer.indexOf('*/', i + 2);
+                if (end === -1) {
+                    return false;
                 }
-            } else {
-                // Multi-line entity starts here
-                this.entityBuffer = line;
+                i = end + 1;
             }
         }
-    }
-
-    processEntityBuffer() {
-        if (this.entityBuffer) {
-            const entity = this.parseEntity(this.entityBuffer);
-            if (entity) {
-                this.entityCount++;
-                this.onEntity(entity);
-            }
-            this.entityBuffer = '';
-        }
+        return !inString;
     }
 
     parseEntity(line) {
         try {
-            // Basic IFC entity parsing
-            const match = line.match(/^#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)\);?$/);
+            const match = STREAM_ENTITY_RECORD_RE.exec(line.trim());
             if (!match) {
                 return null;
             }
@@ -178,8 +270,8 @@ class IFCStreamParser {
             const [, id, type, argsStr] = match;
 
             return {
-                id: parseInt(id),
-                type: type,
+                id: parseInt(id, 10),
+                type: type.toUpperCase(),
                 line: line,
                 arguments: this.parseArguments(argsStr)
             };
@@ -189,33 +281,38 @@ class IFCStreamParser {
         }
     }
 
+    /**
+     * Rozdělí params na top-level položky a každou převede přes parseValue.
+     * Stejná sémantika jako splitParams ve step-parser.js: prázdné položky se
+     * zachovávají ("a,,b" → 3 položky), prázdný vstup dává [].
+     */
     parseArguments(argsStr) {
-        // Simplified argument parsing
         const args = [];
+        if (!argsStr || argsStr.trim() === '') {
+            return args;
+        }
         let current = '';
         let depth = 0;
         let inString = false;
 
-        // Handle empty arguments - return array with one empty element
-        if (argsStr.trim() === '') {
-            return [''];
-        }
-
         for (let i = 0; i < argsStr.length; i++) {
             const char = argsStr[i];
 
-            if (char === "'" && argsStr[i-1] !== '\\') {
+            if (char === "'") {
+                if (inString && argsStr[i + 1] === "'") {
+                    current += "''";
+                    i++;
+                    continue;
+                }
                 inString = !inString;
             }
 
             if (!inString) {
                 if (char === '(') {
                     depth++;
-                }
-                if (char === ')') {
+                } else if (char === ')') {
                     depth--;
-                }
-                if (char === ',' && depth === 0) {
+                } else if (char === ',' && depth === 0) {
                     args.push(this.parseValue(current.trim()));
                     current = '';
                     continue;
@@ -225,26 +322,23 @@ class IFCStreamParser {
             current += char;
         }
 
-        if (current.trim()) {
-            args.push(this.parseValue(current.trim()));
-        }
-
+        args.push(this.parseValue(current.trim()));
         return args;
     }
 
     parseValue(value) {
-        // Remove quotes
-        if (value.startsWith("'") && value.endsWith("'")) {
-            return value.slice(1, -1);
+        // String literal: strip quotes, unescape '' (IFC encoding \X2\ etc. is left raw)
+        if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) {
+            return value.slice(1, -1).replace(/''/g, "'");
         }
 
         // Check for reference
-        if (value.startsWith('#')) {
-            return { ref: parseInt(value.slice(1)) };
+        if (/^#\d+$/.test(value)) {
+            return { ref: parseInt(value.slice(1), 10) };
         }
 
         // Check for number
-        if (!isNaN(value)) {
+        if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value)) {
             return parseFloat(value);
         }
 
