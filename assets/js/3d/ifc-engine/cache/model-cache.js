@@ -16,11 +16,12 @@
 // Invalidation: content hash of the source IFC is the store key (owned by
 // the caller); the two version numbers below guard the format and the
 // geometry pipeline. Bump GEOMETRY_PIPELINE_VERSION whenever mesh-types /
-// geometry-core / merged-model output changes — stale caches then miss and
-// regenerate silently.
+// geometry-core / merged-model output changes, or when step-parser starts
+// returning different entities (v5: comments, `#id= TYPE (` spacing) — stale
+// caches then miss and regenerate silently.
 
 export const CACHE_FORMAT_VERSION = 1;
-export const GEOMETRY_PIPELINE_VERSION = 3;
+export const GEOMETRY_PIPELINE_VERSION = 9; // v7: collinear triangles dropped in vertex weld; v8: T/L profile origin, nonuniform scale; v9: advanced brep, CSG primitives
 
 const MAGIC = 0x434d4942; // 'BIMC' as LE u32
 

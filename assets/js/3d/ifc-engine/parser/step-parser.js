@@ -47,11 +47,16 @@ export function splitParams(params) {
   return out;
 }
 
-// Regex matches a single STEP entity line: #123=IFCWALL(...);
+// Regex matches one complete STEP record WITHOUT the terminating ';':
+//   #123 = IFCWALL (...)
 // - id: digits after #
-// - type: uppercase letters/digits/underscores
-// - params: anything inside outer parens (greedy, but lazy at end before );)
-const ENTITY_LINE_RE = /^#(\d+)\s*=\s*([A-Z][A-Z0-9_]*)\((.*)\)\s*;\s*$/;
+// - type: letters/digits/underscores; whitespace before '(' is legal STEP
+// - params: anything inside outer parens
+const ENTITY_RECORD_RE = /^#(\d+)\s*=\s*([A-Za-z][A-Za-z0-9_]*)\s*\(([\s\S]*)\)$/;
+// Complex entity instance: #1=(IFCA(...)IFCB(...)); — not interpreted, only reported.
+const COMPLEX_RECORD_RE = /^#\d+\s*=\s*\(/;
+const DATA_SECTION_RE = /\bDATA\s*;/;
+const MAX_DIAGNOSTIC_SAMPLES = 100;
 
 // Schema detection: FILE_SCHEMA(('IFC4'));
 const SCHEMA_RE = /FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'\s*\)\s*\)/;
@@ -89,38 +94,142 @@ export function parseStepText(text) {
     viewDefinitions = vdMatch[1].split(',').map(s => s.trim()).filter(Boolean);
   }
 
-  // Walk lines. Some entities span multiple lines — join until ');' is found.
-  const lines = text.split('\n');
-  let buf = '';
-  let bufStartLine = 0;
+  const diagnostics = {
+    invalidRecords: [],      // { line, text } — records that are not `#id=TYPE(...)`
+    invalidRecordCount: 0,
+    duplicateIds: [],        // { id, line } — later record overwrites the earlier one
+    duplicateIdCount: 0,
+    complexRecordCount: 0,   // `#id=(A()B())` — recognised, not interpreted
+    commentCount: 0,         // /* ... */ blocks removed from the DATA section
+    unterminatedRecord: null // { line, text } when the file ends inside a record
+  };
 
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i];
-    const trimmed = raw.trim();
-
-    // Start of a new entity line?
-    if (buf === '' && trimmed.startsWith('#')) {
-      buf = trimmed;
-      bufStartLine = i + 1; // 1-based
-    } else if (buf !== '') {
-      buf += trimmed;
-    } else {
-      continue; // not a #N= line, skip (HEADER, ENDSEC, etc.)
+  // Single pass over the DATA section. A record ends at the first ';' that is
+  // outside a string ('...', '' = escaped quote) and outside a /* comment */.
+  // Comments are cut out of the record text. When the file has no DATA marker
+  // (bare fixtures) the whole text is scanned and non-`#` records are ignored.
+  const dataMatch = DATA_SECTION_RE.exec(text);
+  const hasData = dataMatch !== null;
+  let pos = hasData ? dataMatch.index + dataMatch[0].length : 0;
+  let line = 1;
+  let linePos = 0; // everything before this offset is already counted in `line`
+  const lineAt = (offset) => {
+    for (let i = text.indexOf('\n', linePos); i !== -1 && i < offset; i = text.indexOf('\n', linePos)) {
+      line++;
+      linePos = i + 1;
     }
+    return line;
+  };
 
-    // Entity continues until ');' (followed by optional whitespace/end)
-    if (!/\)\s*;\s*$/.test(buf)) continue;
+  const scanRe = /['/;]/g;
+  let segStart = pos;     // start of the current uncommented segment
+  let recordText = '';    // finished segments of the current record
+  let recordOffset = -1;  // offset of the first non-blank char of the record
 
-    // Try to match
-    const m = buf.match(ENTITY_LINE_RE);
-    buf = ''; // reset buffer regardless of match
+  const noteStart = (offset) => {
+    if (recordOffset !== -1) return;
+    let o = offset;
+    while (o < text.length && text.charCodeAt(o) <= 32) o++;
+    recordOffset = o;
+  };
 
-    if (!m) continue; // malformed — skip silently
+  const finishRecord = (endOffset) => {
+    const raw = recordText + text.slice(segStart, endOffset);
+    recordText = '';
+    const startOffset = recordOffset === -1 ? endOffset : recordOffset;
+    recordOffset = -1;
+    let rec = raw.trim();
+    if (rec === '') return true;
+    if (hasData && /^ENDSEC$/i.test(rec)) return false;
+    if (rec.charCodeAt(0) !== 35 /* # */) {
+      if (hasData) {
+        diagnostics.invalidRecordCount++;
+        if (diagnostics.invalidRecords.length < MAX_DIAGNOSTIC_SAMPLES) {
+          diagnostics.invalidRecords.push({ line: lineAt(startOffset), text: rec.slice(0, 120) });
+        }
+      }
+      return true;
+    }
+    // Multi-line records: trim each line and join (same as the former line parser).
+    if (rec.indexOf('\n') !== -1) rec = rec.replace(/\s*\r?\n\s*/g, '');
+    return acceptRecord(rec, startOffset);
+  };
+
+  // `#id=` outside a string inside a record means the previous entity lost its
+  // closing `);` and swallowed the next one. Report the broken head, keep the tail.
+  const INNER_ENTITY_START_RE = /'(?:[^']|'')*'|(#\d+\s*=)/g;
+  const acceptRecord = (rec, startOffset) => {
+    if (rec.indexOf('=', 1) !== -1) {
+      INNER_ENTITY_START_RE.lastIndex = 1;
+      for (let s = INNER_ENTITY_START_RE.exec(rec); s !== null; s = INNER_ENTITY_START_RE.exec(rec)) {
+        if (s[1] === undefined) continue;
+        diagnostics.invalidRecordCount++;
+        if (diagnostics.invalidRecords.length < MAX_DIAGNOSTIC_SAMPLES) {
+          diagnostics.invalidRecords.push({ line: lineAt(startOffset), text: rec.slice(0, s.index).slice(0, 120) });
+        }
+        return acceptRecord(rec.slice(s.index), startOffset);
+      }
+    }
+    const m = ENTITY_RECORD_RE.exec(rec);
+    if (!m) {
+      if (COMPLEX_RECORD_RE.test(rec)) {
+        diagnostics.complexRecordCount++;
+      } else {
+        diagnostics.invalidRecordCount++;
+        if (diagnostics.invalidRecords.length < MAX_DIAGNOSTIC_SAMPLES) {
+          diagnostics.invalidRecords.push({ line: lineAt(startOffset), text: rec.slice(0, 120) });
+        }
+      }
+      return true;
+    }
     const expressId = parseInt(m[1], 10);
-    const type = m[2].toUpperCase();
-    const params = m[3];
-    entities.set(expressId, { expressId, type, params, line: bufStartLine });
+    if (entities.has(expressId)) {
+      diagnostics.duplicateIdCount++;
+      if (diagnostics.duplicateIds.length < MAX_DIAGNOSTIC_SAMPLES) {
+        diagnostics.duplicateIds.push({ id: expressId, line: lineAt(startOffset) });
+      }
+    }
+    entities.set(expressId, { expressId, type: m[2].toUpperCase(), params: m[3], line: lineAt(startOffset) });
+    return true;
+  };
+
+  scanRe.lastIndex = pos;
+  for (let m = scanRe.exec(text); m !== null; m = scanRe.exec(text)) {
+    const at = m.index;
+    const c = text.charCodeAt(at);
+    if (c === 39 /* ' */) {
+      noteStart(segStart);
+      // Skip the string; '' inside is an escaped apostrophe.
+      let j = at + 1;
+      for (;;) {
+        j = text.indexOf("'", j);
+        if (j === -1) { j = text.length; break; }
+        if (text.charCodeAt(j + 1) === 39) { j += 2; continue; }
+        j++;
+        break;
+      }
+      scanRe.lastIndex = j;
+    } else if (c === 47 /* / */) {
+      if (text.charCodeAt(at + 1) !== 42 /* * */) continue;
+      const end = text.indexOf('*/', at + 2);
+      diagnostics.commentCount++;
+      const before = text.slice(segStart, at);
+      if (before.trim() !== '') noteStart(segStart);
+      recordText += before;
+      const resume = end === -1 ? text.length : end + 2;
+      segStart = resume;
+      scanRe.lastIndex = resume;
+    } else {
+      noteStart(segStart);
+      if (!finishRecord(at)) { segStart = text.length; break; }
+      segStart = at + 1;
+    }
   }
 
-  return { entities, schema, viewDefinitions };
+  const tail = (recordText + text.slice(segStart)).trim();
+  if (tail !== '' && !(hasData && /^ENDSEC$/i.test(tail)) && (!hasData || tail.charCodeAt(0) === 35)) {
+    diagnostics.unterminatedRecord = { line: lineAt(recordOffset === -1 ? segStart : recordOffset), text: tail.slice(0, 120) };
+  }
+
+  return { entities, schema, viewDefinitions, diagnostics };
 }

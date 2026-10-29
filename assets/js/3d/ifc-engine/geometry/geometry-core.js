@@ -27,6 +27,8 @@ import {
   resolveMappedItem,
   tryExtrudedDifference2D,
 } from './mesh-types.js';
+import { sectionedSolidHorizontalToGeometry } from './sectioned-solid.js';
+import { advancedBrepToGeometry, faceBasedSurfaceModelToGeometry, csgPrimitiveToGeometry } from './advanced-brep.js';
 import { parseRef, parseRefList } from './step-helpers.js';
 
 /**
@@ -79,6 +81,19 @@ function buildLeafGeometryUncached(entityIndex, itemExpressId) {
       return revolvedAreaSolidToGeometry(entityIndex, itemExpressId);
     case 'IFCSWEPTDISKSOLID':
       return sweptDiskSolidToGeometry(entityIndex, itemExpressId);
+    case 'IFCSECTIONEDSOLIDHORIZONTAL':
+      return sectionedSolidHorizontalToGeometry(entityIndex, itemExpressId);
+    case 'IFCADVANCEDBREP':
+      return advancedBrepToGeometry(entityIndex, itemExpressId);
+    case 'IFCFACEBASEDSURFACEMODEL':
+      return faceBasedSurfaceModelToGeometry(entityIndex, itemExpressId);
+    case 'IFCCSGSOLID':
+    case 'IFCBLOCK':
+    case 'IFCRIGHTCIRCULARCYLINDER':
+    case 'IFCSPHERE':
+    case 'IFCRIGHTCIRCULARCONE':
+    case 'IFCRECTANGULARPYRAMID':
+      return csgPrimitiveToGeometry(entityIndex, itemExpressId);
     default:
       return null;
   }
@@ -112,18 +127,32 @@ function unwrapBooleanFirstOperand(entityIndex, expressId, visited = new Set()) 
  * @param {Array<{bufferGeometry, bbox, color}>} out
  * @param {number} depth — recursion guard
  */
-function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0, inMapped = false) {
-  if (depth > 8) return;
+function expandItems(entityIndex, itemRefs, parentMatrix, out, diagnostics, depth = 0, inMapped = false) {
+  if (depth > 8) {
+    diagnostics.recursionLimitCount += 1;
+    return;
+  }
   for (const itemRef of itemRefs) {
     const item = entityIndex.byExpressId(itemRef);
-    if (!item) continue;
+    if (!item) {
+      diagnostics.invalidReferenceCount += 1;
+      continue;
+    }
 
     // IFCMAPPEDITEM → recurse into mapped representation with combined matrix
     if (item.type === 'IFCMAPPEDITEM') {
       const resolved = resolveMappedItem(entityIndex, itemRef);
-      if (!resolved) continue;
+      if (!resolved) {
+        // A MappingSource that points at a non-existent entity (buildingSMART
+        // gherkin fixtures: IFCMAPPEDITEM(#2198,...) with no #2198) is a broken
+        // file, not an unsupported representation type.
+        const sourceRef = parseRef(splitParams(item.params)[0]);
+        if (sourceRef && !entityIndex.byExpressId(sourceRef)) diagnostics.invalidReferenceCount += 1;
+        else diagnostics.unsupportedRepresentationTypes.add(item.type);
+        continue;
+      }
       const childMatrix = parentMatrix.clone().multiply(resolved.matrix);
-      expandItems(entityIndex, resolved.innerItemRefs, childMatrix, out, depth + 1, true);
+      expandItems(entityIndex, resolved.innerItemRefs, childMatrix, out, diagnostics, depth + 1, true);
       continue;
     }
 
@@ -139,6 +168,7 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0, inMapp
       if (operator === '.DIFFERENCE.' && firstId && secondId) {
         const csgGeom = tryExtrudedDifference2D(entityIndex, firstId, secondId);
         if (csgGeom) {
+          diagnostics.exactBooleanDifferenceCount += 1;
           csgGeom.computeBoundingBox();
           const color = entityIndex._styleIndex?.get(itemRef);
           // Carry parentMatrix on the item so viewer-core composes it with
@@ -156,14 +186,24 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, depth = 0, inMapp
         }
       }
       const leafId = unwrapBooleanFirstOperand(entityIndex, itemRef);
-      if (!leafId) continue;
-      expandItems(entityIndex, [leafId], parentMatrix, out, depth + 1, inMapped);
+      if (!leafId) {
+        diagnostics.unsupportedRepresentationTypes.add(item.type);
+        continue;
+      }
+      // General IFC CSG is not evaluated yet. Keeping FirstOperand makes the
+      // element visible, but openings/intersections can be geometrically
+      // approximate; surface that fact to callers instead of hiding it.
+      diagnostics.fallbackGeometryCount += 1;
+      expandItems(entityIndex, [leafId], parentMatrix, out, diagnostics, depth + 1, inMapped);
       continue;
     }
 
     // Leaf geometry — cache/instance when reached through an IfcMappedItem
     const geom = buildLeafGeometry(entityIndex, itemRef, inMapped);
-    if (!geom) continue;
+    if (!geom) {
+      diagnostics.unsupportedRepresentationTypes.add(item.type);
+      continue;
+    }
     geom.computeBoundingBox();
     const color = entityIndex._styleIndex?.get(itemRef);
     out.push({
@@ -189,7 +229,7 @@ const _IDENTITY = new THREE.Matrix4();
  *
  * @param {EntityIndex} entityIndex
  * @param {number} productExpressId
- * @returns {{ matrix: THREE.Matrix4, items: Array<{ bufferGeometry, bbox, color }> } | null}
+ * @returns {{ matrix: THREE.Matrix4, items: Array<{ bufferGeometry, bbox, color }>, diagnostics: object } | null}
  */
 export function buildEntityGeometry(entityIndex, productExpressId) {
   const entity = entityIndex.byExpressId(productExpressId);
@@ -207,6 +247,13 @@ export function buildEntityGeometry(entityIndex, productExpressId) {
   const shapeRepRefs = parseRefList(repShapeParts[2]);
 
   const items = [];
+  const diagnostics = {
+    unsupportedRepresentationTypes: new Set(),
+    fallbackGeometryCount: 0,
+    exactBooleanDifferenceCount: 0,
+    recursionLimitCount: 0,
+    invalidReferenceCount: 0,
+  };
   let ctxScale = null;
   for (const shapeRepRef of shapeRepRefs) {
     const shapeRep = entityIndex.byExpressId(shapeRepRef);
@@ -218,7 +265,7 @@ export function buildEntityGeometry(entityIndex, productExpressId) {
     const repIdRaw = sParts[1] || '';
     const repTypeRaw = sParts[2] || '';
     if (/'Axis'|'FootPrint'|'Box'|'Annotation'|'Profile'/.test(repIdRaw)) continue;
-    if (/'BoundingBox'|'Curve2D'/.test(repTypeRaw)) continue;
+    if (/'BoundingBox'|'Curve2D'|'Point'/.test(repTypeRaw)) continue;
     // Mixed-unit merged files: remember which context this product draws in
     // (first body rep wins — a product's reps share their source context).
     if (ctxScale === null && entityIndex._ctxScaleMap) {
@@ -227,7 +274,7 @@ export function buildEntityGeometry(entityIndex, productExpressId) {
       if (typeof s === 'number') ctxScale = s;
     }
     const itemRefs = parseRefList(sParts[3]);
-    expandItems(entityIndex, itemRefs, new THREE.Matrix4(), items);
+    expandItems(entityIndex, itemRefs, new THREE.Matrix4(), items, diagnostics);
   }
 
   const matrix = placementId ? resolvePlacement(entityIndex, placementId) : new THREE.Matrix4();
@@ -243,5 +290,5 @@ export function buildEntityGeometry(entityIndex, productExpressId) {
         ctxScale / globalScale, ctxScale / globalScale, ctxScale / globalScale));
     }
   }
-  return { matrix, items };
+  return { matrix, items, diagnostics };
 }

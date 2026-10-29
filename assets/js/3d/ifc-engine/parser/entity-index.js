@@ -1,14 +1,56 @@
 // EntityIndex — secondary indexes over Map<expressId, RawEntity>.
 // Provides O(1) lookups by expressId, type (case-insensitive), and GUID.
 
+import { IFC_ROOT_TYPES, IFC_NON_ROOT_TYPES } from './ifc-root-types.js';
+
+// Konzervativní tvar IfcGloballyUniqueId: 22 znaků base64 abecedy IFC, první
+// znak 0–3 (128 bitů UUID = 21×6 + 2 bity). Používá se jen pro typy, které
+// nejsou ve schématu známé jako podtyp IfcRoot.
+const STRICT_GUID_RE = /^[0-3][0-9A-Za-z_$]{21}$/;
+
 /**
- * Extract first single-quoted string from raw STEP params.
- * IFC convention: first attribute of all IfcRoot subtypes is GlobalId.
- * Returns null if no quoted string found.
+ * Vrátí obsah PRVNÍHO atributu, pokud je to uvozený řetězec (surový obsah,
+ * bez rozbalení '' escapu). Jinak null — první atribut je #ref, $, číslo,
+ * výčet, seznam nebo řetězec je neuzavřený / následuje něco jiného než čárka.
+ * Dříve se bral první řetězec KDEKOLI v params, což indexovalo i Name
+ * u IfcPropertySingleValue apod. jako falešné GUID.
  */
-function extractFirstGuid(params) {
-  const m = params.match(/'([^']+)'/);
-  return m ? m[1] : null;
+function extractFirstAttrString(params) {
+  const n = params.length;
+  let i = 0;
+  while (i < n && (params[i] === ' ' || params[i] === '\t' || params[i] === '\r' || params[i] === '\n')) i++;
+  if (params[i] !== "'") return null;
+  let j = i + 1;
+  while (j < n) {
+    if (params[j] === "'") {
+      if (params[j + 1] === "'") { j += 2; continue; }
+      break;
+    }
+    j++;
+  }
+  if (j >= n) return null;
+  let k = j + 1;
+  while (k < n && (params[k] === ' ' || params[k] === '\t' || params[k] === '\r' || params[k] === '\n')) k++;
+  if (k < n && params[k] !== ',') return null;
+  const s = params.slice(i + 1, j);
+  return s.length ? s : null;
+}
+
+/**
+ * GUID k indexaci, nebo null.
+ *  - podtyp IfcRoot (dle schémat IFC2X3/IFC4/IFC4X3): první atribut je GlobalId —
+ *    indexuje se i nestandardní délka/abeceda (reálné soubory je mají a
+ *    compact() by je jinak zahodil)
+ *  - známý ne-root typ (IfcPropertySingleValue, IfcQuantityLength, …): nikdy
+ *  - typ mimo schémata (vlastní/novější): fallback na přísný tvar GUID
+ *    (22 znaků, abeceda, první znak 0–3)
+ */
+export function extractGuid(type, params) {
+  const s = extractFirstAttrString(params);
+  if (s === null) return null;
+  if (IFC_ROOT_TYPES.has(type)) return s;
+  if (IFC_NON_ROOT_TYPES.has(type)) return null;
+  return STRICT_GUID_RE.test(s) ? s : null;
 }
 
 export class EntityIndex {
@@ -19,6 +61,7 @@ export class EntityIndex {
     this._byId = entities;
     this._byType = new Map();   // Map<UPPERCASE_TYPE, Set<expressId>>
     this._byGuid = new Map();   // Map<guid, expressId>
+    this._guidDuplicates = 0;   // počet přepsání existujícího GUID (poslední vyhrává)
 
     for (const [id, entity] of entities) {
       // Index by type
@@ -29,10 +72,10 @@ export class EntityIndex {
       }
       typeSet.add(id);
 
-      // Index by GUID (only if present and looks like an IfcRoot subtype with GUID)
-      const guid = extractFirstGuid(entity.params);
-      if (guid && guid.length === 22) {
-        // IfcGloballyUniqueId is exactly 22 chars (base64 encoded UUID)
+      // Index by GUID — schema-aware (viz extractGuid)
+      const guid = extractGuid(entity.type, entity.params);
+      if (guid !== null) {
+        if (this._byGuid.has(guid)) this._guidDuplicates++;
         this._byGuid.set(guid, id);
       }
     }
@@ -65,11 +108,13 @@ export class EntityIndex {
     return [...this._byType.keys()].sort();
   }
 
-  /** @returns {{ entityCount: number, typeCount: number }} */
+  /** @returns {{ entityCount: number, typeCount: number, guidCount: number, guidDuplicates: number }} */
   stats() {
     return {
       entityCount: this._byId.size,
       typeCount: this._byType.size,
+      guidCount: this._byGuid.size,
+      guidDuplicates: this._guidDuplicates,
     };
   }
 

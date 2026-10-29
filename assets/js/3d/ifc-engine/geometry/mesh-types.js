@@ -365,6 +365,36 @@ function geometryFromPositionsIndices(positions, indices) {
 }
 
 /**
+ * Apply an IfcAxis2Placement3D matrix to an already-built (Float32) geometry
+ * WITHOUT baking its translation into the vertex buffer.
+ *
+ * Georeferenced exports (Civil 3D / Tekla, S-JTSK) put absolute world
+ * coordinates in the swept solid's Position (e.g. -740990, -1048454). At
+ * magnitude ~1e6 a Float32 buffer only resolves ~0.06 m, so baking the
+ * translation in quantizes small profiles: a 0.45 m circle collapses into an
+ * irregular polygon whose facets exceed the 30° crease threshold, and the
+ * crease pass then hard-edges every seam — the cylinder renders as a lumpy
+ * faceted prism instead of a smooth one.
+ *
+ * Fix: bake only rotation/scale into the buffer (the geometry is local and
+ * small, so Float32 is exact there) and carry the translation as
+ * userData.localOrigin, re-applied downstream in doubles by _itemMatrix — the
+ * same scheme geometryFromPositionsIndices already uses for tessellated meshes.
+ */
+function applyPlacementKeepingOrigin(geom, matrix) {
+  const translation = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  matrix.decompose(translation, rotation, scale);
+  geom.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(), rotation, scale));
+  geom.userData = geom.userData || {};
+  const lo = geom.userData.localOrigin;
+  geom.userData.localOrigin = lo
+    ? [lo[0] + translation.x, lo[1] + translation.y, lo[2] + translation.z]
+    : [translation.x, translation.y, translation.z];
+}
+
+/**
  * Merge coincident vertices in-place via a spatial hash (O(n) instead of
  * O(n²)). Polygons in IFC are stored without shared vertices across faces;
  * after triangulation each face contributes its own vertices. Merging makes
@@ -403,13 +433,21 @@ export function mergeVerticesInPlace(geom, tolerance = 1e-4) {
     }
     oldToNew[i] = newIdx;
   }
-  if (newPositions.length === positions.length) return geom; // nothing merged
+  const merged = newPositions.length !== positions.length;
 
   // Rebuild the index buffer, dropping triangles the weld degenerated.
   // Micro-edges in CAD tessellations (sub-tolerance slivers) collapse two
   // corners onto one index ([v,v,w]); keeping those zero-area faces feeds
   // garbage normals into the crease pass and broke its index rewrite
   // (spike triangles all converging on vertex 0).
+  // Also drop triangles with three distinct but collinear corners. Revit /
+  // ArchiCAD face sets carry ~1–10 % of such faces straight from the source
+  // (collinear IfcIndexedPolygonalFace triples, quads with a point on an
+  // edge, n-gons with collinear vertices that earcut slices into slivers).
+  // They never rasterize, but each one spawns an extra zero-normal cluster in
+  // computeCreasedVertexNormals and can hit its 16-cluster cap. The test is
+  // relative (sin²(angle) ≤ 1e-24 — effectively exact zero), so real slivers
+  // are kept.
   const oldIndex = geom.index ? geom.index.array : null;
   const triCount = (oldIndex ? oldIndex.length : vertexCount) / 3;
   const kept = [];
@@ -418,8 +456,16 @@ export function mergeVerticesInPlace(geom, tolerance = 1e-4) {
     const b = oldToNew[oldIndex ? oldIndex[t * 3 + 1] : t * 3 + 1];
     const c = oldToNew[oldIndex ? oldIndex[t * 3 + 2] : t * 3 + 2];
     if (a === b || b === c || a === c) continue;
+    const ax = newPositions[a * 3], ay = newPositions[a * 3 + 1], az = newPositions[a * 3 + 2];
+    const ux = newPositions[b * 3] - ax, uy = newPositions[b * 3 + 1] - ay, uz = newPositions[b * 3 + 2] - az;
+    const vx = newPositions[c * 3] - ax, vy = newPositions[c * 3 + 1] - ay, vz = newPositions[c * 3 + 2] - az;
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const area2 = nx * nx + ny * ny + nz * nz;
+    const edges2 = (ux * ux + uy * uy + uz * uz) * (vx * vx + vy * vy + vz * vz);
+    if (!(area2 > 1e-24 * edges2)) continue;
     kept.push(a, b, c);
   }
+  if (!merged && kept.length === triCount * 3) return geom; // nothing merged, nothing dropped
   const newIndexArray = new Uint32Array(kept);
 
   geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(newPositions), 3));
@@ -1007,7 +1053,13 @@ function resolveProfilePoints(entityIndex, profileId) {
       const w = parseFloatScalar(parts[4]) || h;
       const t = parseFloatScalar(parts[5]);
       if (!h || !t) return null;
-      const outer = [[0, 0], [w, 0], [w, t], [t, t], [t, h], [0, h]];
+      // IFC4: střed souřadnic Position = střed obalového obdélníku profilu
+      // (svislá stojina vlevo, vodorovná dole).
+      const hx = w / 2, hy = h / 2;
+      const outer = [
+        [-hx, -hy], [hx, -hy], [hx, -hy + t],
+        [-hx + t, -hy + t], [-hx + t, hy], [-hx, hy]
+      ];
       return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
     }
     case 'IFCTSHAPEPROFILEDEF': {
@@ -1017,10 +1069,13 @@ function resolveProfilePoints(entityIndex, profileId) {
       const tw = parseFloatScalar(parts[5]);
       const tf = parseFloatScalar(parts[6]);
       if (!h || !bf || !tw || !tf) return null;
-      const hx = bf / 2, hw = tw / 2;
+      // IFC4: střed souřadnic Position = střed obalového obdélníku profilu
+      // (příruba nahoře v +y, stojina dolů). Ověřeno oraclem web-ifc na
+      // beam-parametric-cross-section.ifc (posun o Depth/2 před opravou).
+      const hx = bf / 2, hw = tw / 2, hy = h / 2;
       const outer = [
-        [-hx, h - tf], [-hx, h], [hx, h], [hx, h - tf],
-        [hw, h - tf], [hw, 0], [-hw, 0], [-hw, h - tf]
+        [-hx, hy - tf], [-hx, hy], [hx, hy], [hx, hy - tf],
+        [hw, hy - tf], [hw, -hy], [-hw, -hy], [-hw, hy - tf]
       ];
       return { outer: apply2DProfilePosition(entityIndex, parts[2], outer), holes: [] };
     }
@@ -1163,12 +1218,169 @@ function apply2DProfilePosition(entityIndex, posRef, polygon) {
   ]);
 }
 
-/** Resolve a 2D curve (IfcPolyline / IfcIndexedPolyCurve) to [[x,y],...]. */
-function resolveCurvePoints2D(entityIndex, curveId) {
-  if (!curveId) return null;
+/**
+ * Plane-angle unit of the project (IfcUnitAssignment → .PLANEANGLEUNIT.) as a
+ * factor to radians. Trimmed-curve parameters on IfcCircle / IfcEllipse are
+ * expressed in this unit (buildingSMART "curve-parameters-in-degrees" uses
+ * IFCCONVERSIONBASEDUNIT DEGREE). Cached on the index; defaults to 1.
+ */
+function planeAngleScale(entityIndex) {
+  if (typeof entityIndex._planeAngleScale === 'number') return entityIndex._planeAngleScale;
+  let scale = 1;
+  for (const ua of entityIndex.byType('IFCUNITASSIGNMENT')) {
+    for (const ref of parseRefList(splitParams(ua.params)[0])) {
+      const unit = entityIndex.byExpressId(ref);
+      if (!unit || unit.type !== 'IFCCONVERSIONBASEDUNIT') continue;
+      // (Dimensions, UnitType, Name, ConversionFactor)
+      const uParts = splitParams(unit.params);
+      if ((uParts[1] || '').trim() !== '.PLANEANGLEUNIT.') continue;
+      const factor = entityIndex.byExpressId(parseRef(uParts[3]));
+      if (!factor || factor.type !== 'IFCMEASUREWITHUNIT') continue;
+      const m = /\(\s*([-+0-9.eE]+)\s*\)/.exec(splitParams(factor.params)[0] || '');
+      const v = m ? parseFloat(m[1]) : NaN;
+      if (Number.isFinite(v) && v > 0) scale = v;
+    }
+  }
+  entityIndex._planeAngleScale = scale;
+  return scale;
+}
+
+/** Parse an IfcTrimmingSelect list "(#12, IFCPARAMETERVALUE(90.))" → { pointId, param }. */
+function parseTrimmingSelect(raw) {
+  const ptMatch = /#(\d+)/.exec(raw || '');
+  const paramMatch = /IFCPARAMETERVALUE\(\s*([-+0-9.eE]+)\s*\)/i.exec(raw || '');
+  return {
+    pointId: ptMatch ? parseInt(ptMatch[1], 10) : null,
+    param: paramMatch ? parseFloat(paramMatch[1]) : null
+  };
+}
+
+/** Local 2D frame (location + ref direction) of an IfcAxis2Placement2D ref or '$'. */
+function placement2DFrame(entityIndex, posRef) {
+  const ref = parseRef(posRef);
+  const pos = ref ? entityIndex.byExpressId(ref) : null;
+  if (!pos || pos.type !== 'IFCAXIS2PLACEMENT2D') return { loc: [0, 0], dir: [1, 0] };
+  const posParts = splitParams(pos.params);
+  const locId = parseRef(posParts[0]);
+  const refDirId = parseRef(posParts[1]);
+  const loc = (locId && resolveCoords(entityIndex, locId)) || [0, 0];
+  const dir = (refDirId && resolveCoords(entityIndex, refDirId)) || [1, 0];
+  const len = Math.hypot(dir[0] || 0, dir[1] || 0) || 1;
+  return { loc: [loc[0] || 0, loc[1] || 0], dir: [(dir[0] || 0) / len, (dir[1] || 0) / len] };
+}
+
+/**
+ * IfcTrimmedCurve over IfcCircle / IfcEllipse / IfcLine → [[x,y],...] from
+ * Trim1 to Trim2. SenseAgreement .F. walks the basis curve backwards.
+ * Conic trims are angles (project plane-angle unit) or cartesian points —
+ * MasterRepresentation picks which one wins when both are given.
+ */
+function resolveTrimmedCurve2D(entityIndex, parts) {
+  // (BasisCurve, Trim1, Trim2, SenseAgreement, MasterRepresentation)
+  const basis = entityIndex.byExpressId(parseRef(parts[0]));
+  if (!basis) return null;
+  const bParts = splitParams(basis.params);
+  const trim1 = parseTrimmingSelect(parts[1]);
+  const trim2 = parseTrimmingSelect(parts[2]);
+  const sense = (parts[3] || '').trim() !== '.F.';
+  const preferCartesian = (parts[4] || '').trim() === '.CARTESIAN.';
+
+  if (basis.type === 'IFCLINE') {
+    // (Pnt, Dir) — Dir is IfcVector(Orientation, Magnitude); P(t) = Pnt + t·|Dir|·dir
+    const pnt = resolveCoords(entityIndex, parseRef(bParts[0]));
+    const vec = entityIndex.byExpressId(parseRef(bParts[1]));
+    if (!pnt || !vec || vec.type !== 'IFCVECTOR') return null;
+    const vParts = splitParams(vec.params);
+    const orient = resolveCoords(entityIndex, parseRef(vParts[0]));
+    const mag = parseFloatScalar(vParts[1]);
+    if (!orient || !Number.isFinite(mag)) return null;
+    const at = (trim) => {
+      const pt = trim.pointId ? resolveCoords(entityIndex, trim.pointId) : null;
+      if (pt && (preferCartesian || trim.param === null)) return [pt[0], pt[1]];
+      if (trim.param === null) return null;
+      return [pnt[0] + trim.param * mag * orient[0], pnt[1] + trim.param * mag * orient[1]];
+    };
+    const a = at(trim1), b = at(trim2);
+    if (!a || !b) return null;
+    return sense ? [a, b] : [b, a];
+  }
+
+  if (basis.type !== 'IFCCIRCLE' && basis.type !== 'IFCELLIPSE') return null;
+  // IFCCIRCLE(Position, Radius) / IFCELLIPSE(Position, SemiAxis1, SemiAxis2)
+  const ra = parseFloatScalar(bParts[1]);
+  const rb = basis.type === 'IFCELLIPSE' ? parseFloatScalar(bParts[2]) : ra;
+  if (!ra || !rb) return null;
+  const frame = placement2DFrame(entityIndex, bParts[0]);
+  const angleScale = planeAngleScale(entityIndex);
+  const angleOf = (trim) => {
+    const pt = trim.pointId ? resolveCoords(entityIndex, trim.pointId) : null;
+    if (pt && (preferCartesian || trim.param === null)) {
+      // Back into the conic's local frame, then parametric angle.
+      const dx = pt[0] - frame.loc[0], dy = pt[1] - frame.loc[1];
+      const lx = frame.dir[0] * dx + frame.dir[1] * dy;
+      const ly = -frame.dir[1] * dx + frame.dir[0] * dy;
+      return Math.atan2(ly / rb, lx / ra);
+    }
+    return trim.param === null ? null : trim.param * angleScale;
+  };
+  const t1 = angleOf(trim1), t2 = angleOf(trim2);
+  if (t1 === null || t2 === null) return null;
+  // Walk the basis curve in its own (counter-clockwise) direction from start
+  // to end, then flip the point order when SenseAgreement is .F.
+  const start = sense ? t1 : t2;
+  const end = sense ? t2 : t1;
+  let sweep = end - start;
+  while (sweep <= 1e-9) sweep += Math.PI * 2;
+  while (sweep > Math.PI * 2 + 1e-9) sweep -= Math.PI * 2;
+  const n = Math.max(2, Math.ceil((sweep / (Math.PI * 2)) * CIRCLE_SEGMENTS));
+  const local = [];
+  for (let i = 0; i <= n; i++) {
+    const a = start + (sweep * i) / n;
+    local.push([Math.cos(a) * ra, Math.sin(a) * rb]);
+  }
+  const out = apply2DProfilePosition(entityIndex, bParts[0], local);
+  return sense ? out : out.reverse();
+}
+
+/** Append `pts` to `out`, skipping a point that duplicates the last emitted one. */
+function appendCurvePoints(out, pts, eps) {
+  for (const p of pts) {
+    const last = out[out.length - 1];
+    if (last && Math.abs(last[0] - p[0]) < eps && Math.abs(last[1] - p[1]) < eps) continue;
+    out.push([p[0], p[1]]);
+  }
+}
+
+/**
+ * Resolve a 2D curve (IfcPolyline / IfcIndexedPolyCurve / IfcTrimmedCurve /
+ * IfcCompositeCurve) to [[x,y],...].
+ */
+function resolveCurvePoints2D(entityIndex, curveId, depth = 0) {
+  if (!curveId || depth > 8) return null;
   const c = entityIndex.byExpressId(curveId);
   if (!c) return null;
   const parts = splitParams(c.params);
+
+  if (c.type === 'IFCTRIMMEDCURVE') return resolveTrimmedCurve2D(entityIndex, parts);
+
+  if (c.type === 'IFCCOMPOSITECURVE') {
+    // (Segments, SelfIntersect); segment = IfcCompositeCurveSegment(Transition, SameSense, ParentCurve)
+    const out = [];
+    for (const segRef of parseRefList(parts[0])) {
+      const seg = entityIndex.byExpressId(segRef);
+      if (!seg || !seg.type.endsWith('COMPOSITECURVESEGMENT')) return null;
+      const segParts = splitParams(seg.params);
+      const pts = resolveCurvePoints2D(entityIndex, parseRef(segParts[2]), depth + 1);
+      if (!pts || pts.length < 2) return null;
+      if ((segParts[1] || '').trim() === '.F.') pts.reverse();
+      appendCurvePoints(out, pts, 1e-6);
+    }
+    if (out.length >= 2) {
+      const f = out[0], l = out[out.length - 1];
+      if (Math.abs(f[0] - l[0]) < 1e-6 && Math.abs(f[1] - l[1]) < 1e-6) out.pop();
+    }
+    return out;
+  }
 
   if (c.type === 'IFCPOLYLINE') {
     const ptRefs = parseRefList(parts[0]);
@@ -1302,10 +1514,12 @@ export function extrudedAreaSolidToGeometry(entityIndex, expressId) {
     geom.applyQuaternion(q);
   }
 
-  // Apply IfcAxis2Placement3D for the solid (Position attribute)
+  // Apply IfcAxis2Placement3D for the solid (Position attribute). Keep any
+  // large georeferenced translation out of the Float32 buffer (see
+  // applyPlacementKeepingOrigin) so the profile is not quantized into facets.
   if (positionId) {
     const m = placement3DToMatrix(entityIndex, positionId);
-    geom.applyMatrix4(m);
+    applyPlacementKeepingOrigin(geom, m);
   }
 
   mergeVerticesInPlace(geom, 1e-4);
@@ -1622,8 +1836,9 @@ export function tryExtrudedDifference2D(entityIndex, firstId, secondId) {
   }
 
   // ExtrudeGeometry extrudes along +Z in shape-local coords; d1 is also +Z so no rotation needed.
+  // Keep any large georeferenced translation out of the Float32 buffer (see applyPlacementKeepingOrigin).
   if (pos1Id) {
-    geom.applyMatrix4(m1);
+    applyPlacementKeepingOrigin(geom, m1);
   }
   mergeVerticesInPlace(geom, 1e-4);
   computeCreasedVertexNormals(geom);
@@ -1690,7 +1905,8 @@ export function resolveMappedItem(entityIndex, expressId) {
 function resolveCartesianTransform(entityIndex, expressId) {
   const e = entityIndex.byExpressId(expressId);
   if (!e) return new THREE.Matrix4();
-  // 3D and 3DnonUniform share leading params: (Axis1, Axis2, LocalOrigin, Scale, Axis3)
+  // 3D and 3DnonUniform share leading params: (Axis1, Axis2, LocalOrigin, Scale, Axis3);
+  // 3DnonUniform adds (Scale2, Scale3) — per IFC4 Scl2 = NVL(Scale2, Scl), Scl3 = NVL(Scale3, Scl).
   const parts = splitParams(e.params);
   const xRefId = parseRef(parts[0]);
   const yRefId = parseRef(parts[1]);
@@ -1698,21 +1914,36 @@ function resolveCartesianTransform(entityIndex, expressId) {
   const scale = parseFloatScalar(parts[3]);
   const zRefId = parseRef(parts[4]);
   const origin = originId ? resolveCoords(entityIndex, originId) : [0, 0, 0];
-  const xRef = xRefId ? resolveCoords(entityIndex, xRefId) : [1, 0, 0];
-  const yRef = yRefId ? resolveCoords(entityIndex, yRefId) : [0, 1, 0];
+  const xRef = xRefId ? resolveCoords(entityIndex, xRefId) : null;
+  const yRef = yRefId ? resolveCoords(entityIndex, yRefId) : null;
   const zRef = zRefId ? resolveCoords(entityIndex, zRefId) : null;
 
-  const x = new THREE.Vector3(xRef[0] || 1, xRef[1] || 0, xRef[2] || 0).normalize();
-  const y = new THREE.Vector3(yRef[0] || 0, yRef[1] || 1, yRef[2] || 0).normalize();
+  // Explicit axes are taken verbatim (a zero component must stay zero, e.g. Axis1 = (0,1,0));
+  // defaults apply only when the attribute is absent.
+  const x = xRef ? new THREE.Vector3(xRef[0] || 0, xRef[1] || 0, xRef[2] || 0) : new THREE.Vector3(1, 0, 0);
+  const y = yRef ? new THREE.Vector3(yRef[0] || 0, yRef[1] || 0, yRef[2] || 0) : new THREE.Vector3(0, 1, 0);
+  if (x.lengthSq() === 0) x.set(1, 0, 0);
+  if (y.lengthSq() === 0) y.set(0, 1, 0);
+  x.normalize();
+  y.normalize();
   let z;
-  if (zRef) z = new THREE.Vector3(zRef[0] || 0, zRef[1] || 0, zRef[2] || 1).normalize();
-  else z = new THREE.Vector3().crossVectors(x, y).normalize();
+  if (zRef) z = new THREE.Vector3(zRef[0] || 0, zRef[1] || 0, zRef[2] || 0);
+  else z = new THREE.Vector3().crossVectors(x, y);
+  if (z.lengthSq() === 0) z.set(0, 0, 1);
+  z.normalize();
 
   const s = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  let s2 = s, s3 = s;
+  if (e.type === 'IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM') {
+    const scale2 = parseFloatScalar(parts[5]);
+    const scale3 = parseFloatScalar(parts[6]);
+    if (Number.isFinite(scale2) && scale2 > 0) s2 = scale2;
+    if (Number.isFinite(scale3) && scale3 > 0) s3 = scale3;
+  }
   const m = new THREE.Matrix4().makeBasis(
     x.multiplyScalar(s),
-    y.multiplyScalar(s),
-    z.multiplyScalar(s)
+    y.multiplyScalar(s2),
+    z.multiplyScalar(s3)
   );
   m.setPosition(origin[0] || 0, origin[1] || 0, origin[2] || 0);
   return m;

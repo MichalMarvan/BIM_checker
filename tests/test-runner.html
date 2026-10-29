@@ -11,7 +11,7 @@
     <script type="importmap">
         {
             "imports": {
-                "three": "https://esm.sh/three@0.182.0/build/three.module.js"
+                "three": "../assets/js/vendor/three/three.module.js"
             }
         }
     </script>
@@ -342,12 +342,16 @@
         </div>
     </div>
 
+    <script src="../assets/js/common/safe-html.js"></script>
+    <script src="../assets/js/common/service-registry.js"></script>
     <script src="../assets/js/common/translations.js"></script>
     <script src="../assets/js/common/i18n.js"></script>
     <script src="../assets/js/common/mobile-nav.js"></script>
     <script src="../assets/js/common/error-handler.js"></script>
     <script src="../assets/js/common/compression.js"></script>
+    <script src="../assets/js/common/database-registry.js"></script>
     <script src="../assets/js/common/storage.js"></script>
+    <script src="../assets/js/common/storage-management.js"></script>
     <script src="../assets/js/common/local-folder-storage.js"></script>
     <script src="../assets/js/common/save-to-folder-dialog.js"></script>
     <script src="../assets/js/common/bim-save-file.js"></script>
@@ -437,13 +441,16 @@
         };
     })();
     </script>
+    <script src="../assets/js/common/csv.js"></script>
     <script src="../assets/js/ifc/viewer-init.js"></script>
     <script src="../assets/js/vendor/xlsx.full.min.js"></script>
+    <script src="../assets/js/ids/ids-excel-format.js"></script>
     <script src="../assets/js/ids/ids-excel-parser.js"></script>
     <script src="../assets/js/ids/ids-excel-generator.js"></script>
     <script src="../assets/js/ids/ids-excel-template.js"></script>
     <script src="../assets/js/ids/ids-xml-generator.js"></script>
     <script src="../assets/js/ids/bsdd-api.js"></script>
+    <script src="../assets/js/ids/bsdd-autocomplete.js"></script>
     <script src="../assets/js/parser.js"></script>
     <script src="../assets/js/common/ids-parser.js"></script>
     <script src="../assets/js/common/ifc-hierarchy.js"></script>
@@ -463,9 +470,12 @@
     <script src="test-suites/parallel-validation.test.js"></script>
     <script src="test-suites/ids-excel-parser.test.js"></script>
     <script src="test-suites/ids-excel-generator.test.js"></script>
+    <script src="test-suites/csv.test.js"></script>
     <script src="test-suites/ids-excel-integration.test.js"></script>
     <script src="test-suites/ifc-stream-parser.test.js"></script>
     <script src="test-suites/storage.test.js"></script>
+    <script src="test-suites/storage-management.test.js"></script>
+    <script src="test-suites/service-registry.test.js"></script>
     <script src="test-suites/compression.test.js"></script>
     <script src="test-suites/i18n.test.js"></script>
     <script src="test-suites/ifc-parser.test.js"></script>
@@ -494,6 +504,7 @@
     <script src="test-suites/ifc-pset-utils.test.js"></script>
     <script src="test-suites/ifc-viewer-modifications.test.js"></script>
     <script src="test-suites/error-handler-buffer.test.js"></script>
+    <script src="test-suites/security-xss.test.js"></script>
     <script src="../assets/js/common/bug-report.js"></script>
     <script src="test-suites/bug-report-frontend.test.js"></script>
     <script src="test-suites/validation-presets.test.js"></script>
@@ -555,9 +566,16 @@
     <script src="test-suites/ifc-linear-placement.test.js"></script>
     <script src="test-suites/ifc-alignment-geometric.test.js"></script>
     <script src="test-suites/ifc-mvd-detect.test.js"></script>
+    <script src="test-suites/ifc-step-lexer.test.js"></script>
+    <script src="test-suites/ifc-guid-index.test.js"></script>
+    <script src="test-suites/ifc-geometry-gaps.test.js"></script>
+    <script src="test-suites/ifc-profile-origin.test.js"></script>
+    <script src="test-suites/ifc-sectioned-solid.test.js"></script>
+    <script src="test-suites/ifc-advanced-brep.test.js"></script>
     <script src="test-suites/alignment-anchor.test.js"></script>
     <script src="test-suites/map-to-local-shift.test.js"></script>
     <script src="test-suites/spiral-heading.test.js"></script>
+    <script src="test-suites/ifc-zero-area-faces.test.js"></script>
     <script src="test-runner-ui.js"></script>
     
     <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">

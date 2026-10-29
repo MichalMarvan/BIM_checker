@@ -469,3 +469,23 @@ Branch: 3d-viewer-integration
 - [x] Spec: `docs/superpowers/specs/2026-07-16-measure-point-mode-design.md`, plán: `docs/superpowers/plans/2026-07-16-measure-point-mode.md`
 
 Branch: 3d-viewer-integration
+
+## IFC parser: diagnostika + STEP lexer (buildingSMART korpus) — rozpracováno (2026-10-29)
+Cíl: viewer a parser správně podle buildingSMART; postup = validace → viewer → diagnostika → oprava → regresní fixtura. Korpus: `~/shared/buildingsmart/` (IFC4.x-specification-models, Certification-datasets, ifc-gherkin-rules, validate, IDS; 1360 IFC; Community-Sample-Test-Files vyžaduje git-lfs, zatím nestaženo).
+- [x] F1/A: `scripts/ifc-diag/parser-inventory.mjs` — referenční STEP skener vs `parseStepText`, kolize GUID; baseline: 65 ztracených záznamů v 8 souborech, 44 rozbitých params v 9 souborech (mezera před `(`, komentář za `;`, komentář v parametrech)
+- [x] F2: `parseStepText` přepsán na jednoprůchodový automat (řetězce, `/* */`, `;`), nové `diagnostics` (invalid/duplicate/complex/comments/unterminated); po opravě 0 ztrát / 0 rozbitých params na 1360 souborech; shodný výstup na D214_SO112201 (338 968 entit), ~15 % pomalejší
+- [x] Testy: `tests/test-suites/ifc-step-lexer.test.js` (12), `scripts/ifc-diag/step-edge-cases.mjs`; celkem 1085/1085
+- [x] GEOMETRY_PIPELINE_VERSION 4 → 5, přegenerován PWA manifest
+- [ ] Vizuální ověření Chrome MCP (nebylo k dispozici: bez serveru pro viewer) — brep-model, geographic-referencing-gk, mapped-shape-*
+- [x] GlobalId: `EntityIndex` schema-aware (první atribut + podtypy IfcRoot z EXPRESS IFC2X3/IFC4/IFC4X3_DEV — ADD2 .exp nedostupné, neověřeno), 25 363 falešných GUID odmítnuto
+- [ ] F2b: sjednocení tokenizeru s `ifc-parser-core.js` / `ifc-stream-parser.js`, STEP encoding
+- [x] F1/B: `scripts/ifc-diag/geometry-diagnose.mjs` (Codex) — stav každého produktu před compact(); osy, křivky a bbox = NOT_APPLICABLE
+- [x] F3a: profily IfcCompositeCurve/IfcTrimmedCurve; vadný IfcMappedItem hlášen jako invalid-reference
+- [x] F3b: IfcSectionedSolidHorizontal (`geometry/sectioned-solid.js`; ADD2 orientace dle návrhu buildingSMART #1163, vůči normě neověřeno); testy 1120
+- [x] GEOMETRY_PIPELINE_VERSION 5 → 6
+- [ ] F1/C: zobrazení přes viewer-page (screenshot, Chrome MCP)
+- [ ] F3: geometrie dle frekvence z baseline (křivky profilů, BRep s otvory, swept disk, CSG/halfspace, nové typy)
+- [ ] F4: nezávislý oracle (web-ifc / IfcOpenShell), buildingSMART validator jako brána
+- [ ] F5: CI brána (rychlá PR sada + noční korpus)
+
+Branch: 3d-viewer-integration
