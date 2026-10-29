@@ -21,7 +21,7 @@
 // caches then miss and regenerate silently.
 
 export const CACHE_FORMAT_VERSION = 1;
-export const GEOMETRY_PIPELINE_VERSION = 9; // v7: collinear triangles dropped in vertex weld; v8: T/L profile origin, nonuniform scale; v9: advanced brep, CSG primitives
+export const GEOMETRY_PIPELINE_VERSION = 10; // v7: collinear triangles dropped in vertex weld; v8: T/L profile origin, nonuniform scale; v9: advanced brep, CSG primitives; v10: halfspace clip, swept-extra
 
 const MAGIC = 0x434d4942; // 'BIMC' as LE u32
 

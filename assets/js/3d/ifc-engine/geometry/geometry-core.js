@@ -28,6 +28,7 @@ import {
   tryExtrudedDifference2D,
 } from './mesh-types.js';
 import { sectionedSolidHorizontalToGeometry } from './sectioned-solid.js';
+import { tryHalfSpaceDifference } from './halfspace-clip.js';
 import { advancedBrepToGeometry, faceBasedSurfaceModelToGeometry, csgPrimitiveToGeometry } from './advanced-brep.js';
 import { parseRef, parseRefList } from './step-helpers.js';
 
@@ -166,7 +167,8 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, diagnostics, dept
       const firstId = parseRef(parts[1]);
       const secondId = parseRef(parts[2]);
       if (operator === '.DIFFERENCE.' && firstId && secondId) {
-        const csgGeom = tryExtrudedDifference2D(entityIndex, firstId, secondId);
+        const csgGeom = tryExtrudedDifference2D(entityIndex, firstId, secondId)
+          || tryHalfSpaceDifference(entityIndex, firstId, secondId, buildLeafGeometryUncached);
         if (csgGeom) {
           diagnostics.exactBooleanDifferenceCount += 1;
           csgGeom.computeBoundingBox();
