@@ -5,10 +5,10 @@ export default [
         ignores: [
             'node_modules/**',
             'tests/**',
-            'dist/**',
             'build/**',
             '**/*.min.js',
-            'assets/js/vendor/**'
+            'assets/js/vendor/**',
+            'assets/js/3d/ifc-engine/parser/ifc-root-types.js'
         ]
     },
     {
@@ -42,6 +42,7 @@ export default [
                 IDSExcelParser: 'readonly',
                 IDSExcelGenerator: 'readonly',
                 IDSExcelTemplate: 'readonly',
+                IDSExcelFormat: 'readonly',
                 BsddApi: 'readonly',
                 BsddAutocomplete: 'readonly',
                 // Storage functions
@@ -105,6 +106,13 @@ export default [
             'brace-style': ['warn', '1tbs'],
             'no-undef': 'error',
             'no-redeclare': 'error'
+        }
+    },
+    {
+        // IFC engine is written with 2-space indentation throughout.
+        files: ['assets/js/3d/ifc-engine/**/*.js'],
+        rules: {
+            'indent': ['warn', 2, { SwitchCase: 1 }]
         }
     }
 ];

@@ -1,4 +1,7 @@
 # Open Source Readiness Audit (v2)
+
+> **Historický snapshot.** Počty testů a zjištění v tomto souboru již
+> nepopisují současný release; aktuální brány jsou v CI a release checklistu.
 **Project:** BIM Checker
 **Date:** 2026-01-08
 **Auditor:** Gemini AI

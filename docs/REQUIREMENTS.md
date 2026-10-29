@@ -1,5 +1,10 @@
 # BIM Checker – Technical Requirements
 
+> **Historický dokument:** Zachycuje původní požadavky a roadmapu. Aktuální
+> implementaci popisují `README.md`, `docs/ARCHITECTURE.md`, support matrices a
+> `docs/KNOWN_LIMITATIONS.md`; tvrzení níže se nemají používat jako aktuální
+> produktová specifikace.
+
 This document summarizes all recommendations and requirements for the **BIM Checker** project to enable its development as a professional open-source tool for working with IFC, IDS, and data validation.
 
 ---

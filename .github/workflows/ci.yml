@@ -2,14 +2,24 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
   pull_request:
     branches: [master, main]
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint
+  quality:
+    name: Quality and browser checks
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,52 +28,89 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
+      - name: Repository integrity
+        run: npm run check:repo
+
+      - name: Generated PWA precache is current
+        run: npm run check:pwa
+
+      - name: Reproducible optional vendor bundles
+        run: npm run check:vendor
+
+      - name: CycloneDX SBOM is current
+        run: |
+          npm run sbom
+          git diff --exit-code -- sbom.cdx.json
+
+      - name: Validate HTML structure
+        run: npm run validate:html
+
+      - name: Lint baseline
         run: npm run lint
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
+      - name: Unit and integration tests
         run: npm test
+        env:
+          TEST_REPORT: failures
 
-  build:
-    name: Build Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
+      - name: Checkout pinned buildingSMART IDS 1.0 corpus
         uses: actions/checkout@v4
+        with:
+          repository: buildingSMART/IDS
+          ref: 1effec6f419798ce09617416d258a35bdc58320a
+          path: .reference/buildingsmart-ids
+          fetch-depth: 1
 
-      - name: Check HTML validity
-        run: |
-          for file in *.html pages/*.html; do
-            if [ -f "$file" ]; then
-              echo "Checking $file..."
-              # Basic syntax check - ensure files are valid UTF-8
-              iconv -f UTF-8 -t UTF-8 "$file" > /dev/null
-            fi
-          done
+      - name: Official buildingSMART IDS conformance
+        run: >-
+          npm run test:ids-conformance --
+          .reference/buildingsmart-ids/Documentation/testcases
+          --source-ref v1.0.0
+          --source-commit 1effec6f419798ce09617416d258a35bdc58320a
+          --json test-results/buildingsmart-ids.json
+          --markdown test-results/buildingsmart-ids.md
 
-      - name: Check for console.log statements
-        run: |
-          # Warn about console.log but don't fail
-          echo "Checking for console.log statements..."
-          grep -r "console\.log" assets/js/ --include="*.js" || echo "No console.log found"
+      - name: Upload IDS conformance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildingsmart-ids-conformance
+          path: test-results/buildingsmart-ids.*
+          if-no-files-found: error
+
+      - name: Browser page smoke tests
+        run: npm run test:smoke
+
+      - name: Cross-page 3D handoff E2E
+        run: npm run test:e2e
+
+      - name: Offline PWA and stored IFC E2E
+        run: npm run test:offline
+
+      - name: IFC and 3D performance budget
+        run: npm run test:performance
+
+      - name: 3D visual state regression smoke
+        run: npm run test:visual
+
+      - name: Accessibility at desktop and mobile viewports
+        run: npm run test:a11y
+
+      - name: Upload browser reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-quality-reports
+          path: test-results/
+          if-no-files-found: warn
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+      - name: Whitespace check
+        run: git diff --check

@@ -7,7 +7,7 @@
 
 Professional tools for BIM data validation and analysis according to buildingSMART standards.
 
-**100% browser-based | No installation | Privacy-first | Open source**
+**Browser-based | No installation | Privacy-first | Open source**
 
 ## Features
 
@@ -56,6 +56,16 @@ Validate IFC models against IDS specifications for data quality control.
 - Success statistics and filtering
 - Export results to CSV and XLSX
 - Parallel validation with Web Workers
+- Versioned validator/rules metadata and main-thread/Worker parity tests
+
+### IFC 3D Viewer
+
+- Multi-model IFC scene with selection, isolation, measurement and section planes
+- Perspective and orthographic cameras, saved viewpoints and federation
+- Georeferencing, CRS support, IFC alignments, LandXML and terrain workflows
+- Cross-page links from the IFC table and IDS validation results by exact `fileId` + GUID
+- Per-model geometry diagnostics for rendered, unsupported and fallback geometry
+- Local, LRU-bounded model cache and offline loading of stored IFC files
 
 ## Quick Start
 
@@ -84,12 +94,31 @@ Open http://localhost:8000 in your browser.
 - **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute
 - **[Requirements](docs/REQUIREMENTS.md)** - Technical requirements and roadmap
 - **[Future Improvements](FUTURE_IMPROVEMENTS.md)** - Planned features and ideas
+- **[Privacy and Network Access](PRIVACY.md)** - Local processing and optional online services
+- **[Third-Party Notices](THIRD_PARTY_NOTICES.md)** - Bundled dependencies and licenses
+- **[Security Threat Model](docs/SECURITY_THREAT_MODEL.md)** - Trust boundaries and required controls
+- **[Architecture](docs/ARCHITECTURE.md)** - Modules, domain flows and service boundaries
+- **[IDS/IFC Support](docs/IDS_IFC_SUPPORT.md)** - Implemented facets, schemas and conformance scope
+- **[3D Geometry Support](docs/3D_GEOMETRY_SUPPORT.md)** - Exact, approximate and unsupported geometry
+- **[Excel Format](docs/EXCEL_FORMAT.md)** - Versioning, sheets, migrations and roundtrip guarantees
+- **[Storage and Backup](docs/STORAGE_AND_BACKUP.md)** - Data classes, quota, cache and recovery
+- **[Browser Support](docs/BROWSER_SUPPORT.md)** - Capability matrix and fallbacks
+- **[Known Limitations](docs/KNOWN_LIMITATIONS.md)** - Explicit product boundaries
+- **[Release Checklist](docs/RELEASE_CHECKLIST.md)** - Automated and manual release gates
 
 ## Testing
 
 ```bash
 # Run headless tests
 npm test
+
+# Full browser/release checks
+npm run test:smoke
+npm run test:e2e
+npm run test:offline
+npm run test:visual
+npm run test:performance
+npm run test:a11y
 
 # Or open in browser
 python3 -m http.server 8000
@@ -104,17 +133,20 @@ BIM_checker/
 ├── pages/                          # Tool pages
 │   ├── ifc-viewer-multi-file.html
 │   ├── ids-parser-visualizer.html
-│   └── ids-ifc-validator.html
+│   ├── ids-ifc-validator.html
+│   └── 3d-viewer.html
 ├── assets/                         # Resources
 │   ├── css/                       # Stylesheets
 │   └── js/                        # JavaScript modules
-│       ├── common/                # Shared utilities (i18n, theme, storage)
-│       ├── ifc/                   # IFC parsing
+│       ├── common/                # Shared domain/services, storage and validation
+│       ├── 3d/                    # IFC 3D engine, geometry and panels
+│       ├── ifc/                   # IFC tabular parsing and editing
 │       ├── ids/                   # IDS editor, bSDD API, Excel import/export
 │       └── workers/               # Web Workers
 ├── functions/                      # Cloudflare Pages Functions
 │   └── api/                       # bSDD API CORS proxy
-├── tests/                          # Test suite (280+ tests)
+├── scripts/                        # CI, browser, conformance and build checks
+├── tests/                          # Automated unit/integration suite
 ├── docs/                           # Documentation
 ├── LICENSE                         # GNU AGPL v3
 ├── CONTRIBUTING.md                 # Contribution guide
@@ -123,15 +155,15 @@ BIM_checker/
 
 ## Supported Standards
 
-- **IFC 4.x** (ISO 16739-1:2024) - Industry Foundation Classes
+- **IFC2X3, IFC4 and IFC4X3** - data parsing and IDS validation; documented subset for 3D geometry
 - **IDS 1.0** - Information Delivery Specification
-- **bSDD** - buildingSMART Data Dictionary (production API via CORS proxy)
+- **bSDD** - optional buildingSMART Data Dictionary integration (direct API or limited proxy)
 - **buildingSMART** - Official standards for openBIM
 
 ## Technologies
 
 - Pure **Vanilla JavaScript** (ES6+)
-- No framework dependencies
+- No frontend UI framework; runtime libraries are pinned and shipped locally
 - Web Workers for parallel validation
 - IndexedDB for local storage
 - Streaming parser for large files
@@ -140,25 +172,28 @@ BIM_checker/
 
 ## Security & Privacy
 
-- **100% client-side** - All processing in your browser
-- **No data uploads** - Files never leave your device
-- **Offline capable** - Works without internet (after initial load)
-- **No tracking** - Privacy-first design
+- Core IFC/IDS parsing, editing, validation, and export run in the browser
+- Files are not automatically uploaded by normal processing workflows
+- Remote AI requires per-session consent; data tools are disabled by default for remote agents
+- AI API keys are held only for the current browser session
+- Optional features such as AI, bSDD, maps, update checks, bug reports, and advanced 3D modules use the network
+- No first-party analytics or advertising trackers
+
+See [Privacy and Network Access](PRIVACY.md) for the exact boundaries and external services.
 
 ## Browser Support
 
-- Chrome/Edge (recommended)
-- Firefox
-- Safari
-- Opera
+Chrome/Edge is the fully automated CI target. Firefox and Safari support the
+core parser/editor/validator paths, with capability-dependent fallbacks for
+local folders, PWA installation and WebGL. See the detailed
+[browser capability matrix](docs/BROWSER_SUPPORT.md).
 
-> **Note:** Modern browsers with ES6+ support required
+## Current focus
 
-## Planned Features
-
-- [ ] **XSD validation** - Validate IDS files against official buildingSMART schema
-- [ ] **IDS templates** - Pre-built specifications for common use cases
-- [ ] **BCF export** - Export validation results to BIM Collaboration Format
+- Expand the licensed real-world IFC corpus across authoring tools
+- Differentially compare selected IDS validation cases with an independent engine
+- Continue reducing legacy global bindings through the explicit service registry
+- Tighten CSP after remaining inline handlers have been migrated
 
 See [FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md) for more ideas.
 

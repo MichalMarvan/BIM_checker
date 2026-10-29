@@ -30,11 +30,23 @@
   "scripts": {
     "test": "node tests/run-tests.js",
     "test:browser": "echo 'Open tests/test-runner.html in browser'",
-    "lint": "eslint assets/js/",
-    "serve": "python3 -m http.server 8000",
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "lint": "node scripts/check-lint-baseline.mjs",
+    "lint:report": "eslint assets/js/",
+    "check:repo": "node scripts/check-repo.mjs",
+    "validate:html": "html-validate index.html pages/*.html",
+    "test:smoke": "node scripts/smoke-pages.mjs",
+    "test:ids-conformance": "node scripts/audit-buildingSMART-ids-tests.mjs",
+    "test:e2e": "node scripts/e2e-viewer-handoff.mjs",
+    "test:a11y": "node scripts/accessibility-pages.mjs",
+    "test:offline": "node scripts/offline-pages.mjs",
+    "test:performance": "node scripts/performance-ifc.mjs",
+    "test:visual": "node scripts/visual-viewer.mjs",
+    "build:pwa": "node scripts/generate-precache.mjs",
+    "check:pwa": "node scripts/generate-precache.mjs --check",
+    "build:vendor": "node scripts/build-optional-vendor.mjs",
+    "check:vendor": "node scripts/check-vendor.mjs",
+    "sbom": "node scripts/generate-sbom.mjs",
+    "serve": "python3 -m http.server 8000"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -46,8 +58,20 @@
     "not IE 11"
   ],
   "devDependencies": {
+    "@axe-core/puppeteer": "^4.12.1",
+    "esbuild": "0.28.1",
     "eslint": "^9.39.2",
     "globals": "^17.0.0",
-    "puppeteer": "^24.34.0"
+    "html-validate": "^10.17.0",
+    "puppeteer": "^24.34.0",
+    "web-ifc": "0.0.78"
+  },
+  "dependencies": {
+    "@tarikjabiri/dxf": "2.6.2",
+    "geotiff": "2.1.3",
+    "html2canvas": "1.4.1",
+    "jspdf": "4.2.1",
+    "jszip": "3.10.1",
+    "proj4": "2.11.0"
   }
 }

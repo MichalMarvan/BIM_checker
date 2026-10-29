@@ -6,23 +6,36 @@
  * IDS 1.0 implementer test cases.
  *
  * Usage:
- *   node scripts/audit-buildingSMART-ids-tests.mjs /path/to/IDS/Documentation/ImplementersDocumentation/TestCases
+ *   node scripts/audit-buildingSMART-ids-tests.mjs /path/to/IDS/Documentation/testcases
  */
 import puppeteer from 'puppeteer';
 import { createServer } from 'http';
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { dirname, extname, join, relative, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, '..');
-const referenceRoot = resolve(process.argv[2] || '');
+const cli = { positional: [] };
+for (let index = 2; index < process.argv.length; index++) {
+    const argument = process.argv[index];
+    if (argument.startsWith('--')) {
+        const [rawName, inlineValue] = argument.slice(2).split('=', 2);
+        const value = inlineValue ?? process.argv[++index];
+        cli[rawName] = value;
+    } else {
+        cli.positional.push(argument);
+    }
+}
+const referenceRoot = resolve(cli.positional[0] || '');
 
-if (!process.argv[2] || !existsSync(referenceRoot)) {
+if (!cli.positional[0] || !existsSync(referenceRoot)) {
     console.error('Provide the buildingSMART IDS 1.0 TestCases directory.');
+    console.error('Optional: --json <path> --markdown <path> --source-ref <ref> --source-commit <sha>');
     process.exit(2);
 }
 
+const skipped = [];
 function collectPairs(directory, pairs = []) {
     for (const entry of readdirSync(directory)) {
         const path = join(directory, entry);
@@ -31,23 +44,33 @@ function collectPairs(directory, pairs = []) {
             continue;
         }
         if (extname(entry).toLowerCase() !== '.ids') continue;
+        const relativeIds = relative(referenceRoot, path).split(sep).join('/');
         const ifcPath = path.slice(0, -4) + '.ifc';
-        if (!existsSync(ifcPath)) continue;
+        if (!existsSync(ifcPath)) {
+            skipped.push({ relativeIds, reason: 'missing sibling .ifc' });
+            continue;
+        }
         const name = entry.toLowerCase();
-        const expected = name.startsWith('pass-') ? 'pass'
-            : (name.startsWith('fail-') ? 'fail' : (name.startsWith('invalid-') ? 'invalid' : null));
+        // Upstream mixes pass-/fail- and pass_/fail_ naming (e.g. testcases/tolerance).
+        const expected = /^pass[-_]/.test(name) ? 'pass'
+            : (/^fail[-_]/.test(name) ? 'fail' : (/^invalid[-_]/.test(name) ? 'invalid' : null));
         if (expected) {
             pairs.push({
-                relativeIds: relative(referenceRoot, path).split(sep).join('/'),
+                relativeIds,
                 relativeIfc: relative(referenceRoot, ifcPath).split(sep).join('/'),
                 expected
             });
+        } else {
+            skipped.push({ relativeIds, reason: 'no pass/fail/invalid prefix' });
         }
     }
     return pairs;
 }
 
-const pairs = collectPairs(referenceRoot).sort((a, b) => a.relativeIds.localeCompare(b.relativeIds));
+const pairs = collectPairs(referenceRoot).sort((a, b) => (a.relativeIds < b.relativeIds ? -1 : (a.relativeIds > b.relativeIds ? 1 : 0)));
+for (const entry of skipped) {
+    console.warn(`[skip] ${entry.relativeIds} (${entry.reason})`);
+}
 const mimeTypes = {
     '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json',
     '.wasm': 'application/wasm', '.xsd': 'application/xml', '.ids': 'application/xml',
@@ -117,20 +140,20 @@ try {
             try {
                 xsd = await IDSXSDValidator.validate(idsText);
             } catch (error) {
-                output.push({ ...pair, actual: 'error', details: `XSD runtime: ${error.message}` });
+                output.push({ ...pair, actual: 'error', stage: 'xsd-runtime', xsdValid: false, details: `XSD runtime: ${error.message}` });
                 continue;
             }
             if (!xsd.valid) {
                 output.push({
                     ...pair,
-                    actual: 'xsd-invalid',
+                    actual: 'xsd-invalid', stage: 'xsd', xsdValid: false,
                     details: (xsd.errors || []).slice(0, 2).map(error => error.message).join('; ')
                 });
                 continue;
             }
             const parsed = IDSParser.parse(idsText);
             if (parsed.error) {
-                output.push({ ...pair, actual: 'error', details: `IDS parse: ${parsed.error.message}` });
+                output.push({ ...pair, actual: 'error', stage: 'parser', xsdValid: true, parserValid: false, details: `IDS parse: ${parsed.error.message}` });
                 continue;
             }
             const entities = IFCParserCore.parseIFCContent(ifcText, pair.relativeIfc);
@@ -139,17 +162,44 @@ try {
             for (const specification of parsed.specifications) {
                 specResults.push(await ValidationEngine.validateBatch(entities, specification, { ifcSchema }));
             }
+            const applicabilityPass = specResults.every(result => result.occurrence?.status === 'pass');
+            const requirementsPass = specResults.every(result =>
+                (result.entityResults || []).every(entity => entity.status === 'pass')
+            );
             const actual = specResults.every(result => result.status === 'pass') ? 'pass' : 'fail';
             output.push({
                 ...pair,
                 actual,
+                stage: 'validation',
+                xsdValid: true,
+                parserValid: true,
+                applicabilityPass,
+                requirementsPass,
+                specifications: specResults.map(result => ({
+                    name: result.specification,
+                    status: result.status,
+                    applicableCount: result.applicableCount ?? 0,
+                    occurrence: result.occurrence,
+                    passCount: result.passCount,
+                    failCount: result.failCount,
+                    warnings: result.warnings || []
+                })),
                 details: specResults.map(result => `${result.specification}: ${result.status} (${result.applicableCount ?? 0})`).join('; ')
             });
         }
         return output;
     }, pairs);
 
-    const mismatches = results.filter(result => result.actual !== (result.expected === 'invalid' ? 'fail' : result.expected));
+    const annotatedResults = results.map(result => {
+        const expectedActual = result.expected === 'invalid' ? 'fail' : result.expected;
+        return {
+            ...result,
+            category: result.relativeIds.split('/')[0] || 'root',
+            expectedActual,
+            matched: result.actual === expectedActual
+        };
+    });
+    const mismatches = annotatedResults.filter(result => !result.matched);
     const counts = results.reduce((summary, result) => {
         summary[result.expected] = (summary[result.expected] || 0) + 1;
         return summary;
@@ -160,6 +210,67 @@ try {
         const expectedOutcome = mismatch.expected === 'invalid' ? 'fail (audit-invalid)' : mismatch.expected;
         console.log(`MISMATCH ${expectedOutcome} -> ${mismatch.actual}: ${mismatch.relativeIds}`);
         if (mismatch.details) console.log(`  ${mismatch.details}`);
+    }
+    const categories = {};
+    for (const result of annotatedResults) {
+        const category = categories[result.category] ||= { total: 0, matched: 0, pass: 0, fail: 0, invalid: 0 };
+        category.total++;
+        if (result.matched) category.matched++;
+        category[result.expected]++;
+    }
+    const report = {
+        formatVersion: 1,
+        generatedAt: new Date().toISOString(),
+        source: {
+            repository: 'https://github.com/buildingSMART/IDS',
+            ref: cli['source-ref'] || null,
+            commit: cli['source-commit'] || null,
+            testCases: referenceRoot
+        },
+        summary: {
+            total: annotatedResults.length,
+            matched: annotatedResults.length - mismatches.length,
+            mismatched: mismatches.length,
+            expected: counts,
+            stages: annotatedResults.reduce((summary, result) => {
+                summary[result.stage] = (summary[result.stage] || 0) + 1;
+                return summary;
+            }, {}),
+            categories
+        },
+        results: annotatedResults
+    };
+
+    function writeReport(path, contents) {
+        if (!path) return;
+        const target = resolve(path);
+        mkdirSync(dirname(target), { recursive: true });
+        writeFileSync(target, contents);
+        console.log(`Report: ${target}`);
+    }
+
+    writeReport(cli.json, JSON.stringify(report, null, 2) + '\n');
+    if (cli.markdown) {
+        const lines = [
+            '# buildingSMART IDS 1.0 conformance',
+            '',
+            `- Source: \`${report.source.ref || 'unspecified'}\` (\`${report.source.commit || 'unspecified'}\`)`,
+            `- Result: **${report.summary.matched}/${report.summary.total}** expected outcomes matched`,
+            `- Generated: ${report.generatedAt}`,
+            '',
+            '| Category | Matched | Total | Pass | Fail | Invalid |',
+            '|---|---:|---:|---:|---:|---:|',
+            ...Object.entries(categories).sort(([a], [b]) => (a < b ? -1 : (a > b ? 1 : 0))).map(([name, value]) =>
+                `| ${name} | ${value.matched} | ${value.total} | ${value.pass} | ${value.fail} | ${value.invalid} |`
+            ),
+            '',
+            '## Mismatches',
+            '',
+            ...(mismatches.length
+                ? mismatches.map(result => `- \`${result.relativeIds}\`: expected ${result.expectedActual}, got ${result.actual}${result.details ? ` — ${result.details}` : ''}`)
+                : ['None.'])
+        ];
+        writeReport(cli.markdown, lines.join('\n') + '\n');
     }
     process.exitCode = mismatches.length ? 1 : 0;
 } finally {

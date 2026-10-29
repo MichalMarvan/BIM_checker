@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+.reference/
+test-results/
 
 # Vercel
 .vercel
@@ -40,9 +42,9 @@ podpora/
 !examples/**/*.ifc
 !examples/**/*.ids
 
-# Tauri
-src-tauri/target/
-src-tauri/gen/
+# Generated frontend builds
+dist/
+
 .superpowers/
 
 # Dev/build artifacts (do not publish)

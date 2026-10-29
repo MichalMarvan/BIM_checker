@@ -1,5 +1,8 @@
 # Audit Report - BIM Checker
 
+> **Historický audit.** Aktuální stav a realizované kontroly jsou v
+> `CELKOVA_KONTROLA_PROJEKTU.md` a v dokumentaci pod `docs/`.
+
 **Audit date:** 2026-01-08
 **Project version:** master (commit fdae505)
 **Last updated:** 2026-01-08 (after fixes)

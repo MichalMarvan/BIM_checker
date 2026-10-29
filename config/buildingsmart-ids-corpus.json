@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/buildingSMART/IDS",
+  "release": "v1.0.0",
+  "commit": "1effec6f419798ce09617416d258a35bdc58320a",
+  "testCasesPath": "Documentation/testcases"
+}
