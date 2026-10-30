@@ -554,3 +554,100 @@ Instrumentace je volitelná (`loadIfc` `options.profile` / `addModel`
 cat ~/shared/3D_modely/IFC/D3_SO204.ifc | ssh thinkpad "cd ~/work/BIM_checker && node scripts/ifc-diag/engine-memory-probe.mjs --stdin=D3_SO204.ifc --merged --profile --timeout=1800 --out=/tmp/gp-D3_SO204.json"
 tp-run "node scripts/ifc-diag/engine-memory-probe.mjs ~/shared/real/RuzLet/D.2.1.4/D214_SO112201.ifc --merged --profile"
 ```
+
+## Geometrie ve workerech nad SharedArrayBuffer (kroky A–C)
+
+**MĚŘENO 2026-10-30**, větev `3d-viewer-integration` nad `096d223` +
+nekomitované změny této úlohy, ThinkPad (8 log. CPU, 16 GB), headless
+Chromium 148 z Puppeteeru, SwiftShader, `engine-memory-probe.mjs --merged
+--profile --hash --geometry=main|workers`, jediný běh každé kombinace, velké
+soubory streamované z Pi do `~/tmp-large` na ThinkPadu (po měření smazány).
+`workers` = stránka s COOP/COEP (cross-origin izolace), soubor v
+`SharedArrayBuffer`, sloupce bajtového indexu v SAB, `addModel` s poolem
+N = min(hardwareConcurrency − 1, 6) = 6 module workerů, dávky po 64
+produktech; `main` = dnešní cesta (bez izolace, transfer, hlavní vlákno).
+Outlier filtr, bake merged bufferu, hrany a finalize zůstávají na hlavním
+vlákně beze změny; `GEOMETRY_PIPELINE_VERSION` = 11 beze změny.
+
+Co se implementovalo: (A) `geometry/*` a `alignment/linear-placement.js`
+importují `three` relativní cestou (`../../../vendor/three/three.module.js`,
+tj. tatáž URL jako importmapa → jedna instance THREE na hlavním vlákně,
+ověřeno `instanceof` ve `worker-smoke.mjs`); (B) `indexStepBytes` alokuje
+sloupce a dense lookup v SAB, když jsou bajty v SAB (`opts.shared`), `decodeRange`
+dekóduje ne-ASCII/dlouhé rozsahy z kopie (Chromium odmítá `TextDecoder` nad
+sdíleným view — **MĚŘENO**, `worker-smoke.mjs`), `toTransferable` SAB
+netransferuje, `loadIfc` čte vstup přes `parser/input-bytes.js` (Blob streamem
+do SAB, ArrayBuffer/view kopií); (C) `workers/geometry.worker.js` +
+`viewer/geometry-worker-pool.js`: sloty podle pořadí produktů, instancované
+listy (IfcMappedItem) posílané jednou na worker, watchdog nečinnosti 60 s,
+fallback na hlavní vlákno pro každý nedodaný slot (bez izolace, chyba
+workeru, watchdog, výjimka v produktu). V režimu `auto` (viewer) se workery
+použijí až od 500 produktů (`GEOMETRY_WORKERS_MIN_PRODUCTS`): na
+D214_SO112201 (202 produktů) stál start 6 workerů víc než stavba
+(**MĚŘENO** 1 955 ms paralelní fáze vs 976 ms build na hlavním vlákně).
+
+### Bitová identita (MĚŘENO)
+
+SHA-256 merged bufferů position/normal/color/index, bufferu hran, tabulek
+(`mergedTable`, `mergedEdgesTable`, `elementInfo`) a `.bimcache` payloadu
+(JSON bez `modelId` + binární chunky) jsou v režimech `workers` a `main`
+**identické** u D214_SO112201 (202 produktů, 109 406 vrcholů), D214X
+(16 901 produktů, 3 485 933 vrcholů, 4 629 613 trojúhelníků) i D3_SO204
+(8 946 produktů, 4 952 252 vrcholů, 6 663 029 trojúhelníků). Např. D214X
+position `caf8f7d57fc1c78e…`, D3_SO204 position `652524c72a98f6ef…` v obou
+režimech. Korpusová brána (`corpus-gate.mjs`, 19 souborů, 53 produktů) prošla
+v obou režimech s `regressions=0`; `compare-diagnose.mjs` main vs workers →
+`differences=0`. Testy `node tests/run-tests.js`: 1313/1313 bez izolace
+(1302 původních + 11 nových; paralelní testy se bez SAB hlásí jako
+přeskočené a ověřuje se fallback) i s `TEST_ISOLATED=1` (COOP/COEP, paralelní
+cesta, 404 worker, mlčící worker → watchdog, instancované listy sdílené vs
+klonované). Lint 6575 varování (baseline sníženo z 6577).
+
+### Čas a paměť (MĚŘENO, jediný běh)
+
+| Model | Režim | parse ms | load ms | geometrie `addModel` ms | build / paralelní fáze ms | yield ms | peak RSS stromu | RSS po parse | RSS po načtení |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| D214X (452,5 MiB, 16 901 produktů) | main | 6 774 | 36 030 | 26 961 | 21 493 | 2 536 | 2 972 MiB | 1 532 MiB | 1 471 MiB |
+| D214X | workers (6) | 8 364 | 24 075 | 13 144 | 9 925 | 307 | 3 228 MiB | 1 984 MiB | 1 892 MiB |
+| D3_SO204 (801,1 MiB, 8 946 produktů) | main | 13 376 | 74 187 | 58 705 | 49 836 | 4 668 | 2 961 MiB | 2 153 MiB | 1 539 MiB |
+| D3_SO204 | workers (6) | 15 465 | 43 806 | 25 848 | 21 301 | 407 | 4 589 MiB | 2 977 MiB | 2 413 MiB |
+
+Fáze mimo build (outlier + bake + hrany + finalize + zbytek) jsou v obou
+režimech shodné (D214X ≈ 2,9 s, D3_SO204 ≈ 4,2 s), jak předpověděl Amdahlův
+odhad výše. Všech 16 901 / 8 946 produktů dodaly workery (`fallback=0`,
+`error=null`). Geometrické statistiky (`meta.geometry`) jsou shodné.
+
+Interpretace (**ODHAD** z MĚŘENÝCH čísel): zrychlení paralelní fáze je jen
+2,2–2,3× při 6 workerech, ne ~6×. Příčiny nejsou změřené; kandidáti:
+studený JIT v každém workeru, serializace/materializace výsledků na hlavním
+vlákně (součást „paralelní fáze“), lazy stavba sekundárních struktur v
+každém workeru a SwiftShader/renderer soupeřící o 8 jader. Parse je ve
+`workers` režimu o 1,6–2,1 s delší — **ODHAD**: kopie souboru do SAB
+(`readInputBytes` z ArrayBufferu) a alokace sloupců v SAB.
+
+Paměť: peak RSS D3_SO204 ve `workers` je **4 589 MiB (4,48 GiB ≈ 4,81 GB)**,
+tj. nad cílem „≤ ~4,5 GB“ (4,5 GB = 4 291 MiB) o ~300 MiB, pod 4,5 GiB o 19 MiB.
+Složky navíc proti `main` (**ODHAD** z fázových vzorků): po parse je RSS o
+824 MiB vyšší = sonda drží `fetch().arrayBuffer()` a navíc kopii v SAB
+(`readInputBytes`), kterou dnešní cesta nemá (transfer); po načtení je o
+874 MiB vyšší — workery byly v okamžiku vzorku ukončeny, SAB se uvolní až
+po GC. Snížení je možné bez změny formátu: číst z úložiště jako `Blob` a
+streamovat přímo do SAB (cesta v `readInputBytes` existuje, `getFileBytes`
+dnes vrací bajty), **NEIMPLEMENTOVÁNO**.
+
+**NEOVĚŘENO:** chování na HW WebGL a na slabších strojích (méně jader),
+rozptyl opakovaných běhů, produkční nasazení — `_headers` nemá COEP, takže
+nasazený viewer dnes běží výhradně cestou `main` (fallback), workery se
+zapnou až s rozhodnutím o COEP (vliv COEP na cross-origin zdroje stránek
+není v této úloze testován). Viewer UI (`viewer-page.js`) se neměnil; režim
+lze vynutit `globalThis.__IFC_GEOMETRY_MODE = 'main' | 'workers'`.
+
+Reprodukce:
+
+```sh
+tp-run 'node scripts/ifc-diag/worker-smoke.mjs && node scripts/ifc-diag/worker-smoke.mjs --no-isolation'
+tp-run 'TEST_ISOLATED=1 node tests/run-tests.js'
+tp-run 'node scripts/ifc-diag/corpus-gate.mjs --geometry=main --out=/tmp/cg-main && node scripts/ifc-diag/corpus-gate.mjs --geometry=workers --out=/tmp/cg-workers && node scripts/ifc-diag/compare-diagnose.mjs /tmp/cg-main /tmp/cg-workers'
+tp-run 'node scripts/ifc-diag/engine-memory-probe.mjs ~/shared/real/RuzLet/D.2.1.4/D214_SO112201.ifc --merged --profile --hash --geometry=workers'
+cat ~/shared/3D_modely/IFC/D3_SO204.ifc | ssh thinkpad "cat > ~/tmp-large/D3_SO204.ifc" && ssh thinkpad "cd ~/work/BIM_checker && bash -lc 'node scripts/ifc-diag/engine-memory-probe.mjs ~/tmp-large/D3_SO204.ifc --merged --profile --hash --geometry=workers --timeout=1800'; rm ~/tmp-large/D3_SO204.ifc"
+```

@@ -1,12 +1,15 @@
 // Web Worker wrapper around indexStepBytes (byte-level STEP lexer).
 // Protocol:
 //   inbound:  { cmd: 'parse', bytes: ArrayBuffer }   — transferred in
+//          or { cmd: 'parse', bytes: SharedArrayBuffer } — shared (cross-origin
+//             isolated pages): the columns are then allocated in
+//             SharedArrayBuffers too, so geometry workers can read the index
 //          or { cmd: 'parse', text: string }          — legacy, encoded to UTF-8 here
 //   outbound: { progress: true, done: number, total: number }   — heartbeat,
 //               roughly every 8 MiB of input while the lexer runs
-//             { ok: true, bytes: ArrayBuffer, fields: StepByteIndex columns }
-//               — bytes and every column buffer transferred back (zero copy);
-//               rebuild with StepByteIndex.fromTransferable(bytes, fields)
+//             { ok: true, bytes: ArrayBuffer | SharedArrayBuffer, fields: StepByteIndex columns }
+//               — bytes and every non-shared column buffer transferred back
+//               (zero copy); rebuild with StepByteIndex.fromTransferable(bytes, fields)
 //          or { ok: false, error: string }
 //
 // Nothing here is structured-cloned per entity: the whole result is a handful
@@ -26,10 +29,11 @@ self.onmessage = (event) => {
     let bytes;
     if (typeof msg.text === 'string') {
       bytes = new TextEncoder().encode(msg.text);
-    } else if (msg.bytes instanceof ArrayBuffer) {
+    } else if (msg.bytes instanceof ArrayBuffer
+        || (typeof SharedArrayBuffer === 'function' && msg.bytes instanceof SharedArrayBuffer)) {
       bytes = new Uint8Array(msg.bytes);
     } else {
-      throw new TypeError('parse: expected bytes (ArrayBuffer) or text (string)');
+      throw new TypeError('parse: expected bytes (ArrayBuffer or SharedArrayBuffer) or text (string)');
     }
     const index = indexStepBytes(bytes, {
       onProgress: (done, total) => self.postMessage({ progress: true, done, total })

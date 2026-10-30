@@ -20,7 +20,7 @@
 // plain Map of the survivors (strings) and releases the bytes — deleting
 // in-place would keep the whole file alive for the 10–20 % of entities kept.
 
-import { StepByteIndex, decodeRange } from './byte-lexer.js';
+import { StepByteIndex, decodeRange, allocColumn } from './byte-lexer.js';
 
 const isAttrWs = b => b === 32 || b === 9 || b === 13 || b === 10;
 
@@ -118,7 +118,10 @@ export class EntityStore {
   _buildTypeIndex() {
     const { typeIdx, typeNames, count } = this.index;
     const typeCount = typeNames.length;
-    const start = new Int32Array(typeCount + 1);
+    // Shared index → shared position tables, so geometry workers can adopt
+    // them (importTypeIndex) instead of each counting-sorting 4 B/entity again.
+    const shared = this.index.isShared;
+    const start = allocColumn(Int32Array, typeCount + 1, shared);
     for (let i = 0; i < count; i++) {
       start[typeIdx[i] + 1]++;
     }
@@ -126,13 +129,31 @@ export class EntityStore {
       start[t + 1] += start[t];
     }
     const fill = start.slice(0, typeCount);
-    const order = new Int32Array(count);
+    const order = allocColumn(Int32Array, count, shared);
     for (let i = 0; i < count; i++) {
       order[fill[typeIdx[i]]++] = i;
     }
     this._typeStart = start;
     this._typeOrder = order;
     this._typeByName = new Map(typeNames.map((name, t) => [name, t]));
+  }
+
+  /** The counting-sort position tables (built on demand) — for postMessage to a worker. */
+  exportTypeIndex() {
+    if (!this._typeOrder) {
+      this._buildTypeIndex();
+    }
+    return { typeStart: this._typeStart, typeOrder: this._typeOrder };
+  }
+
+  /** Adopt position tables exported by another store over the same index. */
+  importTypeIndex({ typeStart, typeOrder }) {
+    if (!typeStart || !typeOrder || typeStart.length !== this.index.typeNames.length + 1 || typeOrder.length !== this.index.count) {
+      throw new RangeError('importTypeIndex: tables do not match this index');
+    }
+    this._typeStart = typeStart;
+    this._typeOrder = typeOrder;
+    this._typeByName = new Map(this.index.typeNames.map((name, t) => [name, t]));
   }
 
   /** typeIdx of an UPPERCASE type name, or -1. */

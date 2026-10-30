@@ -4,7 +4,7 @@
 // arbitrary closed / I-shape profiles), IfcShellBasedSurfaceModel,
 // IfcPolygonalFaceSet. MappedItem + BooleanResult handled in geometry-core.
 
-import * as THREE from 'three';
+import * as THREE from '../../../vendor/three/three.module.js';
 import { splitParams } from '../parser/step-parser.js';
 import { parseRef, parseRefList, parsePointList } from './step-helpers.js';
 

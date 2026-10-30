@@ -4,8 +4,9 @@
 // (Puppeteer + skutečný engine) nad korpusem a porovná výsledek s tests/fixtures/ifc-corpus/expected.json.
 //
 // Použití:
-//   node scripts/ifc-diag/corpus-gate.mjs [--update] [--corpus=dir] [--expected=file] [--out=dir] [--timeout=120]
+//   node scripts/ifc-diag/corpus-gate.mjs [--update] [--corpus=dir] [--expected=file] [--out=dir] [--timeout=120] [--geometry=main|workers]
 //   --update   přepíše expected.json aktuálním stavem (vědomá aktualizace očekávání)
+//   --geometry=workers   geometrie ve workerech nad SharedArrayBuffer (stránka s COOP/COEP); výchozí main
 //
 // Brána selže (kód 1) jen při REGRESI vůči expected.json nebo při absolutních chybách:
 //   - soubor skončil FILE_ERROR, chybí v běhu, nebo chybí v expected.json (přidej přes --update)
@@ -31,7 +32,12 @@ const corpusDir = path.resolve(root, opt('corpus', 'tests/fixtures/ifc-corpus'))
 const expectedPath = path.resolve(root, opt('expected', path.join(corpusDir, 'expected.json')));
 const outDir = path.resolve(root, opt('out', 'test-results/ifc-diagnostics/corpus-gate'));
 const timeout = Number(opt('timeout', 120));
-const unknown = args.filter(a => a.startsWith('--') && !/^--(update|corpus=|expected=|out=|timeout=)/.test(a));
+const geometry = opt('geometry', 'main');
+const unknown = args.filter(a => a.startsWith('--') && !/^--(update|corpus=|expected=|out=|timeout=|geometry=)/.test(a));
+if (!['main', 'workers'].includes(geometry)) {
+  console.error(`--geometry musí být main nebo workers, ne ${geometry}`);
+  process.exit(1);
+}
 if (unknown.length) {
   console.error(`Neznámý argument: ${unknown.join(' ')}`);
   process.exit(1);
@@ -49,7 +55,7 @@ function runDiagnose() {
   const corpusFiles = readdirSync(corpusDir).filter(f => /\.ifc$/i.test(f));
   if (!corpusFiles.length) throw new Error(`V korpusu ${corpusDir} nejsou žádné .ifc soubory.`);
   mkdirSync(outDir, { recursive: true });
-  const res = spawnSync(process.execPath, [path.join(root, 'scripts/ifc-diag/geometry-diagnose.mjs'), corpusDir, `--out=${outDir}`, `--timeout=${timeout}`],
+  const res = spawnSync(process.execPath, [path.join(root, 'scripts/ifc-diag/geometry-diagnose.mjs'), corpusDir, `--out=${outDir}`, `--timeout=${timeout}`, `--geometry=${geometry}`],
     { cwd: root, stdio: 'inherit' });
   if (res.error) throw res.error;
   const summaryPath = path.join(outDir, 'summary.json');

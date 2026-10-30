@@ -13,7 +13,7 @@
 //   - IFCBOOLEANRESULT / IFCBOOLEANCLIPPINGRESULT (CSG — Phase 2 stub:
 //     uses FirstOperand only, ignores SecondOperand subtraction)
 
-import * as THREE from 'three';
+import * as THREE from '../../../vendor/three/three.module.js';
 import { splitParams } from '../parser/step-parser.js';
 import { resolvePlacement } from './placement.js';
 import {

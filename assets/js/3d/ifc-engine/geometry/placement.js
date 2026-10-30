@@ -11,7 +11,7 @@
 //     If PlacementRelTo is null → world coords
 //     Else → parent.matrix * this.relativeMatrix
 
-import * as THREE from 'three';
+import * as THREE from '../../../vendor/three/three.module.js';
 import { splitParams } from '../parser/step-parser.js';
 import { parseRef } from './step-helpers.js';
 import { resolveLinearPlacement } from '../alignment/linear-placement.js';

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Copyright (C) 2026 Michal Marvan */
-import * as THREE from 'three';
+import * as THREE from '../../../vendor/three/three.module.js';
 import { splitParams } from '../parser/step-parser.js';
 import { parseRef, parseRefList, parseWrappedNum } from './step-helpers.js';
 import { placement3DToMatrix } from './placement.js';

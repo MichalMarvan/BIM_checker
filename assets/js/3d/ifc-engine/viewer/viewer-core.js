@@ -8,6 +8,7 @@ import { PostPipeline } from './post/pipeline.js';
 import { EdgesPass } from './post/edges-pass.js';
 import { SSAOPass } from './post/ssao-pass.js';
 import { buildEntityGeometry } from '../geometry/geometry-core.js';
+import { buildGeometryParallel, canBuildInWorkers, GEOMETRY_WORKERS_MIN_PRODUCTS } from './geometry-worker-pool.js';
 import { detectProductTypes } from '../parser/product-detect.js';
 import { extractFeatureEdges } from '../geometry/mesh-types.js';
 import { HIDDEN_PRODUCT_TYPES } from '../constants.js';
@@ -41,6 +42,24 @@ function _loadBVH() {
 /** Never-pickable scene objects opt out of raycasting entirely. */
 const _noRaycast = () => {};
 const _EMPTY_EDGES = new Float32Array(0);
+
+/**
+ * 'workers' | 'main' for this addModel. `requested` = addModel opts.geometry
+ * ('workers' | 'main' | 'auto'), overridable by globalThis.__IFC_GEOMETRY_MODE;
+ * 'auto' (default) uses the workers whenever canBuildInWorkers says so and
+ * the model has at least GEOMETRY_WORKERS_MIN_PRODUCTS products; an explicit
+ * 'workers' skips the size threshold (diagnostics, parity runs).
+ */
+function _resolveGeometryMode(requested, entityIndex, productCount) {
+  const r = globalThis.__IFC_GEOMETRY_MODE || requested || 'auto';
+  if (r === 'main') {
+    return 'main';
+  }
+  if (r !== 'workers' && productCount < GEOMETRY_WORKERS_MIN_PRODUCTS) {
+    return 'main';
+  }
+  return canBuildInWorkers(entityIndex) ? 'workers' : 'main';
+}
 
 /**
  * Opt-in geometry-build profile (addModel `opts.profile` or the global flag
@@ -275,6 +294,11 @@ export class ViewerCore {
     // Mesh-merging etapa 1 (docs/superpowers/specs/2026-06-11-3d-mesh-merging-plan.md):
     // one vertex-colored mesh per model + faceIndex→element table.
     this._mergedGeometry = !!opts.mergedGeometry;
+    // Geometry workers (viewer/geometry-worker-pool.js): optional overrides
+    // for tests/diagnostics; null = module-relative default worker URL.
+    this._geometryWorkerUrl = opts.geometryWorkerUrl || null;
+    this._geometryIdleTimeoutMs = opts.geometryIdleTimeoutMs || undefined;
+    this._lastGeometryBuild = null;
     this._scene = new THREE.Scene();
     this._scene.background = new THREE.Color(0xf5f6f8);  // light gray — Trimble/Navisworks/Revit BIM convention
 
@@ -691,6 +715,9 @@ export class ViewerCore {
       geometryWarningCount: 0,
     };
     const unsupportedTypes = new Set();
+    // Products in build order — one slot each. The slot order is what fixes
+    // the merged buffer / table / .bimcache layout, whichever thread builds.
+    const products = [];
     for (const ifcType of productTypes) {
       // Openings are subtracted volumes, spaces are room air — rendering
       // either as solids hides the actual construction (see constants.js).
@@ -699,42 +726,96 @@ export class ViewerCore {
       geometryStats.productCount += entities.length;
       const typeColor = IFC_TYPE_COLORS[ifcType] ?? DEFAULT_COLOR;
       for (const entity of entities) {
-        await maybeYield();
-        const tp0 = profile ? performance.now() : 0;
-        const result = buildEntityGeometry(entityIndex, entity.expressId);
-        if (!result || result.items.length === 0) {
-          if (profile) {
-            profile.buildMs += performance.now() - tp0;
-          }
-          geometryStats.elementsWithoutGeometry += 1;
-          if (result?.diagnostics) {
-            for (const type of result.diagnostics.unsupportedRepresentationTypes) unsupportedTypes.add(type);
-            geometryStats.fallbackGeometryCount += result.diagnostics.fallbackGeometryCount;
-            geometryStats.exactBooleanDifferenceCount += result.diagnostics.exactBooleanDifferenceCount;
-            geometryStats.recursionLimitCount += result.diagnostics.recursionLimitCount;
-            geometryStats.invalidReferenceCount += result.diagnostics.invalidReferenceCount;
-          }
-          continue;
+        products.push({ entity, ifcType, typeColor });
+      }
+    }
+
+    // Geometry workers (SharedArrayBuffer index, cross-origin isolated page):
+    // every slot the workers deliver is used as-is, every other slot is built
+    // here — the main-thread path is the complete fallback, not a degraded one.
+    // Nothing about the mode goes into geometryStats (they end up in the
+    // .bimcache meta, which must not depend on how the geometry was built).
+    const geometryBuild = { mode: 'main', workers: 0, delivered: 0, fallback: 0, error: null };
+    let parallel = null;
+    const mode = _resolveGeometryMode(opts.geometry, entityIndex, products.length);
+    if (mode === 'workers' && products.length > 0) {
+      const tw0 = performance.now();
+      parallel = await buildGeometryParallel(entityIndex, products.map(p => p.entity.expressId), {
+        shareLeafGeometry: !!this._mergedGeometry,
+        workerUrl: this._geometryWorkerUrl,
+        idleTimeoutMs: this._geometryIdleTimeoutMs,
+      });
+      geometryBuild.mode = 'workers';
+      geometryBuild.workers = parallel.workersUsed;
+      geometryBuild.delivered = parallel.delivered;
+      geometryBuild.fallback = parallel.missing;
+      geometryBuild.error = parallel.error;
+      geometryBuild.parallelMs = performance.now() - tw0;
+      if (parallel.error) {
+        console.warn(`[viewer] addModel: geometry workers fell back to the main thread for ${parallel.missing} of ${products.length} products — ${parallel.error}`);
+      }
+      if (profile) {
+        profile.buildMs += geometryBuild.parallelMs;
+      }
+    } else if (opts.geometry === 'workers') {
+      geometryBuild.error = 'requested workers, but the parallel path is unavailable here (not cross-origin isolated or index not shared)';
+      console.warn(`[viewer] addModel: ${geometryBuild.error}`);
+    }
+
+    for (let slot = 0; slot < products.length; slot++) {
+      const { entity, ifcType, typeColor } = products[slot];
+      await maybeYield();
+      const tp0 = profile ? performance.now() : 0;
+      let result;
+      let ms = 0;
+      if (parallel && parallel.results[slot] !== undefined) {
+        result = parallel.results[slot];
+        ms = parallel.timings[slot];
+      } else {
+        result = buildEntityGeometry(entityIndex, entity.expressId);
+        ms = profile ? performance.now() - tp0 : 0;
+        if (profile && parallel) {
+          profile.buildMs += ms;
         }
-        if (result.diagnostics) {
+      }
+      if (!result || result.items.length === 0) {
+        if (profile && !parallel) {
+          profile.buildMs += ms;
+        }
+        geometryStats.elementsWithoutGeometry += 1;
+        if (result?.diagnostics) {
           for (const type of result.diagnostics.unsupportedRepresentationTypes) unsupportedTypes.add(type);
           geometryStats.fallbackGeometryCount += result.diagnostics.fallbackGeometryCount;
           geometryStats.exactBooleanDifferenceCount += result.diagnostics.exactBooleanDifferenceCount;
           geometryStats.recursionLimitCount += result.diagnostics.recursionLimitCount;
           geometryStats.invalidReferenceCount += result.diagnostics.invalidReferenceCount;
         }
-        for (const item of result.items) {
-          if (!item.bufferGeometry.boundingBox) item.bufferGeometry.computeBoundingBox();
-          const bb = item.bufferGeometry.boundingBox;
-          const ext = bb ? Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) : 0;
-          candidates.push({ entity, ifcType, item, result, typeColor, ext });
-        }
-        if (profile) {
-          const ms = performance.now() - tp0;
-          profile.buildMs += ms;
-          profile.products.push({ expressId: entity.expressId, ifcType, ms, items: result.items.length });
-        }
+        continue;
       }
+      if (result.diagnostics) {
+        for (const type of result.diagnostics.unsupportedRepresentationTypes) unsupportedTypes.add(type);
+        geometryStats.fallbackGeometryCount += result.diagnostics.fallbackGeometryCount;
+        geometryStats.exactBooleanDifferenceCount += result.diagnostics.exactBooleanDifferenceCount;
+        geometryStats.recursionLimitCount += result.diagnostics.recursionLimitCount;
+        geometryStats.invalidReferenceCount += result.diagnostics.invalidReferenceCount;
+      }
+      for (const item of result.items) {
+        if (!item.bufferGeometry.boundingBox) item.bufferGeometry.computeBoundingBox();
+        const bb = item.bufferGeometry.boundingBox;
+        const ext = bb ? Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) : 0;
+        candidates.push({ entity, ifcType, item, result, typeColor, ext });
+      }
+      if (profile) {
+        if (!parallel) {
+          ms = performance.now() - tp0;
+          profile.buildMs += ms;
+        }
+        profile.products.push({ expressId: entity.expressId, ifcType, ms, items: result.items.length });
+      }
+    }
+    this._lastGeometryBuild = geometryBuild;
+    if (geometryBuild.mode === 'workers') {
+      console.log(`[viewer] addModel: geometry via ${geometryBuild.workers} workers — ${geometryBuild.delivered} products delivered, ${geometryBuild.fallback} built on main, ${geometryBuild.parallelMs.toFixed(0)} ms parallel phase`);
     }
     const tOut0 = profile ? performance.now() : 0;
     const sortedExt = candidates.map(c => c.ext).filter(Number.isFinite).sort((a, b) => a - b);
@@ -759,11 +840,14 @@ export class ViewerCore {
       console.warn(`[viewer] addModel: skipped ${skipped} outlier mesh items (extent > ${cap.toFixed(0)}, median ${medianExt.toFixed(2)})`);
     }
     const finishProfile = () => {
+      const rec = this._models.get(modelId);
+      if (rec) {
+        rec.geometryBuild = geometryBuild;
+      }
       if (!profile) {
         return;
       }
       profile.totalMs = performance.now() - tAdd0;
-      const rec = this._models.get(modelId);
       if (rec) {
         rec.geometryProfile = profile;
       }

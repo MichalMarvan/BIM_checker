@@ -1,4 +1,4 @@
 {
-  "eslintWarnings": 6577,
+  "eslintWarnings": 6575,
   "policy": "The warning count may decrease but must not increase. Lower this baseline whenever warnings are fixed."
 }

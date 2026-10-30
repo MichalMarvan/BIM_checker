@@ -28,7 +28,7 @@
 // that local frame first, so georeferenced (S-JTSK) solids do not lose
 // precision. The returned geometry carries its own userData.localOrigin.
 
-import * as THREE from 'three';
+import * as THREE from '../../../vendor/three/three.module.js';
 import { splitParams } from '../parser/step-parser.js';
 import { parseRef } from './step-helpers.js';
 import { placement3DToMatrix } from './placement.js';

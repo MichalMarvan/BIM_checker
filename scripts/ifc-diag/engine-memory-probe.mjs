@@ -7,13 +7,21 @@
 // RSS of the whole browser process tree (ArrayBuffers live outside the V8
 // heap, so RSS is the honest number for the file bytes).
 //
-//   node scripts/ifc-diag/engine-memory-probe.mjs <file.ifc> [--heap=8192] [--merged] [--profile] [--out=file.json] [--timeout=1800]
+//   node scripts/ifc-diag/engine-memory-probe.mjs <file.ifc> [--heap=8192] [--merged] [--profile] [--out=file.json] [--timeout=1800] [--geometry=main|workers] [--hash]
 //   cat big.ifc | node scripts/ifc-diag/engine-memory-probe.mjs --stdin=big.ifc ...
 //
 // --profile turns on the opt-in geometry-build profile (loadIfc options.profile
 // → viewer-core summarizeGeometryProfile): build / outlier / bake / edges /
 // finalize split, per-product percentiles, top-10 share, plus the byte
 // index lookupKind (dense/map). Pure measurement, no engine behaviour change.
+//
+// --geometry=workers serves the page with COOP/COEP (cross-origin isolated →
+// SharedArrayBuffer): the file is read into a SharedArrayBuffer, the parser
+// worker builds shared columns and addModel runs the geometry worker pool.
+// --geometry=main keeps today's path (no isolation, transfer, main thread).
+// --hash (merged mode) prints SHA-256 of the merged position/normal/color/
+// index buffers, the edge buffer, the range tables and the .bimcache payload
+// (modelId masked), so two runs can be compared bit for bit.
 //
 // --stdin keeps large inputs off the disk (they are streamed from another
 // host); the bytes are held in this Node process and served to the page once.
@@ -31,6 +39,14 @@ const opt = (name, def) => {
 };
 const merged = args.includes('--merged');
 const profile = args.includes('--profile');
+const wantHash = args.includes('--hash');
+const geometry = opt('geometry', 'main');
+if (!['main', 'workers'].includes(geometry)) {
+  console.error(`--geometry must be main or workers, not ${geometry}`);
+  process.exit(2);
+}
+const isolationHeaders = geometry === 'workers'
+  ? { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' } : {};
 const heapMb = Number(opt('heap', 8192));
 const timeoutS = Number(opt('timeout', 1800));
 const outFile = opt('out', null);
@@ -52,7 +68,7 @@ async function readAllStdin() {
 }
 const input = stdinName ? await readAllStdin() : readFileSync(file);
 const name = stdinName || path.basename(file);
-console.log(`[probe] ${name}: ${input.length} B (${(input.length / 1048576).toFixed(1)} MiB), heap flag ${heapMb} MB, merged=${merged} profile=${profile}`);
+console.log(`[probe] ${name}: ${input.length} B (${(input.length / 1048576).toFixed(1)} MiB), heap flag ${heapMb} MB, merged=${merged} profile=${profile} geometry=${geometry} hash=${wantHash}`);
 
 function treeRss(pid, seen = new Set()) {
   if (!pid || seen.has(pid)) return 0;
@@ -82,9 +98,54 @@ async function mark(phase, extra = {}) {
   const rss = Number(await r.text());
   phases.push({ phase, t: Math.round(t), heapBytes: h, rssBytes: rss, ...extra });
 }
-window.probe = async ({ merged, profile }) => {
+const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+const sha = async (arr) => {
+  if (!arr) return null;
+  const u8 = arr instanceof ArrayBuffer ? new Uint8Array(arr) : new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
+  return hex(await crypto.subtle.digest('SHA-256', u8));
+};
+const shaText = s => sha(new TextEncoder().encode(s));
+async function hashModel(engine, id) {
+  const vm = engine._viewer._models.get(id);
+  if (!vm || !vm.merged || !vm.meshes || vm.meshes.length !== 1) return { note: 'not a merged model' };
+  const geom = vm.meshes[0].geometry;
+  const edgeGeom = vm.featureEdges && vm.featureEdges[0] ? vm.featureEdges[0].geometry : null;
+  const out = {
+    position: await sha(geom.getAttribute('position')?.array),
+    normal: await sha(geom.getAttribute('normal')?.array),
+    color: await sha(geom.getAttribute('color')?.array),
+    index: await sha(geom.index?.array),
+    edgePositions: await sha(edgeGeom ? edgeGeom.getAttribute('position').array : null),
+    anchor: vm.meshes[0].matrix.elements.slice(12, 15),
+    table: await shaText(JSON.stringify(vm.mergedTable)),
+    edgesTable: await shaText(JSON.stringify(vm.mergedEdgesTable)),
+    elementInfo: await shaText(JSON.stringify([...vm.elementInfo])),
+    vertexCount: geom.getAttribute('position')?.count ?? 0,
+    triangleCount: geom.index ? geom.index.count / 3 : 0,
+    edgeVertexCount: edgeGeom ? edgeGeom.getAttribute('position').count : 0,
+    tableRows: vm.mergedTable.length,
+  };
+  // .bimcache: everything except the volatile modelId (and the geometryStats
+  // copy of meta, which is identical by construction and hashed via buffers).
+  const cacheBuf = await engine.exportModelCache(id);
+  if (cacheBuf) {
+    const mc = await import('/assets/js/3d/ifc-engine/cache/model-cache.js');
+    const p = mc.deserializeModelCache(cacheBuf);
+    const meta = { ...p.meta, modelId: null };
+    const json = JSON.stringify({ meta, lengthScale: p.lengthScale, productTypes: p.productTypes, anchor: p.anchor,
+      table: p.table, elementInfo: p.elementInfo, elementsByType: p.elementsByType, edgesTable: p.edgesTable,
+      entities: p.entities, layerIndex: p.layerIndex, coords: p.coords });
+    out.bimcacheJson = await shaText(json);
+    out.bimcachePosition = await sha(p.position);
+    out.bimcacheIndex = await sha(p.index);
+    out.bimcacheEdges = await sha(p.edgePositions);
+    out.bimcacheBytes = cacheBuf.byteLength;
+  }
+  return out;
+}
+window.probe = async ({ merged, profile, geometry, wantHash }) => {
   try {
-    await mark('start');
+    await mark('start', { crossOriginIsolated: window.crossOriginIsolated === true });
     const resp = await fetch('/__ifc');
     let buf = await resp.arrayBuffer();
     await mark('fetched', { bytes: buf.byteLength });
@@ -117,11 +178,13 @@ window.probe = async ({ merged, profile }) => {
       return r;
     };
     const t0 = performance.now();
-    const id = await engine.loadIfc(buf, { name: 'probe.ifc', profile });
+    const id = await engine.loadIfc(buf, { name: 'probe.ifc', profile, geometry });
     buf = null;
     const loadMs = performance.now() - t0;
     const meta = engine._models.get(id).meta;
-    await mark('loaded', { loadMs: Math.round(loadMs), compactMs: Math.round(compactMs), entityCount: meta.entityCount, geometry: meta.geometry || null });
+    const geometryBuild = engine._viewer._models.get(id)?.geometryBuild || null;
+    await mark('loaded', { loadMs: Math.round(loadMs), compactMs: Math.round(compactMs), entityCount: meta.entityCount, geometry: meta.geometry || null, geometryBuild });
+    const hashes = wantHash ? await hashModel(engine, id) : null;
     phases.push({ phase: 'beforeCompact', ...window.__beforeCompact });
     phases.push({ phase: 'afterCompact', ...window.__afterCompact });
     // Sanity: nothing may keep the file bytes alive after compact().
@@ -138,7 +201,7 @@ window.probe = async ({ merged, profile }) => {
       for (const p of raw.products) hist[Math.min(200, Math.floor(p.ms * 2))] += 1;
       geometryProfile.histogramHalfMs = hist;
     }
-    return { ok: true, phases, storeGone, guidCount, meta, lookupKind: window.__lookupKind, geometryProfile };
+    return { ok: true, phases, storeGone, guidCount, meta, lookupKind: window.__lookupKind, geometryProfile, geometryBuild, hashes };
   } catch (e) {
     return { ok: false, error: e.message, stack: (e.stack || '').split('\\n').slice(0, 6).join(' | '), phases };
   }
@@ -151,20 +214,20 @@ const marks = [];
 const server = createServer((req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
-    if (url.pathname === '/__probe.html') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(PAGE); return; }
+    if (url.pathname === '/__probe.html') { res.writeHead(200, { 'Content-Type': 'text/html', ...isolationHeaders }); res.end(PAGE); return; }
     if (url.pathname === '/__ifc') {
-      res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': input.length });
+      res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': input.length, ...isolationHeaders });
       res.end(input); return;
     }
     if (url.pathname === '/__mark') {
       const rss = treeRss(browser?.process()?.pid);
       marks.push({ phase: url.searchParams.get('phase'), rss });
-      res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(String(rss)); return;
+      res.writeHead(200, { 'Content-Type': 'text/plain', ...isolationHeaders }); res.end(String(rss)); return;
     }
     const f = realpathSync(path.resolve(root, '.' + decodeURIComponent(url.pathname)));
     if (!f.startsWith(root + path.sep) || !statSync(f).isFile()) { res.writeHead(404).end(); return; }
     const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm' };
-    res.writeHead(200, { 'Content-Type': mime[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    res.writeHead(200, { 'Content-Type': mime[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store', ...isolationHeaders });
     createReadStream(f).pipe(res);
   } catch (e) {
     if (!res.headersSent) res.writeHead(500);
@@ -192,7 +255,7 @@ try {
   await page.goto(`${origin}/__probe.html`, { waitUntil: 'load', timeout: 60000 });
   await page.waitForFunction('window.__ready === true', { timeout: 60000 });
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`timeout ${timeoutS}s`)), timeoutS * 1000).unref());
-  result = await Promise.race([page.evaluate(opts => window.probe(opts), { merged, profile }), crash, timeout]);
+  result = await Promise.race([page.evaluate(opts => window.probe(opts), { merged, profile, geometry, wantHash }), crash, timeout]);
 } catch (e) {
   result = { ok: false, error: e.message, code: e.code || null, phases: [] };
 } finally {
@@ -207,6 +270,7 @@ result.peakRssBytes = peakRss;
 result.input = { name, bytes: input.length };
 result.heapFlagMb = heapMb;
 result.merged = merged;
+result.geometry = geometry;
 result.engineRoot = root;
 const mb = b => (b == null ? 'n/a' : (b / 1048576).toFixed(0) + ' MiB');
 console.log(`[probe] ok=${result.ok}${result.error ? ' error=' + result.error : ''} wall=${result.wallMs} ms peakRss=${mb(peakRss)}`);
@@ -214,7 +278,10 @@ for (const p of result.phases || []) {
   const extra = Object.entries(p).filter(([k]) => !['phase', 't', 'heapBytes', 'rssBytes'].includes(k)).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ');
   console.log(`  ${p.phase.padEnd(14)} t=${String(p.t).padStart(7)} ms heap=${mb(p.heapBytes).padStart(9)} rss=${mb(p.rssBytes).padStart(9)} ${extra}`);
 }
-if (result.ok) console.log(`[probe] storeGone=${result.storeGone} guidCount=${result.guidCount} lookupKind=${result.lookupKind}`);
+if (result.ok) console.log(`[probe] storeGone=${result.storeGone} guidCount=${result.guidCount} lookupKind=${result.lookupKind} geometryBuild=${JSON.stringify(result.geometryBuild)}`);
+if (result.hashes) {
+  console.log('[hash] ' + Object.entries(result.hashes).map(([k, v]) => `${k}=${typeof v === 'string' ? v.slice(0, 16) : JSON.stringify(v)}`).join(' '));
+}
 if (result.geometryProfile) {
   const g = result.geometryProfile;
   console.log(`[profile] total=${g.totalMs} ms (yield ${g.yieldMs}) | build=${g.phases.buildMs} outlier=${g.phases.outlierMs} bake=${g.phases.bakeMs} edges=${g.phases.edgesMs} finalize=${g.phases.finalizeMs} other=${g.phases.otherMs}`);

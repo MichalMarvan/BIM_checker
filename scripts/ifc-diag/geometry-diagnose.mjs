@@ -13,26 +13,30 @@ const STATES = ['OK_EXACT', 'OK_APPROXIMATED', 'PARTIAL', 'UNSUPPORTED_GEOMETRY'
 const counts = () => Object.fromEntries(STATES.map(s => [s, 0]));
 const rank = obj => Object.entries(obj).map(([type, count]) => ({ type, count }))
   .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
-const usage = 'node scripts/ifc-diag/geometry-diagnose.mjs <file|directory>... [--out=directory] [--timeout=120] [--limit=N] [--parser=bytes|text]';
+const usage = 'node scripts/ifc-diag/geometry-diagnose.mjs <file|directory>... [--out=directory] [--timeout=120] [--limit=N] [--parser=bytes|text] [--geometry=main|workers]';
 
 function argumentsFrom(argv) {
   // parser: 'bytes' = production path (byte lexer + EntityStore), 'text' = legacy parseStepText oracle.
-  const options = { inputs: [], out: 'test-results/ifc-diagnostics/geometry', timeout: 120, limit: Infinity, parser: 'bytes' };
+  // geometry: 'main' = build on the page's main thread; 'workers' = geometry worker pool over a
+  // SharedArrayBuffer index (the page is then served with COOP/COEP so it is cross-origin isolated).
+  const options = { inputs: [], out: 'test-results/ifc-diagnostics/geometry', timeout: 120, limit: Infinity, parser: 'bytes', geometry: 'main' };
   for (const arg of argv) {
     if (arg === '--help' || arg === '-h') { console.log(usage); return null; }
     if (arg.startsWith('--out=')) options.out = arg.slice(6);
     else if (arg.startsWith('--timeout=')) options.timeout = Number(arg.slice(10));
     else if (arg.startsWith('--limit=')) options.limit = Number(arg.slice(8));
     else if (arg.startsWith('--parser=')) options.parser = arg.slice(9);
+    else if (arg.startsWith('--geometry=')) options.geometry = arg.slice(11);
     else if (arg.startsWith('-')) throw new Error(`Unknown argument: ${arg}`);
     else options.inputs.push(arg);
   }
   if (!options.inputs.length) throw new Error(usage);
   if (!options.out || !Number.isFinite(options.timeout) || options.timeout <= 0 ||
       !(options.limit === Infinity || (Number.isInteger(options.limit) && options.limit > 0)) ||
-      !['bytes', 'text'].includes(options.parser)) {
-    throw new Error('Expected a nonempty --out, positive --timeout, positive integer --limit and --parser=bytes|text.');
+      !['bytes', 'text'].includes(options.parser) || !['main', 'workers'].includes(options.geometry)) {
+    throw new Error('Expected a nonempty --out, positive --timeout, positive integer --limit, --parser=bytes|text and --geometry=main|workers.');
   }
+  if (options.geometry === 'workers' && options.parser !== 'bytes') throw new Error('--geometry=workers needs --parser=bytes.');
   options.out = path.resolve(options.out);
   return options;
 }
@@ -101,6 +105,9 @@ async function run(options) {
       .map(file => [file, createHash('sha256').update(readFileSync(path.join(root, 'assets/js/3d/ifc-engine', file))).digest('hex')])),
     files: [], totals: {}, elapsedMs: 0 };
   let active = null, browser;
+  // COOP/COEP only for the worker mode: the main-thread mode keeps today's (non-isolated) environment.
+  const isolationHeaders = options.geometry === 'workers'
+    ? { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' } : {};
   const checkpoint = () => {
     const unsupported = {};
     const totals = { completedFiles: 0, fileErrors: 0, productCount: 0, processedProducts: 0,
@@ -155,7 +162,7 @@ async function run(options) {
         if (!file.startsWith(root + path.sep)) { res.writeHead(403).end(); return; }
       }
       const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json' };
-      res.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'text/plain', 'Cache-Control': 'no-store' });
+      res.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'text/plain', 'Cache-Control': 'no-store', ...isolationHeaders });
       const stream = createReadStream(file);
       stream.on('error', error => res.destroy(error));
       res.on('close', () => stream.destroy());
@@ -199,7 +206,7 @@ async function run(options) {
           const load = async () => {
             await page.goto(`${origin}/scripts/ifc-diag/diag-page.html`, { waitUntil: 'load', timeout: options.timeout * 1000 });
             await page.waitForFunction('typeof window.diagnose === "function"', { timeout: options.timeout * 1000 });
-            await page.evaluate((token, parser) => window.diagnose(token, { parser }), token, options.parser);
+            await page.evaluate((token, parser, geometry) => window.diagnose(token, { parser, geometry }), token, options.parser, options.geometry);
           };
           return Promise.race([load(), crash]);
         };

@@ -6,7 +6,8 @@ import { EntityIndex } from './parser/entity-index.js';
 import { buildLayerIndex } from './parser/presentation-layers.js';
 import { ViewerCore } from './viewer/viewer-core.js';
 import { splitParams } from './parser/step-parser.js';
-import { StepByteIndex } from './parser/byte-lexer.js';
+import { StepByteIndex, isSharedView, sharedMemoryAvailable } from './parser/byte-lexer.js';
+import { readInputBytes } from './parser/input-bytes.js';
 import { parseRefList } from './geometry/step-helpers.js';
 import { extractPropertiesFor } from './properties/psets.js';
 import { extractRelatedData } from './properties/related-data.js';
@@ -39,6 +40,8 @@ import { resolveGuidsInIndex } from './parser/guid-resolve.js';
 // (heartbeat or result) from the worker — see _parseInWorker.
 const PARSE_IDLE_TIMEOUT_MS = 60000;
 
+export { sharedMemoryAvailable, readInputBytes };
+
 let _modelCounter = 0;
 function generateModelId() {
   return `m_${Date.now().toString(36)}_${(++_modelCounter).toString(36)}`;
@@ -56,7 +59,11 @@ export class IfcEngine {
     this._workerUrl = options.workerUrl || new URL('./workers/parser.worker.js', import.meta.url).href;
     this._models = new Map();   // Map<modelId, { meta, index }>
     this._viewer = options.canvas
-      ? new ViewerCore(options.canvas, { mergedGeometry: !!options.mergedGeometry })
+      ? new ViewerCore(options.canvas, {
+        mergedGeometry: !!options.mergedGeometry,
+        geometryWorkerUrl: options.geometryWorkerUrl,
+        geometryIdleTimeoutMs: options.geometryIdleTimeoutMs,
+      })
       : null;
     // Callback změny stavu vieweru (měření + řezné roviny). Pokud viewer ještě
     // neexistuje, drž ho zde a nasaď při jeho vzniku (viz onViewerStateChange).
@@ -93,10 +100,6 @@ export class IfcEngine {
     if (!options || !options.name) {
       throw new Error('loadIfc: options.name is required');
     }
-    if (input && typeof input !== 'string' && !(input instanceof ArrayBuffer) && !ArrayBuffer.isView(input)
-        && typeof input.arrayBuffer === 'function') {
-      input = await input.arrayBuffer();
-    }
     // Rendering the existing scene competes with the parse worker for CPU
     // cores — but only brutally so on software-GL (measured 15 s → 220 s+ on
     // a Pi). Freeze frames for the parse phase ONLY, and only on software-GL;
@@ -117,20 +120,11 @@ export class IfcEngine {
     };
     try {
       const t0 = performance.now();
-      let bytes;
-      if (typeof input === 'string') {
-        bytes = new TextEncoder().encode(input);
-      } else if (input instanceof ArrayBuffer) {
-        bytes = new Uint8Array(input);
-      } else if (ArrayBuffer.isView(input)) {
-        // Transfer needs the whole buffer; a partial view (e.g. a Node Buffer
-        // from the pool) is copied so the neighbours stay intact.
-        bytes = input.byteOffset === 0 && input.byteLength === input.buffer.byteLength
-          ? new Uint8Array(input.buffer)
-          : new Uint8Array(input.slice().buffer);
-      } else {
-        throw new TypeError(`loadIfc: unsupported input (${input === null ? 'null' : typeof input})`);
-      }
+      // Cross-origin isolated page: bytes (and the index columns the parser
+      // worker builds over them) go into SharedArrayBuffers so the geometry
+      // workers can read the same index. Otherwise the plain transfer path.
+      const shared = options.sharedMemory === undefined ? sharedMemoryAvailable() : !!options.sharedMemory && sharedMemoryAvailable();
+      let bytes = await readInputBytes(input, shared);
       input = null;
       const t1 = performance.now();
 
@@ -177,7 +171,8 @@ export class IfcEngine {
       if (this._viewer) {
         // options.profile → opt-in geometry-build timing (viewer-core
         // summarizeGeometryProfile); stored on the viewer model record only.
-        await this._viewer.addModel(modelId, index, { lengthScale, profile: !!options.profile });
+        // options.geometry → 'workers' | 'main' | 'auto' (viewer-core addModel).
+        await this._viewer.addModel(modelId, index, { lengthScale, profile: !!options.profile, geometry: options.geometry });
         const geometryStats = this._viewer._models.get(modelId)?.geometryStats;
         if (geometryStats) meta.geometry = { ...geometryStats };
         this._viewer._emit('modelLoaded', { modelId, stats: { ...meta } });
@@ -1937,7 +1932,12 @@ export class IfcEngine {
         reject(new Error(e.message || 'worker error'));
       };
       arm();
-      worker.postMessage({ cmd: 'parse', bytes: bytes.buffer }, [bytes.buffer]);
+      // A SharedArrayBuffer is shared with the worker, never transferred.
+      if (isSharedView(bytes)) {
+        worker.postMessage({ cmd: 'parse', bytes: bytes.buffer });
+      } else {
+        worker.postMessage({ cmd: 'parse', bytes: bytes.buffer }, [bytes.buffer]);
+      }
     });
   }
 

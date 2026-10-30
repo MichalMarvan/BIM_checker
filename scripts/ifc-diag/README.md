@@ -196,6 +196,17 @@ vynuceném GC) a RSS celého stromu procesů prohlížeče; vstup může přijí
 cat ~/shared/3D_modely/IFC/D214X.ifc | ssh thinkpad "cd work/BIM_checker && node scripts/ifc-diag/engine-memory-probe.mjs --stdin=D214X.ifc --merged --heap=8192 --out=/tmp/probe-D214X.json"
 ```
 
+`--geometry=workers|main` volí stavbu geometrie: `workers` servíruje stránku
+s COOP/COEP (cross-origin izolace → `SharedArrayBuffer`), soubor se čte do SAB,
+parser worker staví sdílené sloupce a `addModel` použije pool geometry workerů
+(`viewer/geometry-worker-pool.js`); `main` (výchozí) je dnešní cesta bez
+izolace. `--hash` (jen merged) vypíše SHA-256 merged bufferů position/normal/
+color/index, hran, tabulek a `.bimcache` payloadu (bez `modelId`), takže dva
+běhy (`workers` vs `main`) lze porovnat bit po bitu. Totéž `--geometry=` umí
+`geometry-diagnose.mjs` a `corpus-gate.mjs` (parita: `compare-diagnose.mjs`
+nad dvěma `--out` adresáři musí dát `differences=0`). `worker-smoke.mjs`
+ověří, že se `geometry-core.js` načte v module workeru a že index běží nad SAB.
+
 `--profile` navíc zapne volitelný profil stavby geometrie (`loadIfc`
 `options.profile` → `addModel` → `summarizeGeometryProfile` ve
 `viewer-core.js`): rozpad `geometry=` na build produktů / outlier filtr /
@@ -324,7 +335,8 @@ jako `INFO`. V obou případech přeneste stav do `expected.json` přes `--updat
 (spusťte, zkontrolujte diff `expected.json` a commitněte ho spolu se změnou enginu).
 `--update` odmítne zapsat stav s `FILE_ERROR`; se stavem FAILED/NaN zapíše, ale
 upozorní, že brána stejně selže. Volby: `--corpus=dir`, `--expected=file`,
-`--out=dir`, `--timeout=s`.
+`--out=dir`, `--timeout=s`, `--geometry=main|workers` (geometrie ve workerech
+nad SharedArrayBuffer; stránka pak dostane COOP/COEP).
 
 Nový fixture: zkopírujte malý soubor do `tests/fixtures/ifc-corpus/`, doplňte
 řádek do jeho `README.md` (původ, licence) a spusťte `--update`.

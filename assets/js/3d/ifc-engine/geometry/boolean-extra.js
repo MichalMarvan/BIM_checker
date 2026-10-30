@@ -42,7 +42,7 @@
 // Float32 rounding of the intermediate cores (see the tolerance notes in
 // tryBooleanDifference), so skin and cut faces weld into one closed surface.
 
-import * as THREE from 'three';
+import * as THREE from '../../../vendor/three/three.module.js';
 import { splitParams } from '../parser/step-parser.js';
 import { parseRef } from './step-helpers.js';
 import { placement3DToMatrix } from './placement.js';

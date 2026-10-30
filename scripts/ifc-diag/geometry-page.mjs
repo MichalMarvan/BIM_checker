@@ -1,7 +1,8 @@
 // Browser only. Import the actual engine; never compact or run the viewer filter.
 import * as THREE from 'three';
 import { parseStepText, splitParams } from '../../assets/js/3d/ifc-engine/parser/step-parser.js';
-import { indexStepBytes } from '../../assets/js/3d/ifc-engine/parser/byte-lexer.js';
+import { indexStepBytes, sharedMemoryAvailable } from '../../assets/js/3d/ifc-engine/parser/byte-lexer.js';
+import { buildGeometryParallel } from '../../assets/js/3d/ifc-engine/viewer/geometry-worker-pool.js';
 import { EntityIndex } from '../../assets/js/3d/ifc-engine/parser/entity-index.js';
 import { detectProductTypes } from '../../assets/js/3d/ifc-engine/parser/product-detect.js';
 import { HIDDEN_PRODUCT_TYPES } from '../../assets/js/3d/ifc-engine/constants.js';
@@ -87,7 +88,13 @@ function measure(items) {
     bboxLocal: box.isEmpty() ? null : [...box.min.toArray(), ...box.max.toArray()] };
 }
 
-function record(index, entity) {
+/**
+ * @param {*} prebuilt — a geometry-worker result for this product (same shape
+ *   as buildEntityGeometry's, or null), or `undefined` to build here. Rows
+ *   never depend on which thread built: the worker path returns the same
+ *   buffers and the main thread is the fallback for every missing slot.
+ */
+function record(index, entity, prebuilt) {
   const row = { expressId: entity.expressId, ifcType: entity.type, guid: null,
     status: 'FAILED_GEOMETRY', reason: 'empty-geometry', leafTypes: [], items: 0,
     vertices: 0, triangles: 0, nanCount: 0, degenerateTriangles: 0, bboxLocal: null,
@@ -102,7 +109,7 @@ function record(index, entity) {
       row.status = 'NOT_APPLICABLE'; row.reason = 'viewer-hidden'; return row;
     }
     // Invoke even for products without a representation, just like the viewer.
-    result = buildEntityGeometry(index, entity.expressId);
+    result = prebuilt !== undefined ? prebuilt : buildEntityGeometry(index, entity.expressId);
     if (!rep && (!p[6] || p[6] === '$' || p[6] === '*')) {
       row.status = 'NO_REPRESENTATION'; row.reason = 'no-representation'; return row;
     }
@@ -143,13 +150,20 @@ function record(index, entity) {
 
 /**
  * @param {string} token
- * @param {{ parser?: 'bytes' | 'text' }} [options] — 'bytes' (default) is the
- *   engine's production path (indexStepBytes + EntityIndex over the byte
- *   store); 'text' is the legacy parseStepText + Map path, kept as the oracle
- *   for parity runs.
+ * @param {{ parser?: 'bytes' | 'text', geometry?: 'main' | 'workers' }} [options]
+ *   parser: 'bytes' (default) is the engine's production path (indexStepBytes
+ *     + EntityIndex over the byte store); 'text' is the legacy parseStepText +
+ *     Map path, kept as the oracle for parity runs.
+ *   geometry: 'main' (default) builds every product here; 'workers' runs the
+ *     geometry worker pool over a SharedArrayBuffer index (needs the page to
+ *     be cross-origin isolated and parser 'bytes') and builds only the slots
+ *     the workers did not deliver on the main thread — the viewer's path.
  */
 export async function diagnose(token, options = {}) {
   const parser = options.parser === 'text' ? 'text' : 'bytes';
+  const geometry = options.geometry === 'workers' ? 'workers' : 'main';
+  if (geometry === 'workers' && parser !== 'bytes') throw new Error('geometry=workers needs parser=bytes');
+  if (geometry === 'workers' && !sharedMemoryAvailable()) throw new Error('geometry=workers needs a cross-origin isolated page (COOP/COEP)');
   const post = async data => {
     const response = await fetch(`/__report/${token}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
@@ -169,7 +183,13 @@ export async function diagnose(token, options = {}) {
   } else {
     const buffer = await response.arrayBuffer();
     const start = performance.now();
-    entities = indexStepBytes(new Uint8Array(buffer));
+    let bytes = new Uint8Array(buffer);
+    if (geometry === 'workers') {
+      const shared = new Uint8Array(new SharedArrayBuffer(bytes.byteLength));
+      shared.set(bytes);
+      bytes = shared;
+    }
+    entities = indexStepBytes(bytes);
     parseMs = performance.now() - start;
     parsed = { schema: entities.schema, viewDefinitions: entities.viewDefinitions,
       diagnostics: entities.diagnostics, entities: { size: entities.count } };
@@ -177,24 +197,43 @@ export async function diagnose(token, options = {}) {
   const indexStart = performance.now();
   const index = new EntityIndex(entities);
   const types = new Set([...detectProductTypes(index), ...HIDDEN_PRODUCT_TYPES]);
-  const productCount = [...types].reduce((sum, type) => sum + index.byType(type).length, 0);
+  const products = [];
+  for (const type of types) for (const entity of index.byType(type)) products.push(entity);
+  const productCount = products.length;
   const heap = () => performance.memory?.usedJSHeapSize ?? null;
+  const indexMs = performance.now() - indexStart;
+  // Worker pool over the non-hidden products (hidden ones are never built, as in record()).
+  let parallel = null, parallelMs = 0;
+  const slotOf = new Map();
+  if (geometry === 'workers') {
+    const ids = [];
+    for (const e of products) {
+      if (HIDDEN_PRODUCT_TYPES.has(e.type)) continue;
+      slotOf.set(e.expressId, ids.length);
+      ids.push(e.expressId);
+    }
+    const t = performance.now();
+    parallel = await buildGeometryParallel(index, ids, { shareLeafGeometry: false });
+    parallelMs = performance.now() - t;
+  }
   await post({ metadata: { schema: parsed.schema, viewDefinitions: parsed.viewDefinitions,
-    parserDiagnostics: parsed.diagnostics, entityCount: parsed.entities.size, productCount, parser,
-    parseMs, indexMs: performance.now() - indexStart }, heapBytes: heap() });
-  let rows = [], geometryMs = 0, inspectionMs = 0;
+    parserDiagnostics: parsed.diagnostics, entityCount: parsed.entities.size, productCount, parser, geometry,
+    geometryWorkers: parallel ? { workersUsed: parallel.workersUsed, delivered: parallel.delivered, missing: parallel.missing,
+      error: parallel.error, parallelMs } : null,
+    parseMs, indexMs }, heapBytes: heap() });
+  let rows = [], geometryMs = parallelMs, inspectionMs = 0;
   // geometryMs includes representation traversal + buffer inspection; excludes HTTP.
-  for (const type of types) {
-    for (const entity of index.byType(type)) {
-      const t = performance.now();
-      rows.push(record(index, entity));
-      geometryMs += performance.now() - t;
-      if (rows.length >= 100) {
-        const ioStart = performance.now();
-        await post({ rows, geometryMs, heapBytes: heap() });
-        inspectionMs += performance.now() - ioStart;
-        rows = [];
-      }
+  for (const entity of products) {
+    const t = performance.now();
+    const slot = slotOf.get(entity.expressId);
+    const prebuilt = parallel && slot !== undefined ? parallel.results[slot] : undefined;
+    rows.push(record(index, entity, prebuilt));
+    geometryMs += performance.now() - t;
+    if (rows.length >= 100) {
+      const ioStart = performance.now();
+      await post({ rows, geometryMs, heapBytes: heap() });
+      inspectionMs += performance.now() - ioStart;
+      rows = [];
     }
   }
   await post({ rows, geometryMs, reportMs: inspectionMs, heapBytes: heap() });

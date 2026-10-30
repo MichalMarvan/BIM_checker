@@ -85,6 +85,37 @@ function stripComments(s) {
   return out + s.slice(seg);
 }
 
+/** True when a typed array lives in a SharedArrayBuffer (cross-origin isolated pages only). */
+export function isSharedView(arr) {
+  return typeof SharedArrayBuffer === 'function' && arr.buffer instanceof SharedArrayBuffer;
+}
+
+/** SharedArrayBuffer usable here: a cross-origin isolated page (COOP + COEP) or a worker of one. */
+export function sharedMemoryAvailable() {
+  return typeof SharedArrayBuffer === 'function' && globalThis.crossOriginIsolated === true;
+}
+
+/**
+ * Typed array of `n` elements, backed by a SharedArrayBuffer when `shared`
+ * (so parser and geometry workers can read the same columns without a copy).
+ */
+export function allocColumn(Ctor, n, shared) {
+  if (shared) {
+    return new Ctor(new SharedArrayBuffer(n * Ctor.BYTES_PER_ELEMENT));
+  }
+  return new Ctor(n);
+}
+
+/** Copy of arr[0, n) in the same backing kind as `shared` asks for (slice() would always give a plain ArrayBuffer). */
+function trimColumn(arr, n, shared) {
+  if (!shared) {
+    return arr.slice(0, n);
+  }
+  const out = allocColumn(arr.constructor, n, true);
+  out.set(arr.subarray(0, n));
+  return out;
+}
+
 /** Decode UTF-8 bytes [s, e) to a string; short pure-ASCII ranges avoid TextDecoder. */
 export function decodeRange(bytes, s, e) {
   const len = e - s;
@@ -103,7 +134,9 @@ export function decodeRange(bytes, s, e) {
       return String.fromCharCode.apply(null, bytes.subarray(s, e));
     }
   }
-  return rangeDecoder.decode(bytes.subarray(s, e));
+  // Chromium's TextDecoder refuses views over a SharedArrayBuffer ("must not
+  // be shared"); non-ASCII / long ranges are rare, so a private copy is cheap.
+  return rangeDecoder.decode(isSharedView(bytes) ? bytes.slice(s, e) : bytes.subarray(s, e));
 }
 
 /** Entity view compatible with RawEntity { expressId, type, params, line }. */
@@ -162,6 +195,11 @@ export class StepByteIndex {
     this._map = fields.map;
   }
 
+  /** Bytes and columns live in SharedArrayBuffers (readable by workers without a copy). */
+  get isShared() {
+    return isSharedView(this.bytes) && isSharedView(this.ids);
+  }
+
   /** Position of the entity with this express id, or -1. */
   lookup(id) {
     if (this._dense) {
@@ -211,6 +249,9 @@ export class StepByteIndex {
    * Map lookup is NOT sent — a structured clone of a 14 M-entry Map is slower
    * than rebuilding it from `ids` on the receiving side (fromTransferable).
    * The index must not be used after its buffers have been transferred.
+   * SharedArrayBuffer-backed columns are never listed in `transfer` (a shared
+   * buffer cannot be transferred, it is simply shared), so a shared index
+   * stays usable on both sides.
    */
   toTransferable() {
     const fields = {
@@ -229,20 +270,18 @@ export class StepByteIndex {
       lookupKind: this.lookupKind,
       dense: this._dense
     };
-    const transfer = [this.bytes.buffer, this.ids.buffer, this.typeIdx.buffer, this.paramsStart.buffer,
-      this.paramsLen.buffer, this.flags.buffer];
-    if (this.lines) {
-      transfer.push(this.lines.buffer);
-    }
-    if (this._dense) {
-      transfer.push(this._dense.buffer);
+    const transfer = [];
+    for (const arr of [this.bytes, this.ids, this.typeIdx, this.paramsStart, this.paramsLen, this.flags, this.lines, this._dense]) {
+      if (arr && !isSharedView(arr) && !transfer.includes(arr.buffer)) {
+        transfer.push(arr.buffer);
+      }
     }
     return { bytes: this.bytes, fields, transfer };
   }
 
   /** Inverse of toTransferable (bytes = the same Uint8Array, received back). */
   static fromTransferable(bytes, fields) {
-    if (bytes instanceof ArrayBuffer) {
+    if (bytes instanceof ArrayBuffer || (typeof SharedArrayBuffer === 'function' && bytes instanceof SharedArrayBuffer)) {
       bytes = new Uint8Array(bytes);
     }
     const lookup = fields.lookupKind === 'dense'
@@ -256,10 +295,10 @@ export class StepByteIndex {
  * Lookup table for unique ids (duplicates already folded): dense Int32Array
  * when ids are reasonably packed (4 B per id up to maxId), Map otherwise.
  */
-export function buildLookup(ids, count, maxId) {
+export function buildLookup(ids, count, maxId, shared = false) {
   const dense = maxId + 1 <= 8 * count + 1024;
   if (dense) {
-    const table = new Int32Array(maxId + 1).fill(-1);
+    const table = allocColumn(Int32Array, maxId + 1, shared).fill(-1);
     for (let j = 0; j < count; j++) {
       table[ids[j]] = j;
     }
@@ -350,16 +389,20 @@ function findSchema(bytes) {
  * Build the entity index of a STEP file held as bytes.
  *
  * @param {Uint8Array} bytes — whole file (a Buffer works too; a plain Uint8Array view is faster)
- * @param {{ lines?: boolean, allDataSections?: boolean, onProgress?: (done: number, total: number) => void }} [opts]
+ * @param {{ lines?: boolean, allDataSections?: boolean, shared?: boolean, onProgress?: (done: number, total: number) => void }} [opts]
  *   lines: also record the 1-based line of every entity (costs 4 B/entity and a newline count).
  *   allDataSections: after ENDSEC keep scanning for further `DATA;` sections.
  *     Off by default because parseStepText stops at the first ENDSEC.
+ *   shared: allocate the columns (and the dense lookup) in SharedArrayBuffers
+ *     so geometry workers can read the index without a copy. Default: true
+ *     when `bytes` itself is a SharedArrayBuffer view, false otherwise. Needs
+ *     a cross-origin isolated context (SharedArrayBuffer defined).
  *   onProgress: called at record boundaries roughly every PROGRESS_STEP bytes
  *     (the parser worker turns it into a heartbeat for the main-thread watchdog).
  * @returns {StepByteIndex}
  */
 export function indexStepBytes(bytes, opts = {}) {
-  if (bytes instanceof ArrayBuffer) {
+  if (bytes instanceof ArrayBuffer || (typeof SharedArrayBuffer === 'function' && bytes instanceof SharedArrayBuffer)) {
     bytes = new Uint8Array(bytes);
   } else if (bytes.constructor !== Uint8Array) {
     // Buffer overrides indexOf; a plain view shares the memory.
@@ -368,26 +411,30 @@ export function indexStepBytes(bytes, opts = {}) {
   const n = bytes.length;
   const wantLines = !!opts.lines;
   const allSections = !!opts.allDataSections;
+  const shared = opts.shared === undefined ? isSharedView(bytes) : !!opts.shared;
+  if (shared && typeof SharedArrayBuffer !== 'function') {
+    throw new TypeError('indexStepBytes: shared columns need SharedArrayBuffer (cross-origin isolated context)');
+  }
   const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
   let nextProgress = onProgress ? PROGRESS_STEP : Infinity;
 
-  // ---- growable columns (doubling, trimmed with slice() at the end) ----
+  // ---- growable columns (doubling, trimmed to count at the end) ----
   // paramsStart: Uint32Array covers files < 4 GiB — the only sizes a browser
   // can hold in one ArrayBuffer today; Float64Array is used above that limit
   // (cannot be exercised here but keeps the format honest), so no second column.
   let cap = Math.max(1024, Math.floor(n / 48));
-  let ids = new Int32Array(cap);
-  let typeIdx = new Uint16Array(cap);
-  let paramsStart = n > 0xFFFFFFFF ? new Float64Array(cap) : new Uint32Array(cap);
-  let paramsLen = new Uint32Array(cap);
-  let flags = new Uint8Array(cap);
-  let lines = wantLines ? new Int32Array(cap) : null;
+  let ids = allocColumn(Int32Array, cap, shared);
+  let typeIdx = allocColumn(Uint16Array, cap, shared);
+  let paramsStart = allocColumn(n > 0xFFFFFFFF ? Float64Array : Uint32Array, cap, shared);
+  let paramsLen = allocColumn(Uint32Array, cap, shared);
+  let flags = allocColumn(Uint8Array, cap, shared);
+  let lines = wantLines ? allocColumn(Int32Array, cap, shared) : null;
   let count = 0;
   let maxId = -1;
   const grow = () => {
     cap *= 2;
     const g = (arr, Ctor) => {
-      const next = new Ctor(cap);
+      const next = allocColumn(Ctor, cap, shared);
       next.set(arr);
       return next;
     };
@@ -857,7 +904,7 @@ export function indexStepBytes(bytes, opts = {}) {
   // Dense table costs 4 B per id up to maxId; a Map costs ~40+ B per entity.
   // Dense wins unless ids are very sparse (maxId > 8 × count).
   const dense = maxId + 1 <= 8 * count + 1024;
-  const table = dense ? new Int32Array(maxId + 1).fill(-1) : null;
+  const table = dense ? allocColumn(Int32Array, maxId + 1, shared).fill(-1) : null;
   const map = dense ? null : new Map();
   const getSlot = id => (dense ? table[id] : (map.get(id) ?? -1));
   const setSlot = (id, j) => {
@@ -913,13 +960,13 @@ export function indexStepBytes(bytes, opts = {}) {
 
   return new StepByteIndex(bytes, {
     count,
-    ids: ids.slice(0, count),
-    typeIdx: typeIdx.slice(0, count),
+    ids: trimColumn(ids, count, shared),
+    typeIdx: trimColumn(typeIdx, count, shared),
     typeNames,
-    paramsStart: paramsStart.slice(0, count),
-    paramsLen: paramsLen.slice(0, count),
-    flags: flags.slice(0, count),
-    lines: lines ? lines.slice(0, count) : null,
+    paramsStart: trimColumn(paramsStart, count, shared),
+    paramsLen: trimColumn(paramsLen, count, shared),
+    flags: trimColumn(flags, count, shared),
+    lines: lines ? trimColumn(lines, count, shared) : null,
     schema,
     viewDefinitions,
     diagnostics,

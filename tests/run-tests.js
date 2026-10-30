@@ -22,7 +22,9 @@ const projectRoot = join(__dirname, '..');
 const EXPECTED_BROWSER_ERROR_PATTERNS = [
     /^idsEditorCore not found!$/,
     /^Editor or currentIDSData not available\b/,
-    /blob:fake/
+    /blob:fake/,
+    // ifc-geometry-workers: a worker URL that must 404 (pool fallback test)
+    /does-not-exist\.worker\.js/
 ];
 
 function isExpectedBrowserError(text) {
@@ -43,6 +45,15 @@ const mimeTypes = {
     '.wasm': 'application/wasm'
 };
 
+// TEST_ISOLATED=1 serves everything with COOP/COEP, so the page is
+// crossOriginIsolated and the SharedArrayBuffer / geometry-worker tests run
+// for real instead of being skipped. Production headers (_headers) are not
+// touched by this; it only mirrors what the deployment may enable later.
+const ISOLATED = process.env.TEST_ISOLATED === '1';
+const ISOLATION_HEADERS = ISOLATED
+    ? { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' }
+    : {};
+
 // Simple HTTP server
 function startServer(port) {
     return new Promise((resolve) => {
@@ -53,7 +64,7 @@ function startServer(port) {
             filePath = filePath.split('?')[0];
 
             if (!existsSync(filePath)) {
-                res.writeHead(404);
+                res.writeHead(404, ISOLATION_HEADERS);
                 res.end('Not found');
                 return;
             }
@@ -63,7 +74,7 @@ function startServer(port) {
 
             try {
                 const content = readFileSync(filePath);
-                res.writeHead(200, { 'Content-Type': contentType });
+                res.writeHead(200, { 'Content-Type': contentType, ...ISOLATION_HEADERS });
                 res.end(content);
             } catch (err) {
                 res.writeHead(500);
@@ -102,7 +113,7 @@ async function runTests() {
         // Start server
         console.log('Starting HTTP server...');
         server = await startServer(port);
-        console.log(`Server running at http://127.0.0.1:${port}`);
+        console.log(`Server running at http://127.0.0.1:${port}${ISOLATED ? ' (COOP/COEP: cross-origin isolated)' : ''}`);
 
         // Launch browser
         console.log('Launching headless browser...');

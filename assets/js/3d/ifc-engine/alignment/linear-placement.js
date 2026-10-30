@@ -10,7 +10,7 @@
 // Kruhový import s placement.js je záměrný a bezpečný — obě vazby se
 // používají až za běhu uvnitř funkcí (ESM live bindings).
 
-import * as THREE from 'three';
+import * as THREE from '../../../vendor/three/three.module.js';
 import { splitParams } from '../parser/step-parser.js';
 import { parseRef, parseWrappedNum } from '../geometry/step-helpers.js';
 import { placement3DToMatrix, resolvePlacement } from '../geometry/placement.js';
