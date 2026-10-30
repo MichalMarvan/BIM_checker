@@ -7,8 +7,13 @@
 // RSS of the whole browser process tree (ArrayBuffers live outside the V8
 // heap, so RSS is the honest number for the file bytes).
 //
-//   node scripts/ifc-diag/engine-memory-probe.mjs <file.ifc> [--heap=8192] [--merged] [--out=file.json] [--timeout=1800]
+//   node scripts/ifc-diag/engine-memory-probe.mjs <file.ifc> [--heap=8192] [--merged] [--profile] [--out=file.json] [--timeout=1800]
 //   cat big.ifc | node scripts/ifc-diag/engine-memory-probe.mjs --stdin=big.ifc ...
+//
+// --profile turns on the opt-in geometry-build profile (loadIfc options.profile
+// → viewer-core summarizeGeometryProfile): build / outlier / bake / edges /
+// finalize split, per-product percentiles, top-10 share, plus the byte
+// index lookupKind (dense/map). Pure measurement, no engine behaviour change.
 //
 // --stdin keeps large inputs off the disk (they are streamed from another
 // host); the bytes are held in this Node process and served to the page once.
@@ -25,13 +30,14 @@ const opt = (name, def) => {
   return a ? a.slice(name.length + 3) : def;
 };
 const merged = args.includes('--merged');
+const profile = args.includes('--profile');
 const heapMb = Number(opt('heap', 8192));
 const timeoutS = Number(opt('timeout', 1800));
 const outFile = opt('out', null);
 const stdinName = opt('stdin', null);
 const file = args.find(a => !a.startsWith('--'));
 if (!file && !stdinName) {
-  console.error('usage: engine-memory-probe.mjs <file.ifc> | --stdin=name [--heap=MB] [--merged] [--out=json] [--timeout=s]');
+  console.error('usage: engine-memory-probe.mjs <file.ifc> | --stdin=name [--heap=MB] [--merged] [--profile] [--out=json] [--timeout=s]');
   process.exit(2);
 }
 
@@ -46,7 +52,7 @@ async function readAllStdin() {
 }
 const input = stdinName ? await readAllStdin() : readFileSync(file);
 const name = stdinName || path.basename(file);
-console.log(`[probe] ${name}: ${input.length} B (${(input.length / 1048576).toFixed(1)} MiB), heap flag ${heapMb} MB, merged=${merged}`);
+console.log(`[probe] ${name}: ${input.length} B (${(input.length / 1048576).toFixed(1)} MiB), heap flag ${heapMb} MB, merged=${merged} profile=${profile}`);
 
 function treeRss(pid, seen = new Set()) {
   if (!pid || seen.has(pid)) return 0;
@@ -76,7 +82,7 @@ async function mark(phase, extra = {}) {
   const rss = Number(await r.text());
   phases.push({ phase, t: Math.round(t), heapBytes: h, rssBytes: rss, ...extra });
 }
-window.probe = async ({ merged }) => {
+window.probe = async ({ merged, profile }) => {
   try {
     await mark('start');
     const resp = await fetch('/__ifc');
@@ -90,6 +96,8 @@ window.probe = async ({ merged }) => {
     EntityIndex.prototype.compact = function () {
       const before = performance.now();
       window.__beforeCompact = { heapBytes: heap(), t: Math.round(before) };
+      // compact() drops the byte store — read the lookup flavour before it goes.
+      window.__lookupKind = this._store?.index?.lookupKind ?? 'none(legacy Map)';
       const dropped = origCompact.call(this);
       compactMs = performance.now() - before;
       window.__afterCompact = { heapBytes: heap(), t: Math.round(performance.now()), dropped, kept: this.stats().entityCount };
@@ -109,7 +117,7 @@ window.probe = async ({ merged }) => {
       return r;
     };
     const t0 = performance.now();
-    const id = await engine.loadIfc(buf, { name: 'probe.ifc' });
+    const id = await engine.loadIfc(buf, { name: 'probe.ifc', profile });
     buf = null;
     const loadMs = performance.now() - t0;
     const meta = engine._models.get(id).meta;
@@ -120,7 +128,17 @@ window.probe = async ({ merged }) => {
     const rec = engine._models.get(id);
     const storeGone = rec.index._store === null && rec.index._byId instanceof Map;
     const guidCount = rec.index.stats().guidCount;
-    return { ok: true, phases, storeGone, guidCount, meta };
+    let geometryProfile = null;
+    const raw = engine._viewer._models.get(id)?.geometryProfile;
+    if (raw) {
+      const vc = await import('/assets/js/3d/ifc-engine/viewer/viewer-core.js');
+      geometryProfile = vc.summarizeGeometryProfile(raw);
+      // ms per product in 0.5 ms bins up to 100 ms, last bin = overflow
+      const hist = new Array(201).fill(0);
+      for (const p of raw.products) hist[Math.min(200, Math.floor(p.ms * 2))] += 1;
+      geometryProfile.histogramHalfMs = hist;
+    }
+    return { ok: true, phases, storeGone, guidCount, meta, lookupKind: window.__lookupKind, geometryProfile };
   } catch (e) {
     return { ok: false, error: e.message, stack: (e.stack || '').split('\\n').slice(0, 6).join(' | '), phases };
   }
@@ -174,7 +192,7 @@ try {
   await page.goto(`${origin}/__probe.html`, { waitUntil: 'load', timeout: 60000 });
   await page.waitForFunction('window.__ready === true', { timeout: 60000 });
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`timeout ${timeoutS}s`)), timeoutS * 1000).unref());
-  result = await Promise.race([page.evaluate(opts => window.probe(opts), { merged }), crash, timeout]);
+  result = await Promise.race([page.evaluate(opts => window.probe(opts), { merged, profile }), crash, timeout]);
 } catch (e) {
   result = { ok: false, error: e.message, code: e.code || null, phases: [] };
 } finally {
@@ -196,6 +214,12 @@ for (const p of result.phases || []) {
   const extra = Object.entries(p).filter(([k]) => !['phase', 't', 'heapBytes', 'rssBytes'].includes(k)).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ');
   console.log(`  ${p.phase.padEnd(14)} t=${String(p.t).padStart(7)} ms heap=${mb(p.heapBytes).padStart(9)} rss=${mb(p.rssBytes).padStart(9)} ${extra}`);
 }
-if (result.ok) console.log(`[probe] storeGone=${result.storeGone} guidCount=${result.guidCount}`);
+if (result.ok) console.log(`[probe] storeGone=${result.storeGone} guidCount=${result.guidCount} lookupKind=${result.lookupKind}`);
+if (result.geometryProfile) {
+  const g = result.geometryProfile;
+  console.log(`[profile] total=${g.totalMs} ms (yield ${g.yieldMs}) | build=${g.phases.buildMs} outlier=${g.phases.outlierMs} bake=${g.phases.bakeMs} edges=${g.phases.edgesMs} finalize=${g.phases.finalizeMs} other=${g.phases.otherMs}`);
+  console.log(`[profile] products=${g.productCount} ms/product mean=${g.productMs.mean} p50=${g.productMs.p50} p90=${g.productMs.p90} p99=${g.productMs.p99} max=${g.productMs.max} | top10=${(g.top10ShareOfBuild * 100).toFixed(1)}% top100=${(g.top100ShareOfBuild * 100).toFixed(1)}% of build`);
+  for (const t of g.top10) console.log(`  #${t.expressId} ${t.ifcType} ${t.ms} ms (${t.items} items)`);
+}
 if (outFile) writeFileSync(outFile, JSON.stringify(result, null, 2) + '\n');
 process.exitCode = result.ok ? 0 : 1;

@@ -43,6 +43,55 @@ const _noRaycast = () => {};
 const _EMPTY_EDGES = new Float32Array(0);
 
 /**
+ * Opt-in geometry-build profile (addModel `opts.profile` or the global flag
+ * `globalThis.__IFC_GEOMETRY_PROFILE`). Pure measurement: it never changes
+ * the built geometry, so GEOMETRY_PIPELINE_VERSION is untouched. Yield time
+ * (setTimeout breaths of maybeYield) is accounted separately so the phase
+ * numbers are CPU-on-main-thread, not wall-clock.
+ */
+function _newGeometryProfile() {
+  return {
+    buildMs: 0,      // (a) buildEntityGeometry + bbox of its items, all products
+    outlierMs: 0,    // (b) median / cap filter
+    bakeMs: 0,       // (c) merged buffer bake (pass 1 + vertex/normal/color/index copy)
+    edgesMs: 0,      // (d) extractFeatureEdges + edge bake
+    finalizeMs: 0,   // (e) BufferGeometry/Mesh creation, edge concat, scene insert
+    yieldMs: 0,      // cooperative yields (wall-clock, not CPU)
+    totalMs: 0,      // wall-clock of addModel
+    products: [],    // { expressId, ifcType, ms, items } per product with geometry
+  };
+}
+
+/** Percentiles, top-10 share and phase table — the numbers the worker decision needs. */
+export function summarizeGeometryProfile(p) {
+  const ms = p.products.map(x => x.ms).sort((a, b) => a - b);
+  const n = ms.length;
+  const pct = q => (n ? ms[Math.min(n - 1, Math.floor(q * n))] : 0);
+  const sum = ms.reduce((s, x) => s + x, 0);
+  const topN = k => ms.slice(Math.max(0, n - k)).reduce((s, x) => s + x, 0);
+  const top = [...p.products].sort((a, b) => b.ms - a.ms).slice(0, 10)
+    .map(x => ({ expressId: x.expressId, ifcType: x.ifcType, ms: +x.ms.toFixed(1), items: x.items }));
+  const otherMs = p.totalMs - p.yieldMs - p.buildMs - p.outlierMs - p.bakeMs - p.edgesMs - p.finalizeMs;
+  return {
+    totalMs: +p.totalMs.toFixed(0),
+    yieldMs: +p.yieldMs.toFixed(0),
+    phases: {
+      buildMs: +p.buildMs.toFixed(0),
+      outlierMs: +p.outlierMs.toFixed(0),
+      bakeMs: +p.bakeMs.toFixed(0),
+      edgesMs: +p.edgesMs.toFixed(0),
+      finalizeMs: +p.finalizeMs.toFixed(0),
+      otherMs: +otherMs.toFixed(0),
+    },
+    productCount: n,
+    productMs: { sum: +sum.toFixed(0), mean: +(n ? sum / n : 0).toFixed(2), p50: +pct(0.5).toFixed(2), p90: +pct(0.9).toFixed(2), p99: +pct(0.99).toFixed(2), max: +(n ? ms[n - 1] : 0).toFixed(1) },
+    top10ShareOfBuild: +(sum ? topN(10) / sum : 0).toFixed(3),
+    top100ShareOfBuild: +(sum ? topN(100) / sum : 0).toFixed(3),
+    top10: top,
+  };
+}
+
+/**
  * Inject the per-element hide/fade attribute into a built-in material's
  * shader (merged models — etapa 3/4). Works for mesh and line materials,
  * both compile from ShaderLib chunks containing the replaced includes.
@@ -563,11 +612,17 @@ export class ViewerCore {
     // viewport was dead, no orbit/pan, browser showed "page unresponsive".
     // Give the event loop a breath every ~33 ms so the render loop draws a
     // frame and OrbitControls stay live while the model builds.
-    let _lastYield = performance.now();
+    const profile = (opts && opts.profile) || globalThis.__IFC_GEOMETRY_PROFILE ? _newGeometryProfile() : null;
+    const tAdd0 = performance.now();
+    let _lastYield = tAdd0;
     const maybeYield = async () => {
       if (performance.now() - _lastYield < 33) return;
+      const y0 = performance.now();
       await new Promise(r => setTimeout(r, 0));
       _lastYield = performance.now();
+      if (profile) {
+        profile.yieldMs += _lastYield - y0;
+      }
     };
 
     // Merged mode never mutates leaf geometry (it copies vertices into one
@@ -645,8 +700,12 @@ export class ViewerCore {
       const typeColor = IFC_TYPE_COLORS[ifcType] ?? DEFAULT_COLOR;
       for (const entity of entities) {
         await maybeYield();
+        const tp0 = profile ? performance.now() : 0;
         const result = buildEntityGeometry(entityIndex, entity.expressId);
         if (!result || result.items.length === 0) {
+          if (profile) {
+            profile.buildMs += performance.now() - tp0;
+          }
           geometryStats.elementsWithoutGeometry += 1;
           if (result?.diagnostics) {
             for (const type of result.diagnostics.unsupportedRepresentationTypes) unsupportedTypes.add(type);
@@ -670,8 +729,14 @@ export class ViewerCore {
           const ext = bb ? Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) : 0;
           candidates.push({ entity, ifcType, item, result, typeColor, ext });
         }
+        if (profile) {
+          const ms = performance.now() - tp0;
+          profile.buildMs += ms;
+          profile.products.push({ expressId: entity.expressId, ifcType, ms, items: result.items.length });
+        }
       }
     }
+    const tOut0 = profile ? performance.now() : 0;
     const sortedExt = candidates.map(c => c.ext).filter(Number.isFinite).sort((a, b) => a - b);
     const medianExt = sortedExt[Math.floor(sortedExt.length / 2)] || 0;
     // Cap is 100× median, but never below 1km / lengthScale (so mm-unit files
@@ -687,9 +752,24 @@ export class ViewerCore {
       + geometryStats.recursionLimitCount
       + geometryStats.invalidReferenceCount
       + geometryStats.outlierItemCount;
+    if (profile) {
+      profile.outlierMs += performance.now() - tOut0;
+    }
     if (skipped > 0) {
       console.warn(`[viewer] addModel: skipped ${skipped} outlier mesh items (extent > ${cap.toFixed(0)}, median ${medianExt.toFixed(2)})`);
     }
+    const finishProfile = () => {
+      if (!profile) {
+        return;
+      }
+      profile.totalMs = performance.now() - tAdd0;
+      const rec = this._models.get(modelId);
+      if (rec) {
+        rec.geometryProfile = profile;
+      }
+      const s = summarizeGeometryProfile(profile);
+      console.log(`[viewer] geometry profile ${modelId} (ms): build=${s.phases.buildMs} outlier=${s.phases.outlierMs} bake=${s.phases.bakeMs} edges=${s.phases.edgesMs} finalize=${s.phases.finalizeMs} other=${s.phases.otherMs} yield=${s.yieldMs} total=${s.totalMs} | products=${s.productCount} p50=${s.productMs.p50} p90=${s.productMs.p90} p99=${s.productMs.p99} max=${s.productMs.max} top10=${(s.top10ShareOfBuild * 100).toFixed(1)}% of build`);
+    };
     // Above the item cap the whole feature-edge pass is skipped (both paths):
     // on 50k+ item files it costs minutes + hundreds of MB and the lines are
     // sub-pixel noise anyway.
@@ -701,7 +781,7 @@ export class ViewerCore {
     // table. No per-element feature edges yet (merged edges = etapa 4).
     if (this._mergedGeometry) {
       const material = this._makeMergedMaterial();
-      const built = await buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material, maybeYield, skipFeatureEdges);
+      const built = await buildMergedModel(accepted, (item, result) => this._itemMatrix(item, result), material, maybeYield, skipFeatureEdges, profile);
       if (!built) {
         // Zero-geometry model (e.g. an IFC with no shape representations):
         // register an empty record anyway so per-model ops (visibility,
@@ -720,11 +800,17 @@ export class ViewerCore {
           geometryStats,
         });
         this._recomputeSceneBbox();
+        finishProfile();
         return;
       }
       if (built) {
+        const tf0 = profile ? performance.now() : 0;
         this._finishMergedModel(modelId, built, group, innerGroup, geometryStats);
+        if (profile) {
+          profile.finalizeMs += performance.now() - tf0;
+        }
       }
+      finishProfile();
       return;
     }
 
@@ -736,6 +822,7 @@ export class ViewerCore {
 
     for (const { entity, ifcType, item, result, typeColor } of accepted) {
       await maybeYield();
+      const tm0 = profile ? performance.now() : 0;
       // The original two-loop entity iteration is now flattened above; render
       // a single mesh + edges per accepted item below.
       {
@@ -773,6 +860,10 @@ export class ViewerCore {
           // into a Float32Array (which would lose ~10 cm of accuracy at
           // S-JTSK magnitudes and visibly drift off the mesh surface).
           let localEdges;
+          const te0 = profile ? performance.now() : 0;
+          if (profile) {
+            profile.bakeMs += te0 - tm0;
+          }
           if (skipFeatureEdges) {
             localEdges = _EMPTY_EDGES;
           } else {
@@ -797,6 +888,9 @@ export class ViewerCore {
             mesh.add(edgeLines);
             featureEdgesList.push(edgeLines);
           }
+          if (profile) {
+            profile.edgesMs += performance.now() - te0;
+          }
 
           // Edge outlines now live in the screen-space EdgesPass — no per-mesh
           // LineSegments overlay. Selection highlight + snap helpers lazily
@@ -817,6 +911,7 @@ export class ViewerCore {
     // We keep innerGroup as a structural layer; federation writes to
     // m.group.position freely without touching meshes.
 
+    const tf0 = profile ? performance.now() : 0;
     this._scene.add(group);
     this._models.set(modelId, {
       group, innerGroup, meshes,
@@ -826,6 +921,10 @@ export class ViewerCore {
     });
     if (this._displayMode !== 'solid') this._applyDisplayMode();
     this._recomputeSceneBbox();
+    if (profile) {
+      profile.finalizeMs += performance.now() - tf0;
+    }
+    finishProfile();
   }
 
   /** Vertex-colored merged-model material with elemHide + section planes. */

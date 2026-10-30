@@ -196,6 +196,16 @@ vynuceném GC) a RSS celého stromu procesů prohlížeče; vstup může přijí
 cat ~/shared/3D_modely/IFC/D214X.ifc | ssh thinkpad "cd work/BIM_checker && node scripts/ifc-diag/engine-memory-probe.mjs --stdin=D214X.ifc --merged --heap=8192 --out=/tmp/probe-D214X.json"
 ```
 
+`--profile` navíc zapne volitelný profil stavby geometrie (`loadIfc`
+`options.profile` → `addModel` → `summarizeGeometryProfile` ve
+`viewer-core.js`): rozpad `geometry=` na build produktů / outlier filtr /
+bake merged bufferu / hrany / finalize / zbytek (čistý čas na hlavním vlákně,
+kooperativní yieldy zvlášť), percentily ms na produkt, podíl top 10 / top 100
+produktů na build času, histogram po 0,5 ms (v JSON `histogramHalfMs`) a
+`lookupKind` bajtového indexu (dense/map). Bez přepínače se nic neměří a
+výstup enginu je beze změny. Výsledky: `docs/ifc-large-files-baseline.md`,
+sekce „Profil stavby geometrie“.
+
 ## Rozsah a stavy
 
 `viewer-ui-probe.mjs` měří skutečné UI v čistém headless Chromiu: otevře

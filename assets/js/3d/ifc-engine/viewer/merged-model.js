@@ -34,9 +34,12 @@ const _NO_EDGES = new Float32Array(0);
  *   elementInfo — Map<expressId, { ifcType }>
  *   elementsByType — Map<UPPERCASE_TYPE, number[]>
  */
-export async function buildMergedModel(accepted, computeItemMatrix, material, maybeYield = null, skipEdges = false) {
+export async function buildMergedModel(accepted, computeItemMatrix, material, maybeYield = null, skipEdges = false, profile = null) {
+  // `profile` (optional, see viewer-core _newGeometryProfile) only accumulates
+  // bakeMs / edgesMs / finalizeMs — measurement, never a behaviour change.
   // Pass 1 — sizes + per-item matrices + anchor from transformed bboxes (f64)
   const prepared = [];
+  let tSeg = profile ? performance.now() : 0;
   let totalVerts = 0;
   let totalTris = 0;
   const bboxMin = [Infinity, Infinity, Infinity];
@@ -44,7 +47,15 @@ export async function buildMergedModel(accepted, computeItemMatrix, material, ma
   const corner = new THREE.Vector3();
 
   for (const cand of accepted) {
-    if (maybeYield) await maybeYield();
+    if (maybeYield) {
+      if (profile) {
+        profile.bakeMs += performance.now() - tSeg;
+      }
+      await maybeYield();
+      if (profile) {
+        tSeg = performance.now();
+      }
+    }
     const geom = cand.item.bufferGeometry;
     const pos = geom.getAttribute('position');
     if (!pos || pos.count === 0) continue;
@@ -105,7 +116,15 @@ export async function buildMergedModel(accepted, computeItemMatrix, material, ma
   const edgeCache = new Map();
 
   for (const { cand, geom, matrix, vertCount, triCount } of prepared) {
-    if (maybeYield) await maybeYield();
+    if (maybeYield) {
+      if (profile) {
+        profile.bakeMs += performance.now() - tSeg;
+      }
+      await maybeYield();
+      if (profile) {
+        tSeg = performance.now();
+      }
+    }
     bakeMatrix.multiplyMatrices(toAnchor, matrix);
     normalMatrix.getNormalMatrix(bakeMatrix);
 
@@ -154,6 +173,11 @@ export async function buildMergedModel(accepted, computeItemMatrix, material, ma
 
     // Feature edges of this element, baked into the anchor frame
     let localEdges;
+    const tEdge0 = profile ? performance.now() : 0;
+    if (profile) {
+      profile.bakeMs += tEdge0 - tSeg;
+      tSeg = tEdge0;
+    }
     if (skipEdges) {
       localEdges = _NO_EDGES;
     } else {
@@ -181,6 +205,10 @@ export async function buildMergedModel(accepted, computeItemMatrix, material, ma
       });
       edgeVertOfs += baked.length / 3;
     }
+    if (profile) {
+      tSeg = performance.now();
+      profile.edgesMs += tSeg - tEdge0;
+    }
 
     const expressId = cand.entity.expressId;
     table.push({
@@ -200,6 +228,11 @@ export async function buildMergedModel(accepted, computeItemMatrix, material, ma
 
     vertOfs += vertCount;
     triOfs += triCount;
+  }
+  if (profile) {
+    const t = performance.now();
+    profile.bakeMs += t - tSeg;
+    tSeg = t;
   }
 
   const merged = new THREE.BufferGeometry();
@@ -227,6 +260,9 @@ export async function buildMergedModel(accepted, computeItemMatrix, material, ma
     }
   }
 
+  if (profile) {
+    profile.finalizeMs += performance.now() - tSeg;
+  }
   return { mesh, table, elementInfo, elementsByType, edgePositions, edgesTable };
 }
 

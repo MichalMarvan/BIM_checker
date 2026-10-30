@@ -485,3 +485,72 @@ a 0 `console.error`. Celé UI 281 s (swiftshader), peak RSS stromu Chromia
 kontroly prošly. **NEOVĚŘENO:** hardwarové WebGL, gzipovaný vstup >512 MiB
 přes jiné stránky (validátor, IDS) — ty čtou obsah jako řetězec a po opravě
 aspoň hlásí chybu místo prázdného souboru.
+
+## Profil stavby geometrie (krok 1 návrhu geometrie ve workerech)
+
+**MĚŘENO 2026-10-30**, větev `3d-viewer-integration` nad `1170f43` +
+nekomitovaná instrumentace (viz níže), ThinkPad, headless Chromium z Puppeteeru,
+SwiftShader, `engine-memory-probe.mjs --merged --profile`, jediný běh každého
+souboru, velké soubory streamované z Pi (`cat | ssh thinkpad node …`).
+Časy fází jsou čistý čas na hlavním vlákně (kooperativní yieldy `maybeYield`
+vykázané zvlášť), `total` = wall-clock `addModel`. Rozpad: build =
+`buildEntityGeometry` + bbox jeho položek, outlier = mediánový filtr, bake =
+pass 1 (matice, anchor) + kopie vrcholů/normál/barev/indexů do merged bufferu,
+edges = `extractFeatureEdges` + bake hran, finalize = BufferGeometry/Mesh,
+konkatenace hran, `_finishMergedModel`, zbytek = `total − yield − součet fází`.
+
+| Model | produktů | lookupKind | total ms | yield | build (a) | outlier (b) | bake (c) | edges (d) | finalize + zbytek (e) | build % |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| D214X (452,5 MiB) | 16 901 | dense | 26 616 | 2 539 | 21 181 | 8 | 526 | 2 110 | 186 + 67 | 80 % (88 % bez yieldů) |
+| D3_SO204 (801,1 MiB) | 8 946 | dense | 58 509 | 4 666 | 49 639 | 5 | 696 | 3 209 | 248 + 46 | 85 % (92 % bez yieldů) |
+| D214_SO112201 (16,8 MiB, korpus) | 202 | dense | 1 097 | 44 | 947 | 0 | 21 | 74 | 8 + 2 | 86 % |
+| D214_SO112402_vykop (0,9 MiB, korpus) | 10 | dense | 126 | 1 | 107 | 0 | 4 | 8 | 4 + 2 | 85 % |
+
+Celé `loadIfc` při tomto běhu: D214X load 35 765 ms (parse 6 859, compact 1 169),
+D3_SO204 load 74 153 ms (parse 13 564, compact 366); peak RSS 2 217 / 3 309 MiB,
+`storeGone=true`, geometrické statistiky shodné s předchozí sekcí (0 outlierů,
+0 unsupported). `lookupKind` je u obou velkých souborů i u korpusu `dense`
+(ID jsou hustá; `map` varianta se v měření nevyskytla).
+
+Rozložení ms na produkt (jen produkty s geometrií, čas včetně bbox položek):
+
+| Model | mean | p50 | p90 | p99 | max | top 10 / build | top 100 / build |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| D214X | 1,25 | 0,2 | 2,6 | 12,3 | 367 | 10,4 % | 26,7 % |
+| D3_SO204 | 5,55 | 1,7 | 12,7 | 62,9 | 2 039 | 14,8 % | 29,6 % |
+| D214_SO112201 | 4,69 | 0,7 | 6,4 | 33,9 | 249 | 65,2 % | 96,2 % |
+| D214_SO112402_vykop | 10,7 | 9,9 | 24,1 | 24,1 | 24 | 100 % (10 produktů) | — |
+
+Nejdražší produkty jsou ve všech případech `IFCBUILDINGELEMENTPROXY` s jednou
+položkou (D3_SO204: #7125848 2 039 ms, #8777623 1 968 ms, #3013114 919 ms,
+#5175906 822 ms; D214X: #2025726 367 ms, #2146096 317 ms, #182191 270 ms).
+Histogram po 0,5 ms je v JSON výstupu sondy (`geometryProfile.histogramHalfMs`,
+`/tmp/gp-*.json` na ThinkPadu, neverzováno). U malých souborů je mean
+zkreslený JIT warm-up (prvních pár produktů stojí desítky ms).
+
+**Závěr pro workery (ODHAD z MĚŘENÝCH čísel, Amdahl):** sériová část stavby
+po paralelizaci buildu (bake + edges + finalize + zbytek) je 2,9 s u D214X a
+4,2 s u D3_SO204, tj. ~11–13 % ze stavby geometrie bez yieldů. Build je dobře
+dělitelný: top 10 produktů tvoří jen 10–15 % build času, nejdražší jednotlivý
+produkt (2,0 s u D3_SO204) je hluboko pod `build / N` pro N ≤ 8 (49,6 s / 8 =
+6,2 s), takže limitujícím prvkem není jeden obří produkt, ale součet. Při 8
+workerech a ideálním rozdělení (bez režie přenosu a bez opakování parse ve
+workerech) vychází stavba geometrie D3_SO204 ≈ 6,2 + 4,2 ≈ 10–11 s místo 54 s
+(bez yieldů) a D214X ≈ 2,6 + 2,9 ≈ 5–6 s místo 24 s; se 4 workery ≈ 16–17 s,
+resp. 8–9 s. Celkový `loadIfc` by pak u D3_SO204 ovládl parse (13,6 s).
+**NEOVĚŘENO:** režie předání dat workerům (každý worker potřebuje přístup k
+entitám — sdílený bajtový index přes `SharedArrayBuffer`, nebo vlastní parse),
+přenos výsledných typed arrays zpět, chování na HW WebGL a na slabších strojích,
+rozptyl mezi opakovanými běhy (vše jediný běh), a zda se `extractFeatureEdges`
+(3,2 s u D3_SO204) dá přesunout do workerů spolu s buildem.
+
+Instrumentace je volitelná (`loadIfc` `options.profile` / `addModel`
+`opts.profile` / `globalThis.__IFC_GEOMETRY_PROFILE`), nemění výstup ani
+`GEOMETRY_PIPELINE_VERSION`; souhrn dává `summarizeGeometryProfile` ve
+`viewer/viewer-core.js` a ukládá se jen na záznam modelu ve vieweru
+(`geometryProfile`). Reprodukce:
+
+```sh
+cat ~/shared/3D_modely/IFC/D3_SO204.ifc | ssh thinkpad "cd ~/work/BIM_checker && node scripts/ifc-diag/engine-memory-probe.mjs --stdin=D3_SO204.ifc --merged --profile --timeout=1800 --out=/tmp/gp-D3_SO204.json"
+tp-run "node scripts/ifc-diag/engine-memory-probe.mjs ~/shared/real/RuzLet/D.2.1.4/D214_SO112201.ifc --merged --profile"
+```
