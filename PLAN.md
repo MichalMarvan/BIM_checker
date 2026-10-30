@@ -487,5 +487,13 @@ Cíl: viewer a parser správně podle buildingSMART; postup = validace → viewe
 - [ ] F3: geometrie dle frekvence z baseline (křivky profilů, BRep s otvory, swept disk, CSG/halfspace, nové typy)
 - [ ] F4: nezávislý oracle (web-ifc / IfcOpenShell), buildingSMART validator jako brána
 - [ ] F5: CI brána (rychlá PR sada + noční korpus)
+- [x] Reálné modely (390 souborů RuzLet + Ifc_creator, 54 073 produktů): 0 FAILED/UNSUPPORTED/NaN; falešný PARTIAL z reprezentací typu Point opraven (2026-10-30)
+- [x] Degenerované trojúhelníky (14 638 v korpusu): příčina = kolineární vrcholy ve vstupu (Revit/ArchiCAD face sets); `mergeVerticesInPlace` je zahazuje; pipeline v7
+- [x] F4a: oracle web-ifc (`scripts/ifc-diag/oracle-compare.mjs`, bbox podle GlobalId, 47 souborů): D214 202/202 shoda; nalezeny a opraveny chyby T/L profil (počátek = střed obalu) a nonuniform scale (Scale2/3); pipeline v8
+- [x] F3c: IfcAdvancedBrep, IfcFaceBasedSurfaceModel, CSG primitiva (`geometry/advanced-brep.js`); IfcBooleanResult zůstává fallback FirstOperand (bath-csg-solid = jen blok); pipeline v9; oracle: 364 spárováno, 11 nad 1 % (10× IfcReferent = web-ifc vyhodnocuje křivku vs naše CartesianPosition, 1× web-ifc default Scale2)
+- [x] Vizuální kontrola Chrome MCP (statický server na ThinkPadu): D214 + sectioned solid bez chyb v konzoli (software WebGL, pixelované)
+- [x] F3d: halfspace clip (`halfspace-clip.js`), obecný extruded DIFFERENCE (`boolean-extra.js`, objem = web-ifc 1,0000 u 27/29 reálných produktů), IfcFixedReferenceSweptAreaSolid + TIN (`swept-extra.js`; web-ifc ignoruje Start/EndParam, bbox bez ořezu 0,03 %); pipeline v11; reálné modely: PARTIAL 0, degenerované 0
+- [x] F2b: čtyři tokenizery sjednoceny (parita 107/107 souborů), F5: korpusová brána `test:ifc-corpus` v CI (19 fixtur)
+- [ ] Zbývá: IfcReferent vs CartesianPosition (rozhodnout, co je blíž pravdě), IfcPolygonalBoundedHalfSpace nekonvexní, booleany jiné než extruze, vizuální kontrola nových typů, ADD2 EXPRESS pro IFC4X3
 
 Branch: 3d-viewer-integration

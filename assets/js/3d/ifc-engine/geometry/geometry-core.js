@@ -29,6 +29,8 @@ import {
 } from './mesh-types.js';
 import { sectionedSolidHorizontalToGeometry } from './sectioned-solid.js';
 import { tryHalfSpaceDifference } from './halfspace-clip.js';
+import { tryBooleanDifference } from './boolean-extra.js';
+import { fixedReferenceSweptAreaSolidToGeometry, triangulatedIrregularNetworkToGeometry } from './swept-extra.js';
 import { advancedBrepToGeometry, faceBasedSurfaceModelToGeometry, csgPrimitiveToGeometry } from './advanced-brep.js';
 import { parseRef, parseRefList } from './step-helpers.js';
 
@@ -84,6 +86,10 @@ function buildLeafGeometryUncached(entityIndex, itemExpressId) {
       return sweptDiskSolidToGeometry(entityIndex, itemExpressId);
     case 'IFCSECTIONEDSOLIDHORIZONTAL':
       return sectionedSolidHorizontalToGeometry(entityIndex, itemExpressId);
+    case 'IFCFIXEDREFERENCESWEPTAREASOLID':
+      return fixedReferenceSweptAreaSolidToGeometry(entityIndex, itemExpressId);
+    case 'IFCTRIANGULATEDIRREGULARNETWORK':
+      return triangulatedIrregularNetworkToGeometry(entityIndex, itemExpressId);
     case 'IFCADVANCEDBREP':
       return advancedBrepToGeometry(entityIndex, itemExpressId);
     case 'IFCFACEBASEDSURFACEMODEL':
@@ -168,7 +174,8 @@ function expandItems(entityIndex, itemRefs, parentMatrix, out, diagnostics, dept
       const secondId = parseRef(parts[2]);
       if (operator === '.DIFFERENCE.' && firstId && secondId) {
         const csgGeom = tryExtrudedDifference2D(entityIndex, firstId, secondId)
-          || tryHalfSpaceDifference(entityIndex, firstId, secondId, buildLeafGeometryUncached);
+          || tryHalfSpaceDifference(entityIndex, firstId, secondId, buildLeafGeometryUncached)
+          || tryBooleanDifference(entityIndex, firstId, secondId, buildLeafGeometryUncached);
         if (csgGeom) {
           diagnostics.exactBooleanDifferenceCount += 1;
           csgGeom.computeBoundingBox();

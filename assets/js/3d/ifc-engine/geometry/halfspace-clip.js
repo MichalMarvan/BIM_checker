@@ -58,18 +58,28 @@ const MAX_CHAIN_DEPTH = 16;
  * @returns {THREE.BufferGeometry | null} null = unsupported → caller falls back
  */
 export function tryHalfSpaceDifference(entityIndex, firstOperandId, secondOperandId, buildLeafGeometry, depth = 0) {
-  if (depth > MAX_CHAIN_DEPTH) return null;
+  if (depth > MAX_CHAIN_DEPTH) {
+    return null;
+  }
   const second = entityIndex.byExpressId(secondOperandId);
-  if (!second || !HALFSPACE_TYPES.has(second.type)) return null;
+  if (!second || !HALFSPACE_TYPES.has(second.type)) {
+    return null;
+  }
 
   const halfSpace = resolveHalfSpace(entityIndex, second);
-  if (!halfSpace) return null;
+  if (!halfSpace) {
+    return null;
+  }
 
   const base = resolveFirstOperand(entityIndex, firstOperandId, buildLeafGeometry, depth);
-  if (!base) return null;
+  if (!base) {
+    return null;
+  }
 
   const mesh = meshFromGeometry(base);
-  if (!mesh) return null;
+  if (!mesh) {
+    return null;
+  }
 
   let result;
   if (!halfSpace.boundary) {
@@ -77,7 +87,9 @@ export function tryHalfSpaceDifference(entityIndex, firstOperandId, secondOperan
   } else {
     result = clipMeshByBoundedHalfSpace(mesh, halfSpace);
   }
-  if (!result) return null;
+  if (!result) {
+    return null;
+  }
   return geometryFromMesh(result);
 }
 
@@ -85,15 +97,23 @@ export function tryHalfSpaceDifference(entityIndex, firstOperandId, secondOperan
 
 function resolveFirstOperand(entityIndex, id, buildLeafGeometry, depth) {
   const e = entityIndex.byExpressId(id);
-  if (!e) return null;
-  if (!BOOLEAN_TYPES.has(e.type)) return buildLeafGeometry(entityIndex, id);
+  if (!e) {
+    return null;
+  }
+  if (!BOOLEAN_TYPES.has(e.type)) {
+    return buildLeafGeometry(entityIndex, id);
+  }
   const parts = splitParams(e.params);
   const operator = (parts[0] || '').trim();
   const firstId = parseRef(parts[1]);
   const secondId = parseRef(parts[2]);
-  if (operator !== '.DIFFERENCE.' || !firstId || !secondId) return null;
+  if (operator !== '.DIFFERENCE.' || !firstId || !secondId) {
+    return null;
+  }
   const nested = tryHalfSpaceDifference(entityIndex, firstId, secondId, buildLeafGeometry, depth + 1);
-  if (nested) return nested;
+  if (nested) {
+    return nested;
+  }
   return tryExtrudedDifference2D(entityIndex, firstId, secondId);
 }
 
@@ -105,29 +125,45 @@ function resolveHalfSpace(entityIndex, entity) {
   const parts = splitParams(entity.params);
   const surfaceId = parseRef(parts[0]);
   const agreement = (parts[1] || '').trim();
-  if (!surfaceId || (agreement !== '.T.' && agreement !== '.F.')) return null;
+  if (!surfaceId || (agreement !== '.T.' && agreement !== '.F.')) {
+    return null;
+  }
   const surface = entityIndex.byExpressId(surfaceId);
-  if (!surface || surface.type !== 'IFCPLANE') return null;
+  if (!surface || surface.type !== 'IFCPLANE') {
+    return null;
+  }
   const posId = parseRef(splitParams(surface.params)[0]);
-  if (!posId) return null;
+  if (!posId) {
+    return null;
+  }
   const m = placement3DToMatrix(entityIndex, posId);
   const o = new THREE.Vector3().setFromMatrixPosition(m);
   const n = new THREE.Vector3(m.elements[8], m.elements[9], m.elements[10]);
-  if (!isFiniteVec(o) || !isFiniteVec(n) || n.lengthSq() < 1e-20) return null;
+  if (!isFiniteVec(o) || !isFiniteVec(n) || n.lengthSq() < 1e-20) {
+    return null;
+  }
   n.normalize();
   // AgreementFlag TRUE: material on the side opposite the normal → keep the
   // normal side. FALSE: material on the normal side → keep the opposite side.
-  if (agreement === '.F.') n.negate();
+  if (agreement === '.F.') {
+    n.negate();
+  }
   const keepPlane = { n, o };
 
-  if (entity.type === 'IFCHALFSPACESOLID') return { keepPlane, boundary: null };
+  if (entity.type === 'IFCHALFSPACESOLID') {
+    return { keepPlane, boundary: null };
+  }
 
   // IFCPOLYGONALBOUNDEDHALFSPACE(BaseSurface, AgreementFlag, Position, PolygonalBoundary)
   const positionId = parseRef(parts[2]);
   const boundaryId = parseRef(parts[3]);
-  if (!positionId || !boundaryId) return null;
+  if (!positionId || !boundaryId) {
+    return null;
+  }
   const polygon = resolveBoundaryPolygon(entityIndex, boundaryId);
-  if (!polygon) return null;
+  if (!polygon) {
+    return null;
+  }
   const matrix = placement3DToMatrix(entityIndex, positionId);
   return { keepPlane, boundary: { matrix, polygon } };
 }
@@ -135,7 +171,9 @@ function resolveHalfSpace(entityIndex, entity) {
 /** Closed IfcPolyline / IfcIndexedPolyCurve (segment-free) → 2D points, CCW, no duplicates. */
 function resolveBoundaryPolygon(entityIndex, curveId) {
   const curve = entityIndex.byExpressId(curveId);
-  if (!curve) return null;
+  if (!curve) {
+    return null;
+  }
   let pts = null;
   if (curve.type === 'IFCPOLYLINE') {
     const refs = splitParams(curve.params)[0];
@@ -143,23 +181,35 @@ function resolveBoundaryPolygon(entityIndex, curveId) {
     for (const ref of refs.replace(/^\(/, '').replace(/\)$/, '').split(',')) {
       const id = parseRef(ref.trim());
       const p = id ? entityIndex.byExpressId(id) : null;
-      if (!p || p.type !== 'IFCCARTESIANPOINT') return null;
+      if (!p || p.type !== 'IFCCARTESIANPOINT') {
+        return null;
+      }
       const c = p.params.replace(/^\(+|\)+$/g, '').split(',').map(s => parseFloat(s.trim()));
-      if (c.length < 2 || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return null;
+      if (c.length < 2 || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) {
+        return null;
+      }
       pts.push([c[0], c[1]]);
     }
   } else if (curve.type === 'IFCINDEXEDPOLYCURVE') {
     const cp = splitParams(curve.params);
     const segments = (cp[1] || '$').trim();
-    if (segments !== '$' && segments !== '*') return null; // arcs → unsupported
+    if (segments !== '$' && segments !== '*') {
+      return null;
+    } // arcs → unsupported
     const listId = parseRef(cp[0]);
     const list = listId ? entityIndex.byExpressId(listId) : null;
-    if (!list || list.type !== 'IFCCARTESIANPOINTLIST2D') return null;
+    if (!list || list.type !== 'IFCCARTESIANPOINTLIST2D') {
+      return null;
+    }
     const inner = splitParams(list.params)[0];
     const matches = inner.match(/\(([^()]+)\)/g);
-    if (!matches) return null;
+    if (!matches) {
+      return null;
+    }
     pts = matches.map(mm => mm.slice(1, -1).split(',').map(s => parseFloat(s.trim())));
-    if (pts.some(p => p.length < 2 || !Number.isFinite(p[0]) || !Number.isFinite(p[1]))) return null;
+    if (pts.some(p => p.length < 2 || !Number.isFinite(p[0]) || !Number.isFinite(p[1]))) {
+      return null;
+    }
   } else {
     return null;
   }
@@ -167,21 +217,31 @@ function resolveBoundaryPolygon(entityIndex, curveId) {
   const clean = [];
   for (const p of pts) {
     const last = clean[clean.length - 1];
-    if (last && Math.abs(last[0] - p[0]) < 1e-9 && Math.abs(last[1] - p[1]) < 1e-9) continue;
+    if (last && Math.abs(last[0] - p[0]) < 1e-9 && Math.abs(last[1] - p[1]) < 1e-9) {
+      continue;
+    }
     clean.push(p);
   }
   if (clean.length > 1) {
     const a = clean[0], b = clean[clean.length - 1];
-    if (Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9) clean.pop();
+    if (Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9) {
+      clean.pop();
+    }
   }
-  if (clean.length < 3) return null;
+  if (clean.length < 3) {
+    return null;
+  }
   let area = 0;
   for (let i = 0; i < clean.length; i++) {
     const a = clean[i], b = clean[(i + 1) % clean.length];
     area += a[0] * b[1] - b[0] * a[1];
   }
-  if (Math.abs(area) < 1e-18) return null;
-  if (area < 0) clean.reverse();
+  if (Math.abs(area) < 1e-18) {
+    return null;
+  }
+  if (area < 0) {
+    clean.reverse();
+  }
   return clean;
 }
 
@@ -204,14 +264,18 @@ function isFiniteVec(v) {
  */
 function meshFromGeometry(geom) {
   const posAttr = geom.getAttribute('position');
-  if (!posAttr || posAttr.count < 3) return null;
+  if (!posAttr || posAttr.count < 3) {
+    return null;
+  }
   const src = posAttr.array;
   const remap = new Int32Array(posAttr.count);
   const byPosition = new Map();
   const positions = [];
   for (let i = 0; i < posAttr.count; i++) {
     const x = src[i * 3], y = src[i * 3 + 1], z = src[i * 3 + 2];
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+      return null;
+    }
     const key = `${x},${y},${z}`;
     let id = byPosition.get(key);
     if (id === undefined) {
@@ -228,10 +292,14 @@ function meshFromGeometry(geom) {
     const a = remap[srcIdx ? srcIdx[t * 3] : t * 3];
     const b = remap[srcIdx ? srcIdx[t * 3 + 1] : t * 3 + 1];
     const c = remap[srcIdx ? srcIdx[t * 3 + 2] : t * 3 + 2];
-    if (a === b || b === c || a === c) continue;
+    if (a === b || b === c || a === c) {
+      continue;
+    }
     indices.push(a, b, c);
   }
-  if (indices.length < 3) return null;
+  if (indices.length < 3) {
+    return null;
+  }
   const lo = geom.userData?.localOrigin;
   const origin = lo && lo.length === 3 ? [lo[0], lo[1], lo[2]] : [0, 0, 0];
   return { positions, indices, origin };
@@ -241,11 +309,25 @@ function meshDiagonal(mesh) {
   const p = mesh.positions;
   let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
   for (let i = 0; i < p.length; i += 3) {
-    if (p[i] < minX) minX = p[i]; if (p[i] > maxX) maxX = p[i];
-    if (p[i + 1] < minY) minY = p[i + 1]; if (p[i + 1] > maxY) maxY = p[i + 1];
-    if (p[i + 2] < minZ) minZ = p[i + 2]; if (p[i + 2] > maxZ) maxZ = p[i + 2];
+    if (p[i] < minX) {
+      minX = p[i];
+    } if (p[i] > maxX) {
+      maxX = p[i];
+    }
+    if (p[i + 1] < minY) {
+      minY = p[i + 1];
+    } if (p[i + 1] > maxY) {
+      maxY = p[i + 1];
+    }
+    if (p[i + 2] < minZ) {
+      minZ = p[i + 2];
+    } if (p[i + 2] > maxZ) {
+      maxZ = p[i + 2];
+    }
   }
-  if (!Number.isFinite(minX)) return 0;
+  if (!Number.isFinite(minX)) {
+    return 0;
+  }
   return Math.hypot(maxX - minX, maxY - minY, maxZ - minZ);
 }
 
@@ -269,7 +351,9 @@ function localPlane(mesh, plane) {
 function clipMeshByPlane(mesh, plane) {
   const P = localPlane(mesh, plane);
   const diag = meshDiagonal(mesh);
-  if (diag <= 0) return null;
+  if (diag <= 0) {
+    return null;
+  }
   const eps = diag * 1e-6;
 
   const pos = mesh.positions;
@@ -279,27 +363,43 @@ function clipMeshByPlane(mesh, plane) {
   for (let i = 0; i < nVerts; i++) {
     const dv = P.nx * pos[i * 3] + P.ny * pos[i * 3 + 1] + P.nz * pos[i * 3 + 2] + P.d;
     dist[i] = Math.abs(dv) <= eps ? 0 : dv;
-    if (dist[i] < 0) anyNeg = true; else if (dist[i] > 0) anyPos = true;
+    if (dist[i] < 0) {
+      anyNeg = true;
+    } else if (dist[i] > 0) {
+      anyPos = true;
+    }
   }
   // Entirely on the kept side (or lying in the plane) → unchanged.
-  if (!anyNeg) return { positions: pos.slice(), indices: mesh.indices.slice(), origin: mesh.origin.slice() };
+  if (!anyNeg) {
+    return { positions: pos.slice(), indices: mesh.indices.slice(), origin: mesh.origin.slice() };
+  }
   // Entirely removed.
-  if (!anyPos) return { positions: [], indices: [], origin: mesh.origin.slice() };
+  if (!anyPos) {
+    return { positions: [], indices: [], origin: mesh.origin.slice() };
+  }
 
   const outPos = pos.slice();
   const outIdx = [];
   const edgeCut = new Map(); // "a:b" (a<b) → new vertex index on the plane
   const onPlane = new Set(); // vertex indices with dist == 0 (original + cut)
-  for (let i = 0; i < nVerts; i++) if (dist[i] === 0) onPlane.add(i);
+  for (let i = 0; i < nVerts; i++) {
+    if (dist[i] === 0) {
+      onPlane.add(i);
+    }
+  }
 
   const cutVertex = (a, b) => {
     const key = a < b ? `${a}:${b}` : `${b}:${a}`;
     let v = edgeCut.get(key);
-    if (v !== undefined) return v;
+    if (v !== undefined) {
+      return v;
+    }
     const da = dist[a], db = dist[b];
     const t = da / (da - db);
     v = outPos.length / 3;
-    for (let k = 0; k < 3; k++) outPos.push(pos[a * 3 + k] + t * (pos[b * 3 + k] - pos[a * 3 + k]));
+    for (let k = 0; k < 3; k++) {
+      outPos.push(pos[a * 3 + k] + t * (pos[b * 3 + k] - pos[a * 3 + k]));
+    }
     edgeCut.set(key, v);
     onPlane.add(v);
     return v;
@@ -311,21 +411,32 @@ function clipMeshByPlane(mesh, plane) {
     const tri = [idx[t], idx[t + 1], idx[t + 2]];
     const d0 = dist[tri[0]], d1 = dist[tri[1]], d2 = dist[tri[2]];
     if (d0 >= 0 && d1 >= 0 && d2 >= 0) {
-      if (d0 === 0 && d1 === 0 && d2 === 0) continue; // coplanar with the cut: cap rebuilds it
+      if (d0 === 0 && d1 === 0 && d2 === 0) {
+        continue;
+      } // coplanar with the cut: cap rebuilds it
       outIdx.push(tri[0], tri[1], tri[2]);
       continue;
     }
-    if (d0 <= 0 && d1 <= 0 && d2 <= 0) continue;
+    if (d0 <= 0 && d1 <= 0 && d2 <= 0) {
+      continue;
+    }
     // Sutherland–Hodgman against the half-plane dist >= 0.
     poly.length = 0;
     for (let k = 0; k < 3; k++) {
       const a = tri[k], b = tri[(k + 1) % 3];
       const da = dist[a], db = dist[b];
-      if (da >= 0) poly.push(a);
-      if ((da > 0 && db < 0) || (da < 0 && db > 0)) poly.push(cutVertex(a, b));
+      if (da >= 0) {
+        poly.push(a);
+      }
+      if ((da > 0 && db < 0) || (da < 0 && db > 0)) {
+        poly.push(cutVertex(a, b));
+      }
     }
-    if (poly.length === 3) outIdx.push(poly[0], poly[1], poly[2]);
-    else if (poly.length === 4) outIdx.push(poly[0], poly[1], poly[2], poly[0], poly[2], poly[3]);
+    if (poly.length === 3) {
+      outIdx.push(poly[0], poly[1], poly[2]);
+    } else if (poly.length === 4) {
+      outIdx.push(poly[0], poly[1], poly[2], poly[0], poly[2], poly[3]);
+    }
   }
 
   const result = { positions: outPos, indices: outIdx, origin: mesh.origin.slice() };
@@ -333,10 +444,14 @@ function clipMeshByPlane(mesh, plane) {
 
   // Cap: boundary edges of the kept mesh whose endpoints both lie in the plane.
   const loops = cutLoops(result, onPlane);
-  if (loops === null) return null;
+  if (loops === null) {
+    return null;
+  }
   if (loops.length) {
     const ok = appendCaps(result, loops, [-P.nx, -P.ny, -P.nz], diag);
-    if (!ok) return null;
+    if (!ok) {
+      return null;
+    }
   }
   return result;
 }
@@ -347,11 +462,15 @@ function dropDegenerateTriangles(mesh, diag) {
   const kept = [];
   for (let t = 0; t + 2 < idx.length; t += 3) {
     const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
-    if (idx[t] === idx[t + 1] || idx[t + 1] === idx[t + 2] || idx[t] === idx[t + 2]) continue;
+    if (idx[t] === idx[t + 1] || idx[t + 1] === idx[t + 2] || idx[t] === idx[t + 2]) {
+      continue;
+    }
     const ux = p[b] - p[a], uy = p[b + 1] - p[a + 1], uz = p[b + 2] - p[a + 2];
     const vx = p[c] - p[a], vy = p[c + 1] - p[a + 1], vz = p[c + 2] - p[a + 2];
     const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
-    if (cx * cx + cy * cy + cz * cz <= minArea2) continue;
+    if (cx * cx + cy * cy + cz * cz <= minArea2) {
+      continue;
+    }
     kept.push(idx[t], idx[t + 1], idx[t + 2]);
   }
   mesh.indices = kept;
@@ -366,7 +485,9 @@ function cutLoops(mesh, onPlane) {
   const idx = mesh.indices;
   const directed = new Set();
   for (let t = 0; t + 2 < idx.length; t += 3) {
-    for (let k = 0; k < 3; k++) directed.add(`${idx[t + k]}:${idx[t + (k + 1) % 3]}`);
+    for (let k = 0; k < 3; k++) {
+      directed.add(`${idx[t + k]}:${idx[t + (k + 1) % 3]}`);
+    }
   }
   // Undirected adjacency of boundary edges lying in the plane. Boundary edges
   // of the open mesh run "a→b" with no "b→a" twin; a twin pair cancels.
@@ -374,36 +495,60 @@ function cutLoops(mesh, onPlane) {
   const seenUndirected = new Set();
   for (const key of directed) {
     const [a, b] = key.split(':').map(Number);
-    if (!onPlane.has(a) || !onPlane.has(b)) continue;
-    if (directed.has(`${b}:${a}`)) continue;
+    if (!onPlane.has(a) || !onPlane.has(b)) {
+      continue;
+    }
+    if (directed.has(`${b}:${a}`)) {
+      continue;
+    }
     const ukey = a < b ? `${a}:${b}` : `${b}:${a}`;
-    if (seenUndirected.has(ukey)) continue;
+    if (seenUndirected.has(ukey)) {
+      continue;
+    }
     seenUndirected.add(ukey);
-    if (!adjacency.has(a)) adjacency.set(a, []);
-    if (!adjacency.has(b)) adjacency.set(b, []);
+    if (!adjacency.has(a)) {
+      adjacency.set(a, []);
+    }
+    if (!adjacency.has(b)) {
+      adjacency.set(b, []);
+    }
     adjacency.get(a).push(b);
     adjacency.get(b).push(a);
   }
-  if (adjacency.size === 0) return [];
-  for (const nbrs of adjacency.values()) if (nbrs.length !== 2) return null;
+  if (adjacency.size === 0) {
+    return [];
+  }
+  for (const nbrs of adjacency.values()) {
+    if (nbrs.length !== 2) {
+      return null;
+    }
+  }
 
   const loops = [];
   const visited = new Set();
   for (const start of adjacency.keys()) {
-    if (visited.has(start)) continue;
+    if (visited.has(start)) {
+      continue;
+    }
     const loop = [start];
     visited.add(start);
     let prev = -1, cur = start;
     for (;;) {
       const [n0, n1] = adjacency.get(cur);
       const next = n0 !== prev ? n0 : n1;
-      if (next === start) break;
-      if (visited.has(next)) return null; // figure-eight / pinch
+      if (next === start) {
+        break;
+      }
+      if (visited.has(next)) {
+        return null;
+      } // figure-eight / pinch
       visited.add(next);
       loop.push(next);
       prev = cur; cur = next;
     }
-    if (loop.length >= 3) loops.push(loop);
+    if (loop.length >= 3) {
+      loops.push(loop);
+    }
   }
   return loops;
 }
@@ -426,7 +571,9 @@ function appendCaps(mesh, loops, normal, diag) {
   // Orient every loop CCW in (u,v) (= normal along z), then nest by containment.
   const flat = loops.map(loop => {
     const pts2 = loop.map(project);
-    if (THREE.ShapeUtils.isClockWise(pts2)) { loop.reverse(); pts2.reverse(); }
+    if (THREE.ShapeUtils.isClockWise(pts2)) {
+      loop.reverse(); pts2.reverse();
+    }
     return { ids: loop, pts: pts2, area: Math.abs(THREE.ShapeUtils.area(pts2)) };
   });
   const minArea = (diag * 1e-9) ** 2;
@@ -435,8 +582,12 @@ function appendCaps(mesh, loops, normal, diag) {
   for (const l of live) {
     l.depth = 0;
     for (const other of live) {
-      if (other === l || other.area <= l.area) continue;
-      if (pointInPolygon(l.pts[0], other.pts)) l.depth += 1;
+      if (other === l || other.area <= l.area) {
+        continue;
+      }
+      if (pointInPolygon(l.pts[0], other.pts)) {
+        l.depth += 1;
+      }
     }
   }
   // Triangle clipping puts a cut vertex on every crossed edge, including the
@@ -450,25 +601,35 @@ function appendCaps(mesh, loops, normal, diag) {
     const holes = live.filter(h => h.depth === outer.depth + 1 && pointInPolygon(h.pts[0], outer.pts));
     const between = new Map(); // "min:max" → { from, mids } for simplified loop edges
     const outerS = simplifyLoop(outer, between);
-    if (!outerS) return false;
+    if (!outerS) {
+      return false;
+    }
     const holesS = [];
     for (const h of holes) {
       const s = simplifyLoop({ ids: [...h.ids].reverse(), pts: [...h.pts].reverse() }, between); // earcut wants CW holes
-      if (!s) return false;
+      if (!s) {
+        return false;
+      }
       holesS.push(s);
     }
     let tris;
     try {
       tris = THREE.ShapeUtils.triangulateShape(outerS.pts, holesS.map(h => h.pts));
-    } catch (e) {
+    } catch {
       return false;
     }
-    if (!tris || tris.length === 0) return false;
+    if (!tris || tris.length === 0) {
+      return false;
+    }
     const ids = [...outerS.ids];
-    for (const h of holesS) ids.push(...h.ids);
+    for (const h of holesS) {
+      ids.push(...h.ids);
+    }
     for (const t of tris) {
       const a = ids[t[0]], b = ids[t[1]], c = ids[t[2]];
-      if (a === undefined || b === undefined || c === undefined) return false;
+      if (a === undefined || b === undefined || c === undefined) {
+        return false;
+      }
       pushCapTriangle(mesh, a, b, c, between);
     }
   }
@@ -486,7 +647,9 @@ function appendCaps(mesh, loops, normal, diag) {
     for (let i = 0; i < l.ids.length; i++) {
       const a = l.ids[i], b = l.ids[(i + 1) % l.ids.length];
       const key = a < b ? `${a}:${b}` : `${b}:${a}`;
-      if (capEdges.get(key) !== 1) return false;
+      if (capEdges.get(key) !== 1) {
+        return false;
+      }
     }
   }
   dropDegenerateTriangles(mesh, diag);
@@ -504,14 +667,22 @@ function simplifyLoop(loop, between) {
     const cross = ux * vy - uy * vx;
     const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
     const collinear = Math.abs(cross) <= 1e-9 * lu * lv && (ux * vx + uy * vy) > 0;
-    if (!collinear) keep.push(i);
+    if (!collinear) {
+      keep.push(i);
+    }
   }
-  if (keep.length < 3) return null;
+  if (keep.length < 3) {
+    return null;
+  }
   for (let k = 0; k < keep.length; k++) {
     const i0 = keep[k], i1 = keep[(k + 1) % keep.length];
     const mids = [];
-    for (let i = (i0 + 1) % n; i !== i1; i = (i + 1) % n) mids.push(ids[i]);
-    if (mids.length === 0) continue;
+    for (let i = (i0 + 1) % n; i !== i1; i = (i + 1) % n) {
+      mids.push(ids[i]);
+    }
+    if (mids.length === 0) {
+      continue;
+    }
     const a = ids[i0], b = ids[i1];
     between.set(a < b ? `${a}:${b}` : `${b}:${a}`, { from: a, mids });
   }
@@ -525,8 +696,12 @@ function pushCapTriangle(mesh, a, b, c, between) {
   for (let k = 0; k < 3; k++) {
     const x = corners[k], y = corners[(k + 1) % 3];
     const entry = between.get(x < y ? `${x}:${y}` : `${y}:${x}`);
-    if (!entry) continue;
-    if (!poly) poly = [[a], [b], [c]];
+    if (!entry) {
+      continue;
+    }
+    if (!poly) {
+      poly = [[a], [b], [c]];
+    }
     poly[k].push(...(entry.from === x ? entry.mids : [...entry.mids].reverse()));
   }
   if (!poly) {
@@ -536,10 +711,14 @@ function pushCapTriangle(mesh, a, b, c, between) {
   const ring = poly.flat();
   const p = mesh.positions;
   let cx = 0, cy = 0, cz = 0;
-  for (const i of ring) { cx += p[i * 3]; cy += p[i * 3 + 1]; cz += p[i * 3 + 2]; }
+  for (const i of ring) {
+    cx += p[i * 3]; cy += p[i * 3 + 1]; cz += p[i * 3 + 2];
+  }
   const centre = p.length / 3;
   p.push(cx / ring.length, cy / ring.length, cz / ring.length);
-  for (let i = 0; i < ring.length; i++) mesh.indices.push(centre, ring[i], ring[(i + 1) % ring.length]);
+  for (let i = 0; i < ring.length; i++) {
+    mesh.indices.push(centre, ring[i], ring[(i + 1) % ring.length]);
+  }
 }
 
 function pointInPolygon(pt, poly) {
@@ -547,7 +726,9 @@ function pointInPolygon(pt, poly) {
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const a = poly[i], b = poly[j];
     if ((a.y > pt.y) !== (b.y > pt.y) &&
-        pt.x < (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+        pt.x < (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x) {
+      inside = !inside;
+    }
   }
   return inside;
 }
@@ -565,10 +746,14 @@ function pointInPolygon(pt, poly) {
 function clipMeshByBoundedHalfSpace(mesh, halfSpace) {
   const { keepPlane, boundary } = halfSpace;
   const sides = prismSidePlanes(boundary); // keep-INSIDE planes, object frame
-  if (!sides) return null;
+  if (!sides) {
+    return null;
+  }
 
   const diag = meshDiagonal(mesh);
-  if (diag <= 0) return null;
+  if (diag <= 0) {
+    return null;
+  }
   const eps = diag * 1e-6;
 
   // Trivial cases from the mesh's position relative to the prism.
@@ -578,8 +763,14 @@ function clipMeshByBoundedHalfSpace(mesh, halfSpace) {
     const p = mesh.positions;
     for (let i = 0; i < p.length; i += 3) {
       const dv = P.nx * p[i] + P.ny * p[i + 1] + P.nz * p[i + 2] + P.d;
-      if (dv < -eps) neg = true; else if (dv > eps) pos = true;
-      if (neg && pos) break;
+      if (dv < -eps) {
+        neg = true;
+      } else if (dv > eps) {
+        pos = true;
+      }
+      if (neg && pos) {
+        break;
+      }
     }
     return neg ? (pos ? 'split' : 'outside') : 'inside';
   };
@@ -588,29 +779,43 @@ function clipMeshByBoundedHalfSpace(mesh, halfSpace) {
     // Whole solid outside the prism → nothing is removed.
     return { positions: mesh.positions.slice(), indices: mesh.indices.slice(), origin: mesh.origin.slice() };
   }
-  if (classes.every(c => c === 'inside')) return clipMeshByPlane(mesh, keepPlane);
+  if (classes.every(c => c === 'inside')) {
+    return clipMeshByPlane(mesh, keepPlane);
+  }
 
   // General convex case: (first − H) + Σ pieces of (first ∩ H ∩ ¬P).
   const parts = [];
   const outsideH = clipMeshByPlane(mesh, keepPlane);
-  if (!outsideH) return null;
+  if (!outsideH) {
+    return null;
+  }
   parts.push(outsideH);
-  let insideH = clipMeshByPlane(mesh, negate(keepPlane));
-  if (!insideH) return null;
+  const insideH = clipMeshByPlane(mesh, negate(keepPlane));
+  if (!insideH) {
+    return null;
+  }
   let remaining = insideH; // first ∩ H ∩ S1 ∩ ... ∩ S(i-1)
   for (let i = 0; i < sides.length; i++) {
-    if (remaining.indices.length === 0) break;
+    if (remaining.indices.length === 0) {
+      break;
+    }
     const piece = clipMeshByPlane(remaining, negate(sides[i]));
-    if (!piece) return null;
+    if (!piece) {
+      return null;
+    }
     parts.push(piece);
     remaining = clipMeshByPlane(remaining, sides[i]);
-    if (!remaining) return null;
+    if (!remaining) {
+      return null;
+    }
   }
   const merged = { positions: [], indices: [], origin: mesh.origin.slice() };
   for (const part of parts) {
     const base = merged.positions.length / 3;
     merged.positions.push(...part.positions);
-    for (const i of part.indices) merged.indices.push(base + i);
+    for (const i of part.indices) {
+      merged.indices.push(base + i);
+    }
   }
   return merged;
 }
@@ -625,12 +830,16 @@ function prismSidePlanes(boundary) {
   const n = polygon.length;
   // Convexity: all consecutive cross products ≥ 0 (polygon is CCW).
   let scale = 0;
-  for (const p of polygon) scale = Math.max(scale, Math.abs(p[0]), Math.abs(p[1]));
+  for (const p of polygon) {
+    scale = Math.max(scale, Math.abs(p[0]), Math.abs(p[1]));
+  }
   const tol = -(scale * scale) * 1e-9;
   for (let i = 0; i < n; i++) {
     const a = polygon[i], b = polygon[(i + 1) % n], c = polygon[(i + 2) % n];
     const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
-    if (cross < tol) return null;
+    if (cross < tol) {
+      return null;
+    }
   }
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(matrix);
   const planes = [];
@@ -638,12 +847,16 @@ function prismSidePlanes(boundary) {
     const a = polygon[i], b = polygon[(i + 1) % n];
     const ex = b[0] - a[0], ey = b[1] - a[1];
     const len = Math.hypot(ex, ey);
-    if (len < 1e-12) continue;
+    if (len < 1e-12) {
+      continue;
+    }
     // CCW polygon: inside is to the left of the edge → inward normal (−ey, ex).
     const nLocal = new THREE.Vector3(-ey / len, ex / len, 0);
     const nObj = nLocal.applyMatrix3(normalMatrix).normalize();
     const oObj = new THREE.Vector3(a[0], a[1], 0).applyMatrix4(matrix);
-    if (!isFiniteVec(nObj) || !isFiniteVec(oObj)) return null;
+    if (!isFiniteVec(nObj) || !isFiniteVec(oObj)) {
+      return null;
+    }
     planes.push({ n: nObj, o: oObj });
   }
   return planes.length >= 3 ? planes : null;
@@ -653,18 +866,24 @@ function prismSidePlanes(boundary) {
 
 function geometryFromMesh(mesh) {
   const { positions, indices } = mesh;
-  if (indices.length < 3) return null;
+  if (indices.length < 3) {
+    return null;
+  }
   // Re-centre in doubles so the Float32 buffer stays small around the kept part.
   const n = positions.length / 3;
   let cx = 0, cy = 0, cz = 0;
   const used = new Uint8Array(n);
   let count = 0;
   for (const i of indices) {
-    if (used[i]) continue;
+    if (used[i]) {
+      continue;
+    }
     used[i] = 1; count++;
     cx += positions[i * 3]; cy += positions[i * 3 + 1]; cz += positions[i * 3 + 2];
   }
-  if (count === 0) return null;
+  if (count === 0) {
+    return null;
+  }
   cx /= count; cy /= count; cz /= count;
   const float32 = new Float32Array(positions.length);
   for (let i = 0; i < n; i++) {
@@ -672,7 +891,11 @@ function geometryFromMesh(mesh) {
     float32[i * 3 + 1] = positions[i * 3 + 1] - cy;
     float32[i * 3 + 2] = positions[i * 3 + 2] - cz;
   }
-  for (let i = 0; i < float32.length; i++) if (!Number.isFinite(float32[i])) return null;
+  for (let i = 0; i < float32.length; i++) {
+    if (!Number.isFinite(float32[i])) {
+      return null;
+    }
+  }
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(float32, 3));
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
@@ -680,6 +903,8 @@ function geometryFromMesh(mesh) {
   mergeVerticesInPlace(geom, 1e-4);
   computeCreasedVertexNormals(geom);
   geom.computeBoundingBox();
-  if (!geom.index || geom.index.count < 3) return null;
+  if (!geom.index || geom.index.count < 3) {
+    return null;
+  }
   return geom;
 }
