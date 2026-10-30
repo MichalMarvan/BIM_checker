@@ -5,7 +5,8 @@
 import { EntityIndex } from './parser/entity-index.js';
 import { buildLayerIndex } from './parser/presentation-layers.js';
 import { ViewerCore } from './viewer/viewer-core.js';
-import { splitParams, assertStepTextFits } from './parser/step-parser.js';
+import { splitParams } from './parser/step-parser.js';
+import { StepByteIndex } from './parser/byte-lexer.js';
 import { parseRefList } from './geometry/step-helpers.js';
 import { extractPropertiesFor } from './properties/psets.js';
 import { extractRelatedData } from './properties/related-data.js';
@@ -33,6 +34,10 @@ import { extractLengthScale, buildContextScaleMap } from './parser/units.js';
 import { detectProductTypes } from './parser/product-detect.js';
 import { serializeModelCache, deserializeModelCache } from './cache/model-cache.js';
 import { resolveGuidsInIndex } from './parser/guid-resolve.js';
+
+// Parser worker watchdog: fail only after this long WITHOUT any message
+// (heartbeat or result) from the worker — see _parseInWorker.
+const PARSE_IDLE_TIMEOUT_MS = 60000;
 
 let _modelCounter = 0;
 function generateModelId() {
@@ -71,13 +76,26 @@ export class IfcEngine {
 
   /**
    * Parse and store an IFC file.
-   * @param {ArrayBuffer | string} input — file buffer or text
+   *
+   * Bytes are never decoded into one JS string: the worker indexes them with
+   * the byte lexer and the engine reads entities lazily off the buffer, so
+   * files above V8's 512 MiB string cap load too. An ArrayBuffer (or a view
+   * covering its whole buffer) is TRANSFERRED to the worker and comes back
+   * detached for the caller; a partial view or a Blob is copied first. A
+   * string input (legacy callers, tests) is UTF-8 encoded and takes the same
+   * route.
+   *
+   * @param {ArrayBuffer | Uint8Array | Blob | string} input — file bytes or text
    * @param {{ name: string }} options
    * @returns {Promise<string>} modelId
    */
   async loadIfc(input, options) {
     if (!options || !options.name) {
       throw new Error('loadIfc: options.name is required');
+    }
+    if (input && typeof input !== 'string' && !(input instanceof ArrayBuffer) && !ArrayBuffer.isView(input)
+        && typeof input.arrayBuffer === 'function') {
+      input = await input.arrayBuffer();
     }
     // Rendering the existing scene competes with the parse worker for CPU
     // cores — but only brutally so on software-GL (measured 15 s → 220 s+ on
@@ -99,25 +117,31 @@ export class IfcEngine {
     };
     try {
       const t0 = performance.now();
-      // Chromium returns '' (no exception) when a buffer exceeds V8's string
-      // limit — fail loudly here instead of loading an empty model.
-      const inputBytes = typeof input === 'string' ? 0 : (input?.byteLength ?? 0);
-      assertStepTextFits(inputBytes, undefined, options.name);
-      let text = typeof input === 'string' ? input : new TextDecoder('utf-8').decode(input);
-      assertStepTextFits(inputBytes, text, options.name);
+      let bytes;
+      if (typeof input === 'string') {
+        bytes = new TextEncoder().encode(input);
+      } else if (input instanceof ArrayBuffer) {
+        bytes = new Uint8Array(input);
+      } else if (ArrayBuffer.isView(input)) {
+        // Transfer needs the whole buffer; a partial view (e.g. a Node Buffer
+        // from the pool) is copied so the neighbours stay intact.
+        bytes = input.byteOffset === 0 && input.byteLength === input.buffer.byteLength
+          ? new Uint8Array(input.buffer)
+          : new Uint8Array(input.slice().buffer);
+      } else {
+        throw new TypeError(`loadIfc: unsupported input (${input === null ? 'null' : typeof input})`);
+      }
+      input = null;
       const t1 = performance.now();
 
-      const { entities, schema, viewDefinitions } = await this._parseInWorker(text);
-      // The raw file text (and the caller's buffer) would otherwise stay
-      // referenced through the whole geometry build — that's file-size × 2 of
-      // dead weight per in-flight model. Release both now; everything below
-      // works off the parsed entities.
-      text = null;
-      input = null;
+      const byteIndex = await this._parseInWorker(bytes);
+      bytes = null;
+      const { schema, viewDefinitions } = byteIndex;
       const t2 = performance.now();
       releaseParsePause();
-      const entityMap = new Map(entities.map(e => [e.expressId, e]));
-      const index = new EntityIndex(entityMap);
+      // The file bytes stay referenced by the index until compact() copies
+      // the surviving entities out and releases them (see EntityIndex).
+      const index = new EntityIndex(byteIndex);
       // Build style index once per model: maps geometry item expressId → hex color
       // from IfcStyledItem chain. Geometry-core reads this via index._styleIndex
       // when assembling per-item results.
@@ -169,7 +193,7 @@ export class IfcEngine {
       // Leaf-geometry cache (mapped-item instancing) is only useful while
       // meshes are being built — free the typed arrays now.
       index._leafGeomCache = null;
-      console.log(`[ifc-engine] loadIfc timings (ms): decode=${(t1 - t0).toFixed(0)} parse=${(t2 - t1).toFixed(0)} index=${(t3 - t2).toFixed(0)} geometry=${(t4 - t3).toFixed(0)} total=${(performance.now() - t0).toFixed(0)} | compacted ${dropped} geometry entities (${index.stats().entityCount} kept)`);
+      console.log(`[ifc-engine] loadIfc timings (ms): prep=${(t1 - t0).toFixed(0)} parse=${(t2 - t1).toFixed(0)} index=${(t3 - t2).toFixed(0)} geometry=${(t4 - t3).toFixed(0)} total=${(performance.now() - t0).toFixed(0)} | compacted ${dropped} geometry entities (${index.stats().entityCount} kept)`);
       return modelId;
     } finally {
       releaseParsePause();
@@ -1854,27 +1878,64 @@ export class IfcEngine {
 
   // --- private ---
 
-  _parseInWorker(text) {
-
+  /**
+   * Index the file bytes in the parser worker. The buffer is transferred
+   * there and back (zero copy); the result is a StepByteIndex.
+   *
+   * Watchdog: instead of a fixed 60 s budget (a 1 GB file legitimately lexes
+   * for longer on a slow machine) the worker must show signs of life — a
+   * progress heartbeat every ~8 MiB of input, i.e. every ~0.1 s on the main
+   * thread of a laptop — and the timer restarts on each message. It only
+   * fires after PARSE_IDLE_TIMEOUT_MS without any message, which covers
+   * worker start-up, the final lookup/transfer phase and GC pauses with a
+   * wide margin, and still catches a crashed or wedged worker.
+   *
+   * @param {Uint8Array} bytes — view over the whole buffer to transfer
+   * @returns {Promise<StepByteIndex>}
+   */
+  _parseInWorker(bytes) {
     return new Promise((resolve, reject) => {
       const worker = new Worker(this._workerUrl, { type: 'module' });
-      const timeout = setTimeout(() => {
+      let timer = null;
+      let lastProgress = -1;
+      const stop = () => {
+        clearTimeout(timer);
+        timer = null;
         worker.terminate();
-        reject(new Error('parser worker timeout (60s)'));
-      }, 60000);
+      };
+      const arm = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          stop();
+          const at = lastProgress < 0 ? 'before the first progress message' : `at ${(lastProgress / 1048576).toFixed(0)} MB`;
+          reject(new Error(`parser worker produced no progress for ${PARSE_IDLE_TIMEOUT_MS / 1000}s (${at})`));
+        }, PARSE_IDLE_TIMEOUT_MS);
+      };
 
       worker.onmessage = (e) => {
-        clearTimeout(timeout);
-        worker.terminate();
-        if (e.data && e.data.ok) resolve(e.data);
-        else reject(new Error(e.data?.error || 'worker returned not-ok'));
+        const msg = e.data;
+        if (msg && msg.progress) {
+          lastProgress = msg.done;
+          arm();
+          return;
+        }
+        stop();
+        if (msg && msg.ok) {
+          try {
+            resolve(StepByteIndex.fromTransferable(msg.bytes, msg.fields));
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          reject(new Error(msg?.error || 'worker returned not-ok'));
+        }
       };
       worker.onerror = (e) => {
-        clearTimeout(timeout);
-        worker.terminate();
+        stop();
         reject(new Error(e.message || 'worker error'));
       };
-      worker.postMessage({ cmd: 'parse', text });
+      arm();
+      worker.postMessage({ cmd: 'parse', bytes: bytes.buffer }, [bytes.buffer]);
     });
   }
 

@@ -170,7 +170,31 @@ přípony `.ifc`; reálné cesty se deduplikují, adresářové cykly se nepřec
 `--limit=N` vezme prvních N souborů ze seřazeného seznamu.
 `--timeout=120` je limit v sekundách na celý soubor (včetně načtení stránky).
 `--out=…` je adresář, výchozí `test-results/ifc-diagnostics/geometry`.
+`--parser=bytes|text` volí cestu parseru: `bytes` (výchozí) = produkční
+`indexStepBytes` + `EntityIndex` nad bajtovým úložištěm (stejný kód jako
+`IfcEngine.loadIfc`), `text` = původní `parseStepText` + Map (orákulum parity).
 Návratový kód: 0 dokončeno, 2 některý soubor `FILE_ERROR`, 1 chyba spuštění/vstupů.
+
+### Parita parseru (`compare-diagnose.mjs`) a paměťová sonda (`engine-memory-probe.mjs`)
+
+```sh
+tp-run 'node scripts/ifc-diag/geometry-diagnose.mjs ~/shared/real/RuzLet --parser=text  --timeout=600 --out=test-results/ifc-diagnostics/parity-text'
+tp-run 'node scripts/ifc-diag/geometry-diagnose.mjs ~/shared/real/RuzLet --parser=bytes --timeout=600 --out=test-results/ifc-diagnostics/parity-bytes'
+tp-run 'node scripts/ifc-diag/compare-diagnose.mjs test-results/ifc-diagnostics/parity-text test-results/ifc-diagnostics/parity-bytes'
+```
+
+`compare-diagnose.mjs` porovná oba běhy produkt po produktu (stav, důvod,
+leafTypes, počty položek/vrcholů/trojúhelníků, NaN, degenerované, `bboxLocal`,
+diag, GUID) a parserovou diagnostiku; `differences=0` = identický výstup.
+
+`engine-memory-probe.mjs` načte model skutečným `IfcEngine` (worker, index,
+geometrie, `compact()`) v headless Chromiu a po fázích zapíše JS heap (po
+vynuceném GC) a RSS celého stromu procesů prohlížeče; vstup může přijít rourou
+(`--stdin=jméno`), takže velký soubor nemusí ležet na disku ThinkPadu:
+
+```sh
+cat ~/shared/3D_modely/IFC/D214X.ifc | ssh thinkpad "cd work/BIM_checker && node scripts/ifc-diag/engine-memory-probe.mjs --stdin=D214X.ifc --merged --heap=8192 --out=/tmp/probe-D214X.json"
+```
 
 ## Rozsah a stavy
 

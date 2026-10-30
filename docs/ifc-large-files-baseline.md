@@ -274,6 +274,52 @@ proti `parseStepText` (kde šlo porovnat) a nad celým korpusem 1651 souborů /
 (viz `scripts/ifc-diag/README.md`); syntetický velký soubor
 `scripts/ifc-diag/make-large-ifc.mjs`.
 
+## Fáze 2+3: engine nad bajty (EntityStore, worker s transferem, compact s uvolněním bajtů)
+
+Stav po implementaci (větev `3d-viewer-integration`, nad `343f09f`):
+`loadIfc` přijímá `ArrayBuffer`/`Uint8Array`/`Blob`/`string`; bajty se
+transferují do `workers/parser.worker.js`, ten spustí `indexStepBytes` a vrátí
+sloupce (typed arrays) + bajty zpět transferem. `EntityIndex` pracuje nad
+`parser/entity-store.js` (Map-kompatibilní, líné `LazyEntity`, byType přes
+counting sort, GUID index líně jen z prvního atributu root entit přímo z bajtů);
+`compact()` překopíruje přeživší entity do Map řetězců a bajty uvolní. Pevný
+60s timeout nahradil watchdog nečinnosti (heartbeat workeru každých 8 MiB,
+`PARSE_IDLE_TIMEOUT_MS = 60 s` bez zprávy).
+
+**MĚŘENÉ** (`scripts/ifc-diag/engine-memory-probe.mjs`, headless Chromium
+z Puppeteeru, `--merged`, swiftshader, jediný běh; heap = `usedJSHeapSize` po
+`gc()`, zahrnuje i ArrayBuffery; RSS = součet stromu procesů prohlížeče, vzorek
+po 250 ms; "starý" = worktree `343f09f`):
+
+| Model | Engine | parse ms | load ms | heap po parse | heap po načtení (po compact) | peak RSS |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| D214X (452,5 MiB, 4 977 286 entit, 16 901 produktů) | starý (string) | 14 812 | 47 831 | 1 581 MiB | 874 MiB | 4 596 MiB |
+| D214X | nový (bajty) | 6 882 | 35 712 | 550 MiB | 934 MiB | 2 190 MiB |
+| D3_SO204 (801,1 MiB, 13 808 371 entit, 8 946 produktů) | starý | nelze (nad limit řetězce) | — | — | — | — |
+| D3_SO204 | nový | 13 443 | 74 191 | 1 058 MiB | 1 414 MiB | 3 273 MiB |
+
+Fáze D3_SO204 nového enginu (`loadIfc timings`): parse 13 461, index 1 535,
+geometrie 58 703, compact 361 ms; 13 799 368 entit zahozeno, 9 003 ponecháno.
+Oba modely mají v obou enginech shodné geometrické statistiky (počty produktů,
+0 unsupported/fallback/invalid) a shodný počet ponechaných entit po compact
+(D214X: 818 934, GUID 273 839). Heap po načtení D214X je u nového enginu o
+~60 MiB vyšší než u starého (934 vs 874 MiB) — jediný běh, příčina
+**NEOVĚŘENÁ** (pravděpodobně dosud neuvolněná externí paměť ArrayBufferů v
+okamžiku vzorku; po compact nic bajty nedrží — `storeGone=true`).
+
+**MĚŘENÉ** parita: `geometry-diagnose.mjs --parser=text` vs `--parser=bytes`
+nad `~/shared/real/RuzLet` (352 souborů, 50 787 produktů):
+`compare-diagnose.mjs` → `differences=0` (stav, důvod, leafTypes, items,
+vertices, triangles, NaN, degenerované, bboxLocal, diag, GUID, parserová
+diagnostika). Korpusová brána `corpus-gate.mjs` (nově nad bajtovou cestou):
+19 souborů, regressions=0.
+
+Úzké místo pro ještě větší soubory (**ODHAD** z měření): v prohlížeči musí
+současně existovat soubor (1×, transferem) + sloupce (~15 B/entitu + dense
+lookup 4 B/id) + `fetch().arrayBuffer()`; u D3_SO204 to bylo 2,1 GiB RSS po
+parse. Další limit je 2 GiB/4 GiB na jeden ArrayBuffer v Chromiu a čas
+geometrie (59 s z 74 s) na hlavním vlákně.
+
 ## Reprodukce
 
 Všechny Node příkazy běží přes `tp-run` na ThinkPadu. Měřicí sonda

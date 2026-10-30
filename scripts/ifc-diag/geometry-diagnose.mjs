@@ -13,22 +13,25 @@ const STATES = ['OK_EXACT', 'OK_APPROXIMATED', 'PARTIAL', 'UNSUPPORTED_GEOMETRY'
 const counts = () => Object.fromEntries(STATES.map(s => [s, 0]));
 const rank = obj => Object.entries(obj).map(([type, count]) => ({ type, count }))
   .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
-const usage = 'node scripts/ifc-diag/geometry-diagnose.mjs <file|directory>... [--out=directory] [--timeout=120] [--limit=N]';
+const usage = 'node scripts/ifc-diag/geometry-diagnose.mjs <file|directory>... [--out=directory] [--timeout=120] [--limit=N] [--parser=bytes|text]';
 
 function argumentsFrom(argv) {
-  const options = { inputs: [], out: 'test-results/ifc-diagnostics/geometry', timeout: 120, limit: Infinity };
+  // parser: 'bytes' = production path (byte lexer + EntityStore), 'text' = legacy parseStepText oracle.
+  const options = { inputs: [], out: 'test-results/ifc-diagnostics/geometry', timeout: 120, limit: Infinity, parser: 'bytes' };
   for (const arg of argv) {
     if (arg === '--help' || arg === '-h') { console.log(usage); return null; }
     if (arg.startsWith('--out=')) options.out = arg.slice(6);
     else if (arg.startsWith('--timeout=')) options.timeout = Number(arg.slice(10));
     else if (arg.startsWith('--limit=')) options.limit = Number(arg.slice(8));
+    else if (arg.startsWith('--parser=')) options.parser = arg.slice(9);
     else if (arg.startsWith('-')) throw new Error(`Unknown argument: ${arg}`);
     else options.inputs.push(arg);
   }
   if (!options.inputs.length) throw new Error(usage);
   if (!options.out || !Number.isFinite(options.timeout) || options.timeout <= 0 ||
-      !(options.limit === Infinity || (Number.isInteger(options.limit) && options.limit > 0))) {
-    throw new Error('Expected a nonempty --out, positive --timeout and positive integer --limit.');
+      !(options.limit === Infinity || (Number.isInteger(options.limit) && options.limit > 0)) ||
+      !['bytes', 'text'].includes(options.parser)) {
+    throw new Error('Expected a nonempty --out, positive --timeout, positive integer --limit and --parser=bytes|text.');
   }
   options.out = path.resolve(options.out);
   return options;
@@ -93,7 +96,7 @@ async function run(options) {
   const report = { version: 1, startedAt: new Date().toISOString(), options: { ...options, limit: Number.isFinite(options.limit) ? options.limit : null },
     productSelection: 'detectProductTypes(index) union HIDDEN_PRODUCT_TYPES',
     engineSourceRoot: root,
-    engineSha256: Object.fromEntries(['parser/step-parser.js', 'parser/entity-index.js',
+    engineSha256: Object.fromEntries(['parser/step-parser.js', 'parser/byte-lexer.js', 'parser/entity-store.js', 'parser/entity-index.js',
       'parser/product-detect.js', 'geometry/geometry-core.js', 'geometry/mesh-types.js', 'constants.js']
       .map(file => [file, createHash('sha256').update(readFileSync(path.join(root, 'assets/js/3d/ifc-engine', file))).digest('hex')])),
     files: [], totals: {}, elapsedMs: 0 };
@@ -196,7 +199,7 @@ async function run(options) {
           const load = async () => {
             await page.goto(`${origin}/scripts/ifc-diag/diag-page.html`, { waitUntil: 'load', timeout: options.timeout * 1000 });
             await page.waitForFunction('typeof window.diagnose === "function"', { timeout: options.timeout * 1000 });
-            await page.evaluate(token => window.diagnose(token), token);
+            await page.evaluate((token, parser) => window.diagnose(token, { parser }), token, options.parser);
           };
           return Promise.race([load(), crash]);
         };

@@ -1,39 +1,48 @@
-// EntityIndex — secondary indexes over Map<expressId, RawEntity>.
+// EntityIndex — secondary indexes over the entities of one model.
 // Provides O(1) lookups by expressId, type (case-insensitive), and GUID.
+//
+// Two storage modes behind one API:
+//  - Map mode: Map<expressId, RawEntity> (parseStepText output, .bimcache
+//    restore, tests). Type and GUID indexes are built eagerly, as before.
+//  - store mode: EntityStore over a StepByteIndex (file kept as bytes, no
+//    object per entity). byType() walks the store's counting-sort position
+//    index, the GUID index is built lazily on first use from the first
+//    attribute of root entities only, and compact() copies the survivors into
+//    a plain Map (strings) and releases the bytes — after compact() the index
+//    IS in Map mode and nothing references the file buffer any more.
 
 import { IFC_ROOT_TYPES, IFC_NON_ROOT_TYPES } from './ifc-root-types.js';
+import { StepByteIndex } from './byte-lexer.js';
+import { EntityStore, firstAttrStringOf } from './entity-store.js';
 
 // Konzervativní tvar IfcGloballyUniqueId: 22 znaků base64 abecedy IFC, první
 // znak 0–3 (128 bitů UUID = 21×6 + 2 bity). Používá se jen pro typy, které
 // nejsou ve schématu známé jako podtyp IfcRoot.
 const STRICT_GUID_RE = /^[0-3][0-9A-Za-z_$]{21}$/;
 
-/**
- * Vrátí obsah PRVNÍHO atributu, pokud je to uvozený řetězec (surový obsah,
- * bez rozbalení '' escapu). Jinak null — první atribut je #ref, $, číslo,
- * výčet, seznam nebo řetězec je neuzavřený / následuje něco jiného než čárka.
- * Dříve se bral první řetězec KDEKOLI v params, což indexovalo i Name
- * u IfcPropertySingleValue apod. jako falešné GUID.
- */
-function extractFirstAttrString(params) {
-  const n = params.length;
-  let i = 0;
-  while (i < n && (params[i] === ' ' || params[i] === '\t' || params[i] === '\r' || params[i] === '\n')) i++;
-  if (params[i] !== "'") return null;
-  let j = i + 1;
-  while (j < n) {
-    if (params[j] === "'") {
-      if (params[j + 1] === "'") { j += 2; continue; }
-      break;
-    }
-    j++;
+// Types compact() keeps regardless of GUID (see compact()).
+const KEEP_TYPE = /^IFC(PROPERTY|ELEMENTQUANTITY|QUANTITY|PHYSICAL|MATERIAL|CLASSIFICATION|SIUNIT|UNIT|DERIVEDUNIT|MONETARYUNIT|MEASUREWITHUNIT|MAPCONVERSION|PROJECTEDCRS|COORDINATEREFERENCESYSTEM|ALIGNMENT|OWNERHISTORY|APPLICATION|PERSON|ORGANIZATION|ACTORROLE|PRESENTATIONLAYER)/;
+
+// GUID eligibility of a type: 0 = never, 1 = root (first string attr is the
+// GlobalId), 2 = unknown type (strict GUID shape only).
+function guidClassOf(type) {
+  if (IFC_ROOT_TYPES.has(type)) {
+    return 1;
   }
-  if (j >= n) return null;
-  let k = j + 1;
-  while (k < n && (params[k] === ' ' || params[k] === '\t' || params[k] === '\r' || params[k] === '\n')) k++;
-  if (k < n && params[k] !== ',') return null;
-  const s = params.slice(i + 1, j);
-  return s.length ? s : null;
+  if (IFC_NON_ROOT_TYPES.has(type)) {
+    return 0;
+  }
+  return 2;
+}
+
+function guidFromFirstAttr(cls, s) {
+  if (s === null || cls === 0) {
+    return null;
+  }
+  if (cls === 1) {
+    return s;
+  }
+  return STRICT_GUID_RE.test(s) ? s : null;
 }
 
 /**
@@ -46,22 +55,34 @@ function extractFirstAttrString(params) {
  *    (22 znaků, abeceda, první znak 0–3)
  */
 export function extractGuid(type, params) {
-  const s = extractFirstAttrString(params);
-  if (s === null) return null;
-  if (IFC_ROOT_TYPES.has(type)) return s;
-  if (IFC_NON_ROOT_TYPES.has(type)) return null;
-  return STRICT_GUID_RE.test(s) ? s : null;
+  const cls = guidClassOf(type);
+  if (cls === 0) {
+    return null;
+  }
+  return guidFromFirstAttr(cls, firstAttrStringOf(params));
 }
 
 export class EntityIndex {
   /**
-   * @param {Map<number, RawEntity>} entities — output of parseStepText
+   * @param {Map<number, RawEntity> | EntityStore | StepByteIndex} entities —
+   *   output of parseStepText, or the byte index from indexStepBytes
    */
   constructor(entities) {
+    this._guidMap = null;       // Map<guid, expressId>
+    this._guidDuplicates = 0;   // počet přepsání existujícího GUID (poslední vyhrává)
+    if (entities instanceof StepByteIndex) {
+      entities = new EntityStore(entities);
+    }
+    if (entities instanceof EntityStore) {
+      this._store = entities;
+      this._byId = entities;
+      this._byType = null;
+      return;
+    }
+    this._store = null;
     this._byId = entities;
     this._byType = new Map();   // Map<UPPERCASE_TYPE, Set<expressId>>
-    this._byGuid = new Map();   // Map<guid, expressId>
-    this._guidDuplicates = 0;   // počet přepsání existujícího GUID (poslední vyhrává)
+    this._guidMap = new Map();
 
     for (const [id, entity] of entities) {
       // Index by type
@@ -75,10 +96,46 @@ export class EntityIndex {
       // Index by GUID — schema-aware (viz extractGuid)
       const guid = extractGuid(entity.type, entity.params);
       if (guid !== null) {
-        if (this._byGuid.has(guid)) this._guidDuplicates++;
-        this._byGuid.set(guid, id);
+        this._addGuid(guid, id);
       }
     }
+  }
+
+  _addGuid(guid, id) {
+    if (this._guidMap.has(guid)) {
+      this._guidDuplicates++;
+    }
+    this._guidMap.set(guid, id);
+  }
+
+  /**
+   * Map<guid, expressId>. In store mode it is built on first access by
+   * reading the first attribute of root-eligible entities straight from the
+   * bytes (entity order, so duplicates resolve "last wins" like Map mode).
+   */
+  get _byGuid() {
+    if (this._guidMap) {
+      return this._guidMap;
+    }
+    const store = this._store;
+    const ix = store.index;
+    const cls = new Uint8Array(ix.typeNames.length);
+    for (let t = 0; t < cls.length; t++) {
+      cls[t] = guidClassOf(ix.typeNames[t]);
+    }
+    this._guidMap = new Map();
+    const { typeIdx, ids, count } = ix;
+    for (let i = 0; i < count; i++) {
+      const c = cls[typeIdx[i]];
+      if (c === 0) {
+        continue;
+      }
+      const guid = guidFromFirstAttr(c, store.firstAttrString(i));
+      if (guid !== null) {
+        this._addGuid(guid, ids[i]);
+      }
+    }
+    return this._guidMap;
   }
 
   /** @returns {RawEntity | null} */
@@ -92,8 +149,24 @@ export class EntityIndex {
    * @returns {RawEntity[]}
    */
   byType(type) {
-    const ids = this._byType.get(type.toUpperCase());
-    if (!ids) return [];
+    const upper = type.toUpperCase();
+    if (this._store) {
+      const t = this._store.typeIndexOf(upper);
+      if (t < 0) {
+        return [];
+      }
+      const pos = this._store.positionsOfType(t);
+      const ix = this._store.index;
+      const out = new Array(pos.length);
+      for (let k = 0; k < pos.length; k++) {
+        out[k] = ix.entity(pos[k]);
+      }
+      return out;
+    }
+    const ids = this._byType.get(upper);
+    if (!ids) {
+      return [];
+    }
     return [...ids].map(id => this._byId.get(id));
   }
 
@@ -105,14 +178,15 @@ export class EntityIndex {
 
   /** @returns {string[]} sorted list of unique IFC types */
   types() {
-    return [...this._byType.keys()].sort();
+    const names = this._store ? this._store.presentTypeNames() : [...this._byType.keys()];
+    return names.sort();
   }
 
   /** @returns {{ entityCount: number, typeCount: number, guidCount: number, guidDuplicates: number }} */
   stats() {
     return {
       entityCount: this._byId.size,
-      typeCount: this._byType.size,
+      typeCount: this._store ? this._store.presentTypeNames().length : this._byType.size,
       guidCount: this._byGuid.size,
       guidDuplicates: this._guidDuplicates,
     };
@@ -132,10 +206,13 @@ export class EntityIndex {
    * Callers must warm whatever caches read geometry entities (e.g.
    * engine.getCoords) BEFORE compacting.
    *
+   * Store mode: survivors are copied into a Map of plain { expressId, type,
+   * params } objects (same set, same order and same strings as Map mode) and
+   * the byte store is released, so the file buffer can be collected.
+   *
    * @returns {number} count of dropped entities
    */
   compact() {
-    const KEEP_TYPE = /^IFC(PROPERTY|ELEMENTQUANTITY|QUANTITY|PHYSICAL|MATERIAL|CLASSIFICATION|SIUNIT|UNIT|DERIVEDUNIT|MONETARYUNIT|MEASUREWITHUNIT|MAPCONVERSION|PROJECTEDCRS|COORDINATEREFERENCESYSTEM|ALIGNMENT|OWNERHISTORY|APPLICATION|PERSON|ORGANIZATION|ACTORROLE|PRESENTATIONLAYER)/;
     const keep = new Set(this._byGuid.values());
 
     // Reference closure from alignment entities (params hold #id refs).
@@ -145,37 +222,89 @@ export class EntityIndex {
     // v keep od začátku) by jinak walk přeskočil a jejich Representation
     // řetěz (PDS → ShapeRep → GradientCurve) by kompakce zahodila.
     const stack = [];
-    for (const [id, e] of this._byId) {
-      if (e.type.startsWith('IFCALIGNMENT') || e.type === 'IFCLINEARPLACEMENT') stack.push(id);
+    for (const t of this.types()) {
+      if (t.startsWith('IFCALIGNMENT') || t === 'IFCLINEARPLACEMENT') {
+        for (const e of this.byType(t)) {
+          stack.push(e.expressId);
+        }
+      }
     }
     const visited = new Set();
     while (stack.length) {
       const id = stack.pop();
-      if (visited.has(id)) continue;
+      if (visited.has(id)) {
+        continue;
+      }
       visited.add(id);
       keep.add(id);
       const e = this._byId.get(id);
-      if (!e) continue;
+      if (!e) {
+        continue;
+      }
       const refs = e.params.match(/#\d+/g);
       if (refs) {
         for (const r of refs) {
           const rid = parseInt(r.slice(1), 10);
-          if (!visited.has(rid)) stack.push(rid);
+          if (!visited.has(rid)) {
+            stack.push(rid);
+          }
         }
       }
     }
 
+    if (this._store) {
+      return this._compactStore(keep);
+    }
+
     let dropped = 0;
     for (const [id, e] of this._byId) {
-      if (keep.has(id) || KEEP_TYPE.test(e.type)) continue;
+      if (keep.has(id) || KEEP_TYPE.test(e.type)) {
+        continue;
+      }
       this._byId.delete(id);
       const typeSet = this._byType.get(e.type);
       if (typeSet) {
         typeSet.delete(id);
-        if (typeSet.size === 0) this._byType.delete(e.type);
+        if (typeSet.size === 0) {
+          this._byType.delete(e.type);
+        }
       }
       dropped++;
     }
     return dropped;
+  }
+
+  /** Store mode compact(): copy survivors to a Map, switch to Map mode, release bytes. */
+  _compactStore(keep) {
+    const store = this._store;
+    const ix = store.index;
+    const { typeNames, typeIdx, ids, count } = ix;
+    const keepType = new Uint8Array(typeNames.length);
+    for (let t = 0; t < keepType.length; t++) {
+      keepType[t] = KEEP_TYPE.test(typeNames[t]) ? 1 : 0;
+    }
+
+    const byId = new Map();
+    const byType = new Map();
+    for (let i = 0; i < count; i++) {
+      const id = ids[i];
+      const t = typeIdx[i];
+      if (!keepType[t] && !keep.has(id)) {
+        continue;
+      }
+      const type = typeNames[t];
+      byId.set(id, { expressId: id, type, params: ix.paramsString(i) });
+      let typeSet = byType.get(type);
+      if (!typeSet) {
+        typeSet = new Set();
+        byType.set(type, typeSet);
+      }
+      typeSet.add(id);
+    }
+    this._byId = byId;
+    this._byType = byType;
+    this._store = null;
+    store.release();
+    return count - byId.size;
   }
 }

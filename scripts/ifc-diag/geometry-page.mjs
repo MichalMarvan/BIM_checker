@@ -1,6 +1,7 @@
 // Browser only. Import the actual engine; never compact or run the viewer filter.
 import * as THREE from 'three';
 import { parseStepText, splitParams } from '../../assets/js/3d/ifc-engine/parser/step-parser.js';
+import { indexStepBytes } from '../../assets/js/3d/ifc-engine/parser/byte-lexer.js';
 import { EntityIndex } from '../../assets/js/3d/ifc-engine/parser/entity-index.js';
 import { detectProductTypes } from '../../assets/js/3d/ifc-engine/parser/product-detect.js';
 import { HIDDEN_PRODUCT_TYPES } from '../../assets/js/3d/ifc-engine/constants.js';
@@ -140,7 +141,15 @@ function record(index, entity) {
   return row;
 }
 
-export async function diagnose(token) {
+/**
+ * @param {string} token
+ * @param {{ parser?: 'bytes' | 'text' }} [options] — 'bytes' (default) is the
+ *   engine's production path (indexStepBytes + EntityIndex over the byte
+ *   store); 'text' is the legacy parseStepText + Map path, kept as the oracle
+ *   for parity runs.
+ */
+export async function diagnose(token, options = {}) {
+  const parser = options.parser === 'text' ? 'text' : 'bytes';
   const post = async data => {
     const response = await fetch(`/__report/${token}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
@@ -149,18 +158,29 @@ export async function diagnose(token) {
   };
   const response = await fetch(`/__ifc/${token}`);
   if (!response.ok) throw new Error(`input-http:${response.status}`);
-  let text = await response.text();
-  const start = performance.now();
-  const parsed = parseStepText(text);
-  text = null;
-  const parseMs = performance.now() - start;
+  let parsed, entities, parseMs;
+  if (parser === 'text') {
+    let text = await response.text();
+    const start = performance.now();
+    parsed = parseStepText(text);
+    text = null;
+    parseMs = performance.now() - start;
+    entities = parsed.entities;
+  } else {
+    const buffer = await response.arrayBuffer();
+    const start = performance.now();
+    entities = indexStepBytes(new Uint8Array(buffer));
+    parseMs = performance.now() - start;
+    parsed = { schema: entities.schema, viewDefinitions: entities.viewDefinitions,
+      diagnostics: entities.diagnostics, entities: { size: entities.count } };
+  }
   const indexStart = performance.now();
-  const index = new EntityIndex(parsed.entities);
+  const index = new EntityIndex(entities);
   const types = new Set([...detectProductTypes(index), ...HIDDEN_PRODUCT_TYPES]);
   const productCount = [...types].reduce((sum, type) => sum + index.byType(type).length, 0);
   const heap = () => performance.memory?.usedJSHeapSize ?? null;
   await post({ metadata: { schema: parsed.schema, viewDefinitions: parsed.viewDefinitions,
-    parserDiagnostics: parsed.diagnostics, entityCount: parsed.entities.size, productCount,
+    parserDiagnostics: parsed.diagnostics, entityCount: parsed.entities.size, productCount, parser,
     parseMs, indexMs: performance.now() - indexStart }, heapBytes: heap() });
   let rows = [], geometryMs = 0, inspectionMs = 0;
   // geometryMs includes representation traversal + buffer inspection; excludes HTTP.

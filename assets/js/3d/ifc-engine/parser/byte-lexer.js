@@ -23,6 +23,8 @@
 const MAX_DIAGNOSTIC_SAMPLES = 100;
 const COMPLEX = -2;
 const INVALID = -1;
+// Byte interval between two onProgress calls (~0.1 s of lexing per step).
+export const PROGRESS_STEP = 8 * 1024 * 1024;
 
 // Byte classes for the main scan: 1 = ', 2 = /, 3 = ;, 4 = #.
 const CLS = new Uint8Array(256);
@@ -84,7 +86,7 @@ function stripComments(s) {
 }
 
 /** Decode UTF-8 bytes [s, e) to a string; short pure-ASCII ranges avoid TextDecoder. */
-function decodeRange(bytes, s, e) {
+export function decodeRange(bytes, s, e) {
   const len = e - s;
   if (len === 0) {
     return '';
@@ -111,11 +113,21 @@ export class LazyEntity {
     this.type = index.typeNames[index.typeIdx[i]];
     this._index = index;
     this._i = i;
+    this._params = null;
   }
 
-  /** RAW params (no IFC string decode), identical to parseStepText's `params`. */
+  /**
+   * RAW params (no IFC string decode), identical to parseStepText's `params`.
+   * Decoded once per view: consumers read `e.params` several times in a row
+   * (match, then splitParams) and the view itself is short-lived.
+   */
   get params() {
-    return this._index.paramsString(this._i);
+    let p = this._params;
+    if (p === null) {
+      p = this._index.paramsString(this._i);
+      this._params = p;
+    }
+    return p;
   }
 
   get line() {
@@ -192,6 +204,72 @@ export class StepByteIndex {
       yield new LazyEntity(this, i);
     }
   }
+
+  /**
+   * Plain-object form for postMessage: every column is a typed array whose
+   * buffer goes into the returned `transfer` list (zero copy). The sparse
+   * Map lookup is NOT sent — a structured clone of a 14 M-entry Map is slower
+   * than rebuilding it from `ids` on the receiving side (fromTransferable).
+   * The index must not be used after its buffers have been transferred.
+   */
+  toTransferable() {
+    const fields = {
+      count: this.count,
+      ids: this.ids,
+      typeIdx: this.typeIdx,
+      typeNames: this.typeNames,
+      paramsStart: this.paramsStart,
+      paramsLen: this.paramsLen,
+      flags: this.flags,
+      lines: this.lines,
+      schema: this.schema,
+      viewDefinitions: this.viewDefinitions,
+      diagnostics: this.diagnostics,
+      maxId: this.maxId,
+      lookupKind: this.lookupKind,
+      dense: this._dense
+    };
+    const transfer = [this.bytes.buffer, this.ids.buffer, this.typeIdx.buffer, this.paramsStart.buffer,
+      this.paramsLen.buffer, this.flags.buffer];
+    if (this.lines) {
+      transfer.push(this.lines.buffer);
+    }
+    if (this._dense) {
+      transfer.push(this._dense.buffer);
+    }
+    return { bytes: this.bytes, fields, transfer };
+  }
+
+  /** Inverse of toTransferable (bytes = the same Uint8Array, received back). */
+  static fromTransferable(bytes, fields) {
+    if (bytes instanceof ArrayBuffer) {
+      bytes = new Uint8Array(bytes);
+    }
+    const lookup = fields.lookupKind === 'dense'
+      ? { lookupKind: 'dense', dense: fields.dense, map: null }
+      : buildLookup(fields.ids, fields.count, fields.maxId);
+    return new StepByteIndex(bytes, { ...fields, ...lookup });
+  }
+}
+
+/**
+ * Lookup table for unique ids (duplicates already folded): dense Int32Array
+ * when ids are reasonably packed (4 B per id up to maxId), Map otherwise.
+ */
+export function buildLookup(ids, count, maxId) {
+  const dense = maxId + 1 <= 8 * count + 1024;
+  if (dense) {
+    const table = new Int32Array(maxId + 1).fill(-1);
+    for (let j = 0; j < count; j++) {
+      table[ids[j]] = j;
+    }
+    return { lookupKind: 'dense', dense: table, map: null };
+  }
+  const map = new Map();
+  for (let j = 0; j < count; j++) {
+    map.set(ids[j], j);
+  }
+  return { lookupKind: 'map', dense: null, map };
 }
 
 /** RAW params of entity at position i — free function form of index.paramsString(i). */
@@ -272,10 +350,12 @@ function findSchema(bytes) {
  * Build the entity index of a STEP file held as bytes.
  *
  * @param {Uint8Array} bytes — whole file (a Buffer works too; a plain Uint8Array view is faster)
- * @param {{ lines?: boolean, allDataSections?: boolean }} [opts]
+ * @param {{ lines?: boolean, allDataSections?: boolean, onProgress?: (done: number, total: number) => void }} [opts]
  *   lines: also record the 1-based line of every entity (costs 4 B/entity and a newline count).
  *   allDataSections: after ENDSEC keep scanning for further `DATA;` sections.
  *     Off by default because parseStepText stops at the first ENDSEC.
+ *   onProgress: called at record boundaries roughly every PROGRESS_STEP bytes
+ *     (the parser worker turns it into a heartbeat for the main-thread watchdog).
  * @returns {StepByteIndex}
  */
 export function indexStepBytes(bytes, opts = {}) {
@@ -288,6 +368,8 @@ export function indexStepBytes(bytes, opts = {}) {
   const n = bytes.length;
   const wantLines = !!opts.lines;
   const allSections = !!opts.allDataSections;
+  const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
+  let nextProgress = onProgress ? PROGRESS_STEP : Infinity;
 
   // ---- growable columns (doubling, trimmed with slice() at the end) ----
   // paramsStart: Uint32Array covers files < 4 GiB — the only sizes a browser
@@ -739,6 +821,10 @@ export function indexStepBytes(bytes, opts = {}) {
       recBegin = i;
       segStart = i;
       resetRecord();
+      if (i >= nextProgress) {
+        nextProgress = i + PROGRESS_STEP;
+        onProgress(i, n);
+      }
       if (!cont) {
         const next = allSections ? findDataMarker(bytes, i) : null;
         if (next === null) {
