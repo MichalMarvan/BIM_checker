@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-29T23:29:16.681Z",
+  "generatedAt": "2026-10-30T00:45:44.170Z",
   "engineSha256": {
     "parser/step-parser.js": "e8b62178acd51e6a3b9d716f40b924ea0327baa753cd7ee8f0c1d0d468ec616c",
     "parser/entity-index.js": "15c1620804b2ff7c8d11f90050d48e4de984fe7241e714ae55dbd3479c965233",
     "parser/product-detect.js": "9584c874b8e3e77121a044ada2fd38ff803b9e2dc65b1be8fad07adff4c4aaa6",
-    "geometry/geometry-core.js": "ed37c6078fea7b7ee255761e23f54d8b5ae3a8a4e8638aad95e9a97373fc0984",
+    "geometry/geometry-core.js": "99f7fc84537ecbc4767a8d1cfb599b7b240f5e7794af91a484f397fd7f5d5d7b",
     "geometry/mesh-types.js": "ca5998458af48b613febfb4200c61b830f85912d2bd24bae3813223ca4860b62",
     "constants.js": "0dd7973c0350d8023f52bfafa80e8a8e5c2d4c38a66432a8f7d904a8fa44400e"
   },
@@ -358,11 +358,11 @@
       "productCount": 10,
       "processedProducts": 10,
       "counts": {
-        "OK_EXACT": 0,
+        "OK_EXACT": 1,
         "OK_APPROXIMATED": 0,
         "PARTIAL": 0,
         "NO_REPRESENTATION": 0,
-        "UNSUPPORTED_GEOMETRY": 1,
+        "UNSUPPORTED_GEOMETRY": 0,
         "FAILED_GEOMETRY": 0,
         "NOT_APPLICABLE": 9
       },
@@ -434,13 +434,11 @@
         },
         "107": {
           "ifcType": "IFCBUILTELEMENT",
-          "status": "UNSUPPORTED_GEOMETRY",
-          "triangles": 0,
+          "status": "OK_EXACT",
+          "triangles": 412,
           "nanCount": 0,
           "degenerateTriangles": 0,
-          "unsupported": [
-            "IFCFIXEDREFERENCESWEPTAREASOLID"
-          ]
+          "unsupported": []
         },
         "1101": {
           "ifcType": "IFCALIGNMENTSEGMENT",
