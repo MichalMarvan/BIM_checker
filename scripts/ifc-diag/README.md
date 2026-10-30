@@ -292,6 +292,28 @@ tp-run 'node scripts/ifc-diag/parser-parity.mjs tests/fixtures/ifc-corpus ~/shar
 Návratový kód 2 = nalezen rozdíl. Syntetické případy hlídá
 `tests/test-suites/ifc-parser-parity.test.js`.
 
+## Parita byte-lexeru (`byte-lexer-parity.mjs`)
+
+`assets/js/3d/ifc-engine/parser/byte-lexer.js` indexuje STEP přímo nad
+`Uint8Array` (struct-of-arrays, params se dekódují líně) a nepotřebuje celý
+soubor jako jeden JS řetězec (limit V8 2^29 code units). Skript pro každý
+soubor porovná s `parseStepText` počet entit, pořadí, typ, RAW params,
+čísla řádků a diagnostiku (počty i vzorky) a změří čas a paměť obou cest
+(`heapUsed` + `arrayBuffers`, s `--expose-gc` po GC).
+
+```sh
+tp-run 'node --expose-gc scripts/ifc-diag/byte-lexer-parity.mjs tests/fixtures/ifc-corpus ~/shared/real/RuzLet/2021_0204_RuzLet_Modely ~/shared/buildingsmart --max-mb=600 --quiet'
+# model nad limit řetězce nebo mimo ThinkPad: pošli bajty rourou, nic se nekopíruje na disk
+cat ~/shared/3D_modely/IFC/D3_SO204.ifc | ssh thinkpad "cd work/BIM_checker && bash -lc 'node --expose-gc --max-old-space-size=12000 scripts/ifc-diag/byte-lexer-parity.mjs --stdin=D3_SO204.ifc --index-only'"
+```
+
+Soubory větší než `MAX_STEP_TEXT_BYTES` se automaticky zpracují jen
+byte-lexerem (`INDEX` místo `OK`). Návratový kód 2 = rozdíl. Syntetické
+hrany a diferenciální test nad `tests/fixtures/ifc-corpus` hlídá
+`tests/test-suites/ifc-byte-lexer.test.js`. Pozor: `tp-run` synchronizuje
+s `--delete`, takže JSON výstup v `test-results/` na ThinkPadu přežije jen do
+dalšího `tp-run` — stáhni ho `tp-run --pull test-results` hned po běhu.
+
 ## Ověření harnessu
 
 ```sh

@@ -1,0 +1,282 @@
+# Fáze 0: baseline velkých IFC — částečně změřeno
+
+Datum sběru: 2026-10-30. Větev `3d-viewer-integration`, základ
+`6d3abaf12f4682fa37708ce92c4d53e2ebf658ab`. Tato úloha nemění produkční engine.
+Veškeré Node/npm příkazy běžely přes `tp-run` na ThinkPadu, nikoli na Pi.
+
+**Omezení: hlavní vstupy nebyly při sběru fáze 0 na ThinkPadu** (leží na Pi); jejich čísla viz dodatek na konci.
+`~/shared/3D_modely/IFC`. Hledání souborů `D214X.ifc` a `D3_SO204.ifc`
+v `/home/michal`, `/media`, `/mnt` ani ve sdílených adresářích je nenašlo.
+Existují starší diagnostické výstupy v `~/shared/huge`, ale jejich vstupní IFC
+už tam nejsou. O aktuální umístění vstupů byl uživatel požádán.
+Nová měření proto pokrývají níže uvedené dostupné soubory, nikoli celý požadovaný
+adresář. Počet entit a distribuce typů **D3_SO204 nejsou změřené**. Tím nejsou
+úkoly měření hlavních vstupů dokončené.
+
+Značení: **MĚŘENÉ** = nový běh nebo výpočet z jeho přesných počítadel;
+**MĚŘENÉ — historický log** = převzatý výsledek, nyní nereprodukovaný;
+**ODHAD** = extrapolace či heuristická klasifikace;
+**NEOVĚŘENÉ** = chybějící měření. B jsou bajty, MB jsou desetinné,
+MiB = 2^20 B a GiB = 2^30 B (definice jednotek, nikoli měření).
+
+## Prostředí a metodika
+
+**MĚŘENÉ:** ThinkPad, Intel Core i5-10310U, 8 logických CPU,
+RAM 16 348 016 640 B; Node `v22.21.0`, V8 `12.4.254.21-node.33`, x86_64.
+`tp-status` hlásil OK pro tailscale, SSH, Chroma a Ollama.
+Před generováním bylo dostupných **10 372 788 224 B (MĚŘENÉ)** na cílovém disku.
+
+Každý soubor se měřil v samostatném Node procesu s
+`--expose-gc --max-old-space-size=6144` (konfigurace). Použit byl přímo
+`parseStepText` a následně `EntityIndex`; měřicí sonda je v příloze.
+`parser-inventory.mjs` posloužil jako základ použití těchto API a byl spuštěn
+odděleně jako referenční kontrola. Jeho další Map a kopie záznamů nejsou součástí
+níže měřeného heapu.
+
+Snapshoty `process.memoryUsage()` byly po `global.gc()`: před čtením, po
+dekódování, po parsování při drženém textu, po `text = null` a po `EntityIndex`.
+Čas parse zahrnuje pouze synchronní `parseStepText`, bez čtení, explicitního GC,
+workeru, serializace, sekundárních indexů a geometrie. Jediný běh každého souboru;
+nejde o statistiku opakovaných časových měření. `heapUsed` není celková paměť
+browseru ani špička workerového přenosu.
+
+`params` se měří jako `Buffer.byteLength(params, 'utf8')`; percentily používají
+nearest rank (`ceil(p*N)-1`). Průměr B/entitu ve vstupu je velikost celého souboru
+včetně HEADER dělená počtem entit. Počítadla literálů procházejí i vnořené seznamy
+a typované hodnoty: řetězce v apostrofech, číselné literály, zvlášť `#refs`.
+Enumy, `$`, `*`, čísla uvnitř textů a číslice v názvech typů nejsou čísla.
+Jsou to lexikální hodnoty, nikoli počet atributů EXPRESS.
+
+## Vstupy a výsledky
+
+Zkratky a skutečné cesty na ThinkPadu:
+
+- **A:** `~/shared/real/RuzLet/D.2.1.4/D214_SO112201.ifc`
+- **B:** `~/shared/real/RuzLet/D.2.1.4/D214_SO132401.ifc`
+- **C:** `~/shared/real/RuzLet/2021_0204_RuzLet_Modely/D.2.1.6.1/D2161_SO123106.ifc`
+
+Všechny číselné buňky následujících tří tabulek jsou **MĚŘENÉ**; poměry jsou
+vypočtené z naměřených čítačů a zaokrouhlené až pro zobrazení.
+
+| Soubor | Vstup B | Entit | B vstupu/entitu | params průměr B | params p50 B | params p99 B | params max B | parse ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A | 17 608 478 | 338 968 | 51,947 | 26,413 | 11 | 76 | 197 841 | 409,63 |
+| B | 18 999 814 | 225 098 | 84,407 | 57,830 | 22 | 101 | 202 055 | 303,04 |
+| C | 28 992 805 | 550 199 | 52,695 | 25,652 | 11 | 80 | 105 577 | 776,47 |
+
+| Soubor | Součet params B | Řetězcové literály | Číselné literály | Reference | Řetězcová pole RawEntity | Číselná pole RawEntity |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| A | 8 953 246 | 27 174 | 180 152 | 584 003 | 677 936 | 677 936 |
+| B | 13 017 315 | 174 062 | 595 850 | 374 844 | 450 196 | 450 196 |
+| C | 14 113 751 | 61 880 | 249 952 | 926 386 | 1 100 398 | 1 100 398 |
+
+Pole RawEntity jsou `type`, `params` (řetězce) a `expressId`, `line` (čísla),
+tedy počet každé skupiny = `2*N` podle kódu. Číselné literály uvnitř `params`
+v této fázi **nejsou samostatné JS Number hodnoty**, stále jsou textem.
+
+| Soubor | heap před B | heap po decode B | heap po parse B | heap po text=null B | heap s EntityIndex B | přídavek parse/entitu B | retained/entitu B | s indexem/entitu B |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A | 4 327 928 | 21 931 872 | 76 508 376 | 76 501 840 | 86 192 656 | 161,008 | 212,922 | 241,512 |
+| B | 4 327 928 | 23 323 208 | 57 209 680 | 57 203 368 | 64 426 344 | 150,541 | 234,900 | 266,988 |
+| C | 4 327 952 | 33 316 224 | 127 593 072 | 127 593 216 | 148 027 400 | 171,350 | 224,038 | 261,177 |
+
+Přídavek parse = `(heapPoParse - heapPoDecode)/N`, retained =
+`(heapPoTextNull - heapPřed)/N`, s indexem = `(heapSIndexem - heapPřed)/N`.
+Zahrnují Map, entity a jejich stringy, nikoli jen mělkou velikost objektu.
+Uvolnění proměnné `text` zde téměř nesnižuje heap: výsledek odpovídá tomu, že
+substringy `params` drží podkladový text (**ODHAD mechanismu z měření a slice
+v parseru**, bez heap snapshotu jednotlivých objektů). Nesmí se k retained
+hodnotě přičíst vstupní text ještě jednou.
+
+**MĚŘENÉ:** ve všech nových parsech je nulový počet neplatných záznamů,
+duplicitních ID a komplexních entit, žádný neukončený záznam. Samostatný
+`parser-inventory.mjs` potvrdil shodu s referenčním skenerem: celkem
+**1 114 265 entit (MĚŘENÉ)**, žádné chybějící/přebývající entity ani rozdíly
+v params. Příkaz je uveden v příloze.
+
+**MĚŘENÉ** identifikátory vstupů (SHA-256):
+
+| Vstup | SHA-256 |
+| --- | --- |
+| A | `e72cfe5f2c742a15de0300a3339c08f4b14e1ed7ec8d26a2f5d933db0abb239f` |
+| B | `ec7d2938dfbf0c89927c9ad686b02a6f7a94101b45cb40353d9183f47529ff6a` |
+| C | `954c7788ab79ead7989b6a598aa7ee31eedbc97535266b1d757fd266c2ba81bd` |
+
+## D214X a D3_SO204: dostupné důkazy a mezery
+
+| Údaj | D214X.ifc | D3_SO204.ifc |
+| --- | --- | --- |
+| Velikost | 474 514 946 B — **MĚŘENÉ, historický log** | „840 MB“ — **NEOVĚŘENÉ**, údaj zadání, chybí stat |
+| Entit | 4 977 177 — **MĚŘENÉ, historický log** | **NEOVĚŘENÉ**, soubor chybí, blokový sken neproběhl |
+| B vstupu/entitu | 95,338 — **MĚŘENÉ, výpočet z historického logu** | **NEOVĚŘENÉ** |
+| Typů | 38 — **MĚŘENÉ, historický log**, rozpis není k dispozici | **NEOVĚŘENÉ**, distribuce není k dispozici |
+| Geometrické entity | 4 158 243, tj. 83,55 % — **ODHAD** podle počtu odhozeného compact() | **NEOVĚŘENÉ**, bez typů nelze klasifikovat |
+| Renderované produkty | 16 901 — **MĚŘENÉ, historický log**, není to počet geometrických entit | **NEOVĚŘENÉ** |
+| params průměr/p50/p99, literály | **NEOVĚŘENÉ**, nová sonda neměla vstup | **NEOVĚŘENÉ** |
+| Heap před/po parse a B/entitu | **NEOVĚŘENÉ**, historický log tyto snapshoty nemá | **NEOVĚŘENÉ**, současný engine soubor odmítne před decode |
+
+Počet odhozených entit není přesná taxonomie geometrie: `EntityIndex.compact()`
+zachovává GUID, vybrané prefixy a referenční uzávěr alignmentů a jiné entity
+zahazuje. Produkt s geometrií také není totéž co bod, stěna BREP nebo placement.
+Z podílu D214X zde neodvozuji údaj o geometrii D3_SO204.
+
+Při dodání D3_SO204 lze použít blokový řádkový skener v příloze. Jeho počty
+je nutné označit **ODHAD**: metoda předpokládá jednu celou entitu na řádku,
+není plnohodnotný STEP tokenizer. Je třeba zveřejnit rozpis typů i seznam
+typů započítaných do geometrie. Žádný rozpis D3_SO204 nebyl v tomto běhu získán.
+
+## Proč nezasáhl timeout
+
+Zdroj: existující `~/shared/huge/logs/probe-D214X.log` na ThinkPadu,
+přečtený v tomto běhu. Relevantní uložený řádek:
+
+```text
+[ifc-engine] loadIfc timings (ms): decode=354 parse=13975 index=4978 geometry=23948 total=46834 | compacted 4158243 geometry entities (818934 kept)
+```
+
+Všechna čísla v citaci jsou **MĚŘENÁ — historický log**, nikoli nový benchmark.
+Tentýž log má `loadMs=57063`, `wallMs=59125`, `heapMiB=2235` a
+`peakRssMiB=4805` (**MĚŘENÉ — historický log**). Poslední dvě hodnoty nemají
+metodiku izolace parseru a nejsou použity jako bajty/entitu dnešní reprezentace.
+Ani wall/load čas není hodnota kontrolovaná parserovým timeoutem.
+
+Čtení aktuálního kódu:
+
+- [`index.js`, `loadIfc`](../assets/js/3d/ifc-engine/index.js) měří decode před
+  `_parseInWorker`, parse jako dobu čekání na `_parseInWorker`, a teprve potom
+  index a geometrii. Log vznikne až po pozdějších krocích včetně compact().
+- `_parseInWorker` vytváří `setTimeout(..., 60000)` před `worker.postMessage`;
+  handler zprávy i chyby timer ruší a worker ukončuje. Neexistuje prodlužování
+  timeoutu ani průběžný heartbeat (**OVĚŘENO čtením kódu**; 60 s je konfigurace).
+- Skutečný worker je
+  [`workers/parser.worker.js`](../assets/js/3d/ifc-engine/workers/parser.worker.js),
+  nikoli `parser/parser.worker.js`. Volá synchronní `parseStepText`, převádí
+  Map na pole a posílá entity structured clone. Měřená fáze parse na hlavním
+  vlákně tak zahrnuje i spuštění workeru a komunikaci/kopírování.
+
+**Závěr z historického měření:** fáze parse trvala **13,975 s**, což je pod
+limitem **60 s**; následná geometrie tento timeout nepoužívá. Samotný čas
+`parseStepText` uvnitř browser workeru je **NEOVĚŘENÝ** a nový běh D214X se
+neuskutečnil. Timer navíc není tvrdý wall-clock watchdog při blokovaném hlavním
+vlákně, ale zde není potřeba tím vysvětlovat výsledek pod limitem.
+Verze engine pro starý browser log není doložena. Sousední historický
+`out5/summary.json` obsahuje jiný hash parseru než současný, proto jeho další
+časové údaje neslučuji s novým měřením.
+
+## Generátor a ověření nad limitem
+
+Nový skript: [`make-large-ifc.mjs`](../scripts/ifc-diag/make-large-ifc.mjs).
+Použití (cílová velikost je minimum v MiB, konfigurace):
+
+```sh
+tp-run 'node scripts/ifc-diag/make-large-ifc.mjs \
+  ~/shared/real/RuzLet/D.2.1.4/D214_SO112201.ifc \
+  ~/tmp-large/phase0-baseline-700.ifc 700'
+```
+
+Skript používá bloky a jednotlivé STEP záznamy, ne řetězec celého souboru.
+Latin1 slouží jako vratné mapování bajtů; původní UTF-8 bajty se zachovávají.
+Rozlišuje apostrofy, zdvojené apostrofy a blokové komentáře přes hranice bloků;
+komentáře odstraňuje, obsah řetězců zachovává. Posouvá definice ID i všechny
+skutečné `#refs` o `copy * maxId`, i u dopředných a cyklických referencí.
+Text `'#123'` zůstává textem. GlobalId zůstává původní, takže opakované kopie
+mají duplicitní GUID, což zadání připouští.
+
+Podporuje jeden prostý DATA oddíl se simple entity instances, zachovává HEADER
+a zapisuje obě ENDSEC a END-ISO. Více DATA oddílů, komplexní entity, prázdná data,
+neuzavřené tokeny, duplicitní ID, dangling refs a nebezpečně velká ID odmítá.
+Paměť roste s množinou **zdrojových** ID a největším záznamem, ne s cílovým
+souborem. Limit záznamu **64 MiB**, blok **1 MiB** a rezerva na disku
+**256 MiB** jsou záměrné konfigurační limity, nikoli naměřené spotřeby.
+`statfs` kontroluje konzervativní horní mez včetně růstu počtu číslic v ID.
+Existující výstup nepřepisuje (`wx`); vlastní částečný výstup po chybě odstraní.
+Vstup musí po celou dobu zůstat neměnný.
+
+Výsledky následující tabulky jsou **MĚŘENÉ**, kromě explicitně označené meze:
+
+| Kontrola | Výsledek |
+| --- | ---: |
+| Zdrojové entity A | 338 968 |
+| Kopie DATA | 43 |
+| Výstup B | 805 309 283 |
+| Entity výstupu | 14 575 624 = 43 × 338 968 |
+| Zkontrolované reference | 25 112 129 |
+| Duplicitní expressId / dangling refs / nerozpoznané DATA řádky | 0 / 0 / 0 |
+| HEADER / DATA / ENDSEC / závěrečný END-ISO | 1 / 1 / 2 / přítomen |
+| Čas nezávislé kontroly ms | 22 805,51 |
+| Peak RSS procesu kontroly B | 136 187 904 |
+| Horní mez výstupu pro kontrolu disku | 1 020 393 364 B — **ODHAD, konzervativní mez** |
+
+**MĚŘENÉ:** SHA-256 výstupu
+`0d00e3495f56b089f57c36805fe3e278012861b6cde9d7367c5c99176a6ee920`.
+Soubor po kontrole smazán; `test ! -e ~/tmp-large/phase0-baseline-700.ifc`
+prošel. Na Pi se žádný velký IFC nepřenášel.
+
+Nezávislá kontrola používá Node fs/readline, nikoli skener generátoru. V tomto
+konkrétním výstupu jsou všechny entity na jednom řádku a ID tvoří úplný interval
+od prvního ID do počtu entit. Bitset kontroluje unikátnost a úplnost intervalu;
+každá reference musí do tohoto intervalu patřit. Kontroluje též tvar záznamů,
+vyváženost závorek a obálku. Proto nulové dangling refs zde nejsou jen
+pravděpodobnostní vzorek. Pro obecná řídká ID by tento validátor potřeboval
+další průchod/množinu ID. **NEOVĚŘENÉ:** úplná validita dle EXPRESS, geometrická
+smysluplnost opakovaných projektů a unikátnost GlobalId; ta ani není zamýšlena.
+
+**MĚŘENÉ:** dočasný funkční harness prošel 24 kontrolami: hranice bloků
+o velikostech 1/2/3/7/17/64 B, UTF-8, uvozené reference a středníky, víceřádkové
+entity, posunuté dopředné/cyklické reference, shoda s produkčním parserem na
+malém výstupu, zákaz přepisu a stejné vstupní/výstupní cesty, neplatné velikosti,
+nedostatek místa, dangling refs, duplicitní/unsafe ID, neuzavřené řetězce,
+komentáře a obálka, závorky, odmítnutí komplexních entit, více DATA a prázdných
+dat. Samostatně prošla dodatečná kontrola ID s úvodními nulami a dosažení
+minimální cílové velikosti (**MĚŘENÉ**).
+
+**MĚŘENÉ:** požadovaný `npx eslint scripts/ifc-diag/make-large-ifc.mjs` prošel.
+`eslint --print-config` však vrací `rules: {}`: projektová pravidla se vztahují
+na `assets/js/**/*.js`, nikoli diagnostické skripty. Provedena proto i čistá
+kontrola dočasnou konfigurací s `no-unused-vars`, `no-undef`, `no-unreachable`,
+`no-dupe-args`, `no-constant-condition`, `no-loss-of-precision`, `no-redeclare`
+a `eqeqeq`. Prošel také `node --check`. Produkční eslint konfigurace se nemění.
+
+## Odhad paměti a závěr
+
+**ODHAD, podmíněný chybějícím vstupem:** pokud „840 MB“ pro D3_SO204 znamená
+`F = 840 000 000 B` a soubor má stejných `95,338 B/entitu` jako historický D214X,
+pak `N ≈ 8,811 milionu` entit; nejde o blokově změřený počet D3_SO204. Při
+přídavku parseru `150,541–171,350 B/entitu` naměřeném na dostupných menších IFC
+by současná reprezentace hypoteticky držela `F + N * přídavek ≈ 2,17–2,35 GB`
+heapu, s obdobnými sekundárními indexy přibližně `2,45–2,68 GB` (**ODHAD**, bez
+workerových kopií, vstupního ArrayBufferu, geometrie a špiček GC; současný guard
+takto velký vstup ve skutečnosti odmítne). Navržená SoA s oddělenými poli
+`Int32 id + Uint16 typ + Uint32 offset + Uint32 délka` má aritmeticky
+`14 B/entitu`; se souborem v `Uint8Array` tedy `F + 14*N ≈ 963,35 MB`, čili
+`0,897 GiB` (**ODHAD kapacity, nikoli implementované řešení ani změřené RSS**).
+Nezahrnuje typový slovník, další indexy, režii bufferů ani dočasné alokace a
+předpokládá ID a offsety v rozsahu uvedených typů. Přesný závěr pro D3_SO204
+vyžaduje jeho skutečný počet entit, typy a velikost; bez tohoto souboru je
+číselné srovnání jen scénář, nikoli dokončený baseline požadovaných modelů.
+
+## Dodatek: velké soubory změřené bajtovým lexerem (fáze 1)
+
+Velké soubory leží jen na Pi (`~/shared/3D_modely/IFC`), proto se streamovaly
+`cat | ssh thinkpad node …` bez zápisu na disk ThinkPadu. **MĚŘENÉ**
+(Node 22, `--expose-gc`, jediný běh):
+
+| Soubor | Velikost | Entit | Dnešní parser (čas / heap) | Bajtový index (čas / typed arrays) |
+| --- | ---: | ---: | ---: | ---: |
+| D218_SO115005 | 220 MB | 4 304 297 | 6 094 ms / 928 MB | 3 715 ms / 106 MB |
+| D214X | 453 MB | 4 977 286 | 8 206 ms / 1 238 MB | 5 294 ms / 109 MB |
+| D3_SO204 | 801 MB | **13 808 371** | nelze (nad limit řetězce) | 12 088 ms / ~320 MB (výpočet; měření rušil GC) |
+
+D3_SO204 má tedy 13,8 M entit, ne ~8,8 M z odhadu výše (ten předpokládal
+stejnou hustotu jako D214X). Bajtový index prošel všemi třemi soubory s 0 rozdíly
+proti `parseStepText` (kde šlo porovnat) a nad celým korpusem 1651 souborů /
+18 379 407 entit s 0 rozdíly. Reprodukce: `scripts/ifc-diag/byte-lexer-parity.mjs`
+(viz `scripts/ifc-diag/README.md`); syntetický velký soubor
+`scripts/ifc-diag/make-large-ifc.mjs`.
+
+## Reprodukce
+
+Všechny Node příkazy běží přes `tp-run` na ThinkPadu. Měřicí sonda
+(`parseStepText` + `EntityIndex` se snapshoty `process.memoryUsage()` po
+`global.gc()`) a blokový validátor generátoru byly dočasné soubory v `/tmp`
+a nejsou verzované. Skutečný worker je `workers/parser.worker.js`.
