@@ -174,3 +174,30 @@ describe('Compression.decompressToBytes', () => {
         expect(new TextDecoder().decode(bytes) === s).toBe(true);
     });
 });
+
+describe('Compression.compress input types', () => {
+    it('compresses a Blob (streamed) and bytes to the same content as a string', async () => {
+        const original = 'ISO-10303-21; ěščř ' + 'x'.repeat(5000);
+        const fromString = await Compression.decompress(await Compression.compress(original));
+        const fromBlob = await Compression.decompress(await Compression.compress(new Blob([original])));
+        const fromBytes = await Compression.decompress(await Compression.compress(new TextEncoder().encode(original)));
+        expect(fromString === original).toBe(true);
+        expect(fromBlob === original).toBe(true);
+        expect(fromBytes === original).toBe(true);
+    });
+
+    it('rejects unsupported input types', async () => {
+        let threw = false;
+        try {
+            await Compression.compress(42);
+        } catch (e) {
+            threw = e instanceof TypeError;
+        }
+        expect(threw).toBe(true);
+    });
+
+    it('decompress() of an empty-string gzip stays an empty string (no false truncation error)', async () => {
+        const gz = await Compression.compress('');
+        expect((await Compression.decompress(gz)) === '').toBe(true);
+    });
+});

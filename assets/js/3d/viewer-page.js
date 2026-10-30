@@ -201,7 +201,7 @@ async function loadIfcFromStorage(fileMeta) {
     try {
         setStatus(`${t('viewer3d.loading') || 'Načítám'} ${fileMeta.name}…`);
         let raw = await window.BIMStorage.getFileBytes('ifc', fileMeta.id);
-        if (!raw) {
+        if (!raw || raw.byteLength === 0 || raw.length === 0) {
             throw new Error('Empty file content');
         }
         let buffer;

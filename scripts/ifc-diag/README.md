@@ -198,6 +198,23 @@ cat ~/shared/3D_modely/IFC/D214X.ifc | ssh thinkpad "cd work/BIM_checker && node
 
 ## Rozsah a stavy
 
+`viewer-ui-probe.mjs` měří skutečné UI v čistém headless Chromiu: otevře
+`pages/3d-viewer.html`, přes homepage `#ifcFileInput` nahraje IFC (viewer nemá
+vlastní upload), potvrdí dialog velkého souboru a ve vieweru klikne na Storage
+„Načíst“. Bez obcházení importu zaznamená FileReader, gzip, potvrzení IDB zápisu,
+`getFileBytes`/gunzip, počty modelů/produktů/meshů/trojúhelníků, dokončené snímky,
+chyby konzole, časy a vrchol RSS stromu Chromia po 250 ms (včetně screenshotu,
+bez Node, bez vynuceného GC). Příklad:
+`tp-run 'node scripts/ifc-diag/viewer-ui-probe.mjs ~/shared/real/RuzLet/D.2.1.4/D214_SO112201.ifc --timeout=180 --out=/tmp/viewer-ui-small.json --screenshot=/tmp/viewer-ui-small.png'`.
+JSON vypíše na stdout i do `--out`, PNG uloží do `--screenshot`; výchozí cesty
+jsou v `/tmp`, `--heap=8192`, `--timeout=1800` sekund. Návratový kód 0 vyžaduje
+úspěšný UI status, neprázdnou geometrii bez ztráty WebGL kontextu a bez
+`pageerror`/`console.error`; jinak 1. Výstupy čtěte přes `ssh -n thinkpad cat …`
+nebo stáhněte `scp`; měřte jeden soubor najednou a velké syntetické vstupy
+potom smažte. Výsledky a omezení viz sekce „UI test >512 MiB“ v
+`docs/ifc-large-files-baseline.md`. Projektová ESLint pravidla pro `assets/js/`
+se na tento `.mjs` nevztahují.
+
 Výběr produktů je přímo `detectProductTypes(index)` z vieweru plus
 `HIDDEN_PRODUCT_TYPES`, aby byly vykázány i skryté produkty. Nejde o vlastní
 úplnou schématovou klasifikaci IfcProduct: typy vyloučené detektorem vieweru

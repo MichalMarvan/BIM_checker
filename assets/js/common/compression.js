@@ -66,15 +66,22 @@ window.Compression = (function() {
         const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
         return view.length >= 2 && view[0] === 0x1f && view[1] === 0x8b;
     }
+    /**
+     * gzip a string, raw bytes or a Blob/File. Blobs are streamed, so a file
+     * above V8's ~512 MiB string limit never has to become a JS string.
+     */
     async function compress(text) {
-        if (typeof text !== 'string') {
-            throw new TypeError('Compression.compress expects a string');
+        const isBlob = typeof Blob !== 'undefined' && text instanceof Blob;
+        const isBytes = text instanceof ArrayBuffer || ArrayBuffer.isView(text);
+        if (typeof text !== 'string' && !isBlob && !isBytes) {
+            throw new TypeError('Compression.compress expects a string, bytes or Blob');
         }
         if (!isSupported()) {
             throw new Error('CompressionStream not supported in this environment');
         }
-        const encoded = new TextEncoder().encode(text);
-        const stream = new Blob([encoded]).stream()
+        const source = typeof text === 'string' ? new Blob([new TextEncoder().encode(text)])
+            : isBlob ? text : new Blob([text]);
+        const stream = source.stream()
             .pipeThrough(new CompressionStream('gzip'));
         const blob = await new Response(stream).blob();
         const buffer = await blob.arrayBuffer();
@@ -99,8 +106,11 @@ window.Compression = (function() {
             const viaWorker = _decompressInWorker(view);
             if (viaWorker) {
                 try {
-                    return await viaWorker;
+                    return _assertNotTruncated(view, await viaWorker);
                 } catch (e) {
+                    if (e && e.code === 'TEXT_TOO_LARGE') {
+                        throw e;
+                    }
                     console.warn('[Compression] worker decompress failed, falling back inline:', e.message);
                 }
             }
@@ -109,7 +119,23 @@ window.Compression = (function() {
         const stream = new Blob([view]).stream()
             .pipeThrough(new DecompressionStream('gzip'));
         const blob = await new Response(stream).blob();
-        return await blob.text();
+        return _assertNotTruncated(view, await blob.text());
+    }
+
+    // gzip's last 4 bytes hold the uncompressed size (mod 2^32). Chromium
+    // returns '' without an exception when the text exceeds V8's string limit;
+    // surface that instead of handing callers an empty file.
+    function _assertNotTruncated(view, text) {
+        if (text.length > 0 || view.byteLength < 8) {
+            return text;
+        }
+        const isize = new DataView(view.buffer, view.byteOffset + view.byteLength - 4, 4).getUint32(0, true);
+        if (isize > 0) {
+            const err = new Error(`Decompressed content (${isize} bytes) is too large for a JS string; use Compression.decompressToBytes`);
+            err.code = 'TEXT_TOO_LARGE';
+            throw err;
+        }
+        return text;
     }
 
     /**

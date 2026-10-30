@@ -322,7 +322,166 @@ geometrie (59 s z 74 s) na hlavním vlákně.
 
 ## Reprodukce
 
+Starší fáze; reprodukce nového UI měření je v samostatné sekci níže.
+
 Všechny Node příkazy běží přes `tp-run` na ThinkPadu. Měřicí sonda
 (`parseStepText` + `EntityIndex` se snapshoty `process.memoryUsage()` po
 `global.gc()`) a blokový validátor generátoru byly dočasné soubory v `/tmp`
 a nejsou verzované. Skutečný worker je `workers/parser.worker.js`.
+
+## UI test >512 MiB
+
+**MĚŘENO 2026-10-30**, větev `3d-viewer-integration`, produkční HEAD
+`6f4654e`. Nový `scripts/ifc-diag/viewer-ui-probe.mjs`, žádné změny
+produkčního kódu, commit ani push. ThinkPad, Node `v22.21.0`,
+`Chrome/148.0.7778.97`, headless Puppeteer, SwiftShader,
+`--js-flags=--max-old-space-size=8192 --expose-gc`, viewport 1280 × 800.
+GC se nevolá. `tp-status`: tailscale/SSH/Chroma/Ollama OK.
+
+**Výsledek: malý reálný IFC prošel; import syntetického 768 MiB IFC
+tiše ztratil celý obsah ještě před gzipem. Celé UI pro >512 MiB neprošlo.**
+Absence `pageerror` a `console.error` zde neznamená úspěch.
+
+### Cesta UI a způsob měření
+
+Viewer nemá file input ani importní drop zónu (sonda zjistila 0 file inputů).
+Jeho panel Storage pouze vybírá uložené soubory. Sonda otevře skutečný
+`pages/3d-viewer.html`, přejde na `index.html`, nahraje soubor pomocí
+`ElementHandle.uploadFile()` do `#ifcFileInput`, u velkého vstupu klikne
+na potvrzení a vyčká na `storage:fileAdded` i zmizení loading overlay.
+Pak přejde zpět na viewer a klikne na skutečné `[data-load-file]` v automaticky
+otevřeném Storage panelu. Nevkládá data přímo do úložiště ani nevolá engine
+místo UI. Backend je `indexedDB`, výchozí merged geometrie a cache zůstávají
+zapnuté; každý běh má nový dočasný profil, tedy žádný cache hit z minulého běhu.
+Service worker je při navigaci obcházen a onboarding lokální složky potlačen.
+
+Pozorovací obaly zachovávají argumenty/výsledky produkčních metod; zaznamenávají
+FileReader, Compression, potvrzení transakce IDB a `BIMStorage.getFileBytes`.
+Úspěch vyžaduje UI status `success`, viditelné modelové meshe s trojúhelníky,
+živý WebGL kontext, žádné `pageerror`/`console.error`; sonda počká ještě na
+dva vykreslovací snímky. Screenshoty byly také vizuálně zkontrolovány:
+malý model mostu je vidět, velký má prázdný viewport a červený status.
+
+RSS je součet `VmRSS` stromu procesů Chromia, vzorkování 250 ms plus události
+fází; zahrnuje screenshot, nezahrnuje Node, diskovou cache OS ani generátor.
+Sdílené stránky paměti mohou být započtené opakovaně; není to PSS ani součet
+JS heapů. `heapBytes` v JSON jsou pouze snapshoty stránky bez GC, nikoli peak.
+Jeden dokončený běh na vstup, nejde o statistiku. Před ním byly ukončeny dva
+ladicí běhy malého vstupu kvůli chybnému čekání v sondě (prázdný seznam souborů,
+opětovné kliknutí zavírající automaticky otevřený panel); níže nejsou započítány.
+
+### Naměřená čísla
+
+Všechny hodnoty této tabulky jsou **MĚŘENO**. Generátor vytvořil 43 kopií DATA,
+14 575 624 entit; duplicitní GlobalId a opakovaná geometrie jsou záměr.
+Velikost velkého souboru byla potvrzena `stat`, překračuje i požadovaných 600 MiB.
+
+| Metrika | D214_SO112201.ifc | ui-700.ifc |
+| --- | ---: | ---: |
+| Vstup B (MiB) | 17 608 478 (16,793) | 805 309 283 (768,003) |
+| FileReader výsledek: počet znaků | 17 608 478 | **0** |
+| Uložený gzip B | 3 554 900 | **20** |
+| `getFileBytes`: skutečně vrácené B | 17 608 478 | **0** |
+| Upload od file inputu po skrytí overlay | 1 489 ms | 1 631 ms (prázdný obsah) |
+| Viewer od kliknutí po zjištění konečného statusu | 6 097 ms | 4 542 ms (prázdný obsah) |
+| Celé UI včetně navigací a čekání na snímky (`uiWallMs`) | 10 017 ms | 7 011 ms |
+| Celý běh včetně screenshotu a zavření (`wallMs`) | 18 184 ms | 9 110 ms |
+| Peak RSS B (MiB) | 1 367 097 344 (1 303,77) | 2 434 826 240 (2 322,03) |
+| Registrované modely | 1 | 1 **prázdný** |
+| Entity / produkty / vykreslené prvky | 338 968 / 202 / 202 | 0 / 0 / 0 |
+| Modelové meshe / trojúhelníky | 1 / 120 468 | 0 / 0 |
+| Neprázdná scéna | ano | **ne** |
+| `pageerror` / `console.error` / failed requests | 0 / 0 / 0 | 0 / 0 / 0 |
+| Návratový kód sondy | 0 | **1** |
+
+Oba běhy zaznamenaly čtyři `console.warn`: deprecated Apple meta tag,
+detekci software WebGL a dvakrát upozornění THREE na počet vzorků
+`sigmaRadians`. Žádný crash, timeout ani ztráta WebGL kontextu.
+Malý model: engine `parse=3656`, `index=37`, `geometry=1130`, `total=4842 ms`.
+Velký vstup: engine `parse=11`, `index=1`, `geometry=2`, `total=14 ms` —
+**toto jsou časy zpracování nuly bajtů, nikoli 768 MiB IFC**.
+
+### Přesné místo selhání a návrh opravy
+
+**MĚŘENO:** `FilePanel.uploadFiles()` v `assets/js/index.js:215` používá
+`reader.readAsText(file)`. Pro 805 309 283 B přišel event `load`, nikoli
+`error`; `resultType="string"`, `chars=0`, `reader.error=null`.
+První prokazatelná ztráta dat je tedy převod souboru na celý JS řetězec.
+Souvislost s limitem délky řetězce V8 je **interpretace** tohoto měření a
+textové cesty; přesný hraniční počet znaků se v této úloze neměřil.
+
+`onload` (`assets/js/index.js:184`) předá prázdný text do
+`StorageManager.addFile()` (`assets/js/common/storage.js:288`).
+`Compression.compress()` (`assets/js/common/compression.js:69`) úspěšně
+vytvoří 20 B gzip prázdného řetězce. Transakce IndexedDB je potvrzená a UI
+oznámí přidání souboru. Metadata dál nesou velikost původního souboru.
+Není to selhání kvóty IndexedDB ani výjimka gzipu.
+
+`getFileBytes()`/`decompressToBytes()` vrátí 0 B.
+Kontrola `if (!raw)` v `assets/js/3d/viewer-page.js:204` nezachytí prázdný
+typed array, protože objekt je truthy. Engine pak zpracuje prázdný buffer,
+registruje model se schématem `UNKNOWN`, 0 entitami a 0 meshi. UI nakonec
+hlásí `⚠ ui-700.ifc — 0 mesh (geometrie tohoto IFC zatím není podporovaná)`.
+JSON `failedPhase="viewer-load"` označuje místo konečného neúspěšného statusu;
+první poškození dat je již předtím v `FileReader.readAsText`.
+
+**Navržená oprava, NEIMPLEMENTOVÁNO:** převést také import a zápis na bajty:
+z file inputu předávat `File`/`Blob` (případně ArrayBuffer), gzipovat
+`File.stream().pipeThrough(new CompressionStream('gzip'))` bez sestavení
+celého JS řetězce a zachovat čtení přes `getFileBytes`. Před uložením ověřit,
+že neprázdný vstup neztratil obsah; ve vieweru kontrolovat `byteLength === 0`
+a hlásit prázdný/poškozený obsah místo nepodporované geometrie.
+Import musí propagovat chyby čtení/komprese/zápisu a ukončit loading overlay
+i při zamítnutí asynchronního `onload` (současný Promise řeší pouze `resolve`).
+
+**NEOVĚŘENO:** komprese, uložení a následné načtení skutečného obsahu
+>512 MiB touto UI cestou; engine ani geometrie nad syntetickými 768 MiB se
+v tomto běhu vůbec neotestovaly. Také neověřeno: jiné prohlížeče, hardware
+WebGL, opětovné načtení z cache a přesná hranice selhání FileReader.
+Dřívější úspěšná přímá engine sonda na D3_SO204 zůstává odděleným výsledkem.
+
+### Příkazy a artefakty
+
+Příkazy spuštěné z Pi (Node/npm/Chromium výhradně na ThinkPadu), postupně:
+
+```sh
+tp-status
+tp-run 'npx eslint scripts/ifc-diag/viewer-ui-probe.mjs && node scripts/ifc-diag/viewer-ui-probe.mjs ~/shared/real/RuzLet/D.2.1.4/D214_SO112201.ifc --timeout=180 --out=/tmp/viewer-ui-small.json --screenshot=/tmp/viewer-ui-small.png > /tmp/viewer-ui-small.stdout.json 2> /tmp/viewer-ui-small.log'
+tp-run 'node scripts/ifc-diag/make-large-ifc.mjs ~/shared/real/RuzLet/D.2.1.4/D214_SO112201.ifc ~/tmp-large/ui-700.ifc 700 > /tmp/viewer-ui-generator.json && stat -c "%n %s bytes" ~/tmp-large/ui-700.ifc'
+tp-run 'trap "rm -f ~/tmp-large/ui-700.ifc" EXIT; node scripts/ifc-diag/viewer-ui-probe.mjs ~/tmp-large/ui-700.ifc --timeout=1800 --out=/tmp/viewer-ui-large.json --screenshot=/tmp/viewer-ui-large.png > /tmp/viewer-ui-large.stdout.json 2> /tmp/viewer-ui-large.log'
+tp-run 'npx eslint scripts/ifc-diag/viewer-ui-probe.mjs && node --check scripts/ifc-diag/viewer-ui-probe.mjs && npx eslint --print-config scripts/ifc-diag/viewer-ui-probe.mjs > /tmp/viewer-ui-eslint-config.json'
+ssh -n thinkpad 'cat /tmp/viewer-ui-small.json'
+ssh -n thinkpad 'cat /tmp/viewer-ui-large.json'
+scp thinkpad:/tmp/viewer-ui-small.png /tmp/viewer-ui-small.png
+scp thinkpad:/tmp/viewer-ui-large.png /tmp/viewer-ui-large.png
+scp thinkpad:/tmp/viewer-ui-small.json /tmp/viewer-ui-small.json
+scp thinkpad:/tmp/viewer-ui-large.json /tmp/viewer-ui-large.json
+scp thinkpad:/tmp/viewer-ui-generator.json /tmp/viewer-ui-generator.json
+ssh -n thinkpad 'ls -la ~/tmp-large; df -h ~'
+```
+
+ESLint i `node --check`: exit 0. **Omezení lintu:** `--print-config`
+vrátil `"rules": {}`; pravidla pro `assets/js/**/*.js` se na skript
+nevztahují, proběhla jen kontrola parsovatelnosti, nikoli projektová pravidla.
+JSON/PNG jsou v `/tmp` na obou strojích, logy a ESLint config v `/tmp` na
+ThinkPadu; nejsou verzované ani trvalý archiv. `tp-run` je nesmaže při rsync.
+Dočasný Chromium profil se po zavření odstranil. Závěrečná kontrola:
+`~/tmp-large` obsahoval jen `.` a `..`, disk `/dev/nvme0n1p5` měl 9,7 GiB
+volných dle `df -h` (90 % obsazení). Velký syntetický IFC byl odstraněn
+automaticky pomocí `trap` i při neúspěšném testu.
+
+## UI test >512 MiB — po opravě importu
+
+Výše popsané selhání (import přes `FileReader.readAsText` tiše vrátil prázdný
+řetězec) se týká stavu `6f4654e`. Oprava: import souborů nad 128 MiB ukládá
+`File` jako Blob a `Compression.compress` ho gzipuje streamem bez JS řetězce;
+`Compression.decompress` hlásí chybu místo prázdného textu; viewer odmítne
+prázdný obsah. **MĚŘENO** (stejná sonda a vstup `ui-700.ifc`, 805 309 283 B,
+jediný běh): gzip 154 193 834 B, `getFileBytes` vrátil 805 309 283 B,
+14 575 624 entit, 8 686 produktů a prvků, 1 mesh / 5 180 124 trojúhelníků,
+neprázdná scéna, status „✓ … 14575624 entit, 1 mesh“, 0 `pageerror`
+a 0 `console.error`. Celé UI 281 s (swiftshader), peak RSS stromu Chromia
+3 606 MiB. Screenshot selhal na „diagnostic timeout“ (software GL), ostatní
+kontroly prošly. **NEOVĚŘENO:** hardwarové WebGL, gzipovaný vstup >512 MiB
+přes jiné stránky (validátor, IDS) — ty čtou obsah jako řetězec a po opravě
+aspoň hlásí chybu místo prázdného souboru.

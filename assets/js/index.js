@@ -13,6 +13,10 @@
 // =======================
 // FILE PANEL
 // =======================
+// Files above this are stored as a Blob (gzip-streamed) instead of being read
+// into one JS string — well below V8's ~512 MiB string cap.
+const STREAM_IMPORT_BYTES = 128 * 1024 * 1024;
+
 class FilePanel {
     constructor(type, storageKey) {
         this.type = type; // 'ifc' or 'ids'
@@ -180,14 +184,31 @@ class FilePanel {
                 }
             };
 
+            // Above V8's ~512 MiB string limit readAsText() "succeeds" with an
+            // empty string; big files go to storage as a Blob (gzip-streamed).
+            const asBlob = file.size > STREAM_IMPORT_BYTES;
             await new Promise((resolve) => {
-                reader.onload = async (e) => {
+                const store = async (content) => {
+                    if (file.size > 0 && (typeof content === 'string' ? content.length === 0 : false)) {
+                        ErrorHandler.error(`${i18n.t('msg.readError')}: ${file.name}`);
+                        processed++;
+                        resolve();
+                        return;
+                    }
                     loadingSubtext.textContent = i18n.t('loading.database');
-                    await this.storage.addFile({
-                        name: file.name,
-                        size: file.size,
-                        content: e.target.result
-                    }, targetFolder); // Use saved targetFolder
+                    try {
+                        await this.storage.addFile({
+                            name: file.name,
+                            size: file.size,
+                            content
+                        }, targetFolder); // Use saved targetFolder
+                    } catch (err) {
+                        console.error('Failed to store file:', err);
+                        ErrorHandler.error(`${i18n.t('msg.readError')}: ${file.name}`);
+                        processed++;
+                        resolve();
+                        return;
+                    }
 
                     // Dispatch event for wizard
                     window.dispatchEvent(new CustomEvent('storage:fileAdded', {
@@ -207,12 +228,17 @@ class FilePanel {
 
                     resolve();
                 };
+                reader.onload = (e) => store(e.target.result);
                 reader.onerror = () => {
                     ErrorHandler.error(`${i18n.t('msg.readError')}: ${file.name}`);
                     processed++;
                     resolve();
                 };
-                reader.readAsText(file);
+                if (asBlob) {
+                    store(file);
+                } else {
+                    reader.readAsText(file);
+                }
             });
         }
 
