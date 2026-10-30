@@ -64,6 +64,32 @@ const COMPLEX_RECORD_RE = /^#\d+\s*=\s*\(/;
 const DATA_SECTION_RE = /\bDATA\s*;/;
 const MAX_DIAGNOSTIC_SAMPLES = 100;
 
+// V8 (Chrome, Node) caps a single string at 2^29 - 24 code units on 64-bit.
+// Decoding a larger buffer does NOT throw: TextDecoder/FileReader/file.text()
+// silently return '' (measured in Chromium with a 600 MB file), so the parse
+// would succeed with zero entities and the viewer would report "0 mesh".
+export const MAX_STEP_TEXT_BYTES = 2 ** 29 - 24;
+
+/**
+ * Throw a clear error when the raw file cannot become one JS string.
+ * Multi-byte UTF-8 can only shrink the code-unit count, so byte length is
+ * a safe upper bound; the decoded-text check catches the silent '' case.
+ * @param {number} byteLength — raw input size
+ * @param {string} [decodedText] — result of the decode, when available
+ * @param {string} [name] — file name for the message
+ */
+export function assertStepTextFits(byteLength, decodedText, name = '') {
+  const label = name ? `${name}: ` : '';
+  const mb = n => (n / 1048576).toFixed(0);
+  if (byteLength > MAX_STEP_TEXT_BYTES) {
+    throw new RangeError(`${label}IFC file is too large to load in the browser (${mb(byteLength)} MB; ` +
+      `limit ${mb(MAX_STEP_TEXT_BYTES)} MB per file). Split the model or use a smaller export.`);
+  }
+  if (typeof decodedText === 'string' && decodedText.length === 0 && byteLength > 0) {
+    throw new RangeError(`${label}IFC file could not be decoded as text (${mb(byteLength)} MB; empty decode result).`);
+  }
+}
+
 // Schema detection: FILE_SCHEMA(('IFC4'));
 const SCHEMA_RE = /FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'\s*\)\s*\)/;
 

@@ -494,6 +494,8 @@ Cíl: viewer a parser správně podle buildingSMART; postup = validace → viewe
 - [x] Vizuální kontrola Chrome MCP (statický server na ThinkPadu): D214 + sectioned solid bez chyb v konzoli (software WebGL, pixelované)
 - [x] F3d: halfspace clip (`halfspace-clip.js`), obecný extruded DIFFERENCE (`boolean-extra.js`, objem = web-ifc 1,0000 u 27/29 reálných produktů), IfcFixedReferenceSweptAreaSolid + TIN (`swept-extra.js`; web-ifc ignoruje Start/EndParam, bbox bez ořezu 0,03 %); pipeline v11; reálné modely: PARTIAL 0, degenerované 0
 - [x] F2b: čtyři tokenizery sjednoceny (parita 107/107 souborů), F5: korpusová brána `test:ifc-corpus` v CI (19 fixtur)
-- [ ] Zbývá: IfcReferent vs CartesianPosition (rozhodnout, co je blíž pravdě), IfcPolygonalBoundedHalfSpace nekonvexní, booleany jiné než extruze, vizuální kontrola nových typů, ADD2 EXPRESS pro IFC4X3
+- [x] IfcReferent/linear placement: náš engine (CartesianPosition) chyba 0,00016 mm, web-ifc až 14,9 mm → 10 odchylek v oracle jsou chyby web-ifc (docs/ifc-linear-placement-analysis.md)
+- [x] Soubory do 453 MB (D214X) projdou celým viewerem (RSS 4,8 GB); nad 512 MiB hlásí srozumitelnou chybu místo tichého prázdného modelu; streaming parser by byl 3–5 dní
+- [ ] Zbývá: IfcPolygonalBoundedHalfSpace nekonvexní, booleany jiné než extruze, vizuální kontrola nových typů, ADD2 EXPRESS pro IFC4X3
 
 Branch: 3d-viewer-integration

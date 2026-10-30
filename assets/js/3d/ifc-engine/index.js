@@ -5,7 +5,7 @@
 import { EntityIndex } from './parser/entity-index.js';
 import { buildLayerIndex } from './parser/presentation-layers.js';
 import { ViewerCore } from './viewer/viewer-core.js';
-import { splitParams } from './parser/step-parser.js';
+import { splitParams, assertStepTextFits } from './parser/step-parser.js';
 import { parseRefList } from './geometry/step-helpers.js';
 import { extractPropertiesFor } from './properties/psets.js';
 import { extractRelatedData } from './properties/related-data.js';
@@ -99,7 +99,12 @@ export class IfcEngine {
     };
     try {
       const t0 = performance.now();
+      // Chromium returns '' (no exception) when a buffer exceeds V8's string
+      // limit — fail loudly here instead of loading an empty model.
+      const inputBytes = typeof input === 'string' ? 0 : (input?.byteLength ?? 0);
+      assertStepTextFits(inputBytes, undefined, options.name);
       let text = typeof input === 'string' ? input : new TextDecoder('utf-8').decode(input);
+      assertStepTextFits(inputBytes, text, options.name);
       const t1 = performance.now();
 
       const { entities, schema, viewDefinitions } = await this._parseInWorker(text);
