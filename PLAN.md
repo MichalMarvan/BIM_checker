@@ -496,6 +496,9 @@ Cíl: viewer a parser správně podle buildingSMART; postup = validace → viewe
 - [x] F2b: čtyři tokenizery sjednoceny (parita 107/107 souborů), F5: korpusová brána `test:ifc-corpus` v CI (19 fixtur)
 - [x] IfcReferent/linear placement: náš engine (CartesianPosition) chyba 0,00016 mm, web-ifc až 14,9 mm → 10 odchylek v oracle jsou chyby web-ifc (docs/ifc-linear-placement-analysis.md)
 - [x] Soubory do 453 MB (D214X) projdou celým viewerem (RSS 4,8 GB); nad 512 MiB hlásí srozumitelnou chybu místo tichého prázdného modelu; streaming parser by byl 3–5 dní
-- [ ] Zbývá: IfcPolygonalBoundedHalfSpace nekonvexní, booleany jiné než extruze, vizuální kontrola nových typů, ADD2 EXPRESS pro IFC4X3
+- [x] Soubory >512 MiB: bajtový lexer (SoA index), načtení z bajtů bez JS řetězce, import velkých souborů jako Blob, ochrana proti tiché ztrátě; UI test syntetického 768 MiB IFC bez chyb (281 s, RSS 3,6 GiB), D214X RSS 4596→2190 MiB
+- [x] Vizuální kontrola nových typů (částečně): advanced brep odpovídá datům, faceted brep shora odpovídá datům; 3D tvar faceted brep, CSG blok, surface-model a georeferencování vizuálně NEOVĚŘENY (kryje je jen oracle web-ifc v korpusové bráně)
+- [ ] Geometrie ve více workerech (návrh: Fable analýza SharedArrayBuffer vs kopie bajtů)
+- [ ] Zbývá: IfcPolygonalBoundedHalfSpace nekonvexní, booleany jiné než extruze, ADD2 EXPRESS pro IFC4X3, validátor/IDS stránky s vlastními parsery mají strop 512 MiB
 
 Branch: 3d-viewer-integration
