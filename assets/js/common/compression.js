@@ -23,12 +23,12 @@ window.Compression = (function() {
         try {
             _worker = new Worker(new URL('compression-worker.js', _scriptSrc));
             _worker.onmessage = (e) => {
-                const { id, text, error } = e.data || {};
+                const { id, text, buf, error } = e.data || {};
                 const p = _pending.get(id);
                 if (!p) return;
                 _pending.delete(id);
                 if (error) p.reject(new Error(error));
-                else p.resolve(text);
+                else p.resolve(buf !== undefined ? buf : text);
             };
             _worker.onerror = () => {
                 _workerBroken = true;
@@ -44,7 +44,7 @@ window.Compression = (function() {
         return _worker;
     }
 
-    function _decompressInWorker(view) {
+    function _decompressInWorker(view, asBytes) {
         const w = _getWorker();
         if (!w) return null;
         // Copy before transfer — the caller's buffer must stay intact so the
@@ -52,7 +52,7 @@ window.Compression = (function() {
         const buf = view.slice().buffer;
         const id = _nextId++;
         const promise = new Promise((resolve, reject) => _pending.set(id, { resolve, reject }));
-        w.postMessage({ id, buf }, [buf]);
+        w.postMessage({ id, buf, asBytes: !!asBytes }, [buf]);
         return promise;
     }
 
@@ -112,6 +112,44 @@ window.Compression = (function() {
         return await blob.text();
     }
 
+    /**
+     * Like decompress() but returns the raw bytes (Uint8Array) and never builds
+     * a JS string, so payloads above V8's ~512 MiB string limit survive.
+     * Strings are UTF-8 encoded; plain bytes pass through untouched.
+     */
+    async function decompressToBytes(bytes) {
+        if (bytes === null || bytes === undefined) {
+            return new Uint8Array(0);
+        }
+        if (typeof bytes === 'string') {
+            return new TextEncoder().encode(bytes);
+        }
+
+        const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
+        if (!isGzipped(view)) {
+            return view;
+        }
+
+        if (!isSupported()) {
+            throw new Error('Cannot decompress: CompressionStream not supported');
+        }
+
+        if (view.byteLength >= WORKER_THRESHOLD) {
+            const viaWorker = _decompressInWorker(view, true);
+            if (viaWorker) {
+                try {
+                    return new Uint8Array(await viaWorker);
+                } catch (e) {
+                    console.warn('[Compression] worker decompress failed, falling back inline:', e.message);
+                }
+            }
+        }
+
+        const stream = new Blob([view]).stream()
+            .pipeThrough(new DecompressionStream('gzip'));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+
     function _decompressViaWorkerForTest(bytes) {
         const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
         const p = _decompressInWorker(view);
@@ -119,5 +157,5 @@ window.Compression = (function() {
         return p;
     }
 
-    return { compress, decompress, isGzipped, isSupported, _decompressViaWorkerForTest };
+    return { compress, decompress, decompressToBytes, isGzipped, isSupported, _decompressViaWorkerForTest };
 })();

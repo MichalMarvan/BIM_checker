@@ -148,3 +148,29 @@ describe('Compression — worker decompress', () => {
         expect(out === original).toBe(true);
     });
 });
+
+describe('Compression.decompressToBytes', () => {
+    it('round-trips gzip to the same bytes as decompress()', async () => {
+        const original = 'ISO-10303-21; #1=IFCPROJECT(\'x\'); č ě š';
+        const gz = await Compression.compress(original);
+        const bytes = await Compression.decompressToBytes(gz);
+        expect(bytes instanceof Uint8Array).toBe(true);
+        expect(new TextDecoder().decode(bytes) === original).toBe(true);
+    });
+
+    it('passes plain bytes through and encodes strings', async () => {
+        const plain = new TextEncoder().encode('hello');
+        expect((await Compression.decompressToBytes(plain)).byteLength).toBe(5);
+        expect((await Compression.decompressToBytes('héllo')).byteLength).toBe(6);
+        expect((await Compression.decompressToBytes(null)).byteLength).toBe(0);
+    });
+
+    it('over-threshold gzip round-trips as bytes (worker or fallback)', async () => {
+        let s = '';
+        for (let i = 0; i < 120000; i++) s += ((i * 2654435761) % 1000003).toString(36) + ',';
+        const gz = await Compression.compress(s);
+        expect(gz.byteLength > 256 * 1024).toBe(true);
+        const bytes = await Compression.decompressToBytes(gz);
+        expect(new TextDecoder().decode(bytes) === s).toBe(true);
+    });
+});

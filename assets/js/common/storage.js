@@ -449,6 +449,16 @@ class StorageManager {
         return await Compression.decompress(stored);
     }
 
+    async getFileBytes(fileId) {
+        // Same as getFileContent but never builds a JS string (>512 MiB safe)
+        const contentKey = `${this.storageKey}_file_${fileId}`;
+        const stored = await this.idb.get(contentKey);
+        if (stored === null || stored === undefined) {
+            return null;
+        }
+        return await Compression.decompressToBytes(stored);
+    }
+
     async getFileWithContent(fileId) {
         // Get metadata from data structure
         const metadata = this.data?.files[fileId] || this.metadata?.files[fileId];
@@ -574,6 +584,15 @@ class IndexedDBStorageBackend {
 
         const storage = this._storageFor(type);
         return await storage.getFileContent(fileId);
+    }
+
+    async getFileBytes(type, fileId) {
+        if (!this.initialized) {
+            await this.init();
+        }
+
+        const storage = this._storageFor(type);
+        return await storage.getFileBytes(fileId);
     }
 
     async getFileWithContent(type, nameOrId) {
@@ -764,6 +783,15 @@ window.BIMStorage = {
 
     async getFileContent(type, fileId) {
         return await _activeBackend.getFileContent(type, fileId);
+    },
+
+    /** Raw bytes (Uint8Array|ArrayBuffer) — no string round trip, for huge IFC. */
+    async getFileBytes(type, fileId) {
+        if (typeof _activeBackend.getFileBytes === 'function') {
+            return await _activeBackend.getFileBytes(type, fileId);
+        }
+        const content = await _activeBackend.getFileContent(type, fileId);
+        return typeof content === 'string' ? new TextEncoder().encode(content) : content;
     },
 
     async getFileWithContent(type, nameOrId) {

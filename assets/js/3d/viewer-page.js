@@ -200,7 +200,7 @@ async function loadIfcFromStorage(fileMeta) {
     };
     try {
         setStatus(`${t('viewer3d.loading') || 'Načítám'} ${fileMeta.name}…`);
-        let raw = await window.BIMStorage.getFileContent('ifc', fileMeta.id);
+        let raw = await window.BIMStorage.getFileBytes('ifc', fileMeta.id);
         if (!raw) {
             throw new Error('Empty file content');
         }
@@ -210,7 +210,9 @@ async function loadIfcFromStorage(fileMeta) {
         } else if (typeof raw === 'string') {
             buffer = new TextEncoder().encode(raw).buffer;
         } else if (raw && raw.buffer instanceof ArrayBuffer) {
-            buffer = raw.buffer;
+            buffer = raw.byteOffset === 0 && raw.byteLength === raw.buffer.byteLength
+                ? raw.buffer
+                : raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
         } else {
             buffer = raw;
         }
