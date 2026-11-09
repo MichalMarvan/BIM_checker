@@ -1,7 +1,7 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:9ff2666b-35d1-5797-a127-ec5164b726c1",
+  "serialNumber": "urn:uuid:7e7b39b1-8616-5692-aece-f49fe1b52af5",
   "version": 1,
   "metadata": {
     "component": {
@@ -3788,6 +3788,21 @@
         {
           "license": {
             "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/web-ifc@0.0.78",
+      "name": "web-ifc",
+      "version": "0.0.78",
+      "scope": "excluded",
+      "purl": "pkg:npm/web-ifc@0.0.78",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
           }
         }
       ]

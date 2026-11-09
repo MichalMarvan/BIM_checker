@@ -614,10 +614,16 @@ const SPEC_GROUP_ORDER = ['fail', 'unevaluated', 'pass', 'na'];
 const SPEC_GROUP_ICONS = { fail: '✕', unevaluated: '!', pass: '✓', na: '–' };
 
 function classifySpecResult(specResult) {
-    if (specResult.status === 'skipped' || specResult.status === 'error') return 'unevaluated';
-    if (specResult.status === 'fail' || specResult.failCount > 0) return 'fail';
+    if (specResult.status === 'skipped' || specResult.status === 'error') {
+        return 'unevaluated';
+    }
+    if (specResult.status === 'fail' || specResult.failCount > 0) {
+        return 'fail';
+    }
     const total = (specResult.passCount || 0) + (specResult.failCount || 0);
-    if (total > 0) return 'pass';
+    if (total > 0) {
+        return 'pass';
+    }
     // Žádný prvek: u zakázané specifikace (maxOccurs 0) je to splnění, jinak se netýká modelu.
     const occurrence = specResult.occurrence;
     return occurrence && Number(occurrence.maxOccurs) === 0 ? 'pass' : 'na';
@@ -648,7 +654,9 @@ function specSummaryChipsHtml(counts) {
 
 function displayResultsSummary() {
     const container = document.getElementById('resultsSummary');
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
     const allIfcResults = validationResults.flatMap(idsResult => idsResult.ifcResults || []);
     const counts = countSpecGroups(allIfcResults);
@@ -670,7 +678,9 @@ function displayResultsSummary() {
 }
 
 function specResultText(kind, specResult) {
-    if (kind === 'na') return t('validator.result.na');
+    if (kind === 'na') {
+        return t('validator.result.na');
+    }
     if (specResult.occurrence && specResult.occurrence.status === 'fail') {
         return t('validator.spec.occurrence')
             .replace('{actual}', specResult.occurrence.actual)
@@ -678,7 +688,9 @@ function specResultText(kind, specResult) {
             .replace('{max}', specResult.occurrence.maxOccurs);
     }
     const results = specResult.entityResults || [];
-    if (results.length === 0) return kind === 'pass' ? t('validator.result.prohibitedNone') : '';
+    if (results.length === 0) {
+        return kind === 'pass' ? t('validator.result.prohibitedNone') : '';
+    }
     const failing = results.filter(entity => entity.status !== 'pass').length;
     return failing > 0
         ? t('validator.result.failing').replace('{n}', failing).replace('{total}', results.length)
@@ -797,21 +809,10 @@ function displaySpecificationResults() {
 }
 
 function createIDSResultElement(idsResult) {
-    // Calculate stats for this IDS and collect non-empty IFC results
-    let totalPass = 0;
-    let totalFail = 0;
-    const nonEmptyIfcResults = [];
-
-    for (const ifcResult of idsResult.ifcResults) {
-        // Check if this IFC has any specifications with results
-        if (ifcResult.specificationResults && ifcResult.specificationResults.length > 0) {
-            nonEmptyIfcResults.push(ifcResult);
-            for (const specResult of ifcResult.specificationResults) {
-                totalPass += specResult.passCount;
-                totalFail += specResult.failCount;
-            }
-        }
-    }
+    // Collect IFC results that have any specifications
+    const nonEmptyIfcResults = idsResult.ifcResults.filter(
+        ifcResult => ifcResult.specificationResults && ifcResult.specificationResults.length > 0
+    );
 
     // Skip this IDS if no IFC files have results
     if (nonEmptyIfcResults.length === 0) {
