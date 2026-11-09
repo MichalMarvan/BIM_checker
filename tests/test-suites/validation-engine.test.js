@@ -144,4 +144,54 @@ describe('Validation Engine', () => {
         });
     });
 
+    describe('Unsupported facets are never reported as passed', () => {
+        const wallApplicability = [{ type: 'entity', name: { type: 'simple', value: 'IFCWALL' } }];
+        const propertyRequirement = {
+            type: 'property',
+            propertySet: { type: 'simple', value: 'Pset_WallCommon' },
+            name: { type: 'simple', value: 'IsExternal' }
+        };
+
+        it('should skip a spec with a partOf requirement', async () => {
+            const spec = {
+                name: 'PartOf Spec',
+                applicability: wallApplicability,
+                requirements: [{ type: 'partOf', relation: 'IFCRELCONTAINEDINSPATIALSTRUCTURE' }, propertyRequirement]
+            };
+            const result = await ValidationEngine.validateBatch([mockEntity], spec);
+            expect(result.status).toBe('skipped');
+            expect(result.skipReason).toBe('unsupported-facet');
+            expect(result.unsupportedFacets.join(',')).toBe('partOf');
+            expect(result.entityResults.length).toBe(0);
+        });
+
+        it('should skip a spec with a classification or material requirement', async () => {
+            const spec = {
+                name: 'Class Spec',
+                applicability: wallApplicability,
+                requirements: [{ type: 'classification' }, { type: 'material' }]
+            };
+            const result = await ValidationEngine.validateBatch([mockEntity], spec);
+            expect(result.status).toBe('skipped');
+            expect(result.unsupportedFacets.join(',')).toBe('classification,material');
+        });
+
+        it('should skip a spec with a partOf applicability facet', async () => {
+            const spec = {
+                name: 'Applicability Spec',
+                applicability: [{ type: 'partOf', relation: 'IFCRELAGGREGATES' }],
+                requirements: [propertyRequirement]
+            };
+            const result = await ValidationEngine.validateBatch([mockEntity], spec);
+            expect(result.status).toBe('skipped');
+        });
+
+        it('should still evaluate specs with only supported facets', async () => {
+            const spec = { name: 'Ok Spec', applicability: wallApplicability, requirements: [propertyRequirement] };
+            const result = await ValidationEngine.validateBatch([mockEntity], spec);
+            expect(result.status).toBe('pass');
+            expect(ValidationEngine.findUnsupportedFacets(spec).length).toBe(0);
+        });
+    });
+
 });

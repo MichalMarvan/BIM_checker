@@ -9,7 +9,7 @@ const translations = {
     cs: {
     // === HLAVNÍ APLIKACE ===
         // Page titles + meta descriptions (Phase i18n cleanup)
-        'page.title.index': 'BIM Checker — Nástroje pro IFC a IDS',
+        'page.title.index': 'Validace IFC vůči IDS v prohlížeči — IFC/IDS validátor zdarma | BIM Checker',
         'page.title.validator': 'BIM Checker — IDS-IFC Validátor',
         'page.title.parser': 'BIM Checker — IDS Parser a Vizualizér',
         'page.title.viewer': 'BIM Checker — IFC Multi-File Viewer',
@@ -652,6 +652,7 @@ const translations = {
         'validator.stats.allIds': 'Všechny IDS soubory',
         'validator.spec.skipped':       'Přeskočeno',
         'validator.spec.skippedReason': 'Spec cílí IFC verze: {declared}; tento soubor je {actual}',
+        'validator.spec.skippedUnsupportedFacet': 'Spec obsahuje facety, které tato verze nevyhodnocuje ({facets}); nebyla zkontrolována',
         'validator.spec.errored':       'Chyba specifikace',
         'validator.status.passed': 'Splněno',
         'validator.status.failed': 'Nesplněno',
@@ -1236,7 +1237,7 @@ const translations = {
     en: {
     // === MAIN APPLICATION ===
         // Page titles + meta descriptions (Phase i18n cleanup)
-        'page.title.index': 'BIM Checker — Tools for IFC and IDS',
+        'page.title.index': 'IFC/IDS validator — validate IFC against IDS in your browser, free | BIM Checker',
         'page.title.validator': 'BIM Checker — IDS-IFC Validator',
         'page.title.parser': 'BIM Checker — IDS Parser & Visualizer',
         'page.title.viewer': 'BIM Checker — IFC Multi-File Viewer',
@@ -1879,6 +1880,7 @@ const translations = {
         'validator.stats.allIds': 'All IDS files',
         'validator.spec.skipped':       'Skipped',
         'validator.spec.skippedReason': 'Spec targets IFC versions: {declared}; this file is {actual}',
+        'validator.spec.skippedUnsupportedFacet': 'Spec contains facets this version does not evaluate ({facets}); it was not checked',
         'validator.spec.errored':       'Specification error',
         'validator.status.passed': 'Passed',
         'validator.status.failed': 'Failed',

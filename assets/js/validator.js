@@ -442,6 +442,12 @@ function validateEntitiesAgainstIDS(entities, specifications, options) {
             continue;
         }
 
+        const unsupportedFacets = ValidationEngine.findUnsupportedFacets(spec);
+        if (unsupportedFacets.length > 0) {
+            results.push(ValidationEngine.unsupportedFacetResult(spec, unsupportedFacets));
+            continue;
+        }
+
         // Pick the version to drive hierarchy load
         const ifcVersion = (supported.includes(ifcSchema))
             ? ifcSchema
@@ -535,6 +541,12 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications, options
                 failCount: 0,
                 entityResults: []
             });
+            continue;
+        }
+
+        const unsupportedFacets = ValidationEngine.findUnsupportedFacets(spec);
+        if (unsupportedFacets.length > 0) {
+            results.push(ValidationEngine.unsupportedFacetResult(spec, unsupportedFacets));
             continue;
         }
 
@@ -1024,11 +1036,13 @@ function createSpecificationResultElement(specResult) {
     if (specResult.status === 'skipped') {
         statusBadgeClass = 'status-skipped';
         statusLabel = '⏭ ' + escapeHtml(t('validator.spec.skipped'));
-        detailHtml = `<div class="spec-skip-reason">${escapeHtml(
-            t('validator.spec.skippedReason')
+        const skipText = specResult.skipReason === 'unsupported-facet'
+            ? t('validator.spec.skippedUnsupportedFacet')
+                .replace('{facets}', (specResult.unsupportedFacets || []).join(', '))
+            : t('validator.spec.skippedReason')
                 .replace('{declared}', (specResult.declaredVersions || []).join(', '))
-                .replace('{actual}', specResult.ifcSchema || '?')
-        )}</div>`;
+                .replace('{actual}', specResult.ifcSchema || '?');
+        detailHtml = `<div class="spec-skip-reason">${escapeHtml(skipText)}</div>`;
     } else if (specResult.status === 'error') {
         statusBadgeClass = 'status-error';
         statusLabel = '⚠ ' + escapeHtml(t('validator.spec.errored'));

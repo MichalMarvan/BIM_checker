@@ -111,6 +111,12 @@ function handleValidateSpec(taskId, data) {
         return;
     }
 
+    const unsupportedFacets = ValidationEngine.findUnsupportedFacets(spec);
+    if (unsupportedFacets.length > 0) {
+        self.postMessage({ taskId, type: 'SPEC_RESULT', data: ValidationEngine.unsupportedFacetResult(spec, unsupportedFacets) });
+        return;
+    }
+
     // Branch 3: proceed — pick ifcVersion for hierarchy load
     const ifcVersion = (ifcSchema !== 'UNKNOWN' && supported.includes(ifcSchema))
         ? ifcSchema

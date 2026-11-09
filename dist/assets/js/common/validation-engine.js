@@ -283,6 +283,37 @@ const ValidationEngine = (function() {
         return result;
     }
 
+    // The parser extracts only entity class, attributes and property sets, so
+    // these are the only facets that can be evaluated. Any other facet (partOf,
+    // classification, material, entity as a requirement) must not be reported
+    // as passed - the whole specification is skipped instead.
+    const APPLICABILITY_FACETS = ['entity', 'property', 'attribute'];
+    const REQUIREMENT_FACETS = ['property', 'attribute'];
+
+    function findUnsupportedFacets(spec) {
+        const types = new Set();
+        for (const facet of spec.applicability || []) {
+            if (!APPLICABILITY_FACETS.includes(facet.type)) types.add(facet.type || 'unknown');
+        }
+        for (const facet of spec.requirements || []) {
+            if (!REQUIREMENT_FACETS.includes(facet.type)) types.add(facet.type || 'unknown');
+        }
+        return Array.from(types);
+    }
+
+    function unsupportedFacetResult(spec, unsupportedFacets) {
+        return {
+            specification: spec.name,
+            status: 'skipped',
+            skipReason: 'unsupported-facet',
+            unsupportedFacets,
+            passCount: 0,
+            failCount: 0,
+            entityResults: [],
+            warnings: []
+        };
+    }
+
     /**
      * Validate a batch of entities against a specification
      * @param {Array} entities
@@ -327,6 +358,9 @@ const ValidationEngine = (function() {
                 entityResults: []
             };
         }
+
+        const unsupportedFacets = findUnsupportedFacets(spec);
+        if (unsupportedFacets.length > 0) return unsupportedFacetResult(spec, unsupportedFacets);
 
         // Pick hierarchy load version:
         //   1) IFC file's schema, if supported by the spec
@@ -383,6 +417,8 @@ const ValidationEngine = (function() {
         checkAttributeFacet,
         checkFacetMatch,
         filterByApplicability,
+        findUnsupportedFacets,
+        unsupportedFacetResult,
         validateEntity,
         validateBatch
     };
