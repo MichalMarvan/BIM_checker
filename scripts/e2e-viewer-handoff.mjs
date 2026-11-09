@@ -146,9 +146,14 @@ try {
         document.getElementById('view3dSelectionBtn').click();
     }, { name: fileName, fileId: ids.second, guids: targetGuids });
     await viewer.waitForFunction(() => window.__engine?.getSelectedEntities?.().length === 2, { timeout: 15000 });
-    await source.waitForFunction(() => Boolean(document.getElementById('view3dStatus')?.textContent), { timeout: 5000 });
-    const liveText = await source.$eval('#view3dStatus', element => element.textContent);
-    check(Boolean(liveText), 'Live BroadcastChannel handoff did not return feedback to the IFC table');
+    // Read the text inside the wait: the status line can be cleared again between
+    // a separate wait and a later read on a slow runner.
+    const liveTextHandle = await source.waitForFunction(
+        () => document.getElementById('view3dStatus')?.textContent || false,
+        { timeout: 5000 }
+    );
+    const liveText = await liveTextHandle.jsonValue();
+    check(Boolean(liveText),'Live BroadcastChannel handoff did not return feedback to the IFC table');
 
     const validationResult = await source.evaluate(async ({ name, fileId, guids }) => {
         const payload = window.ViewerLink.buildValidationPayload({
