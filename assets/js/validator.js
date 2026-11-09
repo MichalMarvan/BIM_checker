@@ -603,9 +603,86 @@ async function validateEntitiesAgainstIDSAsync(entities, specifications, options
 // Display Results
 function displayResults() {
     displayStats();
+    displayResultsSummary();
     populateSpecFilter();
     displaySpecificationResults();
     setupShowAllIn3dButton();
+}
+
+// Skupiny výsledků specifikací v pořadí zobrazení: co selhalo je nahoře.
+const SPEC_GROUP_ORDER = ['fail', 'unevaluated', 'pass', 'na'];
+const SPEC_GROUP_ICONS = { fail: '✕', unevaluated: '!', pass: '✓', na: '–' };
+
+function classifySpecResult(specResult) {
+    if (specResult.status === 'skipped' || specResult.status === 'error') return 'unevaluated';
+    if (specResult.status === 'fail' || specResult.failCount > 0) return 'fail';
+    const total = (specResult.passCount || 0) + (specResult.failCount || 0);
+    if (total > 0) return 'pass';
+    // Žádný prvek: u zakázané specifikace (maxOccurs 0) je to splnění, jinak se netýká modelu.
+    const occurrence = specResult.occurrence;
+    return occurrence && Number(occurrence.maxOccurs) === 0 ? 'pass' : 'na';
+}
+
+function countSpecGroups(ifcResults) {
+    const counts = { fail: 0, unevaluated: 0, pass: 0, na: 0, total: 0 };
+    for (const ifcResult of ifcResults) {
+        for (const specResult of ifcResult.specificationResults || []) {
+            counts[classifySpecResult(specResult)]++;
+            counts.total++;
+        }
+    }
+    return counts;
+}
+
+function specGroupLabel(kind) {
+    return t('validator.group.' + kind);
+}
+
+// Chipy „2 nesplněno · 1 splněno · 3 se netýká modelu"; nulové skupiny se vynechají.
+function specSummaryChipsHtml(counts) {
+    return SPEC_GROUP_ORDER
+        .filter(kind => counts[kind] > 0)
+        .map(kind => `<span class="spec-chip ${kind}">${escapeHtml(t('validator.summary.' + kind).replace('{n}', counts[kind]))}</span>`)
+        .join('');
+}
+
+function displayResultsSummary() {
+    const container = document.getElementById('resultsSummary');
+    if (!container) return;
+
+    const allIfcResults = validationResults.flatMap(idsResult => idsResult.ifcResults || []);
+    const counts = countSpecGroups(allIfcResults);
+    if (counts.total === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const bar = SPEC_GROUP_ORDER
+        .filter(kind => counts[kind] > 0)
+        .map(kind => `<i class="${kind}" style="flex: ${counts[kind]}"></i>`)
+        .join('');
+
+    container.innerHTML = `
+        <div class="results-summary-headline">${escapeHtml(t('validator.summary.total').replace('{n}', counts.total))}</div>
+        <div class="results-summary-bar" aria-hidden="true">${bar}</div>
+        <div class="results-summary-chips">${specSummaryChipsHtml(counts)}</div>
+    `;
+}
+
+function specResultText(kind, specResult) {
+    if (kind === 'na') return t('validator.result.na');
+    if (specResult.occurrence && specResult.occurrence.status === 'fail') {
+        return t('validator.spec.occurrence')
+            .replace('{actual}', specResult.occurrence.actual)
+            .replace('{min}', specResult.occurrence.minOccurs)
+            .replace('{max}', specResult.occurrence.maxOccurs);
+    }
+    const results = specResult.entityResults || [];
+    if (results.length === 0) return kind === 'pass' ? t('validator.result.prohibitedNone') : '';
+    const failing = results.filter(entity => entity.status !== 'pass').length;
+    return failing > 0
+        ? t('validator.result.failing').replace('{n}', failing).replace('{total}', results.length)
+        : t('validator.result.passing').replace('{n}', results.length).replace('{total}', results.length);
 }
 
 // Globální tlačítko „Zobrazit vše ve 3D" — povolí se s výsledky; handler se
@@ -707,6 +784,11 @@ function displaySpecificationResults() {
         }
     }
 
+    // Jediný IDS soubor rovnou rozbalit; při více souborech zůstanou sbalené kvůli přehlednosti.
+    if (container.children.length === 1) {
+        container.firstElementChild.classList.remove('collapsed');
+    }
+
     // Add event listeners for filtering
     document.getElementById('searchFilter').addEventListener('input', applyFilters);
     document.getElementById('statusFilter').addEventListener('change', applyFilters);
@@ -769,10 +851,7 @@ function createIDSResultElement(idsResult) {
             <span class="spec-name">📋 ${escapeHtml(idsResult.idsTitle)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
-            <div class="spec-stats">
-                <span>✅ ${escapeHtml(totalPass)}</span>
-                <span>❌ ${escapeHtml(totalFail)}</span>
-            </div>
+            ${validationResults.length > 1 ? `<div class="spec-chips">${specSummaryChipsHtml(countSpecGroups(nonEmptyIfcResults))}</div>` : ''}
             <span class="spec-status-badge ${escapeHtml(status)}">
                 ${status === 'pass' ? '✅ ' + escapeHtml(t('validator.status.passed'))
                 : status === 'skipped' ? '⏭️ ' + escapeHtml(t('validator.status.skipped') || 'Skipped')
@@ -785,9 +864,14 @@ function createIDSResultElement(idsResult) {
     const detailsDiv = document.createElement('div');
     detailsDiv.className = 'spec-details';
 
-    // For each non-empty IFC file result
-    for (const ifcResult of nonEmptyIfcResults) {
-        const ifcDiv = createIFCResultElement(ifcResult);
+    // IFC soubory s nesplněnými specifikacemi jsou nahoře, ostatní zůstávají v původním pořadí.
+    const failingFirst = nonEmptyIfcResults.slice().sort((a, b) => {
+        const failA = countSpecGroups([a]).fail > 0 ? 0 : 1;
+        const failB = countSpecGroups([b]).fail > 0 ? 0 : 1;
+        return failA - failB;
+    });
+    for (const ifcResult of failingFirst) {
+        const ifcDiv = createIFCResultElement(ifcResult, nonEmptyIfcResults.length > 1);
         if (ifcDiv) {
             detailsDiv.appendChild(ifcDiv);
         }
@@ -799,20 +883,15 @@ function createIDSResultElement(idsResult) {
     return div;
 }
 
-function createIFCResultElement(ifcResult) {
+function createIFCResultElement(ifcResult, showChips) {
     // Skip if no specifications with results
     if (!ifcResult.specificationResults || ifcResult.specificationResults.length === 0) {
         return null;
     }
 
-    // Calculate stats for this IFC
-    let totalPass = 0;
-    let totalFail = 0;
-    for (const specResult of ifcResult.specificationResults) {
-        totalPass += specResult.passCount;
-        totalFail += specResult.failCount;
-    }
-    const status = totalFail === 0 ? 'pass' : 'fail';
+    // IFC soubor bez nesplněných a nevyhodnocených specifikací se zobrazí sbalený.
+    const specCounts = countSpecGroups([ifcResult]);
+    const startCollapsed = specCounts.fail === 0 && specCounts.unevaluated === 0;
 
     const div = document.createElement('div');
     div.style.marginBottom = '15px';
@@ -831,11 +910,9 @@ function createIFCResultElement(ifcResult) {
         }
     });
     header.innerHTML = `
-        <span class="toggle-icon">▼</span>
+        <span class="toggle-icon">${startCollapsed ? '▶' : '▼'}</span>
         📦 ${escapeHtml(ifcResult.ifcFileName)}
-        <span style="margin-left: 15px; font-size: 0.9em; color: #6c757d;">
-            ✅ ${escapeHtml(totalPass)} | ❌ ${escapeHtml(totalFail)}
-        </span>
+        ${showChips ? `<span class="spec-chips ifc-chips">${specSummaryChipsHtml(specCounts)}</span>` : ''}
         <span class="viewer-link-wrap" style="margin-left: 15px;">
             <button type="button" class="btn btn-secondary viewer-link-btn small file-viewer-btn" title="${escapeAttr(t('validator.viewer.openModelTitle'))}">🧊 ${escapeHtml(t('validator.viewer.openModel'))}</button>
         </span>
@@ -869,11 +946,16 @@ function createIFCResultElement(ifcResult) {
 
     const content = document.createElement('div');
     content.style.paddingLeft = '20px';
+    content.style.display = startCollapsed ? 'none' : 'block';
 
-    // For each specification in this IFC
+    const buckets = { fail: [], unevaluated: [], pass: [], na: [] };
     for (const specResult of ifcResult.specificationResults) {
-        const specDiv = createSpecificationResultElement(specResult);
-        content.appendChild(specDiv);
+        buckets[classifySpecResult(specResult)].push(specResult);
+    }
+    for (const kind of SPEC_GROUP_ORDER) {
+        if (buckets[kind].length > 0) {
+            content.appendChild(createSpecGroupElement(kind, buckets[kind]));
+        }
     }
 
     div.appendChild(header);
@@ -882,67 +964,79 @@ function createIFCResultElement(ifcResult) {
     return div;
 }
 
+// Skupina specifikací jednoho výsledku (nesplněno / nevyhodnoceno / splněno / netýká se modelu).
+// Nesplněné a nevyhodnocené jsou rozbalené, ostatní sbalené.
+function createSpecGroupElement(kind, specResults) {
+    const group = document.createElement('div');
+    const expanded = kind === 'fail' || kind === 'unevaluated';
+    group.className = `spec-group ${kind}${expanded ? '' : ' collapsed'}`;
+
+    const header = document.createElement('div');
+    header.className = 'spec-group-header';
+    header.addEventListener('click', () => group.classList.toggle('collapsed'));
+    header.innerHTML = `
+        <span class="expand-icon">▼</span>
+        <span class="spec-group-title">${escapeHtml(specGroupLabel(kind))}</span>
+        <span class="spec-group-count">${escapeHtml(specResults.length)}</span>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'spec-group-body';
+    for (const specResult of specResults) {
+        body.appendChild(createSpecificationResultElement(specResult));
+    }
+
+    group.appendChild(header);
+    group.appendChild(body);
+    return group;
+}
+
 function createSpecificationResultElement(specResult) {
+    const kind = classifySpecResult(specResult);
     const div = document.createElement('div');
-    div.className = `specification-result ${specResult.status} collapsed`;
+    div.className = `specification-result spec-row ${kind} collapsed`;
     div.dataset.specification = specResult.specification;
     div.dataset.status = specResult.status;
-    div.style.marginBottom = '10px';
 
     const headerDiv = document.createElement('div');
     headerDiv.className = 'spec-header';
     headerDiv.addEventListener('click', () => toggleSpecification(div));
 
-    let statusBadgeClass, statusLabel, detailHtml = '';
+    let detailHtml = '';
     if (specResult.status === 'skipped') {
-        statusBadgeClass = 'status-skipped';
-        statusLabel = '⏭ ' + escapeHtml(t('validator.spec.skipped'));
         detailHtml = `<div class="spec-skip-reason">${escapeHtml(
             t('validator.spec.skippedReason')
                 .replace('{declared}', (specResult.declaredVersions || []).join(', '))
                 .replace('{actual}', specResult.ifcSchema || '?')
         )}</div>`;
     } else if (specResult.status === 'error') {
-        statusBadgeClass = 'status-error';
-        statusLabel = '⚠ ' + escapeHtml(t('validator.spec.errored'));
         detailHtml = `<div class="spec-skip-reason">${escapeHtml(specResult.errorMessage || '')}</div>`;
-    } else if (specResult.status === 'pass') {
-        statusBadgeClass = 'pass';
-        statusLabel = '✅ ' + escapeHtml(t('validator.status.ok'));
-    } else {
-        statusBadgeClass = 'fail';
-        statusLabel = '❌ ' + escapeHtml(t('validator.status.fail'));
     }
 
     const warningsHtml = (Array.isArray(specResult.warnings) && specResult.warnings.length > 0)
         ? `<div class="spec-warnings">${specResult.warnings.map(w => escapeHtml(w)).join('<br>')}</div>`
         : '';
-    const occurrenceHtml = specResult.occurrence
-        ? `<div class="spec-skip-reason">${escapeHtml(t('validator.spec.occurrence')
-            .replace('{actual}', specResult.occurrence.actual)
-            .replace('{min}', specResult.occurrence.minOccurs)
-            .replace('{max}', specResult.occurrence.maxOccurs))}</div>`
+    const hasEntities = (specResult.entityResults || []).length > 0;
+    const resultText = specResultText(kind, specResult);
+    const viewerButtonHtml = hasEntities
+        ? `<div class="viewer-link-wrap">
+                <button type="button" class="btn btn-secondary viewer-link-btn small spec-viewer-btn" title="${escapeAttr(t('validator.viewer.showSpecTitle'))}">🧊 ${escapeHtml(t('validator.viewer.showSpec'))}</button>
+            </div>`
         : '';
 
     headerDiv.innerHTML = `
         <div class="spec-title">
             <span class="expand-icon">▼</span>
-            <span class="spec-name">${escapeHtml(specResult.specification)}</span>
-            ${detailHtml}
-            ${occurrenceHtml}
-            ${warningsHtml}
+            <span class="spec-kind-icon ${kind}" aria-hidden="true">${SPEC_GROUP_ICONS[kind]}</span>
+            <div class="spec-title-text">
+                <span class="spec-name">${escapeHtml(specResult.specification)}</span>
+                ${detailHtml}
+                ${warningsHtml}
+            </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 20px;">
-            <div class="viewer-link-wrap">
-                <button type="button" class="btn btn-secondary viewer-link-btn small spec-viewer-btn" title="${escapeAttr(t('validator.viewer.showSpecTitle'))}">🧊 ${escapeHtml(t('validator.viewer.showSpec'))}</button>
-            </div>
-            <div class="spec-stats">
-                <span>✅ ${escapeHtml(specResult.passCount)}</span>
-                <span>❌ ${escapeHtml(specResult.failCount)}</span>
-            </div>
-            <span class="spec-status-badge ${escapeHtml(statusBadgeClass)}">
-                ${statusLabel}
-            </span>
+        <div class="spec-meta">
+            ${viewerButtonHtml}
+            <span class="spec-result-text ${kind}">${escapeHtml(resultText)}</span>
         </div>
     `;
 
@@ -973,7 +1067,17 @@ function createSpecificationResultElement(specResult) {
     const detailsDiv = document.createElement('div');
     detailsDiv.className = 'spec-details';
 
-    for (const entityResult of specResult.entityResults) {
+    if (kind === 'na') {
+        const reason = document.createElement('div');
+        reason.className = 'spec-skip-reason';
+        reason.textContent = t('validator.na.reason');
+        detailsDiv.appendChild(reason);
+    }
+
+    // Nesplněné prvky nahoře, aby se důvod selhání nemusel hledat.
+    const failingFirst = (specResult.entityResults || []).slice()
+        .sort((a, b) => (a.status === 'pass' ? 1 : 0) - (b.status === 'pass' ? 1 : 0));
+    for (const entityResult of failingFirst) {
         const entityDiv = createEntityResultElement(entityResult);
         detailsDiv.appendChild(entityDiv);
     }
@@ -1060,8 +1164,8 @@ function toggleSpecification(div) {
 
 // Expand/Collapse All
 function expandAll() {
-    // Expand all IDS sections
-    document.querySelectorAll('.specification-result').forEach(div => {
+    // Expand all IDS sections and result groups
+    document.querySelectorAll('.specification-result, .spec-group').forEach(div => {
         div.classList.remove('collapsed');
     });
 
@@ -1076,8 +1180,8 @@ function expandAll() {
 }
 
 function collapseAll() {
-    // Collapse all IDS sections
-    document.querySelectorAll('.specification-result').forEach(div => {
+    // Collapse all IDS sections and result groups
+    document.querySelectorAll('.specification-result, .spec-group').forEach(div => {
         div.classList.add('collapsed');
     });
 
@@ -1140,8 +1244,9 @@ function applyFilters() {
             }
         }
 
-        // Hide IDS if no entities visible
-        idsDiv.style.display = visibleCount > 0 ? 'block' : 'none';
+        // Hide IDS if a filter is active and no entities are visible
+        const filtersActive = Boolean(searchText || statusFilter);
+        idsDiv.style.display = (visibleCount > 0 || !filtersActive) ? 'block' : 'none';
     }
 }
 

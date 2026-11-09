@@ -448,6 +448,172 @@
     color: var(--text-secondary);
 }
 
+/* Souhrn výsledků a skupiny specifikací */
+.results-summary {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.results-summary:empty {
+    display: none;
+}
+
+.results-summary-headline {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.results-summary-bar {
+    display: flex;
+    gap: 2px;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.results-summary-bar i.fail { background: #dc3545; }
+.results-summary-bar i.unevaluated { background: #d89b00; }
+.results-summary-bar i.pass { background: #28a745; }
+.results-summary-bar i.na { background: #8a948f; opacity: 0.55; }
+
+.results-summary-chips,
+.spec-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ifc-chips {
+    display: inline-flex;
+    margin-left: 15px;
+    vertical-align: middle;
+}
+
+.spec-chip {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.spec-chip.fail { background: #f8d7da; color: #721c24; }
+.spec-chip.unevaluated { background: #fff3cd; color: #7a5600; }
+.spec-chip.pass { background: #d4edda; color: #155724; }
+.spec-chip.na { background: #e9ecef; color: #495057; }
+
+.spec-group {
+    margin-bottom: 14px;
+}
+
+.spec-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.spec-group-title {
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.spec-group.fail .spec-group-title { color: #dc3545; }
+
+.spec-group-count {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+}
+
+.spec-group.collapsed .expand-icon {
+    transform: rotate(-90deg);
+}
+
+.spec-group.collapsed .spec-group-body {
+    display: none;
+}
+
+/* Řádek specifikace: ikona stavu, název (max. 2 řádky) a jediný ukazatel výsledku */
+.spec-row {
+    margin-bottom: 10px;
+}
+
+.spec-row .spec-header {
+    padding: 12px 14px;
+    gap: 14px;
+}
+
+.spec-row .spec-name {
+    font-size: 1em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+.spec-title-text {
+    min-width: 0;
+}
+
+.spec-row .spec-title {
+    gap: 12px;
+    min-width: 0;
+}
+
+.spec-kind-icon {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.spec-kind-icon.fail { background: #f8d7da; color: #721c24; }
+.spec-kind-icon.unevaluated { background: #fff3cd; color: #7a5600; }
+.spec-kind-icon.pass { background: #d4edda; color: #155724; }
+.spec-kind-icon.na { background: #e9ecef; color: #495057; }
+
+.spec-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.spec-result-text {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+.spec-result-text.fail { color: #dc3545; font-weight: 600; }
+.spec-result-text.pass { color: #28a745; }
+
+.spec-row.na,
+.spec-row.unevaluated {
+    border-color: var(--border-primary);
+}
+
+.spec-row.na .spec-name {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
 .spec-details {
     padding: 20px;
     border-top: 2px solid var(--border-primary);
