@@ -42,6 +42,7 @@ podpora/
 !examples/**/*.ifc
 !examples/**/*.ids
 !tests/fixtures/ifc-corpus/*.ifc
+!tests/fixtures/handoff-wall.ifc
 
 # Generated frontend builds
 dist/
